@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.2)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.0)"}});
       const text=await r.text(); attempts.push({url:u,status:r.status,bytes:text.length});
       if(!r.ok||text.length<1000) continue;
       const out=new Map();
@@ -594,7 +594,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.2)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.0)"
         }
       });
       const text=await r.text();
@@ -634,7 +634,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.8.2",
+      version: "1.9.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -713,21 +713,18 @@ async function routeApi(request, env, url) {
 
 
   if (url.pathname === "/api/market/universe") {
-    const endDate=isoDateTaipei();
-    const refStart=addDaysISO(endDate,-40);
-    const [twseRaw,tpex,twseCalendar]=await Promise.all([
+    const [twseRaw,tpex]=await Promise.all([
       fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
         .then(raw=>({ok:true,data:normalizeTwse(raw).filter(ordinaryStock)}))
         .catch(e=>({ok:false,data:[],error:String(e?.message||e)})),
-      fetchTpexUniverse(),
-      fetchTwseMonthlyHistory("2330",refStart,endDate)
-        .catch(e=>({ok:false,data:[],error:String(e?.message||e)}))
+      fetchTpexUniverse()
     ]);
-    const snapshotDate=twseCalendar.ok?twseCalendar.data.at(-1)?.date:null;
+    // STOCK_DAY_ALL is used only for universe/current prefilter fields.
+    // Never attach an inferred trading date to it.
     const twse=twseRaw.data.map(x=>({
       market:"twse",code:x.code,name:x.name,
       close:roundTwPrice(x.close),open:roundTwPrice(x.open),high:roundTwPrice(x.high),low:roundTwPrice(x.low),
-      volume_shares:x.volume_shares,turnover:x.turnover,snapshot_date:snapshotDate
+      volume_shares:x.volume_shares,turnover:x.turnover
     }));
     const merged=new Map();
     // Add TPEx first, then overwrite by TWSE. Taiwan ordinary-stock codes are unique;
@@ -739,9 +736,8 @@ async function routeApi(request, env, url) {
     const twseClean=universe.filter(x=>x.market==="twse").length;
     return json({ok:twseRaw.ok||tpex.ok,data:universe,
       counts:{twse:twseClean,tpex:tpexClean,total:universe.length},
-      snapshot_date:snapshotDate,
       sources:{
-        twse:{ok:twseRaw.ok,error:twseRaw.error||null,snapshot_date:snapshotDate,calendar_source:"TWSE STOCK_DAY 2330"},
+        twse:{ok:twseRaw.ok,error:twseRaw.error||null},
         tpex:{ok:tpex.ok,source:tpex.source,upstream:tpex.upstream||null,error:tpex.error||null,attempts:tpex.attempts||[]}
       }
     },(twseRaw.ok||tpex.ok)?200:502,{"cache-control":"no-store"});
@@ -1043,7 +1039,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.8.2");
+        headers.set("X-App-Version","1.9.0");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

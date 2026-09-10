@@ -708,18 +708,10 @@ function entryEngine(rows,R){
   else if(persistence>=30)followBoost=5;
 
   // Execution Score：機會、價格品質，加上跨日延續確認。
-  let score=Math.round(opportunity*.48+entryQuality*.42+persistence*.10)+followBoost;
-  const penalties=[];
-  if(a.hardBroken&&!shock){score-=20;penalties.push('原結構破壞')}
-  if(a.risk>9){score-=10;penalties.push('停損距離>9%')}
+  // V1.9.0 — Entry is independent from Setup / Opportunity / Hold.
+  let score=Math.round(entryQuality*.82+persistence*.18);
   score=clamp(score,0,100);
-  // V4.4：若跨日訊號已被市場確認，不再被單日 Confirmation 硬壓死。
   const effectiveConfirmation=Math.max(confirmation,Math.round(persistence*.88));
-  if(effectiveConfirmation<35)score=Math.min(score,73);
-  if(effectiveConfirmation<50)score=Math.min(score,82);
-  if(entryQuality<48)score=Math.min(score,72);
-  else if(entryQuality<55)score=Math.min(score,82);
-  if(opportunity<55)score=Math.min(score,68);
 
   const triggers=[];
   if(shock)triggers.push('第一強勢事件');
@@ -740,8 +732,8 @@ function entryEngine(rows,R){
   else if(opportunity>=55)phase='預埋觀察';
 
   if(triggers.length&&!a.hardBroken){
-    if(score>=86&&effectiveConfirmation>=65&&entryQuality>=65){state='高品質進場';position='20–30%'}
-    else if(score>=74&&effectiveConfirmation>=48&&entryQuality>=55){state=persistence>=60?'延續確認加碼':'標準進場';position='10–20%'}
+    if(score>=86&&entryQuality>=72){state='高品質進場';position='20–30%'}
+    else if(score>=74&&entryQuality>=62){state=persistence>=60?'延續確認加碼':'標準進場';position='10–20%'}
     else if(score>=62){state=shock?'事件型試單':(persistence>=45?'確認試單':'試單');position='5–10%'}
     else if(score>=54){state='預埋觀察';position='0–5%'}
   } else if(shock&&score>=62){
