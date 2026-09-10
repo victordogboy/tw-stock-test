@@ -1,18 +1,26 @@
-# V1.9.1 — 核心審計修正版
+# V1.9.2 — FinMind / 個股頁一致性修正
 
-真正根因已找到：
-V1.9.0 的 `entryEngine()` return 物件引用了不存在的 `penalties`，造成 ReferenceError。
-Scanner 又把錯誤吞掉後使用 fallbackScore；fallbackScore 把同一個 trend 分數複製給 Setup / Opportunity / Hold，
-因此才會出現 100/100/100、70/70/70、66/66/66 這種假排名。
+1. 個股頁原本同時要求融資、法人、當沖，會對相同 `/api/chips/hybrid` 發出 3 次請求。
+   V1.9.2 改成單一 Chip Bundle Promise，一次取得三組資料。
 
-本版：
-- 移除 undefined `penalties`。
-- 引擎錯誤直接略過股票，不再產生 fallback 假分數。
-- Setup = 65% market structure + 35% optimal structure，不混 ignition。
-- Opportunity 使用自己的事件/動能/突破模型。
-- Entry = 82% Entry Quality + 18% Persistence，不讀 Setup / Opportunity / Hold。
-- Hold 只看既有部位存活性：MA5/10/20、均線方向、HL、hard break、bias、risk。
-- TPEx 名稱自動判斷 UTF-8 / Big5，修正 `����`。
-- 每檔進榜前檢查四分數必須是 0~100 的有限值。
+2. Scanner 第二階段使用 `/api/finmind/recheck`，Detail 原本使用 `/api/chips/hybrid`，
+   兩邊可能因 quota/fallback 取到不同資料。現在 Detail 優先使用和 Scanner 完全相同的
+   `/api/finmind/recheck`；只有 FinMind 失敗才做一次 hybrid fallback。
 
-四分數只在最終 Strategy Tag 組合，分數本身互不限制。
+3. Scanner 的 FinMind 視窗是 140 天，Detail 過去會因 analyze 傳入 300 天開始日而使用不同視窗。
+   現在 Detail 籌碼視窗固定 140 天，與 Scanner 一致。
+
+4. Detail HTML 原本有自己的 `combineScores()` / `entryEngine()` 複本，
+   Scanner 則使用 `v44-engine.js`。兩份模型已經版本漂移。
+   本版把 Detail 的這兩個核心函式同步成 `v44-engine.js` 的同版本實作。
+
+5. Scanner FinMind recheck 後保存：
+   - preFinmind 四分數
+   - postFinmind 四分數
+   - 真正使用的 `_chips`
+   - finmindWindow
+
+6. 從排行榜點進個股時，會保存該筆「當次排名真正使用的籌碼快照」。
+   Detail 優先使用這份快照，因此排行榜與個股頁不會因第二次 API 呼叫而漂移。
+
+7. 個股頁 Banner 顯示籌碼來源；若從 Scanner 開啟，也顯示排行榜 S/O/E/H 快照方便對帳。
