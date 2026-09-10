@@ -456,7 +456,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.7.3",
+      version: "1.7.4",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -784,7 +784,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.7.3");
+        headers.set("X-App-Version","1.7.4");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
