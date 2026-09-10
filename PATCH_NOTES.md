@@ -1,18 +1,20 @@
-# V1.5 決策排行榜
-保留 V1.4.4 已驗證的資料鏈與正式 V4.4 engine，不修改核心 V4.4 分數。
+# V1.6 個股完整分析 + 可點擊排行榜 + 追蹤清單
 
-新增三種「scanner 外層」決策排序：
-1. 今日新進場：Entry + Opportunity + Persistence + Setup，並考慮 risk distance / MA20 bias。
-2. 剛發動：Opportunity + Ignition + Persistence + Setup，避免成熟趨勢壓過早期訊號。
-3. 續抱：Hold + Trend + Persistence。
+新增：
+1. `/detail.html?code=3443`
+   - 從正式 V4.4 HTML 改成 Cloud 版
+   - 保留日K、MA5/10/20/60、歷史盲測滑桿、Entry/Hold/Persistence、技術指標與 V4.4 詳細資訊
+   - 股價資料改走 `/api/history/auto`，股票清單走 `/api/twse/all`
+   - 目前免費雲端版沒有融資/法人/當沖來源，因此相關區塊會顯示無資料，不偽造
+2. 排行榜每一列可直接點擊，開啟該股票完整分析。
+3. 每檔新增 ☆/★ 追蹤按鈕。
+4. 追蹤清單：
+   - localStorage 保存
+   - 開啟網站時自動更新（若超過 6 小時）
+   - 頁面保持開啟時每 60 分鐘更新
+   - 顯示最新快照與前一次快照的 Entry / Opportunity / Hold 變化
+5. 個股頁加入「加入追蹤」按鈕與「完整分析完成」訊息。
 
-新增左側資料衍生的價格欄位：
-- 買區
-- 最高可買
-- 停損
-- T1 / T2
-- R:R1
-
-注意：
-這些價格決策是 V1.5 scanner 外層第一版，不改寫正式 V4.4 engine。
-後續應用歷史盲測校正價格演算法，尤其 gap/neckline/HL/ATR/台股 tick rounding。
+重要限制：
+- V1.6 追蹤清單是瀏覽器本機保存；關閉網站後不會由 Cloudflare 在背景自動更新。
+- 若要「網站關閉也每天更新、跨裝置同步」，下一版需 Cloudflare KV/D1 + Cron Trigger。

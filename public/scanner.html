@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.5 · V4.4 決策排行榜</title>
+<title>台股 V1.6 · V4.4 決策＋個股追蹤</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -10,6 +10,18 @@ input{background:#0d1425;color:white;width:100%;box-sizing:border-box}.muted{col
 progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #273451;text-align:right}
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
+
+.tabs button.active{
+  background:#ffd166;
+  color:#111827;
+  border-color:#ffd166;
+  box-shadow:0 0 0 2px rgba(255,209,102,.18);
+}
+
+
+tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
+.starbtn{padding:3px 7px;width:auto;font-size:12px}
+.watchchange.up{color:#65d99a}.watchchange.down{color:#ff7777}.watchchange.flat{color:#ffd166}
 </style></head><body><main>
 <h1>台股 V1.5 · V4.4 決策排行榜</h1>
 <p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
@@ -28,20 +40,29 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 <div id="stats" class="small muted"></div>
 </div>
 <div class="card">
-<div class="tabs">
-<button onclick="showRank('newEntry')">今日新進場</button>
-<button onclick="showRank('earlyMove')">剛發動</button>
-<button onclick="showRank('holdRank')">續抱</button>
-<button onclick="showRank('overall')">原綜合 TOP</button>
-<button onclick="showRank('opportunity')">Opportunity</button>
-<button onclick="showRank('entry')">Entry</button>
-<button onclick="showRank('bottom')">Bottom</button>
-<button onclick="showRank('ignition')">Ignition</button>
-<button onclick="showRank('trend')">Trend</button>
+<div class="tabs" id="rankTabs">
+<button class="active" data-rank="newEntry" onclick="showRank('newEntry')">今日新進場</button>
+<button data-rank="earlyMove" onclick="showRank('earlyMove')">剛發動</button>
+<button data-rank="holdRank" onclick="showRank('holdRank')">續抱</button>
+<button data-rank="overall" onclick="showRank('overall')">原綜合 TOP</button>
+<button data-rank="opportunity" onclick="showRank('opportunity')">Opportunity</button>
+<button data-rank="entry" onclick="showRank('entry')">Entry</button>
+<button data-rank="bottom" onclick="showRank('bottom')">Bottom</button>
+<button data-rank="ignition" onclick="showRank('ignition')">Ignition</button>
+<button data-rank="trend" onclick="showRank('trend')">Trend</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
-<th>代號</th><th>名稱</th><th>收盤</th><th>決策分</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th>
+<th>代號</th><th>名稱</th><th>收盤</th><th>決策分</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+<div class="card">
+<h3>★ 持續追蹤清單</h3>
+<p class="small muted">本版追蹤清單存在瀏覽器；開啟網站時會自動更新，頁面保持開啟時每 60 分鐘檢查一次。顯示「最新狀態 vs 前一次狀態」。</p>
+<button id="refreshWatchBtn">立即更新追蹤清單</button>
+<div id="watchStatus" class="small muted" style="margin:8px 0">尚未更新</div>
+<div style="overflow:auto"><table><thead><tr>
+<th>代號</th><th>名稱</th><th>最新日</th><th>收盤</th><th>Entry</th><th>Opp.</th><th>Hold</th><th>Persist.</th><th>狀態</th><th>vs 前次</th><th>操作</th>
+</tr></thead><tbody id="watchRows"></tbody></table></div>
 </div>
 <div class="card">
 <h3>V4.4 Mapping 診斷 / 單股回歸</h3>
@@ -158,16 +179,82 @@ function decisionScore(r,key){
  return n(r[key]);
 }
 function rankVal(r,key){ return decisionScore(r,key); }
+
+const WATCH_KEY='twq_watchlist_v16';
+const SNAP_KEY='twq_watchsnap_v16';
+function getWatchlist(){try{return JSON.parse(localStorage.getItem(WATCH_KEY)||'[]')}catch(e){return []}}
+function saveWatchlist(a){localStorage.setItem(WATCH_KEY,JSON.stringify([...new Set(a)]))}
+function getSnaps(){try{return JSON.parse(localStorage.getItem(SNAP_KEY)||'{}')}catch(e){return {}}}
+function saveSnaps(x){localStorage.setItem(SNAP_KEY,JSON.stringify(x))}
+function isWatched(code){return getWatchlist().includes(String(code))}
+function toggleWatch(code){
+ let a=getWatchlist(),c=String(code);
+ a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
+ saveWatchlist(a); showRank(); renderWatchlist();
+}
+function openDetail(code){location.href='/detail.html?code='+encodeURIComponent(code)}
+function deltaText(cur,prev){
+ if(!prev)return 'NEW';
+ const de=n(cur.entry)-n(prev.entry),doo=n(cur.opportunity)-n(prev.opportunity),dh=n(cur.hold)-n(prev.hold);
+ const parts=[`Entry ${de>=0?'+':''}${de}`,`Opp ${doo>=0?'+':''}${doo}`,`Hold ${dh>=0?'+':''}${dh}`];
+ return parts.join(' / ');
+}
+async function updateWatchlist(){
+ const list=getWatchlist(),body=$('watchRows'),status=$('watchStatus');
+ if(!list.length){body.innerHTML='<tr><td colspan="11">尚未加入股票。可在排行榜按 ☆ 或進個股頁加入。</td></tr>';status.textContent='追蹤清單為空';return}
+ status.textContent=`更新中 0/${list.length}…`;
+ const snaps=getSnaps(); let done=0, rows=[];
+ for(const code of list){
+   try{
+     const end=new Date().toLocaleDateString('sv-SE');
+     const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE');
+     const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=twse&start_date=${start}&end_date=${end}`);
+     if((j.data||[]).length<180)throw new Error('歷史K不足');
+     const sc=formalScore(j.data),lastbar=j.data.at(-1);
+     const info=results.find(x=>String(x.code)===String(code))||{};
+     const cur={date:lastbar.date,close:lastbar.close,...sc,name:info.name||code};
+     const old=snaps[code]?.current||null;
+     if(!snaps[code] || snaps[code]?.current?.date!==cur.date){
+       snaps[code]={previous:old,current:cur};
+     }else{
+       snaps[code].current=cur;
+     }
+     rows.push({code,...snaps[code]});
+   }catch(e){rows.push({code,error:e.message})}
+   done++;status.textContent=`更新中 ${done}/${list.length}…`;
+   await new Promise(r=>setTimeout(r,180));
+ }
+ saveSnaps(snaps);
+ renderWatchRows(rows);
+ status.textContent=`更新完成 ${new Date().toLocaleString('zh-TW',{hour12:false})}`;
+ localStorage.setItem('twq_watch_lastupdate_v16',new Date().toISOString());
+}
+function renderWatchRows(rows=null){
+ const snaps=getSnaps(),list=getWatchlist();
+ rows=rows||list.map(code=>({code,...(snaps[code]||{})}));
+ $('watchRows').innerHTML=rows.map(z=>{
+   if(z.error)return `<tr><td>${z.code}</td><td colspan="9" class="bad">${z.error}</td><td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${z.code}')">移除</button></td></tr>`;
+   const c=z.current,p=z.previous;
+   if(!c)return `<tr><td>${z.code}</td><td colspan="9">等待更新</td><td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${z.code}')">移除</button></td></tr>`;
+   const delta=deltaText(c,p);
+   return `<tr class="stockrow" onclick="openDetail('${z.code}')"><td>${z.code}</td><td>${c.name||z.code}</td><td>${c.date}</td><td>${c.close}</td><td>${c.entry}</td><td>${c.opportunity}</td><td>${c.hold}</td><td>${c.persistence}</td><td>${c.state||''}</td><td>${delta}</td><td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${z.code}')">移除</button></td></tr>`;
+ }).join('');
+}
+function renderWatchlist(){renderWatchRows()}
 function showRank(key=currentRank){
  currentRank=key;
+ document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
+   btn.classList.toggle('active', btn.dataset.rank===key);
+ });
  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
- $('rows').innerHTML=a.map(r=>`<tr><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
+ $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')"><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
  <td><b>${Math.round(decisionScore(r,key))}</b></td><td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
  <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td>
  <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
  <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td><td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
  <td>${r.decision?r.decision.t1.toFixed(1):'-'}</td><td>${r.decision?r.decision.t2.toFixed(1):'-'}</td>
- <td>${r.decision?r.decision.rr1.toFixed(2):'-'}</td><td><span class="pill">${r.state||''}</span></td></tr>`).join('');
+ <td>${r.decision?r.decision.rr1.toFixed(2):'-'}</td><td><span class="pill">${r.state||''}</span></td>
+ <td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${r.code}')">${isWatched(r.code)?'★':'☆'}</button></td></tr>`).join('');
 }
 async function worker(item){
  if(stopped)return;
@@ -245,4 +332,11 @@ $('diagBtn').onclick=async()=>{
    $('diagSummary').innerHTML='<span class="bad">'+e.message+'</span>';
  }
 };
+
+$('refreshWatchBtn').onclick=updateWatchlist;
+renderWatchlist();
+const lastWU=localStorage.getItem('twq_watch_lastupdate_v16');
+if(!lastWU || (Date.now()-new Date(lastWU).getTime())>6*3600*1000) setTimeout(updateWatchlist,700);
+setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*60*1000);
+
 </script></main></body></html>
