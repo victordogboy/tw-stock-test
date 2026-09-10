@@ -67,8 +67,15 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.0)"}});
-      const text=await r.text(); attempts.push({url:u,status:r.status,bytes:text.length});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.1)"}});
+      const buf=await r.arrayBuffer();
+      const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
+      let big5="";
+      try{big5=new TextDecoder("big5",{fatal:false}).decode(buf)}catch{}
+      const bad=s=>(s.match(/�/g)||[]).length;
+      const chinese=s=>(s.match(/[一-龥]/g)||[]).length;
+      const text=(big5&&(bad(big5)<bad(utf8)||chinese(big5)>chinese(utf8)*1.25))?big5:utf8;
+      attempts.push({url:u,status:r.status,bytes:buf.byteLength,encoding:text===big5?"big5":"utf-8"});
       if(!r.ok||text.length<1000) continue;
       const out=new Map();
       for(const m of text.matchAll(/<td[^>]*>\s*(\d{4})[\s\u3000]*(?:&nbsp;)*\s*([^<\r\n]+?)\s*<\/td>/gi)){
@@ -594,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.0)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.1)"
         }
       });
       const text=await r.text();
@@ -634,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.9.0",
+      version: "1.9.1",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1039,7 +1046,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.9.0");
+        headers.set("X-App-Version","1.9.1");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

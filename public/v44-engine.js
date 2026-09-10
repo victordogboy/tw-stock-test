@@ -547,7 +547,9 @@ function combineScores(rows,m,i,d){
   const optimal=evaluate(rows,m,i,d,'optimal');
   const bottom=bottomReversalEngine(rows,m,i,d);
   const ignition=ignitionEngine(rows,m,i);
-  let quality=Math.round((market.score*0.50+optimal.score*0.30+ignition.score*0.20));
+  // V1.9.1 Setup only measures structure quality.
+  let quality=Math.round(market.score*0.65+optimal.score*0.35);
+  quality=clamp(quality,0,100);
   const setup=classifySetup(rows,market,optimal);
   const noTrade=setup.state==='NO TRADE'
     && !['底部反轉買進','底部試單'].includes(bottom.stage)
@@ -707,8 +709,8 @@ function entryEngine(rows,R){
   else if(persistence>=45)followBoost=9;
   else if(persistence>=30)followBoost=5;
 
-  // Execution Score：機會、價格品質，加上跨日延續確認。
-  // V1.9.0 — Entry is independent from Setup / Opportunity / Hold.
+  // Entry Score：只看價格/風險/延續確認；不讀 Setup / Opportunity / Hold。
+  // V1.9.1 — Entry is independent from Setup / Opportunity / Hold.
   let score=Math.round(entryQuality*.82+persistence*.18);
   score=clamp(score,0,100);
   const effectiveConfirmation=Math.max(confirmation,Math.round(persistence*.88));
@@ -740,13 +742,23 @@ function entryEngine(rows,R){
     state='事件型試單';position='5–10%';
   }
 
-  let hold=Math.round(a.score*.45+Math.max(ig.score,b.score)*.20+R.quality*.20+opportunity*.15);
-  if(shock)hold=Math.max(hold,60);
-  if(a.hardBroken&&!shock)hold-=25;
-  hold=clamp(hold,0,100);
+  // V1.9.1 Hold is independent: existing-position survivability only.
+  let hold=0;
+  if(!a.hardBroken) hold+=25;
+  if(close>=a.ma20) hold+=18;
+  if(close>=a.ma10) hold+=12;
+  if(close>=a.ma5) hold+=8;
+  if(ma20turn) hold+=10;
+  if(ma10turn) hold+=8;
+  if(ma5turn) hold+=6;
+  if(hl) hold+=8;
+  if(a.risk<=7) hold+=5;
+  if(a.bias>22) hold-=10;
+  if(a.hardBroken) hold-=30;
+  hold=clamp(Math.round(hold),0,100);
 
   return {
-    score,state,position,phase,hold,triggers,penalties,
+    score,state,position,phase,hold,triggers,
     opportunity,entryQuality,confirmation,effectiveConfirmation,persistence,eventAge,followBoost,followReasons,chasePenalty:chase,chaseReasons,
     route: opportunity>=entryQuality+8?'事件/機會型':'結構/價格型',
     // UI compatibility
