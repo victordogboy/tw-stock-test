@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.4.2 · V4.4 Mapping 診斷修正版</title>
+<title>台股 V1.4.3 · V4.4 Mapping 修正版</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -11,7 +11,7 @@ progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-s
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.4.2 · V4.4 Mapping 診斷修正版</h1>
+<h1>台股 V1.4.3 · V4.4 Mapping 修正版</h1>
 <p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
 
 <div class="card grid">
@@ -88,20 +88,28 @@ function formalObjects(hist){
  const E=entryEngine(rows,R);
  return {rows,R,E};
 }
+function scoreOf(v){
+ if(Number.isFinite(Number(v))) return Number(v);
+ if(v && typeof v==='object'){
+   for(const k of ['score','total','value']){
+     if(Number.isFinite(Number(v[k]))) return Number(v[k]);
+   }
+ }
+ return 0;
+}
 function formalScore(hist){
  try{
    const {R,E}=formalObjects(hist);
-   const get=(o,names)=>findKey(o,names.map(x=>x.toLowerCase()));
    return {
-     setup:n(get(R,['score','total','setupScore','setup'])),
-     opportunity:n(get(E,['opportunity','opportunityScore'])),
-     entry:n(get(E,['score','entryScore','entry'])),
-     hold:n(get(E,['hold','holdScore'])),
-     persistence:n(get(E,['persistence','persistenceScore'])),
-     bottom:n(get(R,['bottomScore','bottom'])),
-     ignition:n(get(R,['ignitionScore','ignition'])),
-     trend:n(get(R,['trendScore','trend'])),
-     state:get(E,['state']) ?? get(R,['state']) ?? ''
+     setup:scoreOf(R?.setup),
+     opportunity:scoreOf(E?.opportunity ?? E?.opportunityScore),
+     entry:scoreOf(E?.score ?? E?.entryScore),
+     hold:scoreOf(E?.hold ?? E?.holdScore),
+     persistence:scoreOf(E?.persistence ?? E?.persistenceScore),
+     bottom:scoreOf(R?.bottom),
+     ignition:scoreOf(R?.ignition),
+     trend:scoreOf(R?.market),
+     state:E?.state ?? R?.state ?? ''
    };
  }catch(e){ return fallbackScore(hist); }
 }
@@ -166,11 +174,22 @@ $('diagBtn').onclick=async()=>{
    const hist=(j.data||[]).filter(x=>x.date<=cut);
    const {R,E}=formalObjects(hist);
    const mapped=formalScore(hist);
+   const engineMap={
+     setup_raw:R?.setup,
+     market_raw:R?.market,
+     bottom_raw:R?.bottom,
+     ignition_raw:R?.ignition,
+     entry_score:E?.score,
+     opportunity:E?.opportunity ?? E?.opportunityScore,
+     hold:E?.hold ?? E?.holdScore,
+     persistence:E?.persistence ?? E?.persistenceScore
+   };
    $('diagSummary').innerHTML=`<span class="good">${code} · ${cut} · ${hist.length} 日</span> · mapped: Setup ${mapped.setup} / Opp ${mapped.opportunity} / Entry ${mapped.entry} / Hold ${mapped.hold} / Persist ${mapped.persistence} / Bottom ${mapped.bottom} / Ignition ${mapped.ignition} / Trend ${mapped.trend}`;
    $('diagRaw').textContent=JSON.stringify({
       engineFunctions:{combineScores:typeof combineScores,entryEngine:typeof entryEngine},
       lastBar:hist.at(-1),
       mapped,
+      engineMap,
       combineScores_keys:Object.keys(R||{}),
       entryEngine_keys:Object.keys(E||{}),
       combineScores:R,

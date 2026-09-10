@@ -1,14 +1,30 @@
-# V1.4.2 診斷按鈕修正
+# V1.4.3 V4.4 mapping 修正
 
-原因：
-V1.4.1 將 `diagBtn` click handler 錯誤地放進
-`<script src="/v44-engine.js"> ... </script>` 之間。
+依 V1.4.2 實際診斷結果修正，不再猜 key：
+combineScores() top-level:
+- market
+- optimal
+- bottom
+- ignition
+- quality
+- noTrade
+- setup
 
-依 HTML 規則，帶 `src` 的 script 元素內嵌內容不會被執行，
-因此「單股回歸」按鈕看得到，但點擊沒有反應。
+entryEngine():
+- score
+- state
+- position
+- opportunity / hold / persistence 等
 
-修正：
-- `v44-engine.js` 改成純外部載入 `<script src="/v44-engine.js"></script>`
-- 診斷 click handler 移到主 inline script
-- 不改 V4.4 scoring engine、API、Yahoo 歷史 K 或掃描邏輯
-- Worker version = 1.4.2
+mapping:
+- Setup = R.setup.score
+- Trend/Market = R.market.score
+- Bottom = R.bottom.score
+- Ignition = R.ignition.score
+- Entry = E.score
+- Opportunity = E.opportunity
+- Hold = E.hold
+- Persistence = E.persistence
+
+3443 2026-08-11 已確認 Entry 72 / Opportunity 93 / Hold 78 / Persistence 74。
+本版目的：修正全市場排行榜中 Setup/Trend/Bottom/Ignition 被錯誤顯示為 0 的問題。
