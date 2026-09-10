@@ -1,27 +1,19 @@
-# V1.7.4 worker hotfix
+# V1.7.5 最新交易日 + 成交量單位修正
 
-從使用者實際畫面確認：
-- V1.7.3 已正確部署（畫面標題已是 V1.7.3）
-- 掃描按下後立即顯示 `worker is not defined`
+從 6226 光鼎截圖定位：
+- 系統審計日停在 2026-09-09
+- Yahoo 股市已經有 2026-09-10
+- Yahoo 顯示 2026-09-10 成交量 15,172 張
+- 系統原本成交量以「股」顯示，容易誤認為數值錯誤
 
-根因：
-V1.7 Top100 改版時 `runPool()` 保留了 `await worker(items[i])`，
-但第一階段單檔 OHLCV 掃描函式 `worker()` 在重構時遺失。
+修正：
+1. Yahoo chart API 的 period2/end date 視為 exclusive，請求時改成 end_date + 1 day，
+   讓當天已收盤的 K 棒可以包含在歷史資料。
+2. 個股頁成交量主顯示改成「張」：
+   15,172,000 股 -> 15,172 張。
+   股數保留在副資訊。
+3. 5日均量也改用張。
+4. 回測 slider 每移一天仍使用該 audit-day 的 cur.volume，所以成交量會跟著日期變。
+5. V4.4 Strict No-Lookahead 不變；只是修正資料抓取邊界，不加入任何未來資料。
 
-V1.7.4：
-- 補回 `async function worker(item)`
-- 每檔：
-  1. 取 Yahoo/TWSE history auto
-  2. 至少 180 根 K
-  3. 跑 Price-only formalScore
-  4. 計算 priceDecision
-  5. 保存 `_hist` 給第二階段 FinMind 重評
-  6. 計算 prelimScore
-  7. push 到 results
-- 第一階段完成後原本 Top100 FinMind 重評流程不變。
-
-其餘 V1.7.3 功能保留：
-- 個股新分頁，scanner 不卸載
-- 當日交易量隨回測日更新
-- MA5黃 / MA10藍 / MA20紫 / MA60綠
-- 台股 K 線：漲紅、跌綠
+若 Yahoo 當天資料尚未更新，系統仍會停在最後一個實際取得的交易日，不會自行製造 K 棒。
