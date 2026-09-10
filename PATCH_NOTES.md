@@ -1,19 +1,33 @@
-# V1.7.5 最新交易日 + 成交量單位修正
+# V1.7.6：當日 K 強制補齊 + 掃描只留四分類
 
-從 6226 光鼎截圖定位：
-- 系統審計日停在 2026-09-09
-- Yahoo 股市已經有 2026-09-10
-- Yahoo 顯示 2026-09-10 成交量 15,172 張
-- 系統原本成交量以「股」顯示，容易誤認為數值錯誤
+## 為什麼 2354 還停在 9/9？
+V1.7.5 只修 Yahoo period2 邊界，但 Yahoo Chart 的日 K 本身仍可能比 Yahoo 台股網頁晚更新。
+所以即使 Yahoo 頁面已有 9/10，Chart API 還可能只回到 9/9。
 
-修正：
-1. Yahoo chart API 的 period2/end date 視為 exclusive，請求時改成 end_date + 1 day，
-   讓當天已收盤的 K 棒可以包含在歷史資料。
-2. 個股頁成交量主顯示改成「張」：
-   15,172,000 股 -> 15,172 張。
-   股數保留在副資訊。
-3. 5日均量也改用張。
-4. 回測 slider 每移一天仍使用該 audit-day 的 cur.volume，所以成交量會跟著日期變。
-5. V4.4 Strict No-Lookahead 不變；只是修正資料抓取邊界，不加入任何未來資料。
+## V1.7.6 修法
+`/api/history/auto`：
+1. 先抓 Yahoo 歷史 K。
+2. 如果 end_date 是今天，而且是 TWSE 上市股票：
+3. 再抓官方 TWSE `STOCK_DAY_ALL`。
+4. 找到該股票今天的 O/H/L/C/成交股數。
+5. 若 Yahoo 沒有今天 K，就 append；若已有，則用 TWSE 官方值 replace。
+6. 再排序後回傳。
 
-若 Yahoo 當天資料尚未更新，系統仍會停在最後一個實際取得的交易日，不會自行製造 K 棒。
+因此 2026-09-10 晚間分析 2354 時，只要 TWSE STOCK_DAY_ALL 已發布，
+審計日應可到 2026-09-10，而不再依賴 Yahoo Chart 是否已更新。
+
+Strict No-Lookahead 不變：
+歷史 slider 拉回 9/9 時仍只截到 9/9。
+
+## 掃描排行簡化
+使用者要求只留四種：
+- Setup｜型態品質
+- Opportunity｜行情機會
+- Entry｜現在能不能買
+- Hold｜已持有是否續抱
+
+Bottom / Ignition / Trend / Persistence 仍留在 V4.4 內部參與計算，
+但不再獨立做排行榜，也不再塞在主掃描表格中。
+
+初篩 Top100 改以 Entry 作為前 100 名排序基準，
+再使用 FinMind 重新評估完整 V4.4。

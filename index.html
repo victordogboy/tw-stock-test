@@ -2,202 +2,106 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>台股 API Android 相容性測試器</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台股免費 API 雲端驗證 V1.7.6</title>
 <style>
-:root{color-scheme:dark}
-*{box-sizing:border-box}
-body{margin:0;background:#071321;color:#e8f0fb;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
-.wrap{max-width:820px;margin:auto;padding:16px}
-h1{font-size:22px;margin:0 0 6px}
-.sub{font-size:13px;color:#9db0c7;line-height:1.5;margin-bottom:14px}
-.card{background:#0d1c2e;border:1px solid #233955;border-radius:14px;padding:14px;margin:12px 0}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-input,button{font:inherit;border-radius:10px;border:1px solid #334b68;padding:10px 12px}
-input{background:#081625;color:#fff;flex:1;min-width:180px}
-button{background:#2f83e6;color:white;font-weight:700}
-button.secondary{background:#162a42}
-.tag{font-size:12px;color:#8ea6bf}
-.result{margin-top:10px;padding:10px;border-radius:10px;background:#081625;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.5}
-.ok{border-left:4px solid #37d67a}
-.bad{border-left:4px solid #ff5b6b}
-.wait{border-left:4px solid #5ea6ff}
-.small{font-size:12px;color:#91a7be;line-height:1.5}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:650px){.grid{grid-template-columns:1fr}}
-code{color:#b9d7ff}
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#0b1020;color:#e8eefc}
+main{max-width:1050px;margin:auto;padding:24px}
+h1{font-size:26px}.muted{color:#9fb0cf}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.card{background:#141b2f;border:1px solid #273451;border-radius:14px;padding:16px}
+button{width:100%;padding:12px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
+.good{color:#62d995}.bad{color:#ff7b7b}.wait{color:#ffd166}
+pre{white-space:pre-wrap;word-break:break-word;background:#090d18;padding:12px;border-radius:10px;max-height:360px;overflow:auto}
+input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-radius:8px;border:1px solid #33415f;background:#0d1425;color:#fff}
+.small{font-size:13px}
 </style>
 </head>
-<body>
-<div class="wrap">
-  <h1>台股 API Android 相容性測試器</h1>
-  <div class="sub">
-    專門測試「Android Chrome + content://downloads 本機 HTML」能不能直接讀各資料源。
-    不做選股、不改回測，只做網路相容性診斷。Fugle API Key 只存在本頁記憶體，不會送到其他服務。
-  </div>
+<body><main>
+<h1>台股免費 API 雲端驗證 V1.7.6</h1>
+<p><a href="/scanner.html" style="color:#65d99a;font-weight:800">→ 開啟 V4.4 TWSE 全市場量化掃描器</a></p>
+<p class="muted">Cloudflare Worker 代理 TWSE / TPEx / FinMind。先把資料鏈全部測通，再接 V4.4 與全市場掃描。</p>
 
-  <div class="card">
-    <b>目前頁面環境</b>
-    <div id="env" class="result"></div>
-    <div class="small">如果網址開頭是 <code>content://</code>，某些 API 可能因 CORS / Origin=null 被瀏覽器阻擋。</div>
-  </div>
+<div class="grid">
+  <div class="card"><h3>1. Worker Health</h3><button onclick="testHealth()">測試 Worker</button><div id="health" class="wait">尚未測試</div></div>
+  <div class="card"><h3>2. TWSE 全市場</h3><button onclick="testTwse()">測試 TWSE</button><div id="twse" class="wait">尚未測試</div></div>
+  <div class="card"><h3>3. TPEx 全市場</h3><button onclick="testTpex()">測試 TPEx</button><div id="tpex" class="wait">尚未測試</div></div>
+  <div class="card"><h3>4. 免費成交量先篩</h3><button onclick="testFilter()">股價≥10、成交量≥3000張</button><div id="filter" class="wait">尚未測試</div></div>
+</div>
 
-  <div class="grid">
-    <div class="card">
-      <b>① FinMind 匿名模式</b>
-      <div class="tag">2330 日K / 不填 Token</div>
-      <button onclick="testFinMind()">測試 FinMind</button>
-      <div id="finmind" class="result wait">尚未測試</div>
-    </div>
+<div class="card" style="margin-top:12px">
+<h3>5. 免費歷史 K 線測試</h3>
+<label>股票代號</label><input id="hcode" value="3443">
+<label>市場</label>
+<select id="hmarket" style="width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-radius:8px;background:#0d1425;color:#fff;border:1px solid #33415f">
+<option value="twse">上市 .TW</option>
+<option value="tpex">上櫃 .TWO</option>
+</select>
+<div class="grid">
+  <button onclick="testYahooHistory()">Yahoo 300日測試</button>
+  <button onclick="testAutoHistory()">AUTO 歷史來源</button>
+</div>
+<div id="history" class="wait" style="margin-top:8px">尚未測試</div>
+<p class="small muted">AUTO：Yahoo 單次歷史資料優先；上市股票失敗時才以 TWSE 官方 STOCK_DAY 月資料 fallback。</p>
+</div>
 
-    <div class="card">
-      <b>② TWSE 官方 OpenAPI</b>
-      <div class="tag">全上市當日行情</div>
-      <button onclick="testTWSE()">測試 TWSE</button>
-      <div id="twse" class="result wait">尚未測試</div>
-    </div>
+<div class="card" style="margin-top:12px">
+<h3>5. FinMind 個股</h3>
+<label>股票代號</label><input id="code" value="3443">
+<label>起始日期</label><input id="start" type="date" value="2026-01-01">
+<button onclick="testFinmind()">測試 TaiwanStockPrice</button>
+<div id="finmind" class="wait">尚未測試</div>
+<p class="small muted">若 Cloudflare 設定 FINMIND_TOKEN Secret，Token 不會出現在前端 HTML 或 GitHub。</p>
+</div>
 
-    <div class="card">
-      <b>③ TPEx 官方 OpenAPI</b>
-      <div class="tag">上櫃每日收盤行情</div>
-      <button onclick="testTPEX()">測試 TPEx</button>
-      <div id="tpex" class="result wait">尚未測試</div>
-    </div>
-
-    <div class="card">
-      <b>④ Fugle 富果</b>
-      <div class="tag">2330 歷史日K，需要自己的 API Key</div>
-      <div class="row">
-        <input id="fugleKey" type="password" placeholder="Fugle API Key">
-        <button onclick="testFugle()">測試 Fugle</button>
-      </div>
-      <div id="fugle" class="result wait">尚未測試</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <b>一鍵全部測試</b>
-    <div class="row">
-      <button onclick="testAll()">▶ 全部測試</button>
-      <button class="secondary" onclick="copyReport()">複製診斷結果</button>
-    </div>
-    <div id="summary" class="result wait">等待測試</div>
-    <div class="small">
-      Fugle 沒填 Key 時會標示「未測試」，不算失敗。請不要把 API Key 貼到聊天裡。
-    </div>
-  </div>
+<div class="card" style="margin-top:12px">
+<h3>診斷輸出</h3><pre id="log">等待測試…</pre>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-const results={};
+const log=x=>$('log').textContent=typeof x==='string'?x:JSON.stringify(x,null,2);
+async function call(path){
+ const r=await fetch(path,{cache:'no-store'});
+ const j=await r.json().catch(()=>({ok:false,error:'Non-JSON response',status:r.status}));
+ if(!r.ok) throw Object.assign(new Error(j.error||('HTTP '+r.status)),{payload:j});
+ return j;
+}
+function state(id,ok,text){const e=$(id);e.className=ok?'good':'bad';e.textContent=text}
+async function testHealth(){try{const j=await call('/api/health');state('health',j.ok,'正常 · '+j.version);log(j)}catch(e){state('health',false,e.message);log(e.payload||e.message)}}
+async function testTwse(){try{const j=await call('/api/twse/all');state('twse',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('twse',false,e.message);log(e.payload||e.message)}}
+async function testTpex(){try{const j=await call('/api/tpex/all');state('tpex',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}；${j.mode||'unknown'}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('tpex',false,e.message);log(e.payload||e.message)}}
+async function testFilter(){try{const j=await call('/api/market/filter?min_close=10&min_lots=3000');state('filter',j.ok,`${j.partial?'部分成功':'成功'} · 候選 ${j.count} 檔 · TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}`);log({...j,data:j.data.slice(0,20)})}catch(e){state('filter',false,e.message);log(e.payload||e.message)}}
+async function testFinmind(){
+ try{
+  const code=$('code').value.trim(), start=$('start').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const j=await call(`/api/finmind?dataset=TaiwanStockPrice&data_id=${encodeURIComponent(code)}&start_date=${start}&end_date=${end}`);
+  const last=j.data?.at(-1);
+  state('finmind',j.ok,`取得 ${j.count} 日；最新 ${last?.date||'—'}`);
+  log({...j,data:(j.data||[]).slice(-8)});
+ }catch(e){state('finmind',false,e.message);log(e.payload||e.message)}
+}
 
-function setBox(id,status,msg){
-  const el=$(id);
-  el.className='result '+(status==='ok'?'ok':status==='bad'?'bad':'wait');
-  el.textContent=msg;
-  results[id]={status,msg};
-  updateSummary();
+async function testYahooHistory(){
+ try{
+  const code=$('hcode').value.trim(),market=$('hmarket').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const start=new Date(Date.now()-460*864e5).toLocaleDateString('sv-SE');
+  const j=await call(`/api/history/yahoo?code=${encodeURIComponent(code)}&market=${market}&start_date=${start}&end_date=${end}`);
+  state('history',j.ok,`${j.source} · ${j.symbol||''} · ${j.count} 日 · ${j.first} → ${j.last}`);
+  log({...j,data:(j.data||[]).slice(-10)});
+ }catch(e){state('history',false,e.message);log(e.payload||e.message)}
 }
-function errText(e){
-  const s=String(e?.message||e||'Unknown error');
-  if(/Failed to fetch|NetworkError|Load failed/i.test(s))
-    return s+'\n可能原因：CORS / content:// Origin / DNS / HTTPS 連線被阻擋。';
-  return s;
+async function testAutoHistory(){
+ try{
+  const code=$('hcode').value.trim(),market=$('hmarket').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const start=new Date(Date.now()-460*864e5).toLocaleDateString('sv-SE');
+  const j=await call(`/api/history/auto?code=${encodeURIComponent(code)}&market=${market}&start_date=${start}&end_date=${end}`);
+  state('history',j.ok,`${j.source} · ${j.mode||''} · ${j.count} 日 · ${j.first} → ${j.last}`);
+  log({...j,data:(j.data||[]).slice(-10)});
+ }catch(e){state('history',false,e.message);log(e.payload||e.message)}
 }
-async function timedFetch(url,opt={},timeout=15000){
-  const ctl=new AbortController();
-  const timer=setTimeout(()=>ctl.abort(),timeout);
-  const t0=performance.now();
-  try{
-    const r=await fetch(url,{...opt,signal:ctl.signal,cache:'no-store'});
-    const ms=Math.round(performance.now()-t0);
-    const text=await r.text();
-    let json=null; try{json=JSON.parse(text)}catch{}
-    return {ok:r.ok,status:r.status,ms,text,json,headers:[...r.headers.entries()]};
-  } finally {clearTimeout(timer)}
-}
-function brief(x){
-  return `HTTP ${x.status}｜${x.ms} ms`;
-}
-async function testFinMind(){
-  setBox('finmind','wait','測試中…');
-  try{
-    const to=new Date(), from=new Date(Date.now()-20*86400000);
-    const ds=d=>d.toISOString().slice(0,10);
-    const u=new URL('https://api.finmindtrade.com/api/v4/data');
-    u.searchParams.set('dataset','TaiwanStockPrice');
-    u.searchParams.set('data_id','2330');
-    u.searchParams.set('start_date',ds(from));
-    u.searchParams.set('end_date',ds(to));
-    const x=await timedFetch(u.toString());
-    const n=Array.isArray(x.json?.data)?x.json.data.length:0;
-    if(x.ok && n) setBox('finmind','ok',`🟢 成功｜${brief(x)}｜取得 ${n} 筆 2330 日資料`);
-    else setBox('finmind','bad',`🔴 HTTP 可達但資料異常｜${brief(x)}\n${x.text.slice(0,500)}`);
-  }catch(e){setBox('finmind','bad','🔴 '+errText(e))}
-}
-async function testTWSE(){
-  setBox('twse','wait','測試中…');
-  try{
-    const x=await timedFetch('https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL');
-    const n=Array.isArray(x.json)?x.json.length:0;
-    if(x.ok && n) setBox('twse','ok',`🟢 成功｜${brief(x)}｜取得 ${n} 筆上市行情`);
-    else setBox('twse','bad',`🔴 HTTP 可達但資料異常｜${brief(x)}\n${x.text.slice(0,500)}`);
-  }catch(e){setBox('twse','bad','🔴 '+errText(e))}
-}
-async function testTPEX(){
-  setBox('tpex','wait','測試中…');
-  try{
-    const x=await timedFetch('https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes');
-    const n=Array.isArray(x.json)?x.json.length:0;
-    if(x.ok && n) setBox('tpex','ok',`🟢 成功｜${brief(x)}｜取得 ${n} 筆上櫃行情`);
-    else setBox('tpex','bad',`🔴 HTTP 可達但資料異常｜${brief(x)}\n${x.text.slice(0,500)}`);
-  }catch(e){setBox('tpex','bad','🔴 '+errText(e))}
-}
-async function testFugle(){
-  const key=$('fugleKey').value.trim();
-  if(!key){setBox('fugle','wait','⚪ 未測試：請先填入自己的 Fugle API Key');return}
-  setBox('fugle','wait','測試中…');
-  try{
-    const to=new Date(), from=new Date(Date.now()-20*86400000);
-    const ds=d=>d.toISOString().slice(0,10);
-    const u=`https://api.fugle.tw/marketdata/v1.0/stock/historical/candles/2330?from=${ds(from)}&to=${ds(to)}&timeframe=D&fields=open,high,low,close,volume`;
-    const x=await timedFetch(u,{headers:{'X-API-KEY':key}});
-    const n=Array.isArray(x.json?.data)?x.json.data.length:0;
-    if(x.ok && n) setBox('fugle','ok',`🟢 成功｜${brief(x)}｜取得 ${n} 筆 2330 日K`);
-    else if(x.status===401||x.status===403) setBox('fugle','bad',`🟠 連線成功，但 API Key/權限未通過｜${brief(x)}\n這代表 Android content:// 至少能連到 Fugle。`);
-    else setBox('fugle','bad',`🔴 HTTP 可達但資料異常｜${brief(x)}\n${x.text.slice(0,500)}`);
-  }catch(e){setBox('fugle','bad','🔴 '+errText(e))}
-}
-async function testAll(){
-  await Promise.all([testFinMind(),testTWSE(),testTPEX(),testFugle()]);
-}
-function updateSummary(){
-  const ids=['finmind','twse','tpex','fugle'];
-  const names={finmind:'FinMind',twse:'TWSE',tpex:'TPEx',fugle:'Fugle'};
-  const lines=ids.map(id=>{
-    const r=results[id];
-    return `${names[id]}：${!r?'未測試':r.status==='ok'?'成功':r.status==='bad'?'失敗/異常':'未完成'}`;
-  });
-  $('summary').textContent=lines.join('\n');
-}
-async function copyReport(){
-  const text=[
-    '台股 API Android 相容性測試',
-    `URL scheme: ${location.protocol}`,
-    `Origin: ${location.origin}`,
-    `UA: ${navigator.userAgent}`,
-    '',
-    ...['finmind','twse','tpex','fugle'].map(id=>`${id.toUpperCase()}:\n${results[id]?.msg||'未測試'}`)
-  ].join('\n');
-  try{await navigator.clipboard.writeText(text);alert('已複製診斷結果')}catch{prompt('請長按複製：',text)}
-}
-$('env').textContent=
-  `網址協定：${location.protocol}\n`+
-  `Origin：${location.origin}\n`+
-  `Online：${navigator.onLine}\n`+
-  `User-Agent：${navigator.userAgent}`;
-updateSummary();
+
 </script>
-</body>
-</html>
+</main></body></html>
