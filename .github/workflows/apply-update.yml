@@ -1,52 +1,72 @@
-name: Apply update.zip
+name: Apply update package
 
 on:
   push:
     branches:
       - main
     paths:
-      - update.zip
+      - 'update*.zip'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: apply-update-zip
+  group: apply-update-package
   cancel-in-progress: false
 
 jobs:
   apply:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 2
 
-      - name: Verify update.zip
+      - name: Select uploaded update package
+        id: pick
         shell: bash
         run: |
           set -euo pipefail
-          test -f update.zip
-          unzip -t update.zip
 
-      - name: Apply update
+          ZIP_FILE="$(git diff --name-only HEAD^ HEAD 2>/dev/null | grep -E '^update.*\.zip$' | tail -n 1 || true)"
+
+          if [ -z "${ZIP_FILE}" ]; then
+            ZIP_FILE="$(git ls-files 'update*.zip' | sort -V | tail -n 1 || true)"
+          fi
+
+          if [ -z "${ZIP_FILE}" ] || [ ! -f "${ZIP_FILE}" ]; then
+            echo "No update*.zip package found."
+            exit 1
+          fi
+
+          echo "Using package: ${ZIP_FILE}"
+          echo "zip_file=${ZIP_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify package
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t "${{ steps.pick.outputs.zip_file }}"
+
+      - name: Apply package
         shell: bash
         run: |
           set -euo pipefail
           rm -rf /tmp/tw-stock-update
           mkdir -p /tmp/tw-stock-update
-          unzip -oq update.zip -d /tmp/tw-stock-update
+          unzip -oq "${{ steps.pick.outputs.zip_file }}" -d /tmp/tw-stock-update
 
           if find /tmp/tw-stock-update -type l | grep -q .; then
-            echo "Symlinks are not allowed in update.zip"
+            echo "Symlinks are not allowed in update packages."
             exit 1
           fi
 
           cp -a /tmp/tw-stock-update/. .
 
-      - name: Commit applied files
+      - name: Commit extracted files
         shell: bash
         run: |
           set -euo pipefail
@@ -54,12 +74,15 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
-          git reset -- update.zip
+
+          # The uploaded zip remains as the user's trigger commit, but the bot commit
+          # should contain only the extracted project files.
+          git reset -- 'update*.zip' || true
 
           if git diff --cached --quiet; then
             echo "No extracted file changes to commit."
             exit 0
           fi
 
-          git commit -m "Apply update.zip automatically"
+          git commit -m "Apply ${{ steps.pick.outputs.zip_file }} automatically"
           git push
