@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7.9 · Top100 FinMind 完整重評</title>
+<title>台股 V1.8.0 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -28,14 +28,14 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.7.9 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.8.0 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
 <div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
-<div><label>最大掃描檔數</label><input id="maxStocks" type="number" value="200"></div>
+<div><label>最大保留檔數</label><input id="maxStocks" type="number" value="200"></div>
 <div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="4"></div>
 <div><label>FinMind 重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
 </div>
@@ -83,6 +83,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <script>
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='entry';
+let SCAN_FILTERS={minClose:10,maxClose:300,minLots:3000};
 async function getJSON(url){
  const r=await fetch(url,{cache:'no-store'});
  const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
@@ -186,11 +187,12 @@ function toggleWatch(code){
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
  saveWatchlist(a); showRank(currentRank); renderWatchlist();
 }
-function openDetail(code,hasFutures=false){
+function openDetail(code,hasFutures=false,market='twse'){
   persistScan();
   const u=new URL('/detail.html',location.origin);
   u.searchParams.set('code',code);
   u.searchParams.set('from','scanner');
+  u.searchParams.set('market',market);
   if(hasFutures) u.searchParams.set('futures','1');
   u.searchParams.set('popup','1');
   const win=window.open(u.toString(),'_blank','noopener');
@@ -308,7 +310,7 @@ function renderRankOnly(key=currentRank){
     btn.classList.toggle('active', btn.dataset.rank===currentRank);
   });
   const a=[...results].sort((x,y)=>rankVal(y,currentRank)-rankVal(x,currentRank)).slice(0,100);
-  $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'})">
+  $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'},'${r.market||'twse'}')">
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
     <td>${r.hasFutures?'● 有':'—'}</td><td>${r.close}</td>
@@ -373,9 +375,15 @@ async function worker(item){
   try{
     const end=new Date().toLocaleDateString('sv-SE');
     const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE');
-    const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=twse&start_date=${start}&end_date=${end}`);
+    const market=item.market||'twse';
+    const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${start}&end_date=${end}`);
     const hist=j.data||[];
     if(hist.length<180)throw new Error(`歷史K不足 ${hist.length}`);
+    const lastBar=hist.at(-1)||{};
+    const latestClose=n(lastBar.close,0), latestLots=n(lastBar.volume,0)/1000;
+    if(latestClose<SCAN_FILTERS.minClose)throw new Error('低於最低股價');
+    if(SCAN_FILTERS.maxClose>0&&latestClose>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
+    if(latestLots<SCAN_FILTERS.minLots)throw new Error('低於最低成交量');
     const s=formalScore(hist);
     const last=hist.at(-1);
     const rr={
@@ -413,37 +421,31 @@ async function runPool(items,limit){
 $('scanBtn').onclick=async()=>{
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
-  $('status').textContent='取得 TWSE 成交量候選股…';
-  const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
-  const [j,fj]=await Promise.all([
-    getJSON(`/api/market/filter?min_close=${minClose}&min_lots=${minLots}`),
-    getJSON('/api/futures/stock-list').catch(()=>({codes:[],source:'unavailable'}))
-  ]);
+  $('status').textContent='取得上市＋上櫃完整 Universe…';
+  const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),keepN=Math.max(1,n($('maxStocks').value,200));
+  SCAN_FILTERS={minClose,maxClose,minLots};
+  const [j,fj]=await Promise.all([getJSON('/api/market/universe'),getJSON('/api/futures/stock-list').catch(()=>({codes:[],source:'unavailable'}))]);
   const futuresSet=new Set((fj.codes||[]).map(String));
-  let cand=(j.data||[])
-    .filter(x=>x.market==='twse')
-    .map(x=>({...x,hasFutures:futuresSet.has(String(x.code))}))
-    .filter(x=>maxClose<=0 || x.close<=maxClose || x.hasFutures)
-    .slice(0,max);
-  const futuresCount=cand.filter(x=>x.hasFutures).length;
-  $('stats').textContent=`候選 ${cand.length} 檔；最高股價 ${maxClose>0?maxClose:'不限'}，股票期貨標的豁免；其中期貨股 ${futuresCount} 檔｜期貨來源 ${fj.source||'—'}｜V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'} · 第一階段 Price-only → Top100 FinMind 重評`;
+  let cand=(j.data||[]).map(x=>({...x,hasFutures:futuresSet.has(String(x.code))}));
+  const c=j.counts||{}, futuresUniverse=cand.filter(x=>x.hasFutures).length;
+  $('stats').textContent=`Universe：上市 ${c.twse||0} + 上櫃 ${c.tpex||0} = ${cand.length}｜期貨股 ${futuresUniverse}｜最高價 ${maxClose>0?maxClose:'不限'}（期貨豁免）`;
   await runPool(cand,Math.max(1,Math.min(8,n($('concurrency').value,4))));
-  if(stopped){showRank(currentRank);$('status').textContent=`已停止 · 第一階段完成 ${results.length} 檔`;return}
+  if(stopped){showRank(currentRank);$('status').textContent=`已停止 · 已處理 ${results.length+errors.length}/${cand.length}`;return}
 
-  // Price-only preliminary ranking. Only these stocks consume FinMind quota.
-  const topN=Math.max(1,Math.min(100,n($('finTopN').value,100)));
-  const top=[...results].sort((a,b)=>b.prelimScore-a.prelimScore).slice(0,topN);
+  const qualified=[...results].sort((a,b)=>b.prelimScore-a.prelimScore);
+  const retained=qualified.slice(0,keepN);
+  const topN=Math.max(1,Math.min(100,n($('finTopN').value,100),retained.length));
+  const top=retained.slice(0,topN);
   $('prog').value=0;
-  $('status').textContent=`第一階段完成 ${results.length} 檔；開始 FinMind 重評前 ${top.length} 名…`;
+  $('status').textContent=`全市場第一階段完成 ${cand.length}/${cand.length}｜符合 ${qualified.length}｜保留 ${retained.length}｜開始 FinMind ${top.length}`;
   await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
-
-  // Only fully/partially re-evaluated top-N are shown as final results.
-  results=top;
-  showRank('entry');
+  results=top; showRank('entry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
-  $('status').textContent=`兩階段完成 · FinMind重評 ${results.length} 檔 · 完整 ${full} · 部分 ${partial} · 失敗 ${results.length-full-partial}`; persistScan();
+  $('stats').textContent=`上市 ${c.twse||0}｜上櫃 ${c.tpex||0}｜Universe ${cand.length}｜第一階段處理 ${results.length+errors.length}/${cand.length}｜條件通過 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}`;
+  $('status').textContent=`V1.8.0 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};

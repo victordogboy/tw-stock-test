@@ -61,6 +61,30 @@ function normalizeTwse(rows) {
 }
 
 
+
+async function fetchTpexUniverse(){
+  const urls=["https://isin.twse.com.tw/isin/C_public.jsp?strMode=4"];
+  const attempts=[];
+  for(const u of urls){
+    try{
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.0)"}});
+      const text=await r.text(); attempts.push({url:u,status:r.status,bytes:text.length});
+      if(!r.ok||text.length<1000) continue;
+      const out=new Map();
+      for(const m of text.matchAll(/<td[^>]*>\s*(\d{4})[\s\u3000]*(?:&nbsp;)*\s*([^<\r\n]+?)\s*<\/td>/gi)){
+        const code=m[1],name=m[2].replace(/&nbsp;/g," ").trim();
+        if(!code.startsWith("00")&&name) out.set(code,{market:"tpex",code,name});
+      }
+      const cells=[...text.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map(m=>m[1].replace(/<[^>]+>/g," ").replace(/&nbsp;/g," ").replace(/\s+/g," ").trim());
+      for(let i=0;i<cells.length-1;i++) if(/^\d{4}$/.test(cells[i])&&!cells[i].startsWith("00")){
+        const name=cells[i+1]; if(name&&!/^\d/.test(name)) out.set(cells[i],{market:"tpex",code:cells[i],name});
+      }
+      if(out.size>300) return {ok:true,data:[...out.values()],source:"TWSE ISIN OTC universe",upstream:u,attempts};
+    }catch(e){attempts.push({url:u,error:String(e?.message||e)})}
+  }
+  return {ok:false,data:[],source:"TWSE ISIN OTC universe",attempts,error:"Unable to obtain OTC universe"};
+}
+
 async function fetchTpexAll() {
   const attempts = [];
 
@@ -542,7 +566,8 @@ const FUTURES_FALLBACK_CODES = [
 
 async function fetchTaifexStockFuturesCodes(){
   const urls=[
-    "https://www.taifex.com.tw/cht/5/stockMargining?menuid1=12",
+    "https://www.taifex.com.tw/cht/2/stockLists",
+    "https://www.taifex.com.tw/cht/5/stockMarginingDetail",
     "https://www.taifex.com.tw/cht/2/sTF"
   ];
   const attempts=[];
@@ -551,7 +576,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.7.9)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.0)"
         }
       });
       const text=await r.text();
@@ -591,7 +616,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.7.9",
+      version: "1.8.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -666,6 +691,21 @@ async function routeApi(request, env, url) {
       attempts:result.attempts,
       data
     });
+  }
+
+
+  if (url.pathname === "/api/market/universe") {
+    const [twseRaw,tpex]=await Promise.all([
+      fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
+        .then(raw=>({ok:true,data:normalizeTwse(raw).filter(ordinaryStock)}))
+        .catch(e=>({ok:false,data:[],error:String(e?.message||e)})),
+      fetchTpexUniverse()
+    ]);
+    const twse=twseRaw.data.map(x=>({market:"twse",code:x.code,name:x.name,close:x.close,volume_shares:x.volume_shares}));
+    return json({ok:twseRaw.ok||tpex.ok,data:[...twse,...tpex.data],
+      counts:{twse:twse.length,tpex:tpex.data.length,total:twse.length+tpex.data.length},
+      sources:{twse:{ok:twseRaw.ok,error:twseRaw.error||null},tpex:{ok:tpex.ok,source:tpex.source,upstream:tpex.upstream||null,error:tpex.error||null,attempts:tpex.attempts||[]}}
+    },(twseRaw.ok||tpex.ok)?200:502,{"cache-control":"public,max-age=21600"});
   }
 
   if (url.pathname === "/api/market/filter") {
@@ -964,7 +1004,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.7.9");
+        headers.set("X-App-Version","1.8.0");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
