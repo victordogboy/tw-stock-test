@@ -22,3 +22,4 @@ Worker → Settings → Variables and Secrets → Add → Secret
 ## 注意
 `wrangler.jsonc` 的 name 是 `tw-stock-api`。
 如果你要連到昨天既有的 Worker，Cloudflare 端 Worker 名稱也必須是 `tw-stock-api`。
+Cloudflare deployment test
