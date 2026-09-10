@@ -1,24 +1,18 @@
-# V1.4.3 V4.4 mapping 修正
+# V1.4.4 Setup Quality mapping 修正
 
-依 V1.4.2 實際診斷結果修正，不再猜 key：
-combineScores() top-level:
-- market
-- optimal
-- bottom
-- ignition
-- quality
-- noTrade
-- setup
+V1.4.3 診斷確認：
+- `R.setup` 不是分數，而是交易型態 / gating 狀態物件，例如：
+  - state
+  - cls
+  - reason
+- 正式 V4.4 UI 的「Setup｜型態品質」實際顯示的是 `R.quality`。
 
-entryEngine():
-- score
-- state
-- position
-- opportunity / hold / persistence 等
+正式 V4.4 原始碼：
+`quality = round(market.score*0.50 + optimal.score*0.30 + ignition.score*0.20)`
 
-mapping:
-- Setup = R.setup.score
-- Trend/Market = R.market.score
+因此 mapping 改為：
+- Setup = R.quality
+- Trend = R.market.score
 - Bottom = R.bottom.score
 - Ignition = R.ignition.score
 - Entry = E.score
@@ -26,5 +20,4 @@ mapping:
 - Hold = E.hold
 - Persistence = E.persistence
 
-3443 2026-08-11 已確認 Entry 72 / Opportunity 93 / Hold 78 / Persistence 74。
-本版目的：修正全市場排行榜中 Setup/Trend/Bottom/Ignition 被錯誤顯示為 0 的問題。
+3443 / 2026-08-11 預期 Setup 應恢復約 74，而不是 0。

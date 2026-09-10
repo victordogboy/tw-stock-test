@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.4.3 · V4.4 Mapping 修正版</title>
+<title>台股 V1.4.4 · V4.4 Setup Quality 修正版</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -11,7 +11,7 @@ progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-s
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.4.3 · V4.4 Mapping 修正版</h1>
+<h1>台股 V1.4.4 · V4.4 Setup Quality 修正版</h1>
 <p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
 
 <div class="card grid">
@@ -101,7 +101,7 @@ function formalScore(hist){
  try{
    const {R,E}=formalObjects(hist);
    return {
-     setup:scoreOf(R?.setup),
+     setup:scoreOf(R?.quality),
      opportunity:scoreOf(E?.opportunity ?? E?.opportunityScore),
      entry:scoreOf(E?.score ?? E?.entryScore),
      hold:scoreOf(E?.hold ?? E?.holdScore),
@@ -175,7 +175,8 @@ $('diagBtn').onclick=async()=>{
    const {R,E}=formalObjects(hist);
    const mapped=formalScore(hist);
    const engineMap={
-     setup_raw:R?.setup,
+     setup_quality:R?.quality,
+     setup_gate:R?.setup,
      market_raw:R?.market,
      bottom_raw:R?.bottom,
      ignition_raw:R?.ignition,
