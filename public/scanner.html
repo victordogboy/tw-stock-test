@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7.1 · Top100 FinMind 完整重評</title>
+<title>台股 V1.7.3 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -23,7 +23,7 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 .starbtn{padding:3px 7px;width:auto;font-size:12px}
 .watchchange.up{color:#65d99a}.watchchange.down{color:#ff7777}.watchchange.flat{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.5 · V4.4 決策排行榜</h1>
+<h1>台股 V1.7.3 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段：TWSE → Yahoo OHLCV 價格初篩。第二階段：取初篩前 100 名，用 FinMind 融資＋法人＋當沖重新跑完整 V4.4，再顯示正式排名。</p>
 
 <div class="card grid">
@@ -193,14 +193,18 @@ function toggleWatch(code){
  let a=getWatchlist(),c=String(code);
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
  saveWatchlist(a); showRank(); renderWatchlist();
-restoreScan();
 }
 function openDetail(code){
- persistScan();
- const u=new URL('/detail.html',location.origin);
- u.searchParams.set('code',code);
- u.searchParams.set('from','scanner');
- location.href=u.toString();
+  persistScan();
+  const u=new URL('/detail.html',location.origin);
+  u.searchParams.set('code',code);
+  u.searchParams.set('from','scanner');
+  u.searchParams.set('popup','1');
+  const win=window.open(u.toString(),'_blank','noopener');
+  if(!win){
+    // Popup blocked fallback: same-tab navigation still has storage restore.
+    location.assign(u.toString());
+  }
 }
 function deltaText(cur,prev){
  if(!prev)return 'NEW';
@@ -250,77 +254,88 @@ function renderWatchRows(rows=null){
  }).join('');
 }
 function renderWatchlist(){renderWatchRows()}
-const SCAN_STATE_KEY='twq_scan_state_v171';
+const SCAN_STATE_KEY='twq_scan_state_v172';
+
+function buildPersistPayload(){
+  const slim=results.map(r=>{
+    const x={...r};
+    delete x._hist;
+    return x;
+  });
+  return {
+    version:'1.7.2',
+    savedAt:Date.now(),
+    currentRank,
+    results:slim,
+    status:$('status')?.textContent||'',
+    stats:$('stats')?.textContent||'',
+    progress:Number($('prog')?.value||0)
+  };
+}
 function persistScan(){
- try{
-   const slim=results.map(r=>{
-     const x={...r};
-     delete x._hist; // avoid huge storage; histories can be refetched only if user rescans
-     return x;
-   });
-   const payload={
-     savedAt:Date.now(),
-     currentRank,
-     results:slim,
-     status:$('status')?.textContent||'',
-     stats:$('stats')?.textContent||'',
-     progress:Number($('prog')?.value||0)
-   };
-   sessionStorage.setItem(SCAN_STATE_KEY,JSON.stringify(payload));
-   localStorage.setItem(SCAN_STATE_KEY,JSON.stringify(payload));
- }catch(e){console.warn('persistScan failed',e)}
+  if(!Array.isArray(results) || results.length===0) return;
+  try{
+    const raw=JSON.stringify(buildPersistPayload());
+    localStorage.setItem(SCAN_STATE_KEY,raw);
+    sessionStorage.setItem(SCAN_STATE_KEY,raw);
+  }catch(e){
+    console.warn('persistScan failed',e);
+  }
 }
 function restoreScan(){
- try{
-   const raw=sessionStorage.getItem(SCAN_STATE_KEY)||localStorage.getItem(SCAN_STATE_KEY);
-   if(!raw)return false;
-   const p=JSON.parse(raw);
-   if(!Array.isArray(p.results)||!p.results.length)return false;
-   results=p.results;
-   currentRank=p.currentRank||'newEntry';
-   if($('status'))$('status').textContent=p.status||`已恢復上次掃描結果 · ${results.length} 檔`;
-   if($('stats'))$('stats').textContent=p.stats||'';
-   if($('prog'))$('prog').value=Number.isFinite(p.progress)?p.progress:100;
-   showRank(currentRank);
-   return true;
- }catch(e){console.warn('restoreScan failed',e);return false}
+  try{
+    const raw=localStorage.getItem(SCAN_STATE_KEY) || sessionStorage.getItem(SCAN_STATE_KEY);
+    if(!raw) return false;
+    const p=JSON.parse(raw);
+    if(!Array.isArray(p.results) || p.results.length===0) return false;
+
+    results=p.results;
+    currentRank=p.currentRank||'newEntry';
+
+    if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${results.length} 檔`;
+    if($('stats')) $('stats').textContent=p.stats||'';
+    if($('prog')) $('prog').value=100;
+
+    renderRankOnly(currentRank);
+    return true;
+  }catch(e){
+    console.warn('restoreScan failed',e);
+    return false;
+  }
 }
 window.addEventListener('pagehide',persistScan);
 window.addEventListener('beforeunload',persistScan);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persistScan()});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden') persistScan();
+});
 
-function showRank(key=currentRank){
- currentRank=key;
- document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
-   btn.classList.toggle('active', btn.dataset.rank===key);
- });
- const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
- persistScan();
- $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')"><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
- <td><b>${Math.round(decisionScore(r,key))}</b></td>
- <td>${r.prelimScore!=null?Math.round(r.prelimScore):'-'}</td>
- <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%':'Price-only'}</td>
- <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
- <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td>
- <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
- <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td><td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
- <td>${r.decision?r.decision.t1.toFixed(1):'-'}</td><td>${r.decision?r.decision.t2.toFixed(1):'-'}</td>
- <td>${r.decision?r.decision.rr1.toFixed(2):'-'}</td><td><span class="pill">${r.state||''}</span></td>
- <td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${r.code}')">${isWatched(r.code)?'★':'☆'}</button></td></tr>`).join('');
+function renderRankOnly(key=currentRank){
+  currentRank=key;
+  document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.rank===key);
+  });
+  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
+  $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')">
+    <td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
+    <td><b>${Math.round(decisionScore(r,key))}</b></td>
+    <td>${r.prelimScore!=null?Math.round(r.prelimScore):'-'}</td>
+    <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%':'Price-only'}</td>
+    <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td>
+    <td>${r.hold}</td><td>${r.persistence}</td><td>${r.bottom}</td>
+    <td>${r.ignition}</td><td>${r.trend}</td>
+    <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
+    <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td>
+    <td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
+    <td>${r.decision?r.decision.t1.toFixed(1):'-'}</td>
+    <td>${r.decision?r.decision.t2.toFixed(1):'-'}</td>
+    <td>${r.decision?r.decision.rr1.toFixed(2):'-'}</td>
+    <td><span class="pill">${r.state||''}</span></td>
+    <td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${r.code}')">${isWatched(r.code)?'★':'☆'}</button></td>
+  </tr>`).join('');
 }
-async function worker(item){
- if(stopped)return;
- try{
-  const end=new Date().toLocaleDateString('sv-SE');
-  const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE');
-  const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(item.code)}&market=twse&start_date=${start}&end_date=${end}`);
-  if((j.data||[]).length<180) throw new Error('歷史K不足 '+(j.data||[]).length);
-  const s=formalScore(j.data);
-  const rr={...item,...s,decision:priceDecision(j.data),historyCount:j.data.length,historySource:j.source,_hist:j.data};
-  rr.prelimScore=decisionScore(rr,'newEntry');
-  rr.finmindCompleteness=0;
-  results.push(rr);
- }catch(e){errors.push(`${item.code} ${item.name}: ${e.message}`)}
+function showRank(key=currentRank){
+  renderRankOnly(key);
+  persistScan();
 }
 
 async function finmindRecheckOne(r){
@@ -374,7 +389,7 @@ async function runPool(items,limit){
  await Promise.all(Array.from({length:limit},lane));
 }
 $('scanBtn').onclick=async()=>{
- stopped=false;results=[];errors=[];$('prog').value=0; sessionStorage.removeItem(SCAN_STATE_KEY); localStorage.removeItem(SCAN_STATE_KEY);
+ stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='取得 TWSE 成交量候選股…';
   const minClose=n($('minClose').value,10),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
@@ -445,5 +460,7 @@ if(!lastWU || (Date.now()-new Date(lastWU).getTime())>6*3600*1000) setTimeout(up
 setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*60*1000);
 
 
+
+// Restore previous Top100 automatically when returning from a stock detail page.
 restoreScan();
 </script></main></body></html>
