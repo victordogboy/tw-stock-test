@@ -1,7 +1,14 @@
-# V1.4.1 V4.4 Mapping Diagnostic
-- 不改 API / Yahoo / TWSE 掃描架構。
-- 新增單股 Strict No-Lookahead 診斷。
-- 預設 3443 / 2026-08-11。
-- 顯示 combineScores 與 entryEngine 的原始 keys + 完整 JSON。
-- scanner mapping 改為 recursive key lookup，避免直接猜欄位名稱。
-- 下一步用診斷輸出做 1:1 mapping，再與正式 V4.4 單股版回歸比對。
+# V1.4.2 診斷按鈕修正
+
+原因：
+V1.4.1 將 `diagBtn` click handler 錯誤地放進
+`<script src="/v44-engine.js"> ... </script>` 之間。
+
+依 HTML 規則，帶 `src` 的 script 元素內嵌內容不會被執行，
+因此「單股回歸」按鈕看得到，但點擊沒有反應。
+
+修正：
+- `v44-engine.js` 改成純外部載入 `<script src="/v44-engine.js"></script>`
+- 診斷 click handler 移到主 inline script
+- 不改 V4.4 scoring engine、API、Yahoo 歷史 K 或掃描邏輯
+- Worker version = 1.4.2
