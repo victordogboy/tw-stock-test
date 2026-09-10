@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股免費 API 雲端驗證 V1.1</title>
+<title>台股免費 API 雲端驗證 V1.2</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#0b1020;color:#e8eefc}
 main{max-width:1050px;margin:auto;padding:24px}
@@ -17,7 +17,7 @@ input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-rad
 </style>
 </head>
 <body><main>
-<h1>台股免費 API 雲端驗證 V1.1</h1>
+<h1>台股免費 API 雲端驗證 V1.2</h1>
 <p class="muted">Cloudflare Worker 代理 TWSE / TPEx / FinMind。先把資料鏈全部測通，再接 V4.4 與全市場掃描。</p>
 
 <div class="grid">
@@ -52,7 +52,7 @@ async function call(path){
 function state(id,ok,text){const e=$(id);e.className=ok?'good':'bad';e.textContent=text}
 async function testHealth(){try{const j=await call('/api/health');state('health',j.ok,'正常 · '+j.version);log(j)}catch(e){state('health',false,e.message);log(e.payload||e.message)}}
 async function testTwse(){try{const j=await call('/api/twse/all');state('twse',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('twse',false,e.message);log(e.payload||e.message)}}
-async function testTpex(){try{const j=await call('/api/tpex/all');state('tpex',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('tpex',false,e.message);log(e.payload||e.message)}}
+async function testTpex(){try{const j=await call('/api/tpex/all');state('tpex',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}；${j.mode||'unknown'}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('tpex',false,e.message);log(e.payload||e.message)}}
 async function testFilter(){try{const j=await call('/api/market/filter?min_close=10&min_lots=3000');state('filter',j.ok,`${j.partial?'部分成功':'成功'} · 候選 ${j.count} 檔 · TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}`);log({...j,data:j.data.slice(0,20)})}catch(e){state('filter',false,e.message);log(e.payload||e.message)}}
 async function testFinmind(){
  try{

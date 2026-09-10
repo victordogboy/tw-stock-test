@@ -62,59 +62,157 @@ function normalizeTwse(rows) {
 
 
 async function fetchTpexAll() {
-  // TPEx OpenAPI is official, but some Cloudflare egress paths can be redirected
-  // repeatedly by www.tpex.org.tw. Try several official host/scheme variants and
-  // expose diagnostics instead of taking down the whole market scan.
-  const candidates = [
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes/",
-    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes/"
-  ];
   const attempts = [];
-  for (const u of candidates) {
+
+  // Strategy A: official OpenAPI endpoints
+  const openapiCandidates = [
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes"
+  ];
+
+  for (const u of openapiCandidates) {
     try {
       const r = await fetch(u, {
         redirect: "manual",
         headers: {
           "accept": "application/json",
-          "user-agent": "Mozilla/5.0 (compatible; tw-stock-api/1.1)"
+          "user-agent": "Mozilla/5.0 (compatible; tw-stock-api/1.2)"
         }
       });
       const location = r.headers.get("location");
-      attempts.push({url:u,status:r.status,location});
+      attempts.push({strategy:"openapi",url:u,status:r.status,location});
       if (r.status >= 300 && r.status < 400) continue;
       if (!r.ok) continue;
       const text = await r.text();
-      let body;
-      try { body = JSON.parse(text); } catch { continue; }
-      if (Array.isArray(body) && body.length) {
-        return { ok:true, raw:body, upstream:u, attempts };
-      }
+      try {
+        const body = JSON.parse(text);
+        if (Array.isArray(body) && body.length) {
+          return { ok:true, raw:body, upstream:u, attempts, mode:"openapi" };
+        }
+      } catch {}
     } catch(e) {
-      attempts.push({url:u,error:String(e?.message||e)});
+      attempts.push({strategy:"openapi",url:u,error:String(e?.message||e)});
     }
   }
+
+  // Strategy B: TPEx official webpage JSON interface.
+  // The public Daily Stock Quotes page is still available and exposes data
+  // through its webpage backend. Try current-date and empty-date forms.
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Taipei" });
+  const webpageCandidates = [
+    `https://www.tpex.org.tw/www/zh-tw/mainboard/trading/info/pricing?date=${today}&id=&response=json`,
+    `https://www.tpex.org.tw/www/zh-tw/mainboard/trading/info/pricing?date=&id=&response=json`,
+    `https://www.tpex.org.tw/zh-tw/mainboard/trading/info/pricing.html?date=${today}&id=&response=json`,
+    `https://www.tpex.org.tw/zh-tw/mainboard/trading/info/pricing.html?date=&id=&response=json`
+  ];
+
+  for (const u of webpageCandidates) {
+    try {
+      const r = await fetch(u, {
+        redirect: "manual",
+        headers: {
+          "accept": "application/json,text/plain,*/*",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36",
+          "referer": "https://www.tpex.org.tw/zh-tw/mainboard/trading/info/pricing.html"
+        }
+      });
+      const location = r.headers.get("location");
+      attempts.push({strategy:"webpage-json",url:u,status:r.status,location,contentType:r.headers.get("content-type")});
+      if (r.status >= 300 && r.status < 400) continue;
+      if (!r.ok) continue;
+      const text = await r.text();
+
+      let body;
+      try { body = JSON.parse(text); } catch { body = null; }
+      if (!body) continue;
+
+      // Known TPEx webpage JSON payloads commonly wrap tables under tables[]
+      // with rows stored in data / rows.
+      const candidates = [];
+      if (Array.isArray(body)) candidates.push(body);
+      if (Array.isArray(body.data)) candidates.push(body.data);
+      if (Array.isArray(body.rows)) candidates.push(body.rows);
+      if (Array.isArray(body.tables)) {
+        for (const t of body.tables) {
+          if (Array.isArray(t?.data)) candidates.push(t.data);
+          if (Array.isArray(t?.rows)) candidates.push(t.rows);
+        }
+      }
+
+      for (const arr of candidates) {
+        if (arr.length) {
+          return {
+            ok:true,
+            raw:arr,
+            upstream:u,
+            attempts,
+            mode:"webpage-json",
+            payload_meta:{
+              topKeys:Object.keys(body).slice(0,20),
+              tableCount:Array.isArray(body.tables)?body.tables.length:null
+            }
+          };
+        }
+      }
+    } catch(e) {
+      attempts.push({strategy:"webpage-json",url:u,error:String(e?.message||e)});
+    }
+  }
+
   return { ok:false, raw:[], upstream:null, attempts };
 }
 
 function normalizeTpex(rows) {
   if (!Array.isArray(rows)) return [];
+
   return rows.map(x => {
-    const code = x.SecuritiesCompanyCode ?? x.SecuritiesCode ?? x.Code ?? x.code ?? "";
-    const name = x.CompanyName ?? x.SecuritiesName ?? x.Name ?? x.name ?? "";
-    const close = x.Close ?? x.ClosePrice ?? x.ClosingPrice ?? x.close ?? "";
-    const volLots = x.TradingShares ?? x.TradingVolume ?? x.TradeVolume ?? x.Volume ?? x.volume ?? "";
-    const v = Number(String(volLots).replace(/,/g, ""));
-    return {
-      market: "tpex",
-      code: String(code).trim(),
-      name: String(name).trim(),
-      close: Number(String(close).replace(/,/g, "")),
-      volume_shares: v,
-      raw: x,
-    };
-  }).filter(x => x.code);
+    // Object-form rows from OpenAPI
+    if (!Array.isArray(x)) {
+      const code = x.SecuritiesCompanyCode ?? x.SecuritiesCode ?? x.Code ?? x.code ?? x["代號"] ?? "";
+      const name = x.CompanyName ?? x.SecuritiesName ?? x.Name ?? x.name ?? x["名稱"] ?? "";
+      const close = x.Close ?? x.ClosePrice ?? x.ClosingPrice ?? x.close ?? x["收盤"] ?? "";
+      const vol = x.TradingShares ?? x.TradingVolume ?? x.TradeVolume ?? x.Volume ?? x.volume ?? x["成交股數"] ?? "";
+      return {
+        market:"tpex",
+        code:String(code).trim(),
+        name:String(name).trim(),
+        close:Number(String(close).replace(/,/g,"").replace(/--/g,"")),
+        volume_shares:Number(String(vol).replace(/,/g,"").replace(/--/g,"")),
+        raw:x
+      };
+    }
+
+    // Array-form rows from TPEx webpage tables.
+    // Typical order begins with code, name, close/change, open/high/low, volume...
+    // We infer code/name by content and infer numeric fields defensively.
+    const vals=x.map(v=>String(v??"").trim());
+    let code="", name="";
+    for (let i=0;i<Math.min(vals.length,4);i++) {
+      if (!code && /^\d{4}$/.test(vals[i])) {
+        code=vals[i];
+        if (i+1<vals.length) name=vals[i+1];
+        break;
+      }
+    }
+
+    const nums=vals.map(v=>{
+      const z=v.replace(/,/g,"").replace(/--/g,"").replace(/[+]/g,"");
+      return /^-?\d+(\.\d+)?$/.test(z)?Number(z):NaN;
+    });
+
+    // Heuristic:
+    // first plausible price after code/name = close;
+    // largest integer-like number later in row = volume shares.
+    let close=NaN;
+    for (let i=2;i<nums.length;i++) {
+      if (Number.isFinite(nums[i]) && nums[i]>0 && nums[i]<100000) { close=nums[i]; break; }
+    }
+    let volume=NaN;
+    const numericCandidates=nums.filter(n=>Number.isFinite(n) && n>=0);
+    if (numericCandidates.length) volume=Math.max(...numericCandidates.filter(n=>Number.isInteger(n)));
+
+    return {market:"tpex",code,name,close,volume_shares:volume,raw:x};
+  }).filter(x=>x.code);
 }
 
 function ordinaryStock(x) {
@@ -130,7 +228,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.1.0",
+      version: "1.2.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -152,6 +250,18 @@ async function routeApi(request, env, url) {
     } catch (e) {
       return json({ ok: false, source: "TWSE OpenAPI", upstream, error: String(e.message || e) }, 502);
     }
+  }
+
+  if (url.pathname === "/api/tpex/debug") {
+    const result = await fetchTpexAll();
+    return json({
+      ok:result.ok,
+      mode:result.mode||null,
+      upstream:result.upstream||null,
+      attempts:result.attempts||[],
+      sample:Array.isArray(result.raw)?result.raw.slice(0,5):[],
+      payload_meta:result.payload_meta||null
+    }, result.ok?200:502);
   }
 
   if (url.pathname === "/api/tpex/all") {
