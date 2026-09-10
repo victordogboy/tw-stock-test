@@ -625,7 +625,7 @@ function entryEngine(rows,R){
   if(impulseDay)entryQuality+=8;
   if(breakout)entryQuality+=5;
 
-  const chaseReasons=[]; let chase=0;
+  const chaseReasons=[]; const penalties=[]; let chase=0;
   if(ret5>=22){chase+=10;chaseReasons.push('5日累積漲幅過大')}
   else if(ret3>=18){chase+=7;chaseReasons.push('3日累積漲幅過大')}
   if(d5>=8){chase+=8;chaseReasons.push('距MA5過遠')}
@@ -758,7 +758,7 @@ function entryEngine(rows,R){
   hold=clamp(Math.round(hold),0,100);
 
   return {
-    score,state,position,phase,hold,triggers,
+    score,state,position,phase,hold,triggers,penalties,
     opportunity,entryQuality,confirmation,effectiveConfirmation,persistence,eventAge,followBoost,followReasons,chasePenalty:chase,chaseReasons,
     route: opportunity>=entryQuality+8?'事件/機會型':'結構/價格型',
     // UI compatibility

@@ -1,26 +1,29 @@
-# V1.9.2 — FinMind / 個股頁一致性修正
+# V1.9.3 — Detail 空白圖表 Hotfix
 
-1. 個股頁原本同時要求融資、法人、當沖，會對相同 `/api/chips/hybrid` 發出 3 次請求。
-   V1.9.2 改成單一 Chip Bundle Promise，一次取得三組資料。
+從使用者 V1.9.2 截圖確認：
+- 上方四分數與 OHLC 已經算出來。
+- 但 K 線圖完全空白。
+- 籌碼代理趨勢完全空白。
+- 動態均線表格只有「—」。
 
-2. Scanner 第二階段使用 `/api/finmind/recheck`，Detail 原本使用 `/api/chips/hybrid`，
-   兩邊可能因 quota/fallback 取到不同資料。現在 Detail 優先使用和 Scanner 完全相同的
-   `/api/finmind/recheck`；只有 FinMind 失敗才做一次 hybrid fallback。
+這表示不是股價 API 沒資料，而是 `render()` 在畫圖前中途拋錯。
 
-3. Scanner 的 FinMind 視窗是 140 天，Detail 過去會因 analyze 傳入 300 天開始日而使用不同視窗。
-   現在 Detail 籌碼視窗固定 140 天，與 Scanner 一致。
+## 真正根因
+V1.9.1 為修正 `entryEngine()` 的 undefined `penalties`，把 `penalties` 從 return 移除了。
+但 Detail 的 render 仍有兩處：
+- `E.penalties.length`
+- `E.penalties.join(...)`
 
-4. Detail HTML 原本有自己的 `combineScores()` / `entryEngine()` 複本，
-   Scanner 則使用 `v44-engine.js`。兩份模型已經版本漂移。
-   本版把 Detail 的這兩個核心函式同步成 `v44-engine.js` 的同版本實作。
+因此流程會：
+1. 先成功顯示四分數與 OHLC。
+2. 執行到 `E.penalties.length` 時 TypeError。
+3. `renderChipKpis()`、`renderMATable()`、`drawPriceChart()`、`drawChipChart()` 全部還沒執行。
+4. 所以使用者看到三塊空白。
 
-5. Scanner FinMind recheck 後保存：
-   - preFinmind 四分數
-   - postFinmind 四分數
-   - 真正使用的 `_chips`
-   - finmindWindow
+## V1.9.3
+- entryEngine 正式建立 `penalties=[]` 並回傳，保持 UI contract。
+- Detail 同步相同修正。
+- 所有可選陣列 `penalties/chaseReasons/followReasons/triggers` 改為 defensive rendering。
+- render 若未來再失敗，頁面會直接顯示「畫面繪製失敗：原因」，不再只留下空白畫布。
 
-6. 從排行榜點進個股時，會保存該筆「當次排名真正使用的籌碼快照」。
-   Detail 優先使用這份快照，因此排行榜與個股頁不會因第二次 API 呼叫而漂移。
-
-7. 個股頁 Banner 顯示籌碼來源；若從 Scanner 開啟，也顯示排行榜 S/O/E/H 快照方便對帳。
+V1.9.2 的 FinMind 單一 Chip Bundle、140日一致視窗、Scanner audit snapshot 全部保留。
