@@ -369,6 +369,43 @@ async function fetchTwseMonthlyHistory(code,startDate,endDate){
 }
 
 
+
+async function mergeTwseExactRecentBars(code,startDate,endDate,history){
+  // IMPORTANT: STOCK_DAY_ALL does not carry the trading date.
+  // Never stamp it with server "today", especially around midnight.
+  // Instead use TWSE STOCK_DAY monthly data because every row contains its exact ROC trading date.
+  try{
+    const recentStart=addDaysISO(endDate,-45);
+    const twse=await fetchTwseMonthlyHistory(code,recentStart,endDate);
+    if(!twse.ok || !twse.data.length){
+      return {data:history,merged:0,source:"Yahoo only",attempts:twse.attempts||[]};
+    }
+    const map=new Map((history||[]).map(x=>[x.date,x]));
+    let merged=0;
+    for(const row of twse.data){
+      const old=map.get(row.date);
+      // Official TWSE wins for overlapping recent listed-stock bars.
+      if(!old || old.open!==row.open || old.high!==row.high || old.low!==row.low ||
+         old.close!==row.close || old.volume!==row.volume){
+        merged++;
+      }
+      map.set(row.date,{...old,...row,source:"TWSE STOCK_DAY monthly"});
+    }
+    const data=[...map.values()]
+      .filter(x=>x.date>=startDate && x.date<=endDate)
+      .sort((a,b)=>a.date.localeCompare(b.date));
+    return {
+      data,
+      merged,
+      source:"Yahoo history + TWSE exact-date recent bars",
+      last_twse:twse.data.at(-1)?.date||null,
+      attempts:twse.attempts||[]
+    };
+  }catch(e){
+    return {data:history,merged:0,source:"Yahoo only",error:String(e?.message||e)};
+  }
+}
+
 function twDateCompact(iso){ return String(iso||"").replaceAll("-",""); }
 function recentWeekdays(endIso,count){
   const out=[]; let d=new Date(endIso+"T12:00:00+08:00");
@@ -498,7 +535,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.7.6",
+      version: "1.7.8",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -616,24 +653,37 @@ async function routeApi(request, env, url) {
 
     const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
     if(yahoo.ok && yahoo.data.length>=150){
-      const merged=await mergeTwseLatestBar(code,market,endDate,yahoo.data);
+      const fresh=url.searchParams.get("fresh")==="1";
+      let data=yahoo.data, freshness={
+        merged:0,source:"Yahoo only",last_twse:null,error:null
+      };
+
+      // Detail/latest requests explicitly ask for fresh=1.
+      // Use exact-date TWSE monthly rows; never infer the exchange date from wall-clock "today".
+      if(fresh && market!=="tpex"){
+        freshness=await mergeTwseExactRecentBars(code,startDate,endDate,yahoo.data);
+        data=freshness.data;
+      }
+
       return json({
         ...yahoo,
-        data:merged.data,
+        data,
         mode:"primary",
-        latest_merge:merged.merged?"TWSE official same-day bar":"Yahoo only",
-        latest_merge_error:merged.merge_error||null,
-        count:merged.data.length,
-        first:merged.data[0]?.date||null,
-        last:merged.data.at(-1)?.date||null
+        fresh_requested:fresh,
+        latest_merge:freshness.source,
+        latest_merge_count:freshness.merged||0,
+        latest_twse_date:freshness.last_twse||null,
+        latest_merge_error:freshness.error||null,
+        count:data.length,
+        first:data[0]?.date||null,
+        last:data.at(-1)?.date||null
       });
     }
 
     if(market!=="tpex"){
       const twse=await fetchTwseMonthlyHistory(code,startDate,endDate);
       if(twse.ok){
-        const merged=await mergeTwseLatestBar(code,"twse",endDate,twse.data);
-        return json({...twse,data:merged.data,mode:"fallback",latest_merge:merged.merged?"TWSE official same-day bar":"monthly only",yahoo_attempts:yahoo.attempts,count:merged.data.length,first:merged.data[0]?.date||null,last:merged.data.at(-1)?.date||null});
+        return json({...twse,mode:"fallback",latest_merge:"TWSE exact-date monthly",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null});
       }
     }
 
@@ -839,7 +889,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.7.6");
+        headers.set("X-App-Version","1.7.8");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
