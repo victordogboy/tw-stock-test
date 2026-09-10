@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.0)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.1)"}});
       const text=await r.text(); attempts.push({url:u,status:r.status,bytes:text.length});
       if(!r.ok||text.length<1000) continue;
       const out=new Map();
@@ -576,7 +576,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.0)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.8.1)"
         }
       });
       const text=await r.text();
@@ -616,7 +616,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.8.0",
+      version: "1.8.1",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -702,8 +702,16 @@ async function routeApi(request, env, url) {
       fetchTpexUniverse()
     ]);
     const twse=twseRaw.data.map(x=>({market:"twse",code:x.code,name:x.name,close:x.close,volume_shares:x.volume_shares}));
-    return json({ok:twseRaw.ok||tpex.ok,data:[...twse,...tpex.data],
-      counts:{twse:twse.length,tpex:tpex.data.length,total:twse.length+tpex.data.length},
+    const merged=new Map();
+    // Add TPEx first, then overwrite by TWSE. Taiwan ordinary-stock codes are unique;
+    // if the OTC parser accidentally captures a listed code, TWSE must win.
+    for(const x of tpex.data) if(/^\d{4}$/.test(String(x.code||""))) merged.set(String(x.code),x);
+    for(const x of twse) merged.set(String(x.code),x);
+    const universe=[...merged.values()];
+    const tpexClean=universe.filter(x=>x.market==="tpex").length;
+    const twseClean=universe.filter(x=>x.market==="twse").length;
+    return json({ok:twseRaw.ok||tpex.ok,data:universe,
+      counts:{twse:twseClean,tpex:tpexClean,total:universe.length},
       sources:{twse:{ok:twseRaw.ok,error:twseRaw.error||null},tpex:{ok:tpex.ok,source:tpex.source,upstream:tpex.upstream||null,error:tpex.error||null,attempts:tpex.attempts||[]}}
     },(twseRaw.ok||tpex.ok)?200:502,{"cache-control":"public,max-age=21600"});
   }
@@ -1004,7 +1012,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.8.0");
+        headers.set("X-App-Version","1.8.1");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
