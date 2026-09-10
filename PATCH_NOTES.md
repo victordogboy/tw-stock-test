@@ -1,28 +1,28 @@
-# V1.7 簡化版：前100 FinMind 完整重評
+# V1.7.1 掃描結果保留重大修正
 
-依需求取消 D1 / Cron 路線，回到最直覺的兩階段掃描：
+問題：
+點入個股 detail.html 後返回 scanner，整個排行榜被清空。
 
-第一階段
-- TWSE 全市場
-- 股價 >= 10、成交量 >= 3000張
-- Yahoo 300日 OHLCV
-- Price-only V4.4 初篩
-- 目前約 195 檔
+根因：
+- V1.7 的 results 主要只存在 JavaScript 記憶體。
+- 頁面 navigation 後若瀏覽器沒有保留 BFCache，scanner 重新載入即失去 results。
+- 第二階段 FinMind 重評後也沒有可靠地把「最終 Top100」持久化。
 
-第二階段
-- 取第一階段「今日新進場」初篩前 100 名
-- 每檔用 FinMind 重新抓：
-  1. TaiwanStockMarginPurchaseShortSale
-  2. TaiwanStockInstitutionalInvestorsBuySellWide
-  3. TaiwanStockDayTrading
-- 將三組資料真正餵回正式 V4.4 combineScores(rows, margin, inst, daytrade)
-- 再重新計算 Entry / Opportunity / Hold / Persistence 等
-- 最終排行榜只顯示這 100 檔重新評估結果
-- 顯示初篩分與 FinMind 資料完整度
+修正：
+1. 最終掃描結果存入 sessionStorage + localStorage 雙保險。
+2. 只保存必要欄位，移除大型 `_hist`，避免 storage 超限。
+3. pagehide / beforeunload / visibility hidden 時自動保存。
+4. 點排行榜個股前強制 `persistScan()`。
+5. detail URL 加 `?from=scanner`。
+6. 「← 回到大盤掃描」優先 history.back；失敗時回 scanner.html，scanner 自動 restore。
+7. scanner 載入時自動恢復：
+   - 排行結果
+   - 目前選中的排行 tab
+   - status / stats / progress
+8. 新的掃描只有在使用者真的按「開始兩階段掃描」時才清除舊結果。
 
-Cloudflare cache
-- 每檔 FinMind bundle 快取 60 分鐘，重複操作不反覆消耗額度。
-
-注意
-- 無 FinMind Token 時，100 檔 × 3 dataset 最多約 300 次 upstream request，接近匿名額度上限。
-- 若 FinMind 有任何一組 dataset 失敗，畫面會顯示部分完整度，而不是假裝完整 V4.4。
+不修改：
+- V4.4 engine
+- Top100 FinMind 重評
+- 決策排序公式
+- Yahoo/TWSE API

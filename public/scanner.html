@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7 · Top100 FinMind 完整重評</title>
+<title>台股 V1.7.1 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -195,7 +195,13 @@ function toggleWatch(code){
  saveWatchlist(a); showRank(); renderWatchlist();
 restoreScan();
 }
-function openDetail(code){location.href='/detail.html?code='+encodeURIComponent(code)}
+function openDetail(code){
+ persistScan();
+ const u=new URL('/detail.html',location.origin);
+ u.searchParams.set('code',code);
+ u.searchParams.set('from','scanner');
+ location.href=u.toString();
+}
 function deltaText(cur,prev){
  if(!prev)return 'NEW';
  const de=n(cur.entry)-n(prev.entry),doo=n(cur.opportunity)-n(prev.opportunity),dh=n(cur.hold)-n(prev.hold);
@@ -244,21 +250,45 @@ function renderWatchRows(rows=null){
  }).join('');
 }
 function renderWatchlist(){renderWatchRows()}
+const SCAN_STATE_KEY='twq_scan_state_v171';
 function persistScan(){
  try{
-   sessionStorage.setItem('twq_scan_results_v161',JSON.stringify(results));
-   sessionStorage.setItem('twq_scan_rank_v161',currentRank);
- }catch(e){}
+   const slim=results.map(r=>{
+     const x={...r};
+     delete x._hist; // avoid huge storage; histories can be refetched only if user rescans
+     return x;
+   });
+   const payload={
+     savedAt:Date.now(),
+     currentRank,
+     results:slim,
+     status:$('status')?.textContent||'',
+     stats:$('stats')?.textContent||'',
+     progress:Number($('prog')?.value||0)
+   };
+   sessionStorage.setItem(SCAN_STATE_KEY,JSON.stringify(payload));
+   localStorage.setItem(SCAN_STATE_KEY,JSON.stringify(payload));
+ }catch(e){console.warn('persistScan failed',e)}
 }
 function restoreScan(){
  try{
-   const raw=sessionStorage.getItem('twq_scan_results_v161');
-   if(raw){results=JSON.parse(raw)||[];currentRank=sessionStorage.getItem('twq_scan_rank_v161')||'newEntry';showRank(currentRank);
-     $('status').textContent=`已恢復上次掃描結果 · ${results.length} 檔`;
-     $('prog').value=results.length?100:0;
-   }
- }catch(e){}
+   const raw=sessionStorage.getItem(SCAN_STATE_KEY)||localStorage.getItem(SCAN_STATE_KEY);
+   if(!raw)return false;
+   const p=JSON.parse(raw);
+   if(!Array.isArray(p.results)||!p.results.length)return false;
+   results=p.results;
+   currentRank=p.currentRank||'newEntry';
+   if($('status'))$('status').textContent=p.status||`已恢復上次掃描結果 · ${results.length} 檔`;
+   if($('stats'))$('stats').textContent=p.stats||'';
+   if($('prog'))$('prog').value=Number.isFinite(p.progress)?p.progress:100;
+   showRank(currentRank);
+   return true;
+ }catch(e){console.warn('restoreScan failed',e);return false}
 }
+window.addEventListener('pagehide',persistScan);
+window.addEventListener('beforeunload',persistScan);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persistScan()});
+
 function showRank(key=currentRank){
  currentRank=key;
  document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
@@ -344,7 +374,7 @@ async function runPool(items,limit){
  await Promise.all(Array.from({length:limit},lane));
 }
 $('scanBtn').onclick=async()=>{
- stopped=false;results=[];errors=[];$('prog').value=0;
+ stopped=false;results=[];errors=[];$('prog').value=0; sessionStorage.removeItem(SCAN_STATE_KEY); localStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='取得 TWSE 成交量候選股…';
   const minClose=n($('minClose').value,10),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
@@ -367,7 +397,7 @@ $('scanBtn').onclick=async()=>{
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
-  $('status').textContent=`兩階段完成 · FinMind重評 ${results.length} 檔 · 完整 ${full} · 部分 ${partial} · 失敗 ${results.length-full-partial}`;
+  $('status').textContent=`兩階段完成 · FinMind重評 ${results.length} 檔 · 完整 ${full} · 部分 ${partial} · 失敗 ${results.length-full-partial}`; persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};
@@ -414,4 +444,6 @@ const lastWU=localStorage.getItem('twq_watch_lastupdate_v16');
 if(!lastWU || (Date.now()-new Date(lastWU).getTime())>6*3600*1000) setTimeout(updateWatchlist,700);
 setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*60*1000);
 
+
+restoreScan();
 </script></main></body></html>
