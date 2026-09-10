@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.7.8 · V4.4 個股完整審計</title>
+<title>台股 V1.7.9 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -53,13 +53,15 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .ma10pill{color:#67a5ff!important;border-color:#67a5ff!important;background:#11233e!important}
 .ma20pill{color:#bd8cff!important;border-color:#bd8cff!important;background:#24183a!important}
 .ma60pill{color:#35d6a0!important;border-color:#35d6a0!important;background:#102b22!important}
+
+.detail-futures-badge{display:inline-block;margin-left:8px;padding:4px 9px;border-radius:999px;background:#6d4bc3;color:white;font-size:12px;font-weight:900}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.7.8 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.7.9 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
@@ -1016,7 +1018,7 @@ function render(){
     status=R.bottom.stage; statusCls=R.bottom.cls;
   }
   $('summary').innerHTML=`
-    <div class="card"><div class="label">股票 / 審計日</div><div class="big">${STATE.stock.stock_id} ${STATE.stock.stock_name}</div><div class="sub">${date}｜收盤 ${fmt(cur.close)}｜${STATE.stock.type||'—'}</div>
+    <div class="card"><div class="label">股票 / 審計日</div><div class="big">${STATE.stock.stock_id} ${STATE.stock.stock_name}<span id="detailFuturesBadge" class="detail-futures-badge" style="display:none">股票期貨標的</span></div><div class="sub">${date}｜收盤 ${fmt(cur.close)}｜${STATE.stock.type||'—'}</div>
       <span class="kbadge ${cur.close>cur.open?'k-up':cur.close<cur.open?'k-down':'k-flat'}">${cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─'}｜O ${fmt(cur.open)} / H ${fmt(cur.high)} / L ${fmt(cur.low)} / C ${fmt(cur.close)}</span>
     </div>
     <div class="card"><div class="label">Setup｜型態品質</div><div class="big ${qg[1]}">${R.quality}</div><div class="sub">底部 ${R.bottom.score}｜發動 ${R.ignition.score}｜趨勢 ${a.score}</div></div>
@@ -1364,6 +1366,23 @@ $('backScannerBtn').addEventListener('click',()=>{
     location.href='/scanner.html?restore=1';
   }
 });
+
+
+async function refreshFuturesBadge(){
+  const code=String(STATE.stock?.stock_id||new URL(location.href).searchParams.get('code')||'');
+  if(!code)return;
+  let has=new URL(location.href).searchParams.get('futures')==='1';
+  if(!has){
+    try{
+      const r=await fetch('/api/futures/stock-list',{cache:'force-cache'});
+      const j=await r.json();
+      has=Array.isArray(j.codes)&&j.codes.includes(code);
+    }catch{}
+  }
+  const b=$('detailFuturesBadge');
+  if(b) b.style.display=has?'inline-block':'none';
+}
+setTimeout(refreshFuturesBadge,700);
 
 </script>
 </body>

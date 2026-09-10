@@ -1,23 +1,21 @@
-# V1.7.8 — 手機一鍵更新機制升級
+# V1.7.9 — 最高股價限制 + 股票期貨豁免
 
-這版主要修 GitHub 手機更新流程。
+新增：
+1. 掃描條件新增「最高股價」。
+   - 預設 300 元
+   - 輸入 0 = 不限制
+2. 股票期貨標的不受最高股價限制。
+   - 例如最高股價設 300 元，若某股票 800 元但有股票期貨，仍可進候選與排行榜。
+3. 排行榜股票期貨標的使用紫色底色/代號，並顯示「期貨」Badge。
+4. 個股頁股票名稱旁顯示「股票期貨標的」Badge。
+5. 新增 `/api/futures/stock-list`
+   - 優先從 TAIFEX 官方頁面取得股票期貨標的證券代號。
+   - Cloudflare 快取 6 小時。
+   - 若 TAIFEX HTML 無法解析，使用內建 fallback 清單，避免掃描功能直接失效。
+6. 股票期貨資訊只影響「最高股價篩選與 UI 標記」，不直接替 V4.4 加分，避免因有期貨就扭曲模型分數。
 
-以前：
-- GitHub Action 只監聽 `update.zip`
-- 上傳 `update-v1.7.7.zip` 不會觸發
-
-現在：
-- 任何 `update*.zip` 都會觸發，例如：
-  - update.zip
-  - update-v1.7.8.zip
-  - update-v1.8.zip
-  - update-v2.0.zip
-- Action 會優先抓「這次 commit 剛上傳的 update*.zip」
-- 自動解壓並保留 public/、src/ 等資料夾結構
-- 自動 Commit
-- Cloudflare 繼續自動部署
-
-重要：
-第一次升級到 V1.7.8 時，因為你目前舊 Action 仍只認 `update.zip`，
-請把我提供的 `update.zip` 上傳一次。
-這次成功後，未來就可以直接上傳帶版本號的 `update-vX.X.X.zip`，不用再改名。
+掃描仍只保留：
+- Setup
+- Opportunity
+- Entry
+- Hold

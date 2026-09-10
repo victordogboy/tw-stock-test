@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7.8 · Top100 FinMind 完整重評</title>
+<title>台股 V1.7.9 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -22,12 +22,18 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 .starbtn{padding:3px 7px;width:auto;font-size:12px}
 .watchchange.up{color:#65d99a}.watchchange.down{color:#ff7777}.watchchange.flat{color:#ffd166}
+
+tr.futures-row{background:rgba(126,87,194,.13)}
+tr.futures-row:hover{background:rgba(126,87,194,.23)}
+.futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
+.futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.7.8 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.7.9 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
+<div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
 <div><label>最大掃描檔數</label><input id="maxStocks" type="number" value="200"></div>
 <div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="4"></div>
@@ -48,7 +54,7 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 <button data-rank="hold" onclick="showRank('hold')">Hold｜已持有是否續抱</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
-<th>代號</th><th>名稱</th><th>收盤</th><th>資料完整度</th>
+<th>代號</th><th>名稱</th><th>期貨</th><th>收盤</th><th>資料完整度</th>
 <th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
@@ -76,7 +82,7 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 <script src="/v44-engine.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let stopped=false, results=[], errors=[], currentRank='newEntry';
+let stopped=false, results=[], errors=[], currentRank='entry';
 async function getJSON(url){
  const r=await fetch(url,{cache:'no-store'});
  const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
@@ -180,11 +186,12 @@ function toggleWatch(code){
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
  saveWatchlist(a); showRank(currentRank); renderWatchlist();
 }
-function openDetail(code){
+function openDetail(code,hasFutures=false){
   persistScan();
   const u=new URL('/detail.html',location.origin);
   u.searchParams.set('code',code);
   u.searchParams.set('from','scanner');
+  if(hasFutures) u.searchParams.set('futures','1');
   u.searchParams.set('popup','1');
   const win=window.open(u.toString(),'_blank','noopener');
   if(!win){
@@ -301,8 +308,10 @@ function renderRankOnly(key=currentRank){
     btn.classList.toggle('active', btn.dataset.rank===currentRank);
   });
   const a=[...results].sort((x,y)=>rankVal(y,currentRank)-rankVal(x,currentRank)).slice(0,100);
-  $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')">
-    <td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
+  $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'})">
+    <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
+    <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
+    <td>${r.hasFutures?'● 有':'—'}</td><td>${r.close}</td>
     <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%':'Price-only'}</td>
     <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td>
     <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
@@ -405,10 +414,19 @@ $('scanBtn').onclick=async()=>{
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='取得 TWSE 成交量候選股…';
-  const minClose=n($('minClose').value,10),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
-  const j=await getJSON(`/api/market/filter?min_close=${minClose}&min_lots=${minLots}`);
-  let cand=(j.data||[]).filter(x=>x.market==='twse').slice(0,max);
-  $('stats').textContent=`候選 ${cand.length} 檔；來源 TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}；V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'} · 第一階段為 Price-only，第二階段才是 FinMind 重評`;
+  const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
+  const [j,fj]=await Promise.all([
+    getJSON(`/api/market/filter?min_close=${minClose}&min_lots=${minLots}`),
+    getJSON('/api/futures/stock-list').catch(()=>({codes:[],source:'unavailable'}))
+  ]);
+  const futuresSet=new Set((fj.codes||[]).map(String));
+  let cand=(j.data||[])
+    .filter(x=>x.market==='twse')
+    .map(x=>({...x,hasFutures:futuresSet.has(String(x.code))}))
+    .filter(x=>maxClose<=0 || x.close<=maxClose || x.hasFutures)
+    .slice(0,max);
+  const futuresCount=cand.filter(x=>x.hasFutures).length;
+  $('stats').textContent=`候選 ${cand.length} 檔；最高股價 ${maxClose>0?maxClose:'不限'}，股票期貨標的豁免；其中期貨股 ${futuresCount} 檔｜期貨來源 ${fj.source||'—'}｜V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'} · 第一階段 Price-only → Top100 FinMind 重評`;
   await runPool(cand,Math.max(1,Math.min(8,n($('concurrency').value,4))));
   if(stopped){showRank(currentRank);$('status').textContent=`已停止 · 第一階段完成 ${results.length} 檔`;return}
 
