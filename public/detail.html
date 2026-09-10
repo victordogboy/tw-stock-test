@@ -55,7 +55,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <input id="stockInput" class="search" placeholder="輸入 2330、台積電、2454、聯發科">
       <input id="tokenInput" class="token" type="password" style="display:none" value="">
       <button id="backScannerBtn" class="secondary">← 回到大盤掃描</button>
-<button id="analyzeBtn">分析</button><button id="watchBtn" class="secondary">☆ 本機追蹤</button><button id="cloudWatchBtn" class="secondary">☁ 加入雲端追蹤</button>
+<button id="analyzeBtn">分析</button><button id="watchBtn" class="secondary">☆ 加入追蹤</button>
       <button id="latestBtn" class="secondary">回到最新</button>
     </div>
   </div>
@@ -1328,19 +1328,6 @@ $('backScannerBtn').addEventListener('click',()=>{
   const ref=document.referrer||'';
   if(ref.includes('/scanner.html')) history.back();
   else location.href='/scanner.html';
-});
-
-
-$('cloudWatchBtn').addEventListener('click',async()=>{
-  const id=STATE.stock?.stock_id,name=STATE.stock?.stock_name||'';
-  if(!id){setBanner('請先完成個股分析。','warn');return}
-  try{
-    const r=await fetch('/api/watchlist/add',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:String(id),name})});
-    const j=await r.json(); if(!r.ok||j.ok===false)throw new Error(j.error||'加入失敗');
-    await fetch('/api/watchlist/update',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:String(id),name})});
-    $('cloudWatchBtn').textContent='☁ 已加入雲端追蹤';
-    setBanner(`☁ ${id} ${name} 已加入 Cloudflare D1 持續追蹤。`,'ok');
-  }catch(e){setBanner('雲端追蹤尚未設定完成：'+e.message,'warn')}
 });
 
 </script>

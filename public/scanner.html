@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7 · V4.4 決策＋D1追蹤</title>
+<title>台股 V1.7 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -24,16 +24,17 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 .watchchange.up{color:#65d99a}.watchchange.down{color:#ff7777}.watchchange.flat{color:#ffd166}
 </style></head><body><main>
 <h1>台股 V1.5 · V4.4 決策排行榜</h1>
-<p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
+<p class="muted">第一階段：TWSE → Yahoo OHLCV 價格初篩。第二階段：取初篩前 100 名，用 FinMind 融資＋法人＋當沖重新跑完整 V4.4，再顯示正式排名。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
 <div><label>最大掃描檔數</label><input id="maxStocks" type="number" value="200"></div>
 <div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="4"></div>
+<div><label>FinMind 重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
 </div>
 <div class="card">
-<button id="scanBtn">開始 TWSE V4.4 掃描</button>
+<button id="scanBtn">開始兩階段掃描</button>
 <button id="stopBtn">停止</button>
 <div id="status" class="muted" style="margin-top:10px">尚未開始</div>
 <progress id="prog" max="100" value="0"></progress>
@@ -52,12 +53,12 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 <button data-rank="trend" onclick="showRank('trend')">Trend</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
-<th>代號</th><th>名稱</th><th>收盤</th><th>決策分</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
+<th>代號</th><th>名稱</th><th>收盤</th><th>正式決策分</th><th>初篩分</th><th>資料完整度</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
 </div>
 <div class="card">
 <h3>★ 持續追蹤清單</h3>
-<p class="small muted">追蹤清單改存 Cloudflare D1。Cron 於台灣時間平日 18:30 自動更新；顯示最新狀態與前一交易日快照。</p>
+<p class="small muted">本版追蹤清單存在瀏覽器；開啟網站時會自動更新，頁面保持開啟時每 60 分鐘檢查一次。顯示「最新狀態 vs 前一次狀態」。</p>
 <button id="refreshWatchBtn">立即更新追蹤清單</button>
 <div id="watchStatus" class="small muted" style="margin:8px 0">尚未更新</div>
 <div style="overflow:auto"><table><thead><tr>
@@ -105,10 +106,11 @@ function findKey(obj,names,depth=0){
    }
  }
 }
-function formalObjects(hist){
+function formalObjects(hist,chips={}){
  const rows=hist.map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}));
  if(typeof combineScores!=='function'||typeof entryEngine!=='function') throw new Error('V4.4 engine functions missing');
- const R=combineScores(rows,[],[],[]);
+ const margin=chips.margin||[],inst=chips.inst||[],daytrade=chips.daytrade||[];
+ const R=combineScores(rows,margin,inst,daytrade);
  const E=entryEngine(rows,R);
  return {rows,R,E};
 }
@@ -121,9 +123,9 @@ function scoreOf(v){
  }
  return 0;
 }
-function formalScore(hist){
+function formalScore(hist,chips={}){
  try{
-   const {R,E}=formalObjects(hist);
+   const {R,E}=formalObjects(hist,chips);
    return {
      setup:scoreOf(R?.quality),
      opportunity:scoreOf(E?.opportunity ?? E?.opportunityScore),
@@ -265,7 +267,10 @@ function showRank(key=currentRank){
  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
  persistScan();
  $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')"><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
- <td><b>${Math.round(decisionScore(r,key))}</b></td><td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
+ <td><b>${Math.round(decisionScore(r,key))}</b></td>
+ <td>${r.prelimScore!=null?Math.round(r.prelimScore):'-'}</td>
+ <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%':'Price-only'}</td>
+ <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
  <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td>
  <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
  <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td><td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
@@ -281,8 +286,48 @@ async function worker(item){
   const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(item.code)}&market=twse&start_date=${start}&end_date=${end}`);
   if((j.data||[]).length<180) throw new Error('歷史K不足 '+(j.data||[]).length);
   const s=formalScore(j.data);
-  results.push({...item,...s,decision:priceDecision(j.data),historyCount:j.data.length,historySource:j.source});
+  const rr={...item,...s,decision:priceDecision(j.data),historyCount:j.data.length,historySource:j.source,_hist:j.data};
+  rr.prelimScore=decisionScore(rr,'newEntry');
+  rr.finmindCompleteness=0;
+  results.push(rr);
  }catch(e){errors.push(`${item.code} ${item.name}: ${e.message}`)}
+}
+
+async function finmindRecheckOne(r){
+  const end=new Date().toLocaleDateString('sv-SE');
+  const start=new Date(Date.now()-140*864e5).toLocaleDateString('sv-SE');
+  const j=await getJSON(`/api/finmind/recheck?code=${encodeURIComponent(r.code)}&start_date=${start}&end_date=${end}`);
+  const chips={
+    margin:j.margin?.data||[],
+    inst:j.inst?.data||[],
+    daytrade:j.daytrade?.data||[]
+  };
+  const sc=formalScore(r._hist,chips);
+  Object.assign(r,sc);
+  r.finmindCompleteness=j.completeness||0;
+  r.finmindCounts={
+    margin:j.margin?.count||0,
+    inst:j.inst?.count||0,
+    daytrade:j.daytrade?.count||0
+  };
+  return r;
+}
+async function runFinmindTop(topList,limit){
+  let idx=0,done=0,ok=0,fail=0;
+  async function lane(){
+    while(true){
+      const i=idx++; if(i>=topList.length)return;
+      const r=topList[i];
+      try{await finmindRecheckOne(r);ok++}
+      catch(e){fail++;errors.push(`FinMind ${r.code}: ${e.message}`)}
+      done++;
+      $('prog').value=Math.round(done/topList.length*100);
+      $('status').textContent=`第二階段 FinMind 重評 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;
+      if(done%5===0)showRank('newEntry');
+      await new Promise(res=>setTimeout(res,350));
+    }
+  }
+  await Promise.all(Array.from({length:Math.max(1,Math.min(4,limit))},lane));
 }
 async function runPool(items,limit){
  let idx=0,done=0;
@@ -305,11 +350,24 @@ $('scanBtn').onclick=async()=>{
   const minClose=n($('minClose').value,10),minLots=n($('minLots').value,3000),max=n($('maxStocks').value,200);
   const j=await getJSON(`/api/market/filter?min_close=${minClose}&min_lots=${minLots}`);
   let cand=(j.data||[]).filter(x=>x.market==='twse').slice(0,max);
-  $('stats').textContent=`候選 ${cand.length} 檔；來源 TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}；V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'}`;
+  $('stats').textContent=`候選 ${cand.length} 檔；來源 TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}；V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'} · 第一階段為 Price-only，第二階段才是 FinMind 重評`;
   await runPool(cand,Math.max(1,Math.min(8,n($('concurrency').value,4))));
-  showRank();
+  if(stopped){showRank();$('status').textContent=`已停止 · 第一階段完成 ${results.length} 檔`;return}
+
+  // Price-only preliminary ranking. Only these stocks consume FinMind quota.
+  const topN=Math.max(1,Math.min(100,n($('finTopN').value,100)));
+  const top=[...results].sort((a,b)=>b.prelimScore-a.prelimScore).slice(0,topN);
+  $('prog').value=0;
+  $('status').textContent=`第一階段完成 ${results.length} 檔；開始 FinMind 重評前 ${top.length} 名…`;
+  await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
+
+  // Only fully/partially re-evaluated top-N are shown as final results.
+  results=top;
+  showRank('newEntry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
-  $('status').textContent=stopped?`已停止 · 完成 ${results.length} 檔`:`完成 · 成功 ${results.length} 檔 · 略過 ${errors.length} 檔`;
+  const full=results.filter(x=>x.finmindCompleteness===100).length;
+  const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
+  $('status').textContent=`兩階段完成 · FinMind重評 ${results.length} 檔 · 完整 ${full} · 部分 ${partial} · 失敗 ${results.length-full-partial}`;
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};
@@ -355,37 +413,5 @@ renderWatchlist();
 const lastWU=localStorage.getItem('twq_watch_lastupdate_v16');
 if(!lastWU || (Date.now()-new Date(lastWU).getTime())>6*3600*1000) setTimeout(updateWatchlist,700);
 setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*60*1000);
-
-
-async function apiPost(path,body){
- const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})});
- const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
- if(!r.ok||j.ok===false)throw new Error(j.error||('HTTP '+r.status));
- return j;
-}
-async function loadCloudWatch(){
- try{
-  const j=await getJSON('/api/watchlist');
-  const body=$('watchRows');
-  body.innerHTML=(j.data||[]).map(z=>{
-    const c=z.current,p=z.previous;
-    const delta=deltaText(c||{},p||null);
-    return `<tr class="stockrow" onclick="openDetail('${z.code}')"><td>${z.code}</td><td>${z.name||z.code}</td><td>${c?.trade_date||'-'}</td><td>${c?.close??'-'}</td><td>${c?.entry??'-'}</td><td>${c?.opportunity??'-'}</td><td>${c?.hold??'-'}</td><td>${c?.persistence??'-'}</td><td>${c?.state||'-'}</td><td>${delta}</td><td><button class="starbtn" onclick="event.stopPropagation();cloudRemove('${z.code}')">移除</button></td></tr>`;
-  }).join('') || '<tr><td colspan="11">D1 追蹤清單為空</td></tr>';
-  $('watchStatus').textContent=`D1 已載入 ${j.count||0} 檔`;
- }catch(e){
-  $('watchStatus').textContent='D1 尚未設定：'+e.message;
- }
-}
-async function cloudAdd(code,name){
- try{await apiPost('/api/watchlist/add',{code,name});await apiPost('/api/watchlist/update',{code,name});await loadCloudWatch();alert(`${code} 已加入雲端追蹤`)}
- catch(e){alert('加入追蹤失敗：'+e.message)}
-}
-async function cloudRemove(code){
- try{await apiPost('/api/watchlist/remove',{code});await loadCloudWatch()}
- catch(e){alert('移除失敗：'+e.message)}
-}
-$('refreshWatchBtn').onclick=async()=>{try{await apiPost('/api/watchlist/update',{});await loadCloudWatch()}catch(e){$('watchStatus').textContent='更新失敗：'+e.message}};
-setTimeout(loadCloudWatch,500);
 
 </script></main></body></html>

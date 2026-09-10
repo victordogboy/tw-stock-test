@@ -612,6 +612,53 @@ async function routeApi(request, env, url) {
   }
 
 
+
+  if (url.pathname === "/api/finmind/recheck") {
+    const code=url.searchParams.get("code")||"3443";
+    const endDate=url.searchParams.get("end_date")||isoDateTaipei();
+    const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
+
+    const cacheKey=new Request(`${url.origin}/__cache/finmind-recheck/${code}/${startDate}/${endDate}`);
+    const cache=caches.default;
+    const cached=await cache.match(cacheKey);
+    if(cached) return cached;
+
+    async function ds(dataset){
+      const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
+      if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
+      const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
+      try{
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.7"}});
+        const text=await r.text();
+        let j=null; try{j=JSON.parse(text)}catch{}
+        if(!r.ok || !j || !(j.status===200 || j.status==="200")){
+          return {ok:false,count:0,data:[],error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180)};
+        }
+        return {ok:true,count:Array.isArray(j.data)?j.data.length:0,data:Array.isArray(j.data)?j.data:[]};
+      }catch(e){
+        return {ok:false,count:0,data:[],error:String(e?.message||e)};
+      }
+    }
+
+    const [margin,inst,daytrade]=await Promise.all([
+      ds("TaiwanStockMarginPurchaseShortSale"),
+      ds("TaiwanStockInstitutionalInvestorsBuySellWide"),
+      ds("TaiwanStockDayTrading")
+    ]);
+
+    const complete=[margin,inst,daytrade].filter(x=>x.ok&&x.count>0).length;
+    const body={
+      ok:complete>0,
+      code,
+      token:Boolean(env.FINMIND_TOKEN),
+      completeness:Math.round(complete/3*100),
+      margin,inst,daytrade
+    };
+    const resp=json(body,complete>0?200:502,{"cache-control":"public, max-age=3600"});
+    if(complete>0) await cache.put(cacheKey,resp.clone());
+    return resp;
+  }
+
   if (url.pathname === "/api/chips/hybrid") {
     const code=url.searchParams.get("code")||"3443";
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
@@ -718,125 +765,7 @@ async function routeApi(request, env, url) {
     }
   }
 
-
-  if (url.pathname === "/api/watchlist" && request.method === "GET") {
-    try{
-      const watch=await d1ListWatch(env);
-      const enriched=[];
-      for(const x of watch){
-        const two=await d1LatestTwo(env,x.code);
-        enriched.push({...x,current:two[0]||null,previous:two[1]||null});
-      }
-      return json({ok:true,count:enriched.length,data:enriched});
-    }catch(e){return json({ok:false,error:String(e.message||e)},500)}
-  }
-
-  if (url.pathname === "/api/watchlist/add" && request.method === "POST") {
-    try{
-      await d1Ensure(env);
-      const body=await request.json();
-      const code=String(body?.code||"").trim(),name=String(body?.name||"").trim();
-      if(!/^\d{4}$/.test(code))return json({ok:false,error:"invalid code"},400);
-      await env.DB.prepare(
-        "INSERT INTO watchlist(code,name) VALUES(?,?) ON CONFLICT(code) DO UPDATE SET name=excluded.name"
-      ).bind(code,name).run();
-      return json({ok:true,code,name});
-    }catch(e){return json({ok:false,error:String(e.message||e)},500)}
-  }
-
-  if (url.pathname === "/api/watchlist/remove" && request.method === "POST") {
-    try{
-      await d1Ensure(env);
-      const body=await request.json(); const code=String(body?.code||"").trim();
-      await env.DB.prepare("DELETE FROM watchlist WHERE code=?").bind(code).run();
-      return json({ok:true,code});
-    }catch(e){return json({ok:false,error:String(e.message||e)},500)}
-  }
-
-  if (url.pathname === "/api/watchlist/update" && request.method === "POST") {
-    try{
-      const body=await request.json().catch(()=>({}));
-      const code=String(body?.code||"").trim();
-      if(code){
-        const snap=await updateOneWatch(env,code,String(body?.name||""));
-        return json({ok:true,snapshot:snap});
-      }
-      const watch=await d1ListWatch(env),done=[],errors=[];
-      for(const x of watch){
-        try{done.push(await updateOneWatch(env,x.code,x.name||""))}
-        catch(e){errors.push({code:x.code,error:String(e.message||e)})}
-      }
-      return json({ok:true,updated:done.length,errors,data:done});
-    }catch(e){return json({ok:false,error:String(e.message||e)},500)}
-  }
-
   return json({ ok:false, error:"Unknown API route", path:url.pathname }, 404);
-}
-
-
-async function d1Ensure(env){
-  if(!env.DB) throw new Error("D1 binding DB is not configured");
-}
-async function d1ListWatch(env){
-  await d1Ensure(env);
-  const r=await env.DB.prepare("SELECT code,name,added_at FROM watchlist ORDER BY added_at DESC").all();
-  return r.results||[];
-}
-async function d1LatestTwo(env,code){
-  const r=await env.DB.prepare(
-    "SELECT * FROM daily_snapshots WHERE code=? ORDER BY trade_date DESC LIMIT 2"
-  ).bind(code).all();
-  return r.results||[];
-}
-async function d1UpsertSnapshot(env,s){
-  await env.DB.prepare(`
-    INSERT INTO daily_snapshots
-    (code,trade_date,close,setup,opportunity,entry,hold,persistence,bottom,ignition,trend,state,source)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-    ON CONFLICT(code,trade_date) DO UPDATE SET
-      close=excluded.close, setup=excluded.setup, opportunity=excluded.opportunity,
-      entry=excluded.entry, hold=excluded.hold, persistence=excluded.persistence,
-      bottom=excluded.bottom, ignition=excluded.ignition, trend=excluded.trend,
-      state=excluded.state, source=excluded.source, created_at=datetime('now')
-  `).bind(s.code,s.trade_date,s.close,s.setup,s.opportunity,s.entry,s.hold,s.persistence,s.bottom,s.ignition,s.trend,s.state,s.source).run();
-}
-
-function cloudScore(hist){
-  const n=v=>Number.isFinite(Number(v))?Number(v):0;
-  const a=hist.filter(x=>Number.isFinite(Number(x.close)));
-  if(a.length<30)return {setup:0,opportunity:0,entry:0,hold:0,persistence:0,bottom:0,ignition:0,trend:0,state:"資料不足"};
-  const last=a.at(-1), prev=a.at(-2);
-  const avg=k=>a.slice(-k).reduce((s,x)=>s+n(x.close),0)/Math.min(k,a.length);
-  const ma5=avg(5),ma10=avg(10),ma20=avg(20);
-  const ret=prev?.close?((last.close/prev.close)-1)*100:0;
-  const vol5=a.slice(-5).reduce((s,x)=>s+n(x.volume),0)/Math.min(5,a.length);
-  const volRatio=vol5?n(last.volume)/vol5:1;
-  let trend=0;
-  if(last.close>ma5)trend+=20;
-  if(ma5>ma10)trend+=25;
-  if(ma10>ma20)trend+=25;
-  if(ret>0)trend+=10;
-  if(volRatio>1.3)trend+=10;
-  trend=Math.min(100,trend);
-  let ignition=Math.min(100,Math.max(0,45+ret*5+(volRatio-1)*25+(ma5>ma10?12:0)));
-  let opportunity=Math.min(100,Math.max(0,trend*.55+ignition*.45));
-  let setup=Math.min(100,Math.max(0,trend*.55+ignition*.20+60*.25));
-  let entry=Math.min(100,Math.max(0,opportunity*.52+setup*.28+(last.close<=ma5*1.03?20:8)));
-  let hold=Math.min(100,Math.max(0,trend*.6+opportunity*.4));
-  let persistence=Math.min(100,Math.max(0,(ma5>ma10?35:10)+(ma10>ma20?25:8)+(last.close>ma5?20:5)+(ret>=0?20:5)));
-  let bottom=Math.max(0,Math.min(100,100-trend));
-  return {setup:Math.round(setup),opportunity:Math.round(opportunity),entry:Math.round(entry),hold:Math.round(hold),persistence:Math.round(persistence),bottom:Math.round(bottom),ignition:Math.round(ignition),trend:Math.round(trend),state:entry>=80?"高品質進場":entry>=65?"觀察/試單":"等待"};
-}
-async function updateOneWatch(env,code,name=""){
-  const end=isoDateTaipei();
-  const start=addDaysISO(end,-470);
-  const hist=await fetchYahooHistory(code,"twse",start,end);
-  if(!hist.ok||hist.data.length<180)throw new Error("history unavailable");
-  const sc=cloudScore(hist.data);
-  const last=hist.data.at(-1);
-  const snap={code:String(code),trade_date:last.date,close:last.close,...sc,source:hist.source};
-  await d1UpsertSnapshot(env,snap);
-  return snap;
 }
 
 export default {
@@ -851,17 +780,5 @@ export default {
       return env.ASSETS.fetch(request);
     }
     return new Response("Static assets binding is missing.", { status: 500 });
-  },
-
-  async scheduled(controller, env, ctx) {
-    ctx.waitUntil((async()=>{
-      try{
-        const watch=await d1ListWatch(env);
-        for(const x of watch){
-          try{await updateOneWatch(env,x.code,x.name||"")}
-          catch(e){console.error("watch update failed",x.code,e)}
-        }
-      }catch(e){console.error("scheduled watchlist update failed",e)}
-    })());
   }
 };
