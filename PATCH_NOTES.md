@@ -1,10 +1,10 @@
-# V1.3 免費歷史 K 線測試
-
-新增：
-- `/api/history/yahoo`：Yahoo Finance chart API，支援 `.TW` / `.TWO`，一次抓約 460 日。
-- `/api/history/twse`：TWSE 官方 `STOCK_DAY` 月資料 fallback，適合上市股票。
-- `/api/history/auto`：Yahoo 優先；上市股失敗才改 TWSE 官方月資料。
-- 首頁新增「免費歷史 K 線測試」。
-
-目的：
-先確認 3443 能否穩定取得 300 個以上交易日 OHLCV，再把 V4.4 接入。
+# V1.4 V4.4 TWSE Scanner
+- 保留 V1.3 API 測試與歷史 K。
+- 新增 `/scanner.html`。
+- TWSE 全市場先用股價/成交量篩選。
+- 候選股才抓 Yahoo 約 300 日歷史 OHLCV。
+- 預設 concurrency=4、每檔後節流，避免一次爆量請求。
+- 單檔失敗不中止整體。
+- 載入從正式 `tw_stock_quant_audit_v4_4_followthrough.html` 抽出的 V4.4 engine。
+- 排名：綜合、Opportunity、Entry、Bottom、Ignition、Trend。
+- TPEx 失敗不阻塞 TWSE 主線。
