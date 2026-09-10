@@ -1,23 +1,18 @@
-# V1.4.4 Setup Quality mapping 修正
+# V1.5 決策排行榜
+保留 V1.4.4 已驗證的資料鏈與正式 V4.4 engine，不修改核心 V4.4 分數。
 
-V1.4.3 診斷確認：
-- `R.setup` 不是分數，而是交易型態 / gating 狀態物件，例如：
-  - state
-  - cls
-  - reason
-- 正式 V4.4 UI 的「Setup｜型態品質」實際顯示的是 `R.quality`。
+新增三種「scanner 外層」決策排序：
+1. 今日新進場：Entry + Opportunity + Persistence + Setup，並考慮 risk distance / MA20 bias。
+2. 剛發動：Opportunity + Ignition + Persistence + Setup，避免成熟趨勢壓過早期訊號。
+3. 續抱：Hold + Trend + Persistence。
 
-正式 V4.4 原始碼：
-`quality = round(market.score*0.50 + optimal.score*0.30 + ignition.score*0.20)`
+新增左側資料衍生的價格欄位：
+- 買區
+- 最高可買
+- 停損
+- T1 / T2
+- R:R1
 
-因此 mapping 改為：
-- Setup = R.quality
-- Trend = R.market.score
-- Bottom = R.bottom.score
-- Ignition = R.ignition.score
-- Entry = E.score
-- Opportunity = E.opportunity
-- Hold = E.hold
-- Persistence = E.persistence
-
-3443 / 2026-08-11 預期 Setup 應恢復約 74，而不是 0。
+注意：
+這些價格決策是 V1.5 scanner 外層第一版，不改寫正式 V4.4 engine。
+後續應用歷史盲測校正價格演算法，尤其 gap/neckline/HL/ATR/台股 tick rounding。

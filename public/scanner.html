@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.4.4 · V4.4 Setup Quality 修正版</title>
+<title>台股 V1.5 · V4.4 決策排行榜</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -11,7 +11,7 @@ progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-s
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.4.4 · V4.4 Setup Quality 修正版</h1>
+<h1>台股 V1.5 · V4.4 決策排行榜</h1>
 <p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
 
 <div class="card grid">
@@ -29,7 +29,10 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 </div>
 <div class="card">
 <div class="tabs">
-<button onclick="showRank('overall')">綜合 TOP</button>
+<button onclick="showRank('newEntry')">今日新進場</button>
+<button onclick="showRank('earlyMove')">剛發動</button>
+<button onclick="showRank('holdRank')">續抱</button>
+<button onclick="showRank('overall')">原綜合 TOP</button>
 <button onclick="showRank('opportunity')">Opportunity</button>
 <button onclick="showRank('entry')">Entry</button>
 <button onclick="showRank('bottom')">Bottom</button>
@@ -37,7 +40,7 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 <button onclick="showRank('trend')">Trend</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
-<th>代號</th><th>名稱</th><th>收盤</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>狀態</th>
+<th>代號</th><th>名稱</th><th>收盤</th><th>決策分</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
 </div>
 <div class="card">
@@ -54,7 +57,7 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 <script src="/v44-engine.js"></script>
 <script>
 const $=id=>document.getElementById(id);
-let stopped=false, results=[], errors=[], currentRank='overall';
+let stopped=false, results=[], errors=[], currentRank='newEntry';
 async function getJSON(url){
  const r=await fetch(url,{cache:'no-store'});
  const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
@@ -113,16 +116,58 @@ function formalScore(hist){
    };
  }catch(e){ return fallbackScore(hist); }
 }
-function rankVal(r,key){
+function priceDecision(hist){
+ const a=hist.filter(x=>Number.isFinite(Number(x.close)));
+ const last=a.at(-1)||{}, px=n(last.close);
+ const avg=k=>a.slice(-k).reduce((s,x)=>s+n(x.close),0)/Math.max(1,Math.min(k,a.length));
+ const ma5=avg(5),ma10=avg(10),ma20=avg(20);
+ const lows=a.slice(-20).map(x=>n(x.low,x.close)).filter(Boolean);
+ const highs=a.slice(-20).map(x=>n(x.high,x.close)).filter(Boolean);
+ const recentLow=Math.min(...lows), recentHigh=Math.max(...highs);
+ const support=Math.max(...[ma5,ma10,ma20,recentLow].filter(x=>x>0&&x<=px*1.03));
+ const buyLow=Math.max(recentLow,Math.min(ma20,ma10,ma5)*0.99);
+ const buyHigh=Math.min(px,Math.max(ma5,ma10)*1.01);
+ const maxBuy=Math.min(px*1.03,Math.max(ma5,ma10,ma20)*1.035);
+ const stop=Math.min(support*0.975,px*0.96);
+ const risk=Math.max(.01,px-stop);
+ const t1=Math.max(recentHigh,px+risk*1.5);
+ const t2=Math.max(t1,px+risk*3);
+ const rr1=(t1-px)/risk;
+ return {
+   ma5,ma10,ma20,buyLow,buyHigh,maxBuy,stop,t1,t2,rr1,
+   riskPct:px?risk/px*100:99,
+   bias20:ma20?((px/ma20)-1)*100:0
+ };
+}
+function decisionScore(r,key){
+ const d=r.decision||{};
+ if(key==='newEntry'){
+   let s=r.entry*.42+r.opportunity*.28+r.persistence*.20+r.setup*.10;
+   if(d.riskPct<=4)s+=5; else if(d.riskPct>7)s-=8;
+   if(d.bias20>15)s-=8;
+   return Math.max(0,Math.min(100,s));
+ }
+ if(key==='earlyMove'){
+   let s=r.opportunity*.38+r.ignition*.32+r.persistence*.20+r.setup*.10;
+   if(r.trend>85)s-=6;
+   if(d.bias20>15)s-=7;
+   return Math.max(0,Math.min(100,s));
+ }
+ if(key==='holdRank') return Math.max(0,Math.min(100,r.hold*.42+r.trend*.30+r.persistence*.28));
  if(key==='overall') return r.entry*.42+r.opportunity*.28+r.hold*.15+r.persistence*.15;
  return n(r[key]);
 }
+function rankVal(r,key){ return decisionScore(r,key); }
 function showRank(key=currentRank){
  currentRank=key;
  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
  $('rows').innerHTML=a.map(r=>`<tr><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
- <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
- <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td><td><span class="pill">${r.state||''}</span></td></tr>`).join('');
+ <td><b>${Math.round(decisionScore(r,key))}</b></td><td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
+ <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td>
+ <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
+ <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td><td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
+ <td>${r.decision?r.decision.t1.toFixed(1):'-'}</td><td>${r.decision?r.decision.t2.toFixed(1):'-'}</td>
+ <td>${r.decision?r.decision.rr1.toFixed(2):'-'}</td><td><span class="pill">${r.state||''}</span></td></tr>`).join('');
 }
 async function worker(item){
  if(stopped)return;
@@ -132,7 +177,7 @@ async function worker(item){
   const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(item.code)}&market=twse&start_date=${start}&end_date=${end}`);
   if((j.data||[]).length<180) throw new Error('歷史K不足 '+(j.data||[]).length);
   const s=formalScore(j.data);
-  results.push({...item,...s,historyCount:j.data.length,historySource:j.source});
+  results.push({...item,...s,decision:priceDecision(j.data),historyCount:j.data.length,historySource:j.source});
  }catch(e){errors.push(`${item.code} ${item.name}: ${e.message}`)}
 }
 async function runPool(items,limit){
