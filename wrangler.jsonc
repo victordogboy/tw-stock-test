@@ -11,5 +11,18 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "triggers": {
+    "crons": [
+      "30 10 * * 1-5"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tw-stock-db",
+      "database_id": "PASTE_YOUR_D1_DATABASE_ID_HERE",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

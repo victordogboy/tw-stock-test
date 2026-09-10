@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.6.1 · V4.4 決策＋個股追蹤</title>
+<title>台股 V1.7 · V4.4 決策＋D1追蹤</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -57,7 +57,7 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 </div>
 <div class="card">
 <h3>★ 持續追蹤清單</h3>
-<p class="small muted">本版追蹤清單存在瀏覽器；開啟網站時會自動更新，頁面保持開啟時每 60 分鐘檢查一次。顯示「最新狀態 vs 前一次狀態」。</p>
+<p class="small muted">追蹤清單改存 Cloudflare D1。Cron 於台灣時間平日 18:30 自動更新；顯示最新狀態與前一交易日快照。</p>
 <button id="refreshWatchBtn">立即更新追蹤清單</button>
 <div id="watchStatus" class="small muted" style="margin:8px 0">尚未更新</div>
 <div style="overflow:auto"><table><thead><tr>
@@ -355,5 +355,37 @@ renderWatchlist();
 const lastWU=localStorage.getItem('twq_watch_lastupdate_v16');
 if(!lastWU || (Date.now()-new Date(lastWU).getTime())>6*3600*1000) setTimeout(updateWatchlist,700);
 setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*60*1000);
+
+
+async function apiPost(path,body){
+ const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body||{})});
+ const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
+ if(!r.ok||j.ok===false)throw new Error(j.error||('HTTP '+r.status));
+ return j;
+}
+async function loadCloudWatch(){
+ try{
+  const j=await getJSON('/api/watchlist');
+  const body=$('watchRows');
+  body.innerHTML=(j.data||[]).map(z=>{
+    const c=z.current,p=z.previous;
+    const delta=deltaText(c||{},p||null);
+    return `<tr class="stockrow" onclick="openDetail('${z.code}')"><td>${z.code}</td><td>${z.name||z.code}</td><td>${c?.trade_date||'-'}</td><td>${c?.close??'-'}</td><td>${c?.entry??'-'}</td><td>${c?.opportunity??'-'}</td><td>${c?.hold??'-'}</td><td>${c?.persistence??'-'}</td><td>${c?.state||'-'}</td><td>${delta}</td><td><button class="starbtn" onclick="event.stopPropagation();cloudRemove('${z.code}')">移除</button></td></tr>`;
+  }).join('') || '<tr><td colspan="11">D1 追蹤清單為空</td></tr>';
+  $('watchStatus').textContent=`D1 已載入 ${j.count||0} 檔`;
+ }catch(e){
+  $('watchStatus').textContent='D1 尚未設定：'+e.message;
+ }
+}
+async function cloudAdd(code,name){
+ try{await apiPost('/api/watchlist/add',{code,name});await apiPost('/api/watchlist/update',{code,name});await loadCloudWatch();alert(`${code} 已加入雲端追蹤`)}
+ catch(e){alert('加入追蹤失敗：'+e.message)}
+}
+async function cloudRemove(code){
+ try{await apiPost('/api/watchlist/remove',{code});await loadCloudWatch()}
+ catch(e){alert('移除失敗：'+e.message)}
+}
+$('refreshWatchBtn').onclick=async()=>{try{await apiPost('/api/watchlist/update',{});await loadCloudWatch()}catch(e){$('watchStatus').textContent='更新失敗：'+e.message}};
+setTimeout(loadCloudWatch,500);
 
 </script></main></body></html>
