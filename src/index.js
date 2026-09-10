@@ -60,6 +60,44 @@ function normalizeTwse(rows) {
   })).filter(x => x.code);
 }
 
+
+async function fetchTpexAll() {
+  // TPEx OpenAPI is official, but some Cloudflare egress paths can be redirected
+  // repeatedly by www.tpex.org.tw. Try several official host/scheme variants and
+  // expose diagnostics instead of taking down the whole market scan.
+  const candidates = [
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes/",
+    "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes/"
+  ];
+  const attempts = [];
+  for (const u of candidates) {
+    try {
+      const r = await fetch(u, {
+        redirect: "manual",
+        headers: {
+          "accept": "application/json",
+          "user-agent": "Mozilla/5.0 (compatible; tw-stock-api/1.1)"
+        }
+      });
+      const location = r.headers.get("location");
+      attempts.push({url:u,status:r.status,location});
+      if (r.status >= 300 && r.status < 400) continue;
+      if (!r.ok) continue;
+      const text = await r.text();
+      let body;
+      try { body = JSON.parse(text); } catch { continue; }
+      if (Array.isArray(body) && body.length) {
+        return { ok:true, raw:body, upstream:u, attempts };
+      }
+    } catch(e) {
+      attempts.push({url:u,error:String(e?.message||e)});
+    }
+  }
+  return { ok:false, raw:[], upstream:null, attempts };
+}
+
 function normalizeTpex(rows) {
   if (!Array.isArray(rows)) return [];
   return rows.map(x => {
@@ -92,7 +130,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.0.0",
+      version: "1.1.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -117,50 +155,59 @@ async function routeApi(request, env, url) {
   }
 
   if (url.pathname === "/api/tpex/all") {
-    const upstream = "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes";
-    try {
-      const raw = await fetchJson(upstream);
-      const data = normalizeTpex(raw);
+    const result = await fetchTpexAll();
+    if (!result.ok) {
       return json({
-        ok: true,
-        source: "TPEx OpenAPI",
-        upstream,
-        count: data.length,
-        ordinary_count: data.filter(ordinaryStock).length,
-        data,
-      });
-    } catch (e) {
-      return json({ ok: false, source: "TPEx OpenAPI", upstream, error: String(e.message || e) }, 502);
+        ok:false,
+        source:"TPEx OpenAPI",
+        error:"All official TPEx OpenAPI candidates failed or redirected.",
+        attempts:result.attempts
+      }, 502);
     }
+    const data=normalizeTpex(result.raw);
+    return json({
+      ok:true,
+      source:"TPEx OpenAPI",
+      upstream:result.upstream,
+      count:data.length,
+      ordinary_count:data.filter(ordinaryStock).length,
+      attempts:result.attempts,
+      data
+    });
   }
 
   if (url.pathname === "/api/market/filter") {
-    const minClose = Number(url.searchParams.get("min_close") || 10);
-    const minLots = Number(url.searchParams.get("min_lots") || 3000);
-    const minShares = minLots * 1000;
+    const minClose=Number(url.searchParams.get("min_close")||10);
+    const minLots=Number(url.searchParams.get("min_lots")||3000);
+    const minShares=minLots*1000;
 
-    try {
-      const [twseRaw, tpexRaw] = await Promise.all([
-        fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"),
-        fetchJson("https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes"),
-      ]);
-      const all = [...normalizeTwse(twseRaw), ...normalizeTpex(tpexRaw)];
-      const filtered = all.filter(x =>
-        ordinaryStock(x) &&
-        Number.isFinite(x.close) && x.close >= minClose &&
-        Number.isFinite(x.volume_shares) && x.volume_shares >= minShares
-      ).sort((a,b) => b.volume_shares - a.volume_shares);
+    const twsePromise=fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL")
+      .then(raw=>({ok:true,data:normalizeTwse(raw)}))
+      .catch(e=>({ok:false,data:[],error:String(e?.message||e)}));
+    const tpexPromise=fetchTpexAll()
+      .then(r=>r.ok?({ok:true,data:normalizeTpex(r.raw),upstream:r.upstream,attempts:r.attempts})
+                    :({ok:false,data:[],error:"TPEx unavailable",attempts:r.attempts}));
 
-      return json({
-        ok: true,
-        filters: { min_close: minClose, min_lots: minLots },
-        total_raw: all.length,
-        count: filtered.length,
-        data: filtered,
-      });
-    } catch (e) {
-      return json({ ok: false, error: String(e.message || e) }, 502);
-    }
+    const [twse,tpex]=await Promise.all([twsePromise,tpexPromise]);
+    const all=[...twse.data,...tpex.data];
+    const filtered=all.filter(x=>
+      ordinaryStock(x) &&
+      Number.isFinite(x.close) && x.close>=minClose &&
+      Number.isFinite(x.volume_shares) && x.volume_shares>=minShares
+    ).sort((a,b)=>b.volume_shares-a.volume_shares);
+
+    return json({
+      ok:twse.ok || tpex.ok,
+      partial:!(twse.ok && tpex.ok),
+      filters:{min_close:minClose,min_lots:minLots},
+      sources:{
+        twse:{ok:twse.ok,count:twse.data.length,error:twse.error||null},
+        tpex:{ok:tpex.ok,count:tpex.data.length,error:tpex.error||null,upstream:tpex.upstream||null,attempts:tpex.attempts||[]}
+      },
+      total_raw:all.length,
+      count:filtered.length,
+      data:filtered
+    }, (twse.ok||tpex.ok)?200:502);
   }
 
   if (url.pathname === "/api/finmind") {
