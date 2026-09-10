@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台股免費 API 雲端驗證 V1</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#0b1020;color:#e8eefc}
+main{max-width:1050px;margin:auto;padding:24px}
+h1{font-size:26px}.muted{color:#9fb0cf}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}
+.card{background:#141b2f;border:1px solid #273451;border-radius:14px;padding:16px}
+button{width:100%;padding:12px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
+.good{color:#62d995}.bad{color:#ff7b7b}.wait{color:#ffd166}
+pre{white-space:pre-wrap;word-break:break-word;background:#090d18;padding:12px;border-radius:10px;max-height:360px;overflow:auto}
+input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-radius:8px;border:1px solid #33415f;background:#0d1425;color:#fff}
+.small{font-size:13px}
+</style>
+</head>
+<body><main>
+<h1>台股免費 API 雲端驗證 V1</h1>
+<p class="muted">Cloudflare Worker 代理 TWSE / TPEx / FinMind。先把資料鏈全部測通，再接 V4.4 與全市場掃描。</p>
+
+<div class="grid">
+  <div class="card"><h3>1. Worker Health</h3><button onclick="testHealth()">測試 Worker</button><div id="health" class="wait">尚未測試</div></div>
+  <div class="card"><h3>2. TWSE 全市場</h3><button onclick="testTwse()">測試 TWSE</button><div id="twse" class="wait">尚未測試</div></div>
+  <div class="card"><h3>3. TPEx 全市場</h3><button onclick="testTpex()">測試 TPEx</button><div id="tpex" class="wait">尚未測試</div></div>
+  <div class="card"><h3>4. 免費成交量先篩</h3><button onclick="testFilter()">股價≥10、成交量≥3000張</button><div id="filter" class="wait">尚未測試</div></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+<h3>5. FinMind 個股</h3>
+<label>股票代號</label><input id="code" value="3443">
+<label>起始日期</label><input id="start" type="date" value="2026-01-01">
+<button onclick="testFinmind()">測試 TaiwanStockPrice</button>
+<div id="finmind" class="wait">尚未測試</div>
+<p class="small muted">若 Cloudflare 設定 FINMIND_TOKEN Secret，Token 不會出現在前端 HTML 或 GitHub。</p>
+</div>
+
+<div class="card" style="margin-top:12px">
+<h3>診斷輸出</h3><pre id="log">等待測試…</pre>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const log=x=>$('log').textContent=typeof x==='string'?x:JSON.stringify(x,null,2);
+async function call(path){
+ const r=await fetch(path,{cache:'no-store'});
+ const j=await r.json().catch(()=>({ok:false,error:'Non-JSON response',status:r.status}));
+ if(!r.ok) throw Object.assign(new Error(j.error||('HTTP '+r.status)),{payload:j});
+ return j;
+}
+function state(id,ok,text){const e=$(id);e.className=ok?'good':'bad';e.textContent=text}
+async function testHealth(){try{const j=await call('/api/health');state('health',j.ok,'正常 · '+j.version);log(j)}catch(e){state('health',false,e.message);log(e.payload||e.message)}}
+async function testTwse(){try{const j=await call('/api/twse/all');state('twse',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('twse',false,e.message);log(e.payload||e.message)}}
+async function testTpex(){try{const j=await call('/api/tpex/all');state('tpex',j.ok,`取得 ${j.count} 筆；普通4碼 ${j.ordinary_count}`);log({...j,data:j.data.slice(0,8)})}catch(e){state('tpex',false,e.message);log(e.payload||e.message)}}
+async function testFilter(){try{const j=await call('/api/market/filter?min_close=10&min_lots=3000');state('filter',j.ok,`候選 ${j.count} 檔`);log({...j,data:j.data.slice(0,20)})}catch(e){state('filter',false,e.message);log(e.payload||e.message)}}
+async function testFinmind(){
+ try{
+  const code=$('code').value.trim(), start=$('start').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const j=await call(`/api/finmind?dataset=TaiwanStockPrice&data_id=${encodeURIComponent(code)}&start_date=${start}&end_date=${end}`);
+  const last=j.data?.at(-1);
+  state('finmind',j.ok,`取得 ${j.count} 日；最新 ${last?.date||'—'}`);
+  log({...j,data:(j.data||[]).slice(-8)});
+ }catch(e){state('finmind',false,e.message);log(e.payload||e.message)}
+}
+</script>
+</main></body></html>

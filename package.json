@@ -1,0 +1,11 @@
+{
+  "name": "tw-stock-api",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "wrangler": "^4.102.0"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy"
+  }
+}
