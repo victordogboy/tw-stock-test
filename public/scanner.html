@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.6 · V4.4 決策＋個股追蹤</title>
+<title>台股 V1.6.1 · V4.4 決策＋個股追蹤</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -191,6 +191,7 @@ function toggleWatch(code){
  let a=getWatchlist(),c=String(code);
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
  saveWatchlist(a); showRank(); renderWatchlist();
+restoreScan();
 }
 function openDetail(code){location.href='/detail.html?code='+encodeURIComponent(code)}
 function deltaText(cur,prev){
@@ -241,12 +242,28 @@ function renderWatchRows(rows=null){
  }).join('');
 }
 function renderWatchlist(){renderWatchRows()}
+function persistScan(){
+ try{
+   sessionStorage.setItem('twq_scan_results_v161',JSON.stringify(results));
+   sessionStorage.setItem('twq_scan_rank_v161',currentRank);
+ }catch(e){}
+}
+function restoreScan(){
+ try{
+   const raw=sessionStorage.getItem('twq_scan_results_v161');
+   if(raw){results=JSON.parse(raw)||[];currentRank=sessionStorage.getItem('twq_scan_rank_v161')||'newEntry';showRank(currentRank);
+     $('status').textContent=`已恢復上次掃描結果 · ${results.length} 檔`;
+     $('prog').value=results.length?100:0;
+   }
+ }catch(e){}
+}
 function showRank(key=currentRank){
  currentRank=key;
  document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
    btn.classList.toggle('active', btn.dataset.rank===key);
  });
  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
+ persistScan();
  $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')"><td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
  <td><b>${Math.round(decisionScore(r,key))}</b></td><td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td>${r.persistence}</td>
  <td>${r.bottom}</td><td>${r.ignition}</td><td>${r.trend}</td>

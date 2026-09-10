@@ -48,13 +48,14 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.6 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.6.1 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
       <input id="stockInput" class="search" placeholder="輸入 2330、台積電、2454、聯發科">
       <input id="tokenInput" class="token" type="password" style="display:none" value="">
-      <button id="analyzeBtn">分析</button><button id="watchBtn" class="secondary">☆ 加入追蹤</button>
+      <button id="backScannerBtn" class="secondary">← 回到大盤掃描</button>
+<button id="analyzeBtn">分析</button><button id="watchBtn" class="secondary">☆ 加入追蹤</button>
       <button id="latestBtn" class="secondary">回到最新</button>
     </div>
   </div>
@@ -221,9 +222,14 @@ async function api(dataset,data_id='',start_date='',end_date=''){
       Trading_Volume:x.volume, Trading_money:x.turnover||0
     }));
   }
-  // Chip datasets are optional in the current free-cloud architecture.
   if(['TaiwanStockMarginPurchaseShortSale','TaiwanStockInstitutionalInvestorsBuySellWide','TaiwanStockDayTrading'].includes(dataset)){
-    return [];
+    const q=new URLSearchParams({code:String(data_id),end_date:end_date||today(),days:'12'});
+    const r=await fetch('/api/chips/twse?'+q.toString(),{cache:'no-store'});
+    const j=await r.json();
+    if(!r.ok || j.ok===false) return [];
+    if(dataset==='TaiwanStockMarginPurchaseShortSale') return j.margin||[];
+    if(dataset==='TaiwanStockInstitutionalInvestorsBuySellWide') return j.inst||[];
+    if(dataset==='TaiwanStockDayTrading') return j.daytrade||[];
   }
   if(dataset==='TaiwanStockInfo'){
     const r=await fetch('/api/twse/all',{cache:'no-store'});
@@ -405,8 +411,8 @@ function evaluate(rows,margin,inst,daytrade,entryMode='market'){
   const f6Avail=Number.isFinite(dayRatio);let f6=f6Avail?(dayRatio>50?1:dayRatio>35?3:5):0;
   add('6. 當沖率',5,f6,f6Avail?`當沖成交量占總量約 ${fmt(dayRatio,1)}%；${dayRatio>50?'籌碼穩定性偏低':'未觸發 >50% 警戒'}`:'當沖資料尚未更新/未提供',f6>=4?'ok':f6>=2?'warn':'bad',f6Avail);
 
-  const f7Avail=!!m&&!!ir;let f7=0;if(f7Avail){f7+=(marginPct<30?5:marginPct<60?3:1);f7+=(instPct>70?5:instPct>40?3:1)}
-  add('7. 融資 / 法人黃線百分位',10,f7,f7Avail?`融資餘額 ${num(m.MarginPurchaseTodayBalance).toLocaleString()} 張，90T 百分位 ${fmt(marginPct,0)}%；法人累積淨額 90T 百分位 ${fmt(instPct,0)}%`:'融資或法人序列不足',f7>=7?'ok':f7>=4?'warn':'bad',f7Avail);
+  const f7Avail=!!m&&!!ir&&margin.length>=5&&inst.length>=5;let f7=0;if(f7Avail){f7+=(marginPct<30?5:marginPct<60?3:1);f7+=(instPct>70?5:instPct>40?3:1)}
+  add('7. 近期融資 / 法人黃線百分位',10,f7,f7Avail?`融資餘額 ${num(m.MarginPurchaseTodayBalance).toLocaleString()} 張，近期樣本百分位 ${fmt(marginPct,0)}%；法人累積淨額近期樣本百分位 ${fmt(instPct,0)}%`:'融資或法人序列不足',f7>=7?'ok':f7>=4?'warn':'bad',f7Avail);
 
   const f8Avail=!!ir;let f8=0;if(f8Avail){if(id.foreign>0)f8+=3;if(id.trust>0)f8+=3;if(id.dealer>0)f8+=2}
   add('8. 三大法人分類動向',8,f8,f8Avail?`外資 ${fmt(id.foreign/1000,0)} 張｜投信 ${fmt(id.trust/1000,0)} 張｜自營商 ${fmt(id.dealer/1000,0)} 張`:'法人資料未取得',f8>=5?'ok':f8>=3?'warn':'bad',f8Avail);
@@ -1311,6 +1317,13 @@ $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
 setBanner('V1.6 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+
+$('backScannerBtn').addEventListener('click',()=>{
+  const ref=document.referrer||'';
+  if(ref.includes('/scanner.html')) history.back();
+  else location.href='/scanner.html';
+});
+
 </script>
 </body>
 </html>

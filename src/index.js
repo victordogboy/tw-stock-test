@@ -326,6 +326,127 @@ async function fetchTwseMonthlyHistory(code,startDate,endDate){
   return {ok:data.length>0,source:"TWSE STOCK_DAY monthly",data,attempts};
 }
 
+
+function twDateCompact(iso){ return String(iso||"").replaceAll("-",""); }
+function recentWeekdays(endIso,count){
+  const out=[]; let d=new Date(endIso+"T12:00:00+08:00");
+  while(out.length<count){
+    const wd=d.getDay();
+    if(wd!==0&&wd!==6) out.push(d.toISOString().slice(0,10));
+    d.setDate(d.getDate()-1);
+  }
+  return out;
+}
+function cleanNum(v){
+  const s=String(v??"").replaceAll(",","").replaceAll("+","").replaceAll("--","").trim();
+  const n=Number(s); return Number.isFinite(n)?n:null;
+}
+function rowByFields(payload,code){
+  const tables=Array.isArray(payload?.tables)?payload.tables:[];
+  for(const t of tables){
+    const fields=(t?.fields||[]).map(x=>String(x).replace(/<[^>]+>/g,"").trim());
+    const data=Array.isArray(t?.data)?t.data:[];
+    for(const row of data){
+      if(!Array.isArray(row))continue;
+      const obj={}; fields.forEach((f,i)=>obj[f]=row[i]);
+      const vals=row.map(x=>String(x??"").trim());
+      const c=vals.find(v=>v===String(code));
+      if(c) return {obj,fields,row};
+    }
+  }
+  return null;
+}
+function pickField(obj,needles){
+  for(const [k,v] of Object.entries(obj||{})){
+    const kk=String(k).replace(/\s/g,"");
+    if(needles.some(n=>kk.includes(n))) return v;
+  }
+  return null;
+}
+async function fetchTwseJson(url){
+  const r=await fetch(url,{headers:{
+    "accept":"application/json,text/plain,*/*",
+    "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.6.1)",
+    "referer":"https://www.twse.com.tw/"
+  }});
+  if(!r.ok) throw new Error(`TWSE HTTP ${r.status}`);
+  return r.json();
+}
+async function chipForDate(code,iso){
+  const date=twDateCompact(iso);
+  const result={date:iso,margin:null,inst:null,daytrade:null,errors:[]};
+
+  // Margin balance
+  try{
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=${date}&selectType=ALL&response=json`);
+    const hit=rowByFields(j,code);
+    if(hit){
+      const o=hit.obj;
+      const today=cleanNum(pickField(o,["今日餘額","今日融資餘額"]));
+      const prev=cleanNum(pickField(o,["前日餘額","昨日餘額","昨日融資餘額"]));
+      const buy=cleanNum(pickField(o,["融資買進"]));
+      const sell=cleanNum(pickField(o,["融資賣出"]));
+      if(today!=null) result.margin={
+        date:iso,
+        stock_id:String(code),
+        MarginPurchaseTodayBalance:today,
+        MarginPurchaseYesterdayBalance:prev,
+        MarginPurchaseBuy:buy,
+        MarginPurchaseSell:sell
+      };
+    }
+  }catch(e){result.errors.push("margin:"+String(e.message||e))}
+
+  // Institutional investors (official TWSE daily report backend)
+  try{
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/fund/T86?date=${date}&selectType=ALL&response=json`);
+    const hit=rowByFields(j,code);
+    if(hit){
+      const o=hit.obj;
+      const foreign=cleanNum(pickField(o,["外陸資買賣超股數","外資及陸資買賣超股數","外資買賣超股數"]));
+      const trust=cleanNum(pickField(o,["投信買賣超股數"]));
+      const dealerSelf=cleanNum(pickField(o,["自營商買賣超股數(自行買賣)","自營商(自行買賣)買賣超股數"]));
+      const dealerHedge=cleanNum(pickField(o,["自營商買賣超股數(避險)","自營商(避險)買賣超股數"]));
+      const dealerTotal=(dealerSelf||0)+(dealerHedge||0);
+      if(foreign!=null||trust!=null||dealerSelf!=null||dealerHedge!=null) result.inst={
+        date:iso,stock_id:String(code),
+        Foreign_Investor_Buy:foreign>0?foreign:0,
+        Foreign_Investor_Sell:foreign<0?-foreign:0,
+        Investment_Trust_Buy:trust>0?trust:0,
+        Investment_Trust_Sell:trust<0?-trust:0,
+        Dealer_Buy:dealerTotal>0?dealerTotal:0,
+        Dealer_Sell:dealerTotal<0?-dealerTotal:0,
+        Foreign_Investor:foreign||0,
+        Investment_Trust:trust||0,
+        Dealer:dealerTotal||0
+      };
+    }
+  }catch(e){result.errors.push("inst:"+String(e.message||e))}
+
+  // Day trading
+  try{
+    let j;
+    try{
+      j=await fetchTwseJson("https://openapi.twse.com.tw/v1/exchangeReport/TWTB4U");
+      const arr=Array.isArray(j)?j:[];
+      const z=arr.find(x=>String(x.Code??x.SecuritiesCode??x["證券代號"]??"").trim()===String(code));
+      if(z){
+        const vol=cleanNum(z.DayTradingVolume??z.Volume??z.TradingVolume??z["當日沖銷交易成交股數"]);
+        if(vol!=null) result.daytrade={date:iso,stock_id:String(code),Volume:vol};
+      }
+    }catch{}
+    if(!result.daytrade){
+      j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/dayTrading/TWTB4U?date=${date}&selectType=All&response=json`);
+      const hit=rowByFields(j,code);
+      if(hit){
+        const vol=cleanNum(pickField(hit.obj,["當日沖銷交易成交股數","當日沖銷成交股數"]));
+        if(vol!=null) result.daytrade={date:iso,stock_id:String(code),Volume:vol};
+      }
+    }
+  }catch(e){result.errors.push("daytrade:"+String(e.message||e))}
+  return result;
+}
+
 async function routeApi(request, env, url) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
@@ -335,7 +456,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.6.0",
+      version: "1.6.1",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -462,6 +583,32 @@ async function routeApi(request, env, url) {
     }
 
     return json({ok:false,error:"No history source succeeded",yahoo_attempts:yahoo.attempts},502);
+  }
+
+
+  if (url.pathname === "/api/chips/twse") {
+    const code=url.searchParams.get("code")||"3443";
+    const endDate=url.searchParams.get("end_date")||isoDateTaipei();
+    const days=Math.max(1,Math.min(12,Number(url.searchParams.get("days")||12)));
+    const dates=recentWeekdays(endDate,days);
+    const rows=[];
+    // Sequential by date: keeps subrequests bounded and easier on TWSE.
+    for(const d of dates){
+      rows.push(await chipForDate(code,d));
+      await new Promise(r=>setTimeout(r,35));
+    }
+    const margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+    const inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+    const daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+    return json({
+      ok:true,source:"TWSE official public reports",code,
+      requested_days:days,
+      margin_count:margin.length,
+      institutional_count:inst.length,
+      daytrade_count:daytrade.length,
+      margin,inst,daytrade,
+      diagnostics:rows.map(x=>({date:x.date,margin:!!x.margin,inst:!!x.inst,daytrade:!!x.daytrade,errors:x.errors}))
+    });
   }
 
   if (url.pathname === "/api/finmind") {

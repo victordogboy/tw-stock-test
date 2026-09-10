@@ -1,20 +1,19 @@
-# V1.6 個股完整分析 + 可點擊排行榜 + 追蹤清單
+# V1.6.1 TWSE 免費籌碼 + 返回掃描
 
 新增：
-1. `/detail.html?code=3443`
-   - 從正式 V4.4 HTML 改成 Cloud 版
-   - 保留日K、MA5/10/20/60、歷史盲測滑桿、Entry/Hold/Persistence、技術指標與 V4.4 詳細資訊
-   - 股價資料改走 `/api/history/auto`，股票清單走 `/api/twse/all`
-   - 目前免費雲端版沒有融資/法人/當沖來源，因此相關區塊會顯示無資料，不偽造
-2. 排行榜每一列可直接點擊，開啟該股票完整分析。
-3. 每檔新增 ☆/★ 追蹤按鈕。
-4. 追蹤清單：
-   - localStorage 保存
-   - 開啟網站時自動更新（若超過 6 小時）
-   - 頁面保持開啟時每 60 分鐘更新
-   - 顯示最新快照與前一次快照的 Entry / Opportunity / Hold 變化
-5. 個股頁加入「加入追蹤」按鈕與「完整分析完成」訊息。
+- `/api/chips/twse?code=3443&days=12`
+- 來源全部使用 TWSE 官方公開資料：
+  - 融資融券：MI_MARGN
+  - 三大法人：T86 官方日報後端
+  - 當沖：OpenAPI TWTB4U，必要時用官方日報後端 fallback
+- Cloud 個股頁將上述資料轉成 V4.4 原本使用的 FinMind-compatible 欄位。
+- 由於免費版目前只抓近期樣本，Factor 7 改成至少 5 筆才啟用，文字改為「近期樣本百分位」，避免假裝是 90T。
 
-重要限制：
-- V1.6 追蹤清單是瀏覽器本機保存；關閉網站後不會由 Cloudflare 在背景自動更新。
-- 若要「網站關閉也每天更新、跨裝置同步」，下一版需 Cloudflare KV/D1 + Cron Trigger。
+返回功能：
+- 個股完整頁新增「← 回到大盤掃描」
+- 從 scanner 點入時使用 history.back()
+- scanner 結果同步存在 sessionStorage，返回後即使頁面重載也恢復上次排行榜，不需重掃 195 檔。
+
+限制：
+- 目前籌碼查詢最多 12 個平日，以控制單次 Worker upstream subrequests。
+- 真正 90T 籌碼序列下一階段應使用 Cloudflare D1/KV 每日累積，而不是每次頁面即時回抓 90 天。
