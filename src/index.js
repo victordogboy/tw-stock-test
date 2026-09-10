@@ -233,6 +233,48 @@ function addDaysISO(dateStr, days) {
 }
 function yyyymmdd(dateStr){ return String(dateStr).replaceAll("-",""); }
 
+
+async function mergeTwseLatestBar(code, market, endDate, history){
+  // Yahoo daily chart can lag the TWSE same-day close even after the TWSE quote is final.
+  // For listed stocks, use official TWSE STOCK_DAY_ALL as the same-day source of truth.
+  if(market==="tpex") return {data:history,merged:false};
+  const today=isoDateTaipei();
+  if(endDate < today) return {data:history,merged:false};
+
+  try{
+    const raw=await fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
+    const rows=normalizeTwse(raw);
+    const q=rows.find(x=>String(x.code)===String(code));
+    if(!q || !Number.isFinite(q.close) || !Number.isFinite(q.open) ||
+       !Number.isFinite(q.high) || !Number.isFinite(q.low) ||
+       !Number.isFinite(q.volume_shares) || q.volume_shares<=0){
+      return {data:history,merged:false};
+    }
+
+    const bar={
+      date:today,
+      open:q.open,
+      high:q.high,
+      low:q.low,
+      close:q.close,
+      adj_close:q.close,
+      volume:q.volume_shares,
+      symbol:String(code)+".TW",
+      source:"TWSE STOCK_DAY_ALL"
+    };
+
+    const data=[...history];
+    const i=data.findIndex(x=>x.date===today);
+    if(i>=0) data[i]=bar;
+    else data.push(bar);
+    data.sort((a,b)=>a.date.localeCompare(b.date));
+
+    return {data,merged:true,twse_bar:bar};
+  }catch(e){
+    return {data:history,merged:false,merge_error:String(e?.message||e)};
+  }
+}
+
 async function fetchYahooHistory(code, market, startDate, endDate) {
   const suffixes = market==="tpex" ? [".TWO",".TW"] :
                    market==="twse" ? [".TW",".TWO"] :
@@ -456,7 +498,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.7.5",
+      version: "1.7.6",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -574,12 +616,25 @@ async function routeApi(request, env, url) {
 
     const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
     if(yahoo.ok && yahoo.data.length>=150){
-      return json({...yahoo,mode:"primary",count:yahoo.data.length,first:yahoo.data[0]?.date||null,last:yahoo.data.at(-1)?.date||null});
+      const merged=await mergeTwseLatestBar(code,market,endDate,yahoo.data);
+      return json({
+        ...yahoo,
+        data:merged.data,
+        mode:"primary",
+        latest_merge:merged.merged?"TWSE official same-day bar":"Yahoo only",
+        latest_merge_error:merged.merge_error||null,
+        count:merged.data.length,
+        first:merged.data[0]?.date||null,
+        last:merged.data.at(-1)?.date||null
+      });
     }
 
     if(market!=="tpex"){
       const twse=await fetchTwseMonthlyHistory(code,startDate,endDate);
-      if(twse.ok) return json({...twse,mode:"fallback",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null});
+      if(twse.ok){
+        const merged=await mergeTwseLatestBar(code,"twse",endDate,twse.data);
+        return json({...twse,data:merged.data,mode:"fallback",latest_merge:merged.merged?"TWSE official same-day bar":"monthly only",yahoo_attempts:yahoo.attempts,count:merged.data.length,first:merged.data[0]?.date||null,last:merged.data.at(-1)?.date||null});
+      }
     }
 
     return json({ok:false,error:"No history source succeeded",yahoo_attempts:yahoo.attempts},502);
@@ -784,7 +839,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.7.5");
+        headers.set("X-App-Version","1.7.6");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

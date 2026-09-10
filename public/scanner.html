@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.7.5 · Top100 FinMind 完整重評</title>
+<title>台股 V1.7.6 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -23,8 +23,8 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 .starbtn{padding:3px 7px;width:auto;font-size:12px}
 .watchchange.up{color:#65d99a}.watchchange.down{color:#ff7777}.watchchange.flat{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.7.5 · Top100 FinMind 完整重評</h1>
-<p class="muted">第一階段：TWSE → Yahoo OHLCV 價格初篩。第二階段：取初篩前 100 名，用 FinMind 融資＋法人＋當沖重新跑完整 V4.4，再顯示正式排名。</p>
+<h1>台股 V1.7.6 · Top100 FinMind 完整重評</h1>
+<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
@@ -42,18 +42,15 @@ tr.stockrow{cursor:pointer} tr.stockrow:hover{background:rgba(255,255,255,.05)}
 </div>
 <div class="card">
 <div class="tabs" id="rankTabs">
-<button class="active" data-rank="newEntry" onclick="showRank('newEntry')">今日新進場</button>
-<button data-rank="earlyMove" onclick="showRank('earlyMove')">剛發動</button>
-<button data-rank="holdRank" onclick="showRank('holdRank')">續抱</button>
-<button data-rank="overall" onclick="showRank('overall')">原綜合 TOP</button>
-<button data-rank="opportunity" onclick="showRank('opportunity')">Opportunity</button>
-<button data-rank="entry" onclick="showRank('entry')">Entry</button>
-<button data-rank="bottom" onclick="showRank('bottom')">Bottom</button>
-<button data-rank="ignition" onclick="showRank('ignition')">Ignition</button>
-<button data-rank="trend" onclick="showRank('trend')">Trend</button>
+<button data-rank="setup" onclick="showRank('setup')">Setup｜型態品質</button>
+<button data-rank="opportunity" onclick="showRank('opportunity')">Opportunity｜行情機會</button>
+<button class="active" data-rank="entry" onclick="showRank('entry')">Entry｜現在能不能買</button>
+<button data-rank="hold" onclick="showRank('hold')">Hold｜已持有是否續抱</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
-<th>代號</th><th>名稱</th><th>收盤</th><th>正式決策分</th><th>初篩分</th><th>資料完整度</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
+<th>代號</th><th>名稱</th><th>收盤</th><th>資料完整度</th>
+<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th>
+<th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
 </div>
 <div class="card">
@@ -163,22 +160,11 @@ function priceDecision(hist){
  };
 }
 function decisionScore(r,key){
- const d=r.decision||{};
- if(key==='newEntry'){
-   let s=r.entry*.42+r.opportunity*.28+r.persistence*.20+r.setup*.10;
-   if(d.riskPct<=4)s+=5; else if(d.riskPct>7)s-=8;
-   if(d.bias20>15)s-=8;
-   return Math.max(0,Math.min(100,s));
- }
- if(key==='earlyMove'){
-   let s=r.opportunity*.38+r.ignition*.32+r.persistence*.20+r.setup*.10;
-   if(r.trend>85)s-=6;
-   if(d.bias20>15)s-=7;
-   return Math.max(0,Math.min(100,s));
- }
- if(key==='holdRank') return Math.max(0,Math.min(100,r.hold*.42+r.trend*.30+r.persistence*.28));
- if(key==='overall') return r.entry*.42+r.opportunity*.28+r.hold*.15+r.persistence*.15;
- return n(r[key]);
+  if(key==='setup') return n(r.setup);
+  if(key==='opportunity') return n(r.opportunity);
+  if(key==='entry') return n(r.entry);
+  if(key==='hold') return n(r.hold);
+  return n(r.entry);
 }
 function rankVal(r,key){ return decisionScore(r,key); }
 
@@ -192,7 +178,7 @@ function isWatched(code){return getWatchlist().includes(String(code))}
 function toggleWatch(code){
  let a=getWatchlist(),c=String(code);
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
- saveWatchlist(a); showRank(); renderWatchlist();
+ saveWatchlist(a); showRank(currentRank); renderWatchlist();
 }
 function openDetail(code){
   persistScan();
@@ -290,7 +276,7 @@ function restoreScan(){
     if(!Array.isArray(p.results) || p.results.length===0) return false;
 
     results=p.results;
-    currentRank=p.currentRank||'newEntry';
+    currentRank=p.currentRank||'entry';
 
     if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${results.length} 檔`;
     if($('stats')) $('stats').textContent=p.stats||'';
@@ -310,19 +296,15 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function renderRankOnly(key=currentRank){
-  currentRank=key;
+  currentRank=['setup','opportunity','entry','hold'].includes(key)?key:'entry';
   document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
-    btn.classList.toggle('active', btn.dataset.rank===key);
+    btn.classList.toggle('active', btn.dataset.rank===currentRank);
   });
-  const a=[...results].sort((x,y)=>rankVal(y,key)-rankVal(x,key)).slice(0,50);
+  const a=[...results].sort((x,y)=>rankVal(y,currentRank)-rankVal(x,currentRank)).slice(0,100);
   $('rows').innerHTML=a.map(r=>`<tr class="stockrow" onclick="openDetail('${r.code}')">
     <td>${r.code}</td><td>${r.name}</td><td>${r.close}</td>
-    <td><b>${Math.round(decisionScore(r,key))}</b></td>
-    <td>${r.prelimScore!=null?Math.round(r.prelimScore):'-'}</td>
     <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%':'Price-only'}</td>
-    <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td>
-    <td>${r.hold}</td><td>${r.persistence}</td><td>${r.bottom}</td>
-    <td>${r.ignition}</td><td>${r.trend}</td>
+    <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td>
     <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
     <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td>
     <td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
@@ -333,6 +315,7 @@ function renderRankOnly(key=currentRank){
     <td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${r.code}')">${isWatched(r.code)?'★':'☆'}</button></td>
   </tr>`).join('');
 }
+
 function showRank(key=currentRank){
   renderRankOnly(key);
   persistScan();
@@ -368,7 +351,7 @@ async function runFinmindTop(topList,limit){
       done++;
       $('prog').value=Math.round(done/topList.length*100);
       $('status').textContent=`第二階段 FinMind 重評 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;
-      if(done%5===0)showRank('newEntry');
+      if(done%5===0)showRank('entry');
       await new Promise(res=>setTimeout(res,350));
     }
   }
@@ -398,7 +381,7 @@ async function worker(item){
       _hist:hist,
       finmindCompleteness:0
     };
-    rr.prelimScore=decisionScore(rr,'newEntry');
+    rr.prelimScore=decisionScore(rr,'entry');
     results.push(rr);
   }catch(e){
     errors.push(`${code}: ${e.message||e}`);
@@ -412,7 +395,7 @@ async function runPool(items,limit){
    await worker(items[i]); done++;
    $('prog').value=Math.round(done/items.length*100);
    $('status').textContent=`掃描中 ${done}/${items.length} · 成功 ${results.length} · 略過 ${errors.length}`;
-   if(done%5===0){showRank();$('errors').textContent=errors.slice(-20).join(' | ')||'—'}
+   if(done%5===0){showRank(currentRank);$('errors').textContent=errors.slice(-20).join(' | ')||'—'}
    await new Promise(r=>setTimeout(r,180));
   }
  }
@@ -427,7 +410,7 @@ $('scanBtn').onclick=async()=>{
   let cand=(j.data||[]).filter(x=>x.market==='twse').slice(0,max);
   $('stats').textContent=`候選 ${cand.length} 檔；來源 TWSE ${j.sources?.twse?.ok?'✓':'✗'} / TPEx ${j.sources?.tpex?.ok?'✓':'✗'}；V4.4 engine ${typeof entryEngine==='function'?'已載入':'fallback'} · 第一階段為 Price-only，第二階段才是 FinMind 重評`;
   await runPool(cand,Math.max(1,Math.min(8,n($('concurrency').value,4))));
-  if(stopped){showRank();$('status').textContent=`已停止 · 第一階段完成 ${results.length} 檔`;return}
+  if(stopped){showRank(currentRank);$('status').textContent=`已停止 · 第一階段完成 ${results.length} 檔`;return}
 
   // Price-only preliminary ranking. Only these stocks consume FinMind quota.
   const topN=Math.max(1,Math.min(100,n($('finTopN').value,100)));
@@ -438,7 +421,7 @@ $('scanBtn').onclick=async()=>{
 
   // Only fully/partially re-evaluated top-N are shown as final results.
   results=top;
-  showRank('newEntry');
+  showRank('entry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
