@@ -219,6 +219,113 @@ function ordinaryStock(x) {
   return /^\d{4}$/.test(x.code) && !x.code.startsWith("00");
 }
 
+
+function unixSec(dateStr) {
+  return Math.floor(new Date(dateStr + "T00:00:00+08:00").getTime()/1000);
+}
+function isoDateTaipei(d=new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Taipei"}).format(d);
+}
+function addDaysISO(dateStr, days) {
+  const d=new Date(dateStr+"T12:00:00+08:00");
+  d.setUTCDate(d.getUTCDate()+days);
+  return d.toISOString().slice(0,10);
+}
+function yyyymmdd(dateStr){ return String(dateStr).replaceAll("-",""); }
+
+async function fetchYahooHistory(code, market, startDate, endDate) {
+  const suffixes = market==="tpex" ? [".TWO",".TW"] :
+                   market==="twse" ? [".TW",".TWO"] :
+                   [".TW",".TWO"];
+  const attempts=[];
+  const p1=unixSec(startDate);
+  const p2=unixSec(addDaysISO(endDate,1));
+  for(const suffix of suffixes){
+    const symbol=code+suffix;
+    for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
+      const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${p1}&period2=${p2}&interval=1d&events=history&includeAdjustedClose=true`;
+      try{
+        const r=await fetch(u,{headers:{
+          "accept":"application/json,text/plain,*/*",
+          "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+        }});
+        attempts.push({source:"yahoo",host,symbol,status:r.status});
+        if(!r.ok) continue;
+        const j=await r.json();
+        const z=j?.chart?.result?.[0];
+        const ts=z?.timestamp||[];
+        const q=z?.indicators?.quote?.[0]||{};
+        const adj=z?.indicators?.adjclose?.[0]?.adjclose||[];
+        if(!ts.length) continue;
+        const data=ts.map((t,i)=>({
+          date:new Date(t*1000).toISOString().slice(0,10),
+          open:q.open?.[i]??null,
+          high:q.high?.[i]??null,
+          low:q.low?.[i]??null,
+          close:q.close?.[i]??null,
+          adj_close:adj?.[i]??null,
+          volume:q.volume?.[i]??null,
+          symbol
+        })).filter(x=>Number.isFinite(x.close));
+        if(data.length) return {ok:true,source:"Yahoo Finance chart",symbol,data,attempts};
+      }catch(e){
+        attempts.push({source:"yahoo",host,symbol,error:String(e?.message||e)});
+      }
+    }
+  }
+  return {ok:false,source:"Yahoo Finance chart",data:[],attempts};
+}
+
+function rocToIso(s){
+  const m=String(s||"").match(/(\d{3})\/(\d{2})\/(\d{2})/);
+  if(!m) return null;
+  return `${Number(m[1])+1911}-${m[2]}-${m[3]}`;
+}
+function numTW(v){
+  const n=Number(String(v??"").replaceAll(",","").replaceAll("--","").trim());
+  return Number.isFinite(n)?n:null;
+}
+async function fetchTwseMonthlyHistory(code,startDate,endDate){
+  const attempts=[], rows=[];
+  let cursor=new Date(startDate.slice(0,7)+"-01T12:00:00+08:00");
+  const endM=new Date(endDate.slice(0,7)+"-01T12:00:00+08:00");
+  while(cursor<=endM){
+    const ds=cursor.toISOString().slice(0,10).replaceAll("-","");
+    const u=`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${ds}&stockNo=${encodeURIComponent(code)}&response=json`;
+    try{
+      const r=await fetch(u,{headers:{
+        "accept":"application/json,text/plain,*/*",
+        "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.3)"
+      }});
+      attempts.push({source:"twse-monthly",month:ds.slice(0,6),status:r.status});
+      if(r.ok){
+        const j=await r.json();
+        if(Array.isArray(j.data)){
+          for(const a of j.data){
+            const date=rocToIso(a?.[0]);
+            if(!date) continue;
+            rows.push({
+              date,
+              volume:numTW(a?.[1]),
+              turnover:numTW(a?.[2]),
+              open:numTW(a?.[3]),
+              high:numTW(a?.[4]),
+              low:numTW(a?.[5]),
+              close:numTW(a?.[6]),
+              change:numTW(String(a?.[7]??"").replace("+","")),
+              trades:numTW(a?.[8])
+            });
+          }
+        }
+      }
+    }catch(e){attempts.push({source:"twse-monthly",month:ds.slice(0,6),error:String(e?.message||e)})}
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  const map=new Map(rows.filter(x=>x.date>=startDate&&x.date<=endDate).map(x=>[x.date,x]));
+  const data=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
+  return {ok:data.length>0,source:"TWSE STOCK_DAY monthly",data,attempts};
+}
+
 async function routeApi(request, env, url) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
@@ -228,7 +335,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.2.0",
+      version: "1.3.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -318,6 +425,43 @@ async function routeApi(request, env, url) {
       count:filtered.length,
       data:filtered
     }, (twse.ok||tpex.ok)?200:502);
+  }
+
+
+  if (url.pathname === "/api/history/yahoo") {
+    const code=url.searchParams.get("code")||"3443";
+    const market=url.searchParams.get("market")||"";
+    const endDate=url.searchParams.get("end_date")||isoDateTaipei();
+    const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-460);
+    const r=await fetchYahooHistory(code,market,startDate,endDate);
+    return json({...r,count:r.data.length,first:r.data[0]?.date||null,last:r.data.at(-1)?.date||null},r.ok?200:502);
+  }
+
+  if (url.pathname === "/api/history/twse") {
+    const code=url.searchParams.get("code")||"3443";
+    const endDate=url.searchParams.get("end_date")||isoDateTaipei();
+    const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-460);
+    const r=await fetchTwseMonthlyHistory(code,startDate,endDate);
+    return json({...r,count:r.data.length,first:r.data[0]?.date||null,last:r.data.at(-1)?.date||null},r.ok?200:502);
+  }
+
+  if (url.pathname === "/api/history/auto") {
+    const code=url.searchParams.get("code")||"3443";
+    const market=url.searchParams.get("market")||"";
+    const endDate=url.searchParams.get("end_date")||isoDateTaipei();
+    const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-460);
+
+    const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
+    if(yahoo.ok && yahoo.data.length>=150){
+      return json({...yahoo,mode:"primary",count:yahoo.data.length,first:yahoo.data[0]?.date||null,last:yahoo.data.at(-1)?.date||null});
+    }
+
+    if(market!=="tpex"){
+      const twse=await fetchTwseMonthlyHistory(code,startDate,endDate);
+      if(twse.ok) return json({...twse,mode:"fallback",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null});
+    }
+
+    return json({ok:false,error:"No history source succeeded",yahoo_attempts:yahoo.attempts},502);
   }
 
   if (url.pathname === "/api/finmind") {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股免費 API 雲端驗證 V1.2</title>
+<title>台股免費 API 雲端驗證 V1.3</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;background:#0b1020;color:#e8eefc}
 main{max-width:1050px;margin:auto;padding:24px}
@@ -17,7 +17,7 @@ input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-rad
 </style>
 </head>
 <body><main>
-<h1>台股免費 API 雲端驗證 V1.2</h1>
+<h1>台股免費 API 雲端驗證 V1.3</h1>
 <p class="muted">Cloudflare Worker 代理 TWSE / TPEx / FinMind。先把資料鏈全部測通，再接 V4.4 與全市場掃描。</p>
 
 <div class="grid">
@@ -25,6 +25,22 @@ input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-rad
   <div class="card"><h3>2. TWSE 全市場</h3><button onclick="testTwse()">測試 TWSE</button><div id="twse" class="wait">尚未測試</div></div>
   <div class="card"><h3>3. TPEx 全市場</h3><button onclick="testTpex()">測試 TPEx</button><div id="tpex" class="wait">尚未測試</div></div>
   <div class="card"><h3>4. 免費成交量先篩</h3><button onclick="testFilter()">股價≥10、成交量≥3000張</button><div id="filter" class="wait">尚未測試</div></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+<h3>5. 免費歷史 K 線測試</h3>
+<label>股票代號</label><input id="hcode" value="3443">
+<label>市場</label>
+<select id="hmarket" style="width:100%;box-sizing:border-box;padding:10px;margin:6px 0 10px;border-radius:8px;background:#0d1425;color:#fff;border:1px solid #33415f">
+<option value="twse">上市 .TW</option>
+<option value="tpex">上櫃 .TWO</option>
+</select>
+<div class="grid">
+  <button onclick="testYahooHistory()">Yahoo 300日測試</button>
+  <button onclick="testAutoHistory()">AUTO 歷史來源</button>
+</div>
+<div id="history" class="wait" style="margin-top:8px">尚未測試</div>
+<p class="small muted">AUTO：Yahoo 單次歷史資料優先；上市股票失敗時才以 TWSE 官方 STOCK_DAY 月資料 fallback。</p>
 </div>
 
 <div class="card" style="margin-top:12px">
@@ -64,5 +80,27 @@ async function testFinmind(){
   log({...j,data:(j.data||[]).slice(-8)});
  }catch(e){state('finmind',false,e.message);log(e.payload||e.message)}
 }
+
+async function testYahooHistory(){
+ try{
+  const code=$('hcode').value.trim(),market=$('hmarket').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const start=new Date(Date.now()-460*864e5).toLocaleDateString('sv-SE');
+  const j=await call(`/api/history/yahoo?code=${encodeURIComponent(code)}&market=${market}&start_date=${start}&end_date=${end}`);
+  state('history',j.ok,`${j.source} · ${j.symbol||''} · ${j.count} 日 · ${j.first} → ${j.last}`);
+  log({...j,data:(j.data||[]).slice(-10)});
+ }catch(e){state('history',false,e.message);log(e.payload||e.message)}
+}
+async function testAutoHistory(){
+ try{
+  const code=$('hcode').value.trim(),market=$('hmarket').value;
+  const end=new Date().toLocaleDateString('sv-SE');
+  const start=new Date(Date.now()-460*864e5).toLocaleDateString('sv-SE');
+  const j=await call(`/api/history/auto?code=${encodeURIComponent(code)}&market=${market}&start_date=${start}&end_date=${end}`);
+  state('history',j.ok,`${j.source} · ${j.mode||''} · ${j.count} 日 · ${j.first} → ${j.last}`);
+  log({...j,data:(j.data||[]).slice(-10)});
+ }catch(e){state('history',false,e.message);log(e.payload||e.message)}
+}
+
 </script>
 </main></body></html>
