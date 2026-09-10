@@ -1,10 +1,7 @@
-# V1.4 V4.4 TWSE Scanner
-- 保留 V1.3 API 測試與歷史 K。
-- 新增 `/scanner.html`。
-- TWSE 全市場先用股價/成交量篩選。
-- 候選股才抓 Yahoo 約 300 日歷史 OHLCV。
-- 預設 concurrency=4、每檔後節流，避免一次爆量請求。
-- 單檔失敗不中止整體。
-- 載入從正式 `tw_stock_quant_audit_v4_4_followthrough.html` 抽出的 V4.4 engine。
-- 排名：綜合、Opportunity、Entry、Bottom、Ignition、Trend。
-- TPEx 失敗不阻塞 TWSE 主線。
+# V1.4.1 V4.4 Mapping Diagnostic
+- 不改 API / Yahoo / TWSE 掃描架構。
+- 新增單股 Strict No-Lookahead 診斷。
+- 預設 3443 / 2026-08-11。
+- 顯示 combineScores 與 entryEngine 的原始 keys + 完整 JSON。
+- scanner mapping 改為 recursive key lookup，避免直接猜欄位名稱。
+- 下一步用診斷輸出做 1:1 mapping，再與正式 V4.4 單股版回歸比對。

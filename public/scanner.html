@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.4 · V4.4 全市場量化掃描器</title>
+<title>台股 V1.4.1 · V4.4 Mapping 診斷掃描器</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -11,7 +11,7 @@ progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-s
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
 </style></head><body><main>
-<h1>台股 V1.4 · V4.4 全市場量化掃描器</h1>
+<h1>台股 V1.4.1 · V4.4 Mapping 診斷掃描器</h1>
 <p class="muted">TWSE 免費全市場 → 成交量先篩 → Yahoo 約 300 日 OHLCV → 正式 V4.4 Opportunity / Entry / Hold / Persistence。TPEx 暫不阻塞主線。</p>
 
 <div class="card grid">
@@ -40,8 +40,43 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.p
 <th>代號</th><th>名稱</th><th>收盤</th><th>Setup</th><th>Opp.</th><th>Entry</th><th>Hold</th><th>Persist.</th><th>Bottom</th><th>Ignition</th><th>Trend</th><th>狀態</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
 </div>
+<div class="card">
+<h3>V4.4 Mapping 診斷 / 單股回歸</h3>
+<div class="grid">
+<div><label>股票代號</label><input id="diagCode" value="3443"></div>
+<div><label>截止日期（Strict No-Lookahead）</label><input id="diagDate" type="date" value="2026-08-11"></div>
+</div>
+<button id="diagBtn">執行 3443 V4.4 原始輸出診斷</button>
+<div id="diagSummary" class="small muted" style="margin-top:8px">尚未執行</div>
+<pre id="diagRaw" style="white-space:pre-wrap;max-height:520px;overflow:auto;background:#0a0f1d;padding:12px;border-radius:10px;font-size:12px"></pre>
+</div>
 <div class="card"><b>錯誤 / 略過</b><div id="errors" class="small muted">—</div></div>
-<script src="/v44-engine.js"></script>
+<script src="/v44-engine.js">
+$('diagBtn').onclick=async()=>{
+ const code=$('diagCode').value.trim(),cut=$('diagDate').value;
+ $('diagSummary').textContent='讀取歷史資料…'; $('diagRaw').textContent='';
+ try{
+   const start=new Date(new Date(cut+'T12:00:00').getTime()-500*864e5).toLocaleDateString('sv-SE');
+   const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=twse&start_date=${start}&end_date=${cut}`);
+   const hist=(j.data||[]).filter(x=>x.date<=cut);
+   const {R,E}=formalObjects(hist);
+   const mapped=formalScore(hist);
+   $('diagSummary').innerHTML=`<span class="good">${code} · ${cut} · ${hist.length} 日</span> · mapped: Setup ${mapped.setup} / Opp ${mapped.opportunity} / Entry ${mapped.entry} / Hold ${mapped.hold} / Persist ${mapped.persistence} / Bottom ${mapped.bottom} / Ignition ${mapped.ignition} / Trend ${mapped.trend}`;
+   $('diagRaw').textContent=JSON.stringify({
+      engineFunctions:{combineScores:typeof combineScores,entryEngine:typeof entryEngine},
+      lastBar:hist.at(-1),
+      mapped,
+      combineScores_keys:Object.keys(R||{}),
+      entryEngine_keys:Object.keys(E||{}),
+      combineScores:R,
+      entryEngine:E
+   },null,2);
+ }catch(e){
+   $('diagSummary').innerHTML='<span class="bad">'+e.message+'</span>';
+ }
+};
+
+</script>
 <script>
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='overall';
@@ -60,26 +95,40 @@ function fallbackScore(hist){
  const trend=(c>m5?20:0)+(m5>m10?25:0)+(m10>m20?25:0)+(ret>0?15:0)+Math.min(15,Math.max(0,ret*2));
  return {setup:Math.round(trend),opportunity:Math.round(trend),entry:Math.round(trend*.8),hold:Math.round(trend),persistence:0,bottom:0,ignition:Math.round(trend),trend:Math.round(trend),state:'fallback'};
 }
+function findKey(obj,names,depth=0){
+ if(obj==null||depth>4)return undefined;
+ for(const k of Object.keys(obj)){
+   if(names.includes(k.toLowerCase())) return obj[k];
+ }
+ for(const v of Object.values(obj)){
+   if(v && typeof v==='object' && !Array.isArray(v)){
+     const z=findKey(v,names,depth+1); if(z!==undefined)return z;
+   }
+ }
+}
+function formalObjects(hist){
+ const rows=hist.map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}));
+ if(typeof combineScores!=='function'||typeof entryEngine!=='function') throw new Error('V4.4 engine functions missing');
+ const R=combineScores(rows,[],[],[]);
+ const E=entryEngine(rows,R);
+ return {rows,R,E};
+}
 function formalScore(hist){
  try{
-   const rows=hist.map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}));
-   if(typeof combineScores==='function' && typeof entryEngine==='function'){
-     const R=combineScores(rows,[],[],[]);
-     const E=entryEngine(rows,R);
-     return {
-       setup:n(R?.score ?? R?.total ?? R?.setupScore),
-       opportunity:n(E?.opportunity ?? E?.opportunityScore),
-       entry:n(E?.score ?? E?.entryScore),
-       hold:n(E?.hold ?? E?.holdScore),
-       persistence:n(E?.persistence ?? E?.persistenceScore),
-       bottom:n(R?.bottom?.score ?? R?.bottomScore),
-       ignition:n(R?.ignition?.score ?? R?.ignitionScore),
-       trend:n(R?.trend?.score ?? R?.trendScore ?? R?.score),
-       state:E?.state ?? R?.state ?? ''
-     };
-   }
- }catch(e){}
- return fallbackScore(hist);
+   const {R,E}=formalObjects(hist);
+   const get=(o,names)=>findKey(o,names.map(x=>x.toLowerCase()));
+   return {
+     setup:n(get(R,['score','total','setupScore','setup'])),
+     opportunity:n(get(E,['opportunity','opportunityScore'])),
+     entry:n(get(E,['score','entryScore','entry'])),
+     hold:n(get(E,['hold','holdScore'])),
+     persistence:n(get(E,['persistence','persistenceScore'])),
+     bottom:n(get(R,['bottomScore','bottom'])),
+     ignition:n(get(R,['ignitionScore','ignition'])),
+     trend:n(get(R,['trendScore','trend'])),
+     state:get(E,['state']) ?? get(R,['state']) ?? ''
+   };
+ }catch(e){ return fallbackScore(hist); }
 }
 function rankVal(r,key){
  if(key==='overall') return r.entry*.42+r.opportunity*.28+r.hold*.15+r.persistence*.15;
