@@ -538,6 +538,26 @@ async function fetchTwseJson(url){
   try{await cache.put(key,resp.clone())}catch{}
   return j;
 }
+
+async function marginForDate(code,iso){
+  const date=twDateCompact(iso);
+  try{
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=${date}&selectType=ALL&response=json`);
+    const hit=rowByFields(j,code);
+    if(!hit) return null;
+    const o=hit.obj;
+    const today=cleanNum(pickField(o,["今日餘額","今日融資餘額"]));
+    const prev=cleanNum(pickField(o,["前日餘額","昨日餘額","昨日融資餘額"]));
+    const buy=cleanNum(pickField(o,["融資買進"]));
+    const sell=cleanNum(pickField(o,["融資賣出"]));
+    if(today==null) return null;
+    return {date:iso,stock_id:String(code),
+      MarginPurchaseTodayBalance:today,
+      MarginPurchaseYesterdayBalance:prev,
+      MarginPurchaseBuy:buy,MarginPurchaseSell:sell};
+  }catch(e){ return null; }
+}
+
 async function chipForDate(code,iso){
   const date=twDateCompact(iso);
   const result={date:iso,margin:null,inst:null,daytrade:null,errors:[]};
@@ -1051,22 +1071,27 @@ async function routeApi(request, env, url) {
     const market=(url.searchParams.get("market")||"").toLowerCase();
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
+    const force=url.searchParams.get("force")==="1";
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r7/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r9/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
-    const cached=await cache.match(cacheKey);
-    if(cached) return cached;
+    if(!force){
+      const cached=await cache.match(cacheKey);
+      if(cached) return cached;
+    }
 
     async function finmindDataset(dataset){
-      const dsKey=new Request(`${url.origin}/__cache/finmind-r7/${dataset}/${code}/${startDate}/${endDate}`,request);
-      const hit=await cache.match(dsKey);
-      if(hit){ try{return await hit.json()}catch{} }
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r9/${dataset}/${code}/${startDate}/${endDate}`,request);
+      if(!force){
+        const hit=await cache.match(dsKey);
+        if(hit){ try{return await hit.json()}catch{} }
+      }
 
       const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r7"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r9"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1167,10 +1192,32 @@ async function routeApi(request, env, url) {
     }
 
     await fillMargin();
+
+    // Manual Analyze needs a real financing history, not merely one latest point.
+    if(force && market==="twse" && margin.length<5){
+      const dates=recentWeekdays(endDate,20);
+      const officialRows=[];
+      const concurrency=4;
+      for(let i=0;i<dates.length;i+=concurrency){
+        const batch=dates.slice(i,i+concurrency);
+        const got=await Promise.all(batch.map(d=>marginForDate(code,d)));
+        officialRows.push(...got.filter(Boolean));
+      }
+      if(officialRows.length){
+        const byDate=new Map();
+        for(const r of margin) byDate.set(String(r.date),r);
+        for(const r of officialRows) byDate.set(String(r.date),r);
+        margin=[...byDate.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        source_detail.margin=(source_detail.margin?source_detail.margin+" + ":"")+"TWSE official history";
+        diagnostics.push({dataset:"TWSE MI_MARGN history fallback",ok:true,count:officialRows.length});
+      }else diagnostics.push({dataset:"TWSE MI_MARGN history fallback",ok:false,count:0});
+    }
+
     await fillInst();
     await fillDaytrade();
 
     const flags={margin:margin.length>0,inst:inst.length>0,daytrade:daytrade.length>0};
+    const history_ready={margin:margin.length>=5,inst:inst.length>=5,daytrade:daytrade.length>=5};
     const available=Object.values(flags).filter(Boolean).length;
     const body={
       ok:available>0,code,market,
@@ -1178,6 +1225,7 @@ async function routeApi(request, env, url) {
       source_detail,
       completeness:Math.round(available/3*100),
       completeness_detail:flags,
+      history_ready,
       coverage_days:{margin:margin.length,inst:inst.length,daytrade:daytrade.length},
       margin,inst,daytrade,
       data_dates:{
@@ -1186,6 +1234,7 @@ async function routeApi(request, env, url) {
         daytrade:daytrade.at(-1)?.date||null
       },
       finmind_assist:Object.values(source_detail).some(v=>String(v||"").startsWith("FinMind")),
+      refresh_mode:force?"forced-upstream":"cache-allowed",
       diagnostics
     };
     const resp=json(body,200,{"cache-control":"public,max-age=900"});

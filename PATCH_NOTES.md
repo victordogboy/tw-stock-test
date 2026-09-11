@@ -1,22 +1,19 @@
-# V1.17.0-R7 — Non-JSON / Worker Load Regression Fix
+# V1.17.0-R9 — Financing History Fix
 
-R6 screenshot showed scan aborting with only `non-json`.
+使用者指出的真正問題不是按鈕動畫，而是：
+KPI 有「融資餘額 170 張」，但黃色融資歷史線沒有出現。
 
-## R6 architecture problem found
-`/api/chips/hybrid` for one listed stock did 12 weekdays × 3 TWSE reports = up to 36 upstream report fetches inside one Worker request, before FinMind assistance. The first uncached request was unnecessarily heavy and could surface platform/upstream HTML errors instead of JSON.
+Root cause：
+R7/R8 把「至少一筆融資」視為 category 有資料。
+因此 TWSE 最新一筆可以顯示 KPI，但只有 1 點時無法形成歷史曲線。
 
-## R7
-- TWSE official hybrid validates only Target date inside a stock request: max 3 market-wide reports.
-- These report URLs are edge-cached and reused across stocks.
-- FinMind supplies historical depth; same-date TWSE official row overrides FinMind.
-- Adds `coverage_days` so completeness shows both category presence and historical depth.
-- Chip failure no longer aborts the whole scan.
-- non-JSON error now includes HTTP status, endpoint, content-type and response preview.
-- Invalidates R6 chips/FinMind cache namespace.
+R9：
+- 手動「分析」仍先 force 重抓 FinMind 融資歷史。
+- 上市股若重抓後融資仍少於 5 日，再用 TWSE 官方 MI_MARGN 補最近 20 個平日。
+- 只補 margin endpoint，不重抓法人/當沖，避免 R6 的 request explosion。
+- 同日期以 TWSE 官方值覆蓋 FinMind。
+- 回傳 coverage_days + history_ready。
+- 個股頁會顯示融/法/沖各有幾日歷史。
+- 融資少於 5 日時明確警告黃色線資料不足。
 
-## Preserved
-- Stage1 Target invariant
-- Yahoo 1m volume protection
-- Current/live score pipeline
-- Detail post-analysis live refresh
-- V4.4 / Action formulas unchanged
+上櫃目前仍主要依 FinMind，因 TPEx Worker transport 尚未解決。

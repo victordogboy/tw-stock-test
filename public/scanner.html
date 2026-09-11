@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.17.0-R7｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
+<title>台股 V1.17.0-R9｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.17.0-R7｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
+<h1>台股 V1.17.0-R9｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -648,7 +648,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE}｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R7 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R9 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
