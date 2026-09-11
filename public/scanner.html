@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.15.0 · Top100 FinMind 完整重評</title>
+<title>台股 V1.14.2-R3 + AC · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -31,7 +31,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
 <h1>台股 V1.14.2 · Top100 FinMind 完整重評</h1>
-<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。<br><span class="muted">Action = 40% Entry + 30% Setup + 30% Opportunity（含 Entry/Risk/HardBreak 門檻）；Conf. = 資料可信度，不會改寫四大分數。</span></p>
+<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。<br><span class="muted">Action = 40% Entry + 30% Setup + 30% Opportunity；Confidence 只表示資料完整/新鮮度，不參與四大分數計算。</span></p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
@@ -59,7 +59,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 </div>
 <div style="overflow:auto"><table><thead><tr>
 <th>代號</th><th>名稱</th>
-<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th><th>Action</th><th>Conf.</th>
+<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th><th>Action</th><th>Confidence</th>
 <th>市場</th><th>資料日</th><th>期貨</th><th>收盤</th><th>資料完整度</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
@@ -135,27 +135,46 @@ function scoreOf(v){
  }
  return 0;
 }
-function formalScore(hist,chips={},meta={}){
+
+function auxLatestDate(arr){
+  if(!Array.isArray(arr)||!arr.length)return '';
+  return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||'';
+}
+function auxConfidence(hist,chips={}){
+  const rows=(hist||[]).filter(x=>x&&x.date);
+  const lastRow=rows.at(-1)||{};
+  const prevRow=rows.at(-2)||lastRow;
+  let score=rows.length>=180?40:rows.length>=65?35:20;
+  if(!Number.isFinite(Number(lastRow.close))||Number(lastRow.close)<=0)score-=15;
+  const priorDate=String(prevRow.date||'');
+  for(const arr of [chips.margin||[],chips.inst||[],chips.daytrade||[]]){
+    const d=auxLatestDate(arr);
+    score+=d&&priorDate&&d>=priorDate?20:d?10:0;
+  }
+  return Math.max(0,Math.min(100,Math.round(score)));
+}
+function auxAction(setup,opportunity,entry){
+  return Math.max(0,Math.min(100,Math.round(
+    Number(entry||0)*0.40 + Number(setup||0)*0.30 + Number(opportunity||0)*0.30
+  )));
+}
+
+function formalScore(hist,chips={}){
  try{
-   const rows=hist.map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}));
-   if(typeof buildScorePacket!=='function')throw new Error('Score Packet missing');
-   const P=buildScorePacket(rows,chips.margin||[],chips.inst||[],chips.daytrade||[],meta);
+   const {R,E}=formalObjects(hist,chips);
+   const setup=scoreOf(R?.quality);
+   const opportunity=scoreOf(E?.opportunity ?? E?.opportunityScore);
+   const entry=scoreOf(E?.score ?? E?.entryScore);
    return {
-     setup:P.setup,
-     opportunity:P.opportunity,
-     entry:P.entry,
-     hold:P.hold,
-     action:P.action,
-     actionRaw:P.actionRaw,
-     confidence:P.confidence,
-     gateOK:P.gateOK,
-     gateReasons:P.gateReasons,
-     persistence:P.persistence,
-     bottom:scoreOf(P.R?.bottom),
-     ignition:scoreOf(P.R?.ignition),
-     trend:scoreOf(P.R?.market),
-     state:P.state,
-     risk:P.risk
+     setup,opportunity,entry,
+     hold:scoreOf(E?.hold ?? E?.holdScore),
+     action:auxAction(setup,opportunity,entry),
+     confidence:auxConfidence(hist,chips),
+     persistence:scoreOf(E?.persistence ?? E?.persistenceScore),
+     bottom:scoreOf(R?.bottom),
+     ignition:scoreOf(R?.ignition),
+     trend:scoreOf(R?.market),
+     state:E?.state ?? R?.state ?? ''
    };
  }catch(e){
    throw new Error('V4.4 engine error: '+(e?.message||e));
@@ -379,7 +398,7 @@ async function finmindRecheckOne(r){
     daytrade:j.daytrade?.data||[]
   };
   r.preFinmind={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};
-  const sc=formalScore(r._hist,chips,{mode:'formal',finmindCompleteness:j.completeness||0,chipBaseDate:r._hist?.at(-1)?.date});
+  const sc=formalScore(r._hist,chips);
   Object.assign(r,sc);
   r.postFinmind={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};
   r._chips=chips;
@@ -424,16 +443,7 @@ function scanMarketOpen(j,b){
   return Number.isFinite(now.minutes)&&now.minutes>=540&&now.minutes<810;
 }
 function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');return [...new Set(errs)]}
-function scanProjectedVolume(currentVol,lastTime,avg5,open,profile){
-  const mins=scanMinutes(lastTime);
-  if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1,confidence:1,method:'actual'};
-  const elapsed=Math.max(1,Math.min(270,mins-540)),timeFrac=Math.max(.03,elapsed/270),linear=n(currentVol)/timeFrac;
-  const pf=Number(profile?.fraction),samples=n(profile?.samples,0),hasProfile=Number.isFinite(pf)&&pf>.02&&pf<1&&samples>=2;
-  const pace=hasProfile?n(currentVol)/pf:linear;
-  const timeConf=Math.max(.28,Math.min(1,elapsed/120)),profileConf=hasProfile?Math.min(.92,.58+samples*.06):timeConf;
-  const base=n(avg5)>0?n(avg5):pace,w=Math.max(.35,Math.min(.92,hasProfile?profileConf:timeConf));
-  return {volume:Math.max(n(currentVol),Math.round(pace*w+base*(1-w))),fraction:hasProfile?pf:timeFrac,confidence:w,method:hasProfile?'profile':'time'};
-}
+function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
 function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}
 async function liveCurrentRecheckOne(r){
   const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`),b=j.bar||{},errs=scanQuoteErrors(j,b);
@@ -441,10 +451,10 @@ async function liveCurrentRecheckOne(r){
   const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
   if(base.length<65)base=(r._hist||[]).filter(x=>String(x.date)<=String(b.date)).slice(0,-1);
   if(base.length<65)throw new Error('盤中基準K不足');
-  const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open,j.volume_profile);
+  const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
   const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
-  const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips,{mode:'live',quoteValid:j.quote_valid!==false,volumeConfidence:pv.confidence,chipBaseDate:base.at(-1)?.date,finmindCompleteness:r.finmindCompleteness});
-  r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveVolumeConfidence=pv.confidence;r.liveVolumeMethod=pv.method;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
+  const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
+  r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
 }
 async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
 
@@ -557,7 +567,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.15.0 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.14.2 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };

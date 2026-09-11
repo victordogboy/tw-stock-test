@@ -834,7 +834,7 @@ async function routeApi(request, env, url) {
       const symbol=String(code)+suffix;
       for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
         try{
-          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false`;
+          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m&includePrePost=false`;
           const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"}});
           attempts.push({host,symbol,status:r.status});
           if(!r.ok) continue;
@@ -867,33 +867,6 @@ async function routeApi(request, env, url) {
             const ratio=close/prevClose;
             if(ratio<0.2||ratio>5)validation_errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
           }
-          const hhmm=t=>{
-            const ss=time(t),mm=String(ss).match(/(\d{1,2}):(\d{2})/);
-            return mm?Number(mm[1])*60+Number(mm[2]):null;
-          };
-          const cutoff=hhmm(last.t);
-          const byDay={};
-          for(let k=0;k<ts.length;k++){
-            const dk=day(ts[k]);
-            if(dk===latestDay)continue;
-            if(!byDay[dk])byDay[dk]=[];
-            byDay[dk].push({t:ts[k],v:vol(q.volume?.[k])});
-          }
-          const fractions=[];
-          for(const arr of Object.values(byDay)){
-            const total=arr.reduce((s,x)=>s+x.v,0);
-            if(total<=0||!Number.isFinite(cutoff))continue;
-            const cum=arr.filter(x=>hhmm(x.t)<=cutoff).reduce((s,x)=>s+x.v,0);
-            const f=cum/total;
-            if(Number.isFinite(f)&&f>.02&&f<=1)fractions.push(f);
-          }
-          fractions.sort((a,b)=>a-b);
-          const profileFraction=fractions.length
-            ? (fractions.length%2
-                ? fractions[(fractions.length-1)/2]
-                : (fractions[fractions.length/2-1]+fractions[fractions.length/2])/2)
-            : null;
-
           const bar={date:latestDay,open,high,low,close,volume:rows.reduce((s,x)=>s+x.volume,0),last_time:time(last.t),last_timestamp:last.t,prev_close:prevClose,change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol};
           const session=taipeiSessionState();
           return json({
@@ -901,12 +874,7 @@ async function routeApi(request, env, url) {
             source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,
             market_state:meta.marketState||null,
             session_open:session.is_open && latestDay===session.date,
-            session_date:session.date,
-            volume_profile:{
-              fraction:profileFraction,
-              samples:fractions.length,
-              method:'median prior sessions at same clock time'
-            }
+            session_date:session.date
           },200,{"cache-control":"no-store"});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
       }

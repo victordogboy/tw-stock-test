@@ -1,46 +1,34 @@
-# V1.15.0 Stable Merge — based on working V1.14.2-R3
+# V1.14.2-R3 + Action / Confidence
 
-This version starts from the confirmed-working V1.14.2-R3.
-The 9/11 after-close fixes are preserved exactly:
-- fresh=1 bypasses stale history cache
-- Detail fetches fresh history first
-- after 13:30, completed Yahoo 1m O/H/L/C/V can be promoted into the formal daily K
-- Live EST is hidden after close
-- Scanner and Detail use Asia/Taipei session time
+基底：確認正常的 V1.14.2-R3。
 
-Added features:
+只新增兩個輔助指標，其他邏輯不動。
 
-## Action Score
+## Action
+固定公式：
 `Action = 40% Entry + 30% Setup + 30% Opportunity`
 
-Hard gates prevent other scores from hiding a bad entry:
-- Entry < 62 => Action max 59
-- Risk > 7% => Action max 59
-- HardBroken => Action max 49
-
-Hold is intentionally excluded from Action.
+- 不加入 Hold
+- 不加額外門檻
+- 不做 cap
+- 不改 Setup / Opportunity / Entry / Hold 原始分數
 
 ## Confidence
-0–100 auxiliary data-quality score based on:
-- history depth
-- current price validity
-- margin / institutional / day-trade freshness
-- live quote validity
-- intraday volume-estimate confidence
-- FinMind completeness
+只表示資料可信度，不參與交易評分。
 
-Confidence does not modify Setup / Opportunity / Entry / Hold.
+計算方式：
+- K 線歷史完整度：最多 40 分
+- 融資資料：最多 20 分
+- 法人資料：最多 20 分
+- 當沖資料：最多 20 分
 
-## Historical intraday volume profile
-`/api/intraday` now requests Yahoo 5d / 1m.
-For prior sessions it calculates the median:
-`volume traded by same clock time / full-day volume`
+若籌碼至少更新到「目前正式 K 的前一交易日」，視為正常資料延遲並給完整分數；
+有資料但較舊則給一半分數；缺資料為 0。
 
-During market hours this profile is preferred over a purely linear clock projection.
-If there are fewer than 2 usable prior sessions, the original time-progress model is used.
-
-## UI
-- Scanner keeps the original four ranking tabs only.
-- Adds Action and Conf. columns for decision support.
-- Detail adds Action and Confidence to formal audit and intraday Live cards.
-- V1.14.2 scoring formulas are unchanged.
+## 保證不動的部分
+- Worker `src/index.js` 完全未修改
+- `public/v44-engine.js` 完全未修改
+- V1.14.2-R3 的 13:30 收盤後正式 K 升格邏輯完全未修改
+- Scanner / Detail 的原本四大分數公式完全未修改
+- 盤中量預估完全未修改
+- API / cache / FinMind 流程完全未修改
