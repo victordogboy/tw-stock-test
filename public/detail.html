@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.14.2-R3 + AC · V4.4 個股完整審計</title>
+<title>台股 V1.14.2 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -154,7 +154,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <div class="live-score-item"><div class="label">盤中預估 Entry</div><div class="v" id="liveEntry">—</div><div class="s" id="liveEntrySub">—</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Hold</div><div class="v" id="liveHold">—</div><div class="s" id="liveHoldSub">—</div></div>
       <div class="live-score-item"><div class="label">Action｜綜合進場</div><div class="v" id="liveAction">—</div><div class="s">40% Entry + 30% Setup + 30% Opportunity</div></div>
-      <div class="live-score-item"><div class="label">Confidence｜資料可信度</div><div class="v" id="liveConfidence">—</div><div class="s">僅反映資料品質，不改寫四大分數</div></div>
+      <div class="live-score-item"><div class="label">Confidence｜資料可信度</div><div class="v" id="liveConfidence">—</div><div class="s">僅顯示資料品質，不改寫四大分數</div></div>
       <div class="live-score-item"><div class="label">盤中 Opportunity</div><div class="v" id="liveOpportunity">—</div><div class="s">以目前 K 型態與預估量試算</div></div>
       <div class="live-score-item"><div class="label">預估收盤量</div><div class="v blue" id="liveProjectedVol">—</div><div class="s" id="liveProjectedVolSub">—</div></div>
       <div class="live-score-item"><div class="label">預估量比 / 狀態</div><div class="v" id="liveVolRatio">—</div><div class="s" id="liveState">—</div></div>
@@ -325,28 +325,27 @@ const last=a=>a[a.length-1];
 const uniq=a=>[...new Set(a)];
 const signClass=x=>x>0?'green':x<0?'red':'yellow';
 
-
 function auxLatestDate(arr){
   if(!Array.isArray(arr)||!arr.length)return '';
   return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||'';
 }
-function auxConfidence(rows,margin=[],inst=[],daytrade=[]){
-  const a=(rows||[]).filter(x=>x&&x.date);
-  const lastRow=a.at(-1)||{};
-  const prevRow=a.at(-2)||lastRow;
-  let score=a.length>=180?40:a.length>=65?35:20;
-  if(!Number.isFinite(Number(lastRow.close))||Number(lastRow.close)<=0)score-=15;
-  const priorDate=String(prevRow.date||'');
-  for(const arr of [margin,inst,daytrade]){
-    const dt=auxLatestDate(arr);
-    score+=dt&&priorDate&&dt>=priorDate?20:dt?10:0;
-  }
-  return Math.max(0,Math.min(100,Math.round(score)));
-}
-function auxAction(setup,opportunity,entry){
+function auxActionValue(setup,opportunity,entry){
   return Math.max(0,Math.min(100,Math.round(
     Number(entry||0)*0.40 + Number(setup||0)*0.30 + Number(opportunity||0)*0.30
   )));
+}
+function auxConfidenceValue(rows,margin=[],inst=[],daytrade=[]){
+  const hist=(rows||[]).filter(x=>x&&x.date);
+  const lastRow=hist.at(-1)||{};
+  const prevRow=hist.at(-2)||lastRow;
+  let score=hist.length>=180?40:hist.length>=65?35:20;
+  if(!Number.isFinite(Number(lastRow.close))||Number(lastRow.close)<=0)score-=15;
+  const prior=String(prevRow.date||'');
+  for(const arr of [margin,inst,daytrade]){
+    const dt=auxLatestDate(arr);
+    score+=dt&&prior&&dt>=prior?20:dt?10:0;
+  }
+  return Math.max(0,Math.min(100,Math.round(score)));
 }
 
 function setBanner(msg,type='ok'){
@@ -1392,7 +1391,7 @@ function render(){
   const m=cut(STATE.margin,date),i=cut(STATE.inst,date),d=cut(STATE.daytrade,date);
   if(rows.length<65){setBanner('這個審計日之前的歷史資料不足 60 個交易日，請把游標往右移。','warn');return}
   clearBanner();
-  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionScore=auxAction(R.quality,E.opportunity,E.score),confidenceScore=auxConfidence(rows,m,i,d);
+  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;
   const a=R.market,o=R.optimal,cur=last(rows),grade=scoreGrade(a.score),qg=scoreGrade(R.quality),og=scoreGrade(o.score),eg=scoreGrade(E.score),hg=scoreGrade(E.hold);
   const kText=cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─';
   $('kColorPill').textContent=`K色：${kText}`;
@@ -1415,8 +1414,8 @@ function render(){
     <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
     <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
     <div class="card"><div class="label">Hold｜該審計日盤後</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
-    <div class="card"><div class="label">Action｜綜合進場</div><div class="big ${scoreGrade(actionScore)[1]}">${actionScore}</div><div class="sub">40% Entry + 30% Setup + 30% Opportunity</div></div>
-    <div class="card"><div class="label">Confidence｜資料可信度</div><div class="big ${scoreGrade(confidenceScore)[1]}">${confidenceScore}</div><div class="sub">K線與三類籌碼的完整/新鮮度；不改寫交易分數</div></div>
+    <div class="card"><div class="label">Action｜綜合進場</div><div class="big ${scoreGrade(auxActionValue(R.quality,E.opportunity,E.score))[1]}">${auxActionValue(R.quality,E.opportunity,E.score)}</div><div class="sub">40% Entry + 30% Setup + 30% Opportunity</div></div>
+    <div class="card"><div class="label">Confidence｜資料可信度</div><div class="big ${scoreGrade(auxConfidenceValue(rows,m,i,d))[1]}">${auxConfidenceValue(rows,m,i,d)}</div><div class="sub">僅顯示資料品質，不改寫四大分數</div></div>
     <div class="card"><div class="label">當日交易量｜隨回測日期更新</div>
       <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
       <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
@@ -1995,9 +1994,7 @@ setTimeout(refreshFuturesBadge,700);
     const m=cut(STATE.margin,formalDate),i=cut(STATE.inst,formalDate),dt=cut(STATE.daytrade,formalDate);
     const R=combineScores(sim,m,i,dt);
     const E=entryEngine(sim,R);
-    const action=auxAction(R.quality,E.opportunity,E.score);
-    const confidence=auxConfidence(sim,m,i,dt);
-    return {R,E,action,confidence,formalDate,pv,avg5,open,synthetic};
+    return {R,E,formalDate,pv,avg5,open,synthetic};
   }
   function paintScore(id,val){
     const el=byId(id); if(!el)return;
@@ -2077,8 +2074,9 @@ setTimeout(refreshFuturesBadge,700);
         paintScore('liveEntry',live.E.score);
         paintScore('liveHold',live.E.hold);
         paintScore('liveOpportunity',live.E.opportunity);
-        paintScore('liveAction',live.action);
-        paintScore('liveConfidence',live.confidence);
+        paintScore('liveAction',auxActionValue(live.R.quality,live.E.opportunity,live.E.score));
+        const liveRows=STATE.prices.slice(0,STATE.auditIndex+1).concat(live.synthetic?[live.synthetic]:[]);
+        paintScore('liveConfidence',auxConfidenceValue(liveRows,cut(STATE.margin,live.formalDate),cut(STATE.inst,live.formalDate),cut(STATE.daytrade,live.formalDate)));
 
         const projLots=Math.round(live.pv.volume/1000);
         const avgLots=Math.round(live.avg5/1000);

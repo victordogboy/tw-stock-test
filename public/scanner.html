@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.14.2-R3 + AC · Top100 FinMind 完整重評</title>
+<title>台股 V1.14.2 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -31,7 +31,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
 <h1>台股 V1.14.2 · Top100 FinMind 完整重評</h1>
-<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。<br><span class="muted">Action = 40% Entry + 30% Setup + 30% Opportunity；Confidence 只表示資料完整/新鮮度，不參與四大分數計算。</span></p>
+<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。<br><span class="muted">Action = 40% Entry + 30% Setup + 30% Opportunity；Confidence 僅顯示資料完整/新鮮度，不介入掃描或四大分數。</span></p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
@@ -96,6 +96,29 @@ async function getJSON(url){
  return j;
 }
 function n(v,d=0){v=Number(v);return Number.isFinite(v)?v:d}
+function auxActionValue(r){
+  return Math.max(0,Math.min(100,Math.round(
+    n(r?.entry)*0.40 + n(r?.setup)*0.30 + n(r?.opportunity)*0.30
+  )));
+}
+function auxLatestDate(arr){
+  if(!Array.isArray(arr)||!arr.length)return '';
+  return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||'';
+}
+function auxConfidenceValue(r){
+  const hist=Array.isArray(r?._hist)?r._hist:[];
+  const chips=r?._chips||{};
+  const lastRow=hist.at(-1)||{};
+  const prevRow=hist.at(-2)||lastRow;
+  let score=hist.length>=180?40:hist.length>=65?35:20;
+  if(!Number.isFinite(Number(lastRow.close))||Number(lastRow.close)<=0)score-=15;
+  const prior=String(prevRow.date||'');
+  for(const arr of [chips.margin||[],chips.inst||[],chips.daytrade||[]]){
+    const d=auxLatestDate(arr);
+    score+=d&&prior&&d>=prior?20:d?10:0;
+  }
+  return Math.max(0,Math.min(100,Math.round(score)));
+}
 function twTickSize(p){p=Number(p);if(!Number.isFinite(p)||p<=0)return .01;if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5}
 function twPrice(p){p=Number(p);if(!Number.isFinite(p))return null;const t=twTickSize(p),v=Math.round(p/t)*t;return Number(v.toFixed(t<.1?2:t<1?1:0))}
 function fmtPrice(p){p=twPrice(p);if(p===null)return '—';const t=twTickSize(p);return p.toFixed(t<.1?2:t<1?1:0)}
@@ -135,41 +158,14 @@ function scoreOf(v){
  }
  return 0;
 }
-
-function auxLatestDate(arr){
-  if(!Array.isArray(arr)||!arr.length)return '';
-  return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||'';
-}
-function auxConfidence(hist,chips={}){
-  const rows=(hist||[]).filter(x=>x&&x.date);
-  const lastRow=rows.at(-1)||{};
-  const prevRow=rows.at(-2)||lastRow;
-  let score=rows.length>=180?40:rows.length>=65?35:20;
-  if(!Number.isFinite(Number(lastRow.close))||Number(lastRow.close)<=0)score-=15;
-  const priorDate=String(prevRow.date||'');
-  for(const arr of [chips.margin||[],chips.inst||[],chips.daytrade||[]]){
-    const d=auxLatestDate(arr);
-    score+=d&&priorDate&&d>=priorDate?20:d?10:0;
-  }
-  return Math.max(0,Math.min(100,Math.round(score)));
-}
-function auxAction(setup,opportunity,entry){
-  return Math.max(0,Math.min(100,Math.round(
-    Number(entry||0)*0.40 + Number(setup||0)*0.30 + Number(opportunity||0)*0.30
-  )));
-}
-
 function formalScore(hist,chips={}){
  try{
    const {R,E}=formalObjects(hist,chips);
-   const setup=scoreOf(R?.quality);
-   const opportunity=scoreOf(E?.opportunity ?? E?.opportunityScore);
-   const entry=scoreOf(E?.score ?? E?.entryScore);
    return {
-     setup,opportunity,entry,
+     setup:scoreOf(R?.quality),
+     opportunity:scoreOf(E?.opportunity ?? E?.opportunityScore),
+     entry:scoreOf(E?.score ?? E?.entryScore),
      hold:scoreOf(E?.hold ?? E?.holdScore),
-     action:auxAction(setup,opportunity,entry),
-     confidence:auxConfidence(hist,chips),
      persistence:scoreOf(E?.persistence ?? E?.persistenceScore),
      bottom:scoreOf(R?.bottom),
      ignition:scoreOf(R?.ignition),
@@ -233,7 +229,7 @@ function openDetail(code,hasFutures=false,market='twse'){
         savedAt:Date.now(),code:String(detailRow.code),market:detailRow.market||market,
         dataDate:detailRow.dataDate,history:detailRow._hist||[],chips:detailRow._chips||null,
         finmindCompleteness:detailRow.finmindCompleteness||0,finmindWindow:detailRow.finmindWindow||null,
-        scores:{setup:detailRow.setup,opportunity:detailRow.opportunity,entry:detailRow.entry,hold:detailRow.hold,action:detailRow.action,confidence:detailRow.confidence}
+        scores:{setup:detailRow.setup,opportunity:detailRow.opportunity,entry:detailRow.entry,hold:detailRow.hold,action:auxActionValue(detailRow),confidence:auxConfidenceValue(detailRow)}
       }));
     }catch(e){console.warn('snapshot save failed',e)}
   }
@@ -367,7 +363,7 @@ function renderRankOnly(key=currentRank){
   $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'},'${r.market||'twse'}')">
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
-    <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td><b>${r.action??'—'}</b></td><td>${r.confidence!=null?r.confidence+'%':'—'}</td>
+    <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td><td><b>${auxActionValue(r)}</b></td><td>${auxConfidenceValue(r)}%</td>
     <td>${r.market==='tpex'?'上櫃':'上市'}</td>
     <td>${r.dataDate||'—'}</td>
     <td>${r.hasFutures?'● 有':'—'}</td><td>${fmtPrice(r.close)}</td>
