@@ -482,7 +482,10 @@ function recentWeekdays(endIso,count){
   return out;
 }
 function cleanNum(v){
-  const s=String(v??"").replaceAll(",","").replaceAll("+","").replaceAll("--","").trim();
+  if(v===null||v===undefined)return null;
+  const raw=String(v).trim();
+  if(!raw||raw==="--"||raw==="-"||raw==="—")return null;
+  const s=raw.replaceAll(",","").replaceAll("+","");
   const n=Number(s); return Number.isFinite(n)?n:null;
 }
 function rowByFields(payload,code){
@@ -508,13 +511,26 @@ function pickField(obj,needles){
   return null;
 }
 async function fetchTwseJson(url){
+  const cache=caches.default;
+  const key=new Request(`https://twse-cache.local/${encodeURIComponent(url)}`);
+  const hit=await cache.match(key);
+  if(hit){
+    try{return await hit.json()}catch{}
+  }
   const r=await fetch(url,{headers:{
     "accept":"application/json,text/plain,*/*",
-    "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.6.1)",
+    "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.17.0)",
     "referer":"https://www.twse.com.tw/"
   }});
   if(!r.ok) throw new Error(`TWSE HTTP ${r.status}`);
-  return r.json();
+  const text=await r.text();
+  let j=null; try{j=JSON.parse(text)}catch{throw new Error("TWSE invalid JSON")}
+  const resp=new Response(JSON.stringify(j),{status:200,headers:{
+    "content-type":"application/json;charset=UTF-8",
+    "cache-control":"public,max-age=21600"
+  }});
+  try{await cache.put(key,resp.clone())}catch{}
+  return j;
 }
 async function chipForDate(code,iso){
   const date=twDateCompact(iso);
@@ -567,25 +583,14 @@ async function chipForDate(code,iso){
     }
   }catch(e){result.errors.push("inst:"+String(e.message||e))}
 
-  // Day trading
+  // Day trading — use the dated TWSE report only.
+  // TWTB4U OpenAPI observed in audit is a suspension/status dataset, not day-trading volume.
   try{
-    let j;
-    try{
-      j=await fetchTwseJson("https://openapi.twse.com.tw/v1/exchangeReport/TWTB4U");
-      const arr=Array.isArray(j)?j:[];
-      const z=arr.find(x=>String(x.Code??x.SecuritiesCode??x["證券代號"]??"").trim()===String(code));
-      if(z){
-        const vol=cleanNum(z.DayTradingVolume??z.Volume??z.TradingVolume??z["當日沖銷交易成交股數"]);
-        if(vol!=null) result.daytrade={date:iso,stock_id:String(code),Volume:vol};
-      }
-    }catch{}
-    if(!result.daytrade){
-      j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/dayTrading/TWTB4U?date=${date}&selectType=All&response=json`);
-      const hit=rowByFields(j,code);
-      if(hit){
-        const vol=cleanNum(pickField(hit.obj,["當日沖銷交易成交股數","當日沖銷成交股數"]));
-        if(vol!=null) result.daytrade={date:iso,stock_id:String(code),Volume:vol};
-      }
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/dayTrading/TWTB4U?date=${date}&selectType=All&response=json`);
+    const hit=rowByFields(j,code);
+    if(hit){
+      const vol=cleanNum(pickField(hit.obj,["當日沖銷交易成交股數","當日沖銷成交股數"]));
+      if(vol!=null) result.daytrade={date:iso,stock_id:String(code),Volume:vol};
     }
   }catch(e){result.errors.push("daytrade:"+String(e.message||e))}
   return result;
@@ -1034,10 +1039,11 @@ async function routeApi(request, env, url) {
 
   if (url.pathname === "/api/chips/hybrid") {
     const code=url.searchParams.get("code")||"3443";
+    const market=(url.searchParams.get("market")||"").toLowerCase();
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips/${code}/${startDate}/${endDate}`, request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r3/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
@@ -1047,9 +1053,8 @@ async function routeApi(request, env, url) {
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.6.2"}});
-        const text=await r.text();
-        let j=null; try{j=JSON.parse(text)}catch{}
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r3"}});
+        const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         if(!r.ok || !j || !(j.status===200 || j.status==="200")){
           return {ok:false,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]};
         }
@@ -1057,55 +1062,57 @@ async function routeApi(request, env, url) {
       }catch(e){return {ok:false,error:String(e?.message||e),data:[]}}
     }
 
-    const [fmMargin,fmInst,fmDay]=await Promise.all([
-      finmindDataset("TaiwanStockMarginPurchaseShortSale"),
-      finmindDataset("TaiwanStockInstitutionalInvestorsBuySellWide"),
-      finmindDataset("TaiwanStockDayTrading")
-    ]);
+    let margin=[],inst=[],daytrade=[];
+    const source_detail={margin:null,inst:null,daytrade:null};
+    const diagnostics=[];
 
-    // Fill datasets independently. V1.9.3 treated "one FinMind dataset succeeded"
-    // as total success, so a valid day-trading response could hide missing margin/inst.
-    let margin=fmMargin.ok?(fmMargin.data||[]):[];
-    let inst=fmInst.ok?(fmInst.data||[]):[];
-    let daytrade=fmDay.ok?(fmDay.data||[]):[];
-    let fallbackUsed=false;
-
-    // TWSE public reports are a valid fallback for LISTED stocks only.
-    // For TPEx, never fabricate missing institutional/margin series.
-    const isTwseCode=await (async()=>{
-      try{
-        const raw=await fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
-        return normalizeTwse(raw).some(x=>String(x.code)===String(code));
-      }catch{return false}
-    })();
-
-    if(isTwseCode && (!margin.length || !inst.length || !daytrade.length)){
+    // Listed stocks: official TWSE first. The underlying reports are market-wide and
+    // fetchTwseJson() is edge-cached by URL, so Top-N stocks reuse the same daily payloads.
+    if(market==="twse"){
       const dates=recentWeekdays(endDate,12),rows=[];
-      for(const d of dates){
-        rows.push(await chipForDate(code,d));
-        await new Promise(r=>setTimeout(r,35));
-      }
-      if(!margin.length){ margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(margin.length)fallbackUsed=true; }
-      if(!inst.length){ inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(inst.length)fallbackUsed=true; }
-      if(!daytrade.length){ daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(daytrade.length)fallbackUsed=true; }
+      for(const d of dates) rows.push(await chipForDate(code,d));
+      margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      if(margin.length) source_detail.margin="TWSE official";
+      if(inst.length) source_detail.inst="TWSE official";
+      if(daytrade.length) source_detail.daytrade="TWSE official";
+      diagnostics.push(...rows.map(x=>({date:x.date,errors:x.errors})));
     }
 
-    const parts=[];
-    if(fmMargin.ok||fmInst.ok||fmDay.ok) parts.push("FinMind");
-    if(fallbackUsed) parts.push("TWSE fallback");
-    if(!parts.length) parts.push(isTwseCode?"TWSE fallback unavailable":"FinMind unavailable for TPEx");
+    // Only fill missing categories with FinMind. TPEx currently reaches this path for
+    // all categories because its official OpenAPI redirects Worker-origin requests.
+    async function fill(name,dataset){
+      const cur=name==="margin"?margin:name==="inst"?inst:daytrade;
+      if(cur.length) return;
+      const r=await finmindDataset(dataset);
+      diagnostics.push({dataset,ok:r.ok,error:r.error||null,msg:r.msg||null,count:r.data?.length||0});
+      if(!r.ok||!r.data?.length) return;
+      if(name==="margin") margin=r.data;
+      if(name==="inst") inst=r.data;
+      if(name==="daytrade") daytrade=r.data;
+      source_detail[name]="FinMind";
+      await new Promise(res=>setTimeout(res,120));
+    }
+    await fill("margin","TaiwanStockMarginPurchaseShortSale");
+    await fill("inst","TaiwanStockInstitutionalInvestorsBuySellWide");
+    await fill("daytrade","TaiwanStockDayTrading");
+
+    const available=[margin.length>0,inst.length>0,daytrade.length>0].filter(Boolean).length;
     const body={
-      ok:margin.length>0||inst.length>0||daytrade.length>0,
-      source:parts.join(" + "),
-      finmind_token:Boolean(env.FINMIND_TOKEN),
-      finmind_status:{
-        margin:{ok:fmMargin.ok,count:fmMargin.data?.length||0,error:fmMargin.error||null,msg:fmMargin.msg||null,final_count:margin.length},
-        inst:{ok:fmInst.ok,count:fmInst.data?.length||0,error:fmInst.error||null,msg:fmInst.msg||null,final_count:inst.length},
-        daytrade:{ok:fmDay.ok,count:fmDay.data?.length||0,error:fmDay.error||null,msg:fmDay.msg||null,final_count:daytrade.length}
+      ok:available>0,code,market,
+      source:"Official-first hybrid",
+      source_detail,
+      completeness:Math.round(available/3*100),
+      margin,inst,daytrade,
+      data_dates:{
+        margin:margin.at(-1)?.date||null,
+        inst:inst.at(-1)?.date||null,
+        daytrade:daytrade.at(-1)?.date||null
       },
-      margin,inst,daytrade
+      diagnostics
     };
-    const resp=json(body,200,{"cache-control":"public, max-age=900"});
+    const resp=json(body,200,{"cache-control":"public,max-age=900"});
     await cache.put(cacheKey,resp.clone());
     return resp;
   }

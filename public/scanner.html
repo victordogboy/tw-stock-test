@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.17.0-R2｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</title>
+<title>台股 V1.17.0-R3｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,8 +30,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.17.0-R2｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</h1>
-<p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
+<h1>台股 V1.17.0-R3｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
+<p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
@@ -39,9 +39,9 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
 <div><label>最大保留檔數</label><input id="maxStocks" type="number" value="200"></div>
 <div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="6"></div>
-<div><label>FinMind 重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
+<div><label>第二階段重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
 </div>
-<div class="small muted" style="margin-top:8px">加速不會少掃股票：Universe 仍全部處理；同交易日重掃會優先命中 Worker 快取。第一階段完成後先顯示 Price-only TopN，再逐檔用 FinMind 即時改分。</div>
+<div class="small muted" style="margin-top:8px">加速不會少掃股票：Universe 仍全部處理；同交易日重掃會優先命中 Worker 快取。第一階段落後日K會用 Yahoo 1m 補當日暫定K；只有保留名單才做正式來源重評，避免再對 2271 檔逐股打 TWSE exact API。</div>
 <div class="card">
 <button id="scanBtn">開始兩階段掃描</button>
 <button id="stopBtn">停止</button>
@@ -277,6 +277,10 @@ function renderWatchRows(rows=null){
 }
 function renderWatchlist(){renderWatchRows()}
 const SCAN_STATE_KEY='twq_scan_state_v1100';
+let SCAN_TARGET_DATE=null;
+let SCAN_PROVISIONAL_COUNT=0;
+let SCAN_FORMALIZED_COUNT=0;
+let SCAN_LATEST_MISSING=0;
 
 function buildPersistPayload(){
   const slim=results.map(r=>{
@@ -344,7 +348,7 @@ function renderRankOnly(key=currentRank){
     <td>${r.market==='tpex'?'上櫃':'上市'}</td>
     <td>${r.dataDate||'—'}</td>
     <td>${r.hasFutures?'● 有':'—'}</td><td>${fmtPrice(r.close)}</td>
-    <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%'+(r.postFinmind?' FM':''):'Price-only'}${r.liveCurrent?'<br><span class="good">LIVE現價</span>':''}</td>
+    <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%'+(r.postFinmind?' 籌碼':''):'價格-only'}${r.liveCurrent?'<br><span class="good">LIVE現價</span>':''}</td>
     <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
     <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td>
     <td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
@@ -362,27 +366,20 @@ function showRank(key=currentRank){
 }
 
 async function finmindRecheckOne(r){
-  const end=new Date().toLocaleDateString('sv-SE');
-  const start=new Date(Date.now()-140*864e5).toLocaleDateString('sv-SE');
-  const j=await getJSON(`/api/finmind/recheck?code=${encodeURIComponent(r.code)}&start_date=${start}&end_date=${end}`);
-  const chips={
-    margin:j.margin?.data||[],
-    inst:j.inst?.data||[],
-    daytrade:j.daytrade?.data||[]
-  };
+  const end=SCAN_TARGET_DATE||new Date().toLocaleDateString('sv-SE');
+  const start=new Date(new Date(end+'T12:00:00').getTime()-140*864e5).toLocaleDateString('sv-SE');
+  const j=await getJSON(`/api/chips/hybrid?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}&start_date=${start}&end_date=${end}`);
+  const chips={margin:j.margin||[],inst:j.inst||[],daytrade:j.daytrade||[]};
   r.preFinmind={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};
-  const sc=formalScore(r._hist,chips);
-  Object.assign(r,sc);
+  const sc=formalScore(r._hist,chips); Object.assign(r,sc);
   r.postFinmind={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};
   r._chips=chips;
   r.finmindWindow={start,end};
-  r.finmindSource='FinMind recheck';
-  r.finmindCompleteness=j.completeness||0;
-  r.finmindCounts={
-    margin:j.margin?.count||0,
-    inst:j.inst?.count||0,
-    daytrade:j.daytrade?.count||0
-  };
+  r.finmindSource=j.source||'Official-first hybrid';
+  r.finmindCompleteness=Number(j.completeness||0);
+  r.chipSourceDetail=j.source_detail||{};
+  r.chipDates=j.data_dates||{};
+  r.finmindCounts={margin:chips.margin.length,inst:chips.inst.length,daytrade:chips.daytrade.length};
   return r;
 }
 async function runFinmindTop(topList,limit){
@@ -392,10 +389,10 @@ async function runFinmindTop(topList,limit){
       const i=idx++; if(i>=topList.length)return;
       const r=topList[i];
       try{await finmindRecheckOne(r);ok++}
-      catch(e){fail++;errors.push(`FinMind ${r.code}: ${e.message}`)}
+      catch(e){fail++;errors.push(`籌碼 ${r.code}: ${e.message}`)}
       done++;
       $('prog').value=Math.round(done/topList.length*100);
-      $('status').textContent=`FinMind 漸進回刷 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail} · 排行榜已即時更新`;
+      $('status').textContent=`籌碼漸進回刷 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail} · 排行榜已即時更新`;
       showRank(currentRank);
       await new Promise(res=>setTimeout(res,120));
     }
@@ -431,6 +428,66 @@ async function liveCurrentRecheckOne(r){
 }
 async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
 
+
+async function stage1CurrentHistory(code,market,start,end){
+  // Scalable path: cached Yahoo Daily first. If it lags the market-data target,
+  // append the completed/current Yahoo 1m bar. No per-stock TWSE monthly request here.
+  const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${start}&end_date=${end}`);
+  let hist=(j.data||[])
+    .map(x=>({...x,open:twPrice(x.open),high:twPrice(x.high),low:twPrice(x.low),close:twPrice(x.close)}))
+    .filter(x=>Number.isFinite(Number(x.close))&&Number(x.close)>0);
+  if(hist.length<180) throw new Error(`歷史K不足 ${hist.length}`);
+  const last=hist.at(-1);
+  let provisional=false,liveSource=null;
+
+  if(SCAN_TARGET_DATE && String(last?.date||'')<String(SCAN_TARGET_DATE)){
+    const iq=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
+    const b=iq.bar||{},errs=scanQuoteErrors(iq,b);
+    if(iq.quote_valid===false||errs.length||String(b.date)!==String(SCAN_TARGET_DATE)){
+      SCAN_LATEST_MISSING++;
+      throw new Error(`最新K缺失 ${last?.date||'—'}（Target ${SCAN_TARGET_DATE}）`);
+    }
+    const bar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
+      volume:Math.max(0,Math.round(n(b.volume))),turnover:0,stage1Provisional:true,formalVolume:false};
+    hist=hist.filter(z=>String(z.date)<String(bar.date)).concat([bar]);
+    provisional=true; liveSource=iq.source||'Yahoo Finance 1m';
+    SCAN_PROVISIONAL_COUNT++;
+  }
+  return {hist,source:j.source,provisional,liveSource};
+}
+
+async function formalizeListedOne(r){
+  if(r.market!=='twse') return r;
+  const end=SCAN_TARGET_DATE||new Date().toLocaleDateString('sv-SE');
+  const start=new Date(new Date(end+'T12:00:00').getTime()-470*864e5).toLocaleDateString('sv-SE');
+  try{
+    const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(r.code)}&market=twse&start_date=${start}&end_date=${end}&fresh=1&_=${Date.now()}`);
+    let hist=(j.data||[]).map(z=>({...z,open:twPrice(z.open),high:twPrice(z.high),low:twPrice(z.low),close:twPrice(z.close)}))
+      .filter(z=>Number.isFinite(Number(z.close))&&Number(z.close)>0);
+    if(hist.length>=180 && (!SCAN_TARGET_DATE || String(hist.at(-1)?.date)===String(SCAN_TARGET_DATE))){
+      r._hist=hist;
+      Object.assign(r,formalScore(hist));
+      const last=hist.at(-1); r.close=twPrice(last.close); r.dataDate=last.date; r.decision=priceDecision(hist);
+      r.prelimScore=decisionScore(r,'entry'); r.stage1Provisional=false; r.formalPrice=true;
+      SCAN_FORMALIZED_COUNT++;
+    }
+  }catch(e){ r.formalPriceError=e.message||String(e); }
+  return r;
+}
+async function formalizeListedPool(list,limit=3){
+  let idx=0,done=0;
+  async function lane(){
+    while(true){
+      const i=idx++; if(i>=list.length)return;
+      await formalizeListedOne(list[i]); done++;
+      $('prog').value=Math.round(done/list.length*100);
+      $('status').textContent=`第二階段正式日K重評 ${done}/${list.length} · 已正式化 ${SCAN_FORMALIZED_COUNT}`;
+      await new Promise(res=>setTimeout(res,80));
+    }
+  }
+  await Promise.all(Array.from({length:Math.max(1,Math.min(3,limit))},lane));
+}
+
 async function worker(item){
   const code=String(item.code||item.stock_id||'').trim();
   if(!code){errors.push('候選股缺少代號');return}
@@ -438,11 +495,8 @@ async function worker(item){
     const end=new Date().toLocaleDateString('sv-SE');
     const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE');
     const market=item.market||'twse';
-    const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${start}&end_date=${end}&fresh=1&_=${Date.now()}`);
-    let hist=(j.data||[])
-      .map(x=>({...x,open:twPrice(x.open),high:twPrice(x.high),low:twPrice(x.low),close:twPrice(x.close)}))
-      .filter(x=>Number.isFinite(Number(x.close)) && Number(x.close)>0);
-    if(hist.length<180)throw new Error(`歷史K不足 ${hist.length}`);
+    const sh=await stage1CurrentHistory(code,market,start,end);
+    let hist=sh.hist;
     const lastBar=hist.at(-1)||{};
     const latestClose=n(lastBar.close,0), latestLots=n(lastBar.volume,0)/1000;
     if(latestClose<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${latestClose}`);
@@ -462,11 +516,13 @@ async function worker(item){
       ...s,
       decision:priceDecision(hist),
       historyCount:hist.length,
-      historySource:j.source,
+      historySource:sh.source,
+      stage1Provisional:sh.provisional,
+      stage1LiveSource:sh.liveSource,
       dataDate:last.date,
       yahooLast:j.last||null,
-      latestTwseDate:j.latest_twse_date||null,
-      latestMerge:j.latest_merge||null,
+      latestTwseDate:null,
+      latestMerge:sh.provisional?'Yahoo 1m Stage1 provisional':'Yahoo Daily',
       marketResolved:market,
       _hist:hist,
       finmindCompleteness:0
@@ -494,7 +550,12 @@ async function runPool(items,limit){
 $('scanBtn').onclick=async()=>{
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
-  $('status').textContent='取得上市＋上櫃完整 Universe…';
+  $('status').textContent='確認本輪市場資料日…';
+  const targetQuote=await getJSON(`/api/intraday?code=2330&market=twse&_=${Date.now()}`);
+  SCAN_TARGET_DATE=targetQuote?.bar?.date||null;
+  SCAN_PROVISIONAL_COUNT=0; SCAN_FORMALIZED_COUNT=0; SCAN_LATEST_MISSING=0;
+  if(!SCAN_TARGET_DATE) throw new Error('無法確認本輪市場資料日');
+  $('status').textContent=`Target ${SCAN_TARGET_DATE}｜取得上市＋上櫃完整 Universe…`;
   const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),keepN=Math.max(1,n($('maxStocks').value,200));
   SCAN_FILTERS={minClose,maxClose,minLots};
   const [j,fj]=await Promise.all([getJSON('/api/market/universe'),getJSON('/api/futures/stock-list').catch(()=>({codes:[],source:'unavailable'}))]);
@@ -518,7 +579,15 @@ $('scanBtn').onclick=async()=>{
   const firstStageSkipped=errors.length;
   const firstStageProcessed=cand.length;
   const qualified=[...results].sort((a,b)=>b.prelimScore-a.prelimScore);
-  const retained=qualified.slice(0,keepN);
+  let retained=qualified.slice(0,keepN);
+
+  // Only the retained candidates hit TWSE exact-date formal history.
+  // This fixes the 9/10 Stage1 bias without repeating R1's 2271-stock TWSE overload.
+  $('prog').value=0;
+  $('status').textContent=`第一階段完成｜Target ${SCAN_TARGET_DATE}｜保留 ${retained.length}，開始正式日K重評…`;
+  await formalizeListedPool(retained,Math.min(3,n($('concurrency').value,3)));
+  retained.sort((a,b)=>decisionScore(b,'entry')-decisionScore(a,'entry'));
+
   const topN=Math.max(1,Math.min(100,n($('finTopN').value,100),retained.length));
   const top=retained.slice(0,topN);
 
@@ -529,11 +598,11 @@ $('scanBtn').onclick=async()=>{
   persistScan();
 
   $('prog').value=0;
-  $('status').textContent=`第一階段完成｜先顯示 Price-only Top ${top.length}；FinMind 開始漸進回刷，可立即查看排名`;
+  $('status').textContent=`第一階段完成｜先顯示 Price-only Top ${top.length}；官方/備援籌碼開始漸進回刷，可立即查看排名`;
   await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
   showRank('entry');
   $('prog').value=0;
-  $('status').textContent=`FinMind 完成，開始以現價重算四大分數 ${top.length} 檔…`;
+  $('status').textContent=`籌碼完成，開始以現價重算四大分數 ${top.length} 檔…`;
   await runLiveCurrent(results,Math.max(2,Math.min(6,n($('concurrency').value,6))));
   showRank('entry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
@@ -541,8 +610,8 @@ $('scanBtn').onclick=async()=>{
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
-  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R2 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE}｜Stage1暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
+  $('status').textContent=`V1.17.0-R3 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
