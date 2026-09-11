@@ -1,14 +1,9 @@
-# V1.11.3 — Scanner 全按鈕無反應修正
+# V1.11.4 — 個股查詢一律新分頁
 
-這次找到真正原因，不是盤中 API。
-
-使用 Node 對實際部署包的 inline JavaScript 做語法檢查後，Scanner 主程式報：
-`SyntaxError: Identifier 'row' has already been declared`
-
-因為同一個 scope 內重複宣告 `const row`，瀏覽器在載入 Scanner 時整段 JavaScript 直接拒絕執行，所以畫面可以顯示，但所有按鈕都沒有事件。
-
-V1.11.3：
-- 修正 Scanner 重複 `const row` 宣告。
-- 保留 V1.11.2 隔離式盤中資訊。
-- 對 scanner.html / detail.html / index.html 的所有 inline script 全部執行 Node `--check`。
-- 全部語法檢查通過才打包。
+新增：
+- Scanner 上方新增「↗ 開啟個股查詢」按鈕。
+- 按下後直接在新分頁開啟個股查詢頁，Scanner 原頁完全不動。
+- 掃描完成後，點任一個股列也一律以新分頁開啟個股查詢。
+- 取消原本 popup 被擋時改成同頁跳轉的 fallback，避免掃描頁被帶走。
+- 若瀏覽器封鎖新分頁，只在 Scanner 顯示提示，不改變原頁。
+- 仍會先儲存掃描快照，讓新分頁個股頁沿用同一份掃描/籌碼資料。

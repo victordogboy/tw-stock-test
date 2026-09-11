@@ -1,11 +1,13 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.11.3 · Top100 FinMind 完整重評</title>
+<title>台股 V1.11.4 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 button,input{padding:10px;border-radius:9px;border:1px solid #394969}button{font-weight:800;cursor:pointer}
+a.linkbtn{display:inline-block;padding:10px 13px;border-radius:9px;border:1px solid #4a6089;background:#203253;color:#eaf0ff;text-decoration:none;font-weight:900;margin-left:6px}
+a.linkbtn:hover{background:#2a426d}
 input{background:#0d1425;color:white;width:100%;box-sizing:border-box}.muted{color:#9eb0d1}.good{color:#65d99a}.bad{color:#ff7777}
 progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #273451;text-align:right}
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
@@ -28,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.11.3 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.11.4 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -43,6 +45,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <div class="card">
 <button id="scanBtn">開始兩階段掃描</button>
 <button id="stopBtn">停止</button>
+<a class="linkbtn" href="/detail.html?from=scanner&amp;popup=1" target="_blank" rel="noopener">↗ 開啟個股查詢</a>
 <div id="status" class="muted" style="margin-top:10px">尚未開始</div>
 <progress id="prog" max="100" value="0"></progress>
 <div id="stats" class="small muted"></div>
@@ -195,29 +198,33 @@ function toggleWatch(code){
 }
 function openDetail(code,hasFutures=false,market='twse'){
   persistScan();
-  const row=results.find(x=>String(x.code)===String(code));
-  if(row){
+  const detailRow=results.find(x=>String(x.code)===String(code));
+  if(detailRow){
     try{
       localStorage.setItem('twq_detail_snapshot_v192',JSON.stringify({
-        savedAt:Date.now(),code:String(row.code),market:row.market||market,
-        dataDate:row.dataDate,history:row._hist||[],chips:row._chips||null,
-        finmindCompleteness:row.finmindCompleteness||0,finmindWindow:row.finmindWindow||null,
-        scores:{setup:row.setup,opportunity:row.opportunity,entry:row.entry,hold:row.hold}
+        savedAt:Date.now(),code:String(detailRow.code),market:detailRow.market||market,
+        dataDate:detailRow.dataDate,history:detailRow._hist||[],chips:detailRow._chips||null,
+        finmindCompleteness:detailRow.finmindCompleteness||0,finmindWindow:detailRow.finmindWindow||null,
+        scores:{setup:detailRow.setup,opportunity:detailRow.opportunity,entry:detailRow.entry,hold:detailRow.hold}
       }));
     }catch(e){console.warn('snapshot save failed',e)}
   }
+
   const u=new URL('/detail.html',location.origin);
   u.searchParams.set('code',code);
   u.searchParams.set('from','scanner');
-  u.searchParams.set('market',market);
-  const detailRow=results.find(x=>String(x.code)===String(code));
-  if(row?.name) u.searchParams.set('name',detailRow.name);
-  if(hasFutures) u.searchParams.set('futures','1');
+  u.searchParams.set('market',detailRow?.market||market);
+  if(detailRow?.name) u.searchParams.set('name',detailRow.name);
+  if(hasFutures||detailRow?.hasFutures) u.searchParams.set('futures','1');
   u.searchParams.set('popup','1');
-  const win=window.open(u.toString(),'_blank','noopener');
-  if(!win){
-    // Popup blocked fallback: same-tab navigation still has storage restore.
-    location.assign(u.toString());
+
+  // Only open a new tab/window. Never replace the scanner page.
+  const win=window.open(u.toString(),'_blank');
+  if(win){
+    try{win.opener=null}catch(e){}
+  }else{
+    const st=$('status');
+    if(st) st.innerHTML='<span class="warn">瀏覽器封鎖了新分頁。請允許此網站開啟彈出式視窗 / 新分頁後再點一次。</span>';
   }
 }
 function deltaText(cur,prev){
@@ -501,7 +508,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.11.3 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.11.4 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
