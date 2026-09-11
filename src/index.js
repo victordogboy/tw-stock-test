@@ -683,6 +683,10 @@ async function fetchTaifexStockFuturesCodes(){
 }
 
 async function routeApi(request, env, url) {
+  // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
+  // R12 created it in export.fetch(), but routeApi() referenced it directly,
+  // causing ReferenceError on /api/finmind/status and all FinMind-assisted routes.
+  const EFFECTIVE_FINMIND_TOKEN=requestFinMindToken(request,env);
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
   }
@@ -1093,7 +1097,7 @@ async function routeApi(request, env, url) {
       if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r12"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r13"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1252,8 +1256,8 @@ async function routeApi(request, env, url) {
       configured,
       mode:configured?"token":"anonymous",
       note:configured
-        ?"FINMIND_TOKEN 已由 Cloudflare Worker Secret 啟用。"
-        :"尚未設定 FINMIND_TOKEN，目前使用匿名額度。"
+        ?"FinMind Token 已進入 Worker，可用於 FinMind API 請求。"
+        :"未收到瀏覽器 Token，也未設定 Cloudflare FINMIND_TOKEN Secret。"
     },200,{"cache-control":"no-store"});
   }
 
@@ -1302,7 +1306,6 @@ function requestFinMindToken(request,env){
 
 export default {
   async fetch(request, env) {
-    const EFFECTIVE_FINMIND_TOKEN=requestFinMindToken(request,env);
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
