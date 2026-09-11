@@ -1078,6 +1078,25 @@ async function routeApi(request, env, url) {
   }
 
 
+
+  if (url.pathname === "/api/market/target-date") {
+    const now=isoDateTaipei();
+    const start=`${now.slice(0,8)}01`;
+    try{
+      const twse=await fetchTwseMonthlyHistory("2330",start,now);
+      const last=twse?.data?.at(-1)?.date||null;
+      if(!last) return json({ok:false,error:"Unable to determine completed trading day"},502);
+      return json({
+        ok:true,
+        target_date:last,
+        source:"TWSE STOCK_DAY exact-date monthly (2330 benchmark)",
+        completed:true
+      },200,{"cache-control":"no-store"});
+    }catch(e){
+      return json({ok:false,error:String(e?.message||e)},502);
+    }
+  }
+
   if (url.pathname === "/api/history/auto") {
     const code=url.searchParams.get("code")||"3443";
     const market=url.searchParams.get("market")||"";
@@ -1225,10 +1244,11 @@ async function routeApi(request, env, url) {
 
   if (url.pathname === "/api/chips/hybrid") {
     const code=url.searchParams.get("code")||"3443";
+    const market=(url.searchParams.get("market")||"").toLowerCase();
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips/${code}/${startDate}/${endDate}`, request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-v117/${market||"auto"}/${code}/${startDate}/${endDate}`, request);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
@@ -1238,7 +1258,7 @@ async function routeApi(request, env, url) {
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.6.2"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0"}});
         const text=await r.text();
         let j=null; try{j=JSON.parse(text)}catch{}
         if(!r.ok || !j || !(j.status===200 || j.status==="200")){
@@ -1248,55 +1268,62 @@ async function routeApi(request, env, url) {
       }catch(e){return {ok:false,error:String(e?.message||e),data:[]}}
     }
 
-    const [fmMargin,fmInst,fmDay]=await Promise.all([
-      finmindDataset("TaiwanStockMarginPurchaseShortSale"),
-      finmindDataset("TaiwanStockInstitutionalInvestorsBuySellWide"),
-      finmindDataset("TaiwanStockDayTrading")
-    ]);
+    let margin=[],inst=[],daytrade=[];
+    const sourceDetail={margin:null,inst:null,daytrade:null};
+    const finmindStatus={};
 
-    // Fill datasets independently. V1.9.3 treated "one FinMind dataset succeeded"
-    // as total success, so a valid day-trading response could hide missing margin/inst.
-    let margin=fmMargin.ok?(fmMargin.data||[]):[];
-    let inst=fmInst.ok?(fmInst.data||[]):[];
-    let daytrade=fmDay.ok?(fmDay.data||[]):[];
-    let fallbackUsed=false;
-
-    // TWSE public reports are a valid fallback for LISTED stocks only.
-    // For TPEx, never fabricate missing institutional/margin series.
-    const isTwseCode=await (async()=>{
-      try{
-        const raw=await fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
-        return normalizeTwse(raw).some(x=>String(x.code)===String(code));
-      }catch{return false}
-    })();
-
-    if(isTwseCode && (!margin.length || !inst.length || !daytrade.length)){
-      const dates=recentWeekdays(endDate,12),rows=[];
+    // Listed: official TWSE first. This avoids making FinMind a required dependency.
+    if(market==="twse"){
+      const dates=recentWeekdays(endDate,12), rows=[];
       for(const d of dates){
         rows.push(await chipForDate(code,d));
-        await new Promise(r=>setTimeout(r,35));
+        await new Promise(r=>setTimeout(r,30));
       }
-      if(!margin.length){ margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(margin.length)fallbackUsed=true; }
-      if(!inst.length){ inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(inst.length)fallbackUsed=true; }
-      if(!daytrade.length){ daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(daytrade.length)fallbackUsed=true; }
+      margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
+      if(margin.length) sourceDetail.margin="TWSE official";
+      if(inst.length) sourceDetail.inst="TWSE official";
+      if(daytrade.length) sourceDetail.daytrade="TWSE official";
     }
 
-    const parts=[];
-    if(fmMargin.ok||fmInst.ok||fmDay.ok) parts.push("FinMind");
-    if(fallbackUsed) parts.push("TWSE fallback");
-    if(!parts.length) parts.push(isTwseCode?"TWSE fallback unavailable":"FinMind unavailable for TPEx");
+    // Fill only missing series from FinMind. For TPEx, FinMind is currently the
+    // verified backup while TPEx rejects Worker-origin OpenAPI requests.
+    async function fill(name,dataset){
+      if((name==="margin"&&margin.length)||(name==="inst"&&inst.length)||(name==="daytrade"&&daytrade.length)) return;
+      const r=await finmindDataset(dataset);
+      finmindStatus[name]={ok:r.ok,count:r.data?.length||0,error:r.error||null,msg:r.msg||null};
+      if(!r.ok||!r.data?.length) return;
+      if(name==="margin") margin=r.data;
+      if(name==="inst") inst=r.data;
+      if(name==="daytrade") daytrade=r.data;
+      sourceDetail[name]="FinMind";
+      await new Promise(r=>setTimeout(r,120));
+    }
+    await fill("margin","TaiwanStockMarginPurchaseShortSale");
+    await fill("inst","TaiwanStockInstitutionalInvestorsBuySellWide");
+    await fill("daytrade","TaiwanStockDayTrading");
+
+    const available=[margin.length>0,inst.length>0,daytrade.length>0].filter(Boolean).length;
     const body={
-      ok:margin.length>0||inst.length>0||daytrade.length>0,
-      source:parts.join(" + "),
-      finmind_token:Boolean(env.FINMIND_TOKEN),
-      finmind_status:{
-        margin:{ok:fmMargin.ok,count:fmMargin.data?.length||0,error:fmMargin.error||null,msg:fmMargin.msg||null,final_count:margin.length},
-        inst:{ok:fmInst.ok,count:fmInst.data?.length||0,error:fmInst.error||null,msg:fmInst.msg||null,final_count:inst.length},
-        daytrade:{ok:fmDay.ok,count:fmDay.data?.length||0,error:fmDay.error||null,msg:fmDay.msg||null,final_count:daytrade.length}
+      ok:available>0,
+      code,market,
+      source:"Official-first hybrid",
+      source_detail:sourceDetail,
+      completeness:Math.round(available/3*100),
+      margin,inst,daytrade,
+      data_dates:{
+        margin:margin.at(-1)?.date||null,
+        inst:inst.at(-1)?.date||null,
+        daytrade:daytrade.at(-1)?.date||null
       },
-      margin,inst,daytrade
+      finmind_token:Boolean(env.FINMIND_TOKEN),
+      finmind_status:finmindStatus,
+      note:market==="tpex"
+        ?"TPEx official OpenAPI rejected Worker requests in audit; missing chip series use FinMind only when available."
+        :"TWSE official is primary; FinMind fills only missing series."
     };
-    const resp=json(body,200,{"cache-control":"public, max-age=900"});
+    const resp=json(body,200,{"cache-control":"public,max-age=900"});
     await cache.put(cacheKey,resp.clone());
     return resp;
   }
