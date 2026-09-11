@@ -570,15 +570,18 @@ async function chipForDate(code,iso){
       const dealerTotal=(dealerSelf||0)+(dealerHedge||0);
       if(foreign!=null||trust!=null||dealerSelf!=null||dealerHedge!=null) result.inst={
         date:iso,stock_id:String(code),
-        Foreign_Investor_Buy:foreign>0?foreign:0,
-        Foreign_Investor_Sell:foreign<0?-foreign:0,
-        Investment_Trust_Buy:trust>0?trust:0,
-        Investment_Trust_Sell:trust<0?-trust:0,
-        Dealer_Buy:dealerTotal>0?dealerTotal:0,
-        Dealer_Sell:dealerTotal<0?-dealerTotal:0,
-        Foreign_Investor:foreign||0,
-        Investment_Trust:trust||0,
-        Dealer:dealerTotal||0
+        Foreign_Investor_buy:foreign>0?foreign:0,
+        Foreign_Investor_sell:foreign<0?-foreign:0,
+        Foreign_Dealer_Self_buy:0,
+        Foreign_Dealer_Self_sell:0,
+        Investment_Trust_buy:trust>0?trust:0,
+        Investment_Trust_sell:trust<0?-trust:0,
+        Dealer_buy:0,
+        Dealer_sell:0,
+        Dealer_self_buy:dealerSelf>0?dealerSelf:0,
+        Dealer_self_sell:dealerSelf<0?-dealerSelf:0,
+        Dealer_Hedging_buy:dealerHedge>0?dealerHedge:0,
+        Dealer_Hedging_sell:dealerHedge<0?-dealerHedge:0
       };
     }
   }catch(e){result.errors.push("inst:"+String(e.message||e))}
@@ -1043,73 +1046,116 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r3/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r5/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
 
     async function finmindDataset(dataset){
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r5/${dataset}/${code}/${startDate}/${endDate}`,request);
+      const hit=await cache.match(dsKey);
+      if(hit){ try{return await hit.json()}catch{} }
+
       const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r3"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r5"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
-        if(!r.ok || !j || !(j.status===200 || j.status==="200")){
-          return {ok:false,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]};
-        }
-        return {ok:true,data:Array.isArray(j.data)?j.data:[]};
-      }catch(e){return {ok:false,error:String(e?.message||e),data:[]}}
+        const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
+          ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
+          : {ok:true,http:r.status,data:Array.isArray(j.data)?j.data:[]};
+        const ttl=out.ok?21600:900;
+        try{await cache.put(dsKey,new Response(JSON.stringify(out),{headers:{
+          "content-type":"application/json;charset=UTF-8","cache-control":`public,max-age=${ttl}`
+        }}))}catch{}
+        return out;
+      }catch(e){return {ok:false,http:0,error:String(e?.message||e),data:[]}}
+    }
+
+    function institutionalStandardToWide(rows){
+      const map=new Map();
+      for(const r of rows||[]){
+        const date=r?.date; if(!date) continue;
+        if(!map.has(date)) map.set(date,{date,stock_id:String(code),
+          Foreign_Investor_buy:0,Foreign_Investor_sell:0,
+          Foreign_Dealer_Self_buy:0,Foreign_Dealer_Self_sell:0,
+          Investment_Trust_buy:0,Investment_Trust_sell:0,
+          Dealer_buy:0,Dealer_sell:0,Dealer_self_buy:0,Dealer_self_sell:0,
+          Dealer_Hedging_buy:0,Dealer_Hedging_sell:0});
+        const o=map.get(date), name=String(r.name||"").toLowerCase();
+        const buy=Number(r.buy)||0,sell=Number(r.sell)||0;
+        if(name.includes("foreign_dealer")){o.Foreign_Dealer_Self_buy+=buy;o.Foreign_Dealer_Self_sell+=sell}
+        else if(name.includes("foreign")){o.Foreign_Investor_buy+=buy;o.Foreign_Investor_sell+=sell}
+        else if(name.includes("investment_trust")){o.Investment_Trust_buy+=buy;o.Investment_Trust_sell+=sell}
+        else if(name.includes("dealer_hedg")||name.includes("hedg")){o.Dealer_Hedging_buy+=buy;o.Dealer_Hedging_sell+=sell}
+        else if(name.includes("dealer_self")||name.includes("dealer-self")){o.Dealer_self_buy+=buy;o.Dealer_self_sell+=sell}
+        else if(name.includes("dealer")){o.Dealer_buy+=buy;o.Dealer_sell+=sell}
+      }
+      return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
     }
 
     let margin=[],inst=[],daytrade=[];
     const source_detail={margin:null,inst:null,daytrade:null};
     const diagnostics=[];
 
-    // Listed stocks: official TWSE first. The underlying reports are market-wide and
-    // fetchTwseJson() is edge-cached by URL, so Top-N stocks reuse the same daily payloads.
     if(market==="twse"){
       const dates=recentWeekdays(endDate,12),rows=[];
       for(const d of dates) rows.push(await chipForDate(code,d));
       margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
       inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
       daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
-      if(margin.length) source_detail.margin="TWSE official";
-      if(inst.length) source_detail.inst="TWSE official";
-      if(daytrade.length) source_detail.daytrade="TWSE official";
-      diagnostics.push(...rows.map(x=>({date:x.date,errors:x.errors})));
+      if(margin.length) source_detail.margin="TWSE";
+      if(inst.length) source_detail.inst="TWSE";
+      if(daytrade.length) source_detail.daytrade="TWSE";
+      diagnostics.push(...rows.filter(x=>x.errors?.length).map(x=>({date:x.date,errors:x.errors})));
     }
 
-    // Only fill missing categories with FinMind. TPEx currently reaches this path for
-    // all categories because its official OpenAPI redirects Worker-origin requests.
-    async function fill(name,dataset){
-      const cur=name==="margin"?margin:name==="inst"?inst:daytrade;
-      if(cur.length) return;
-      const r=await finmindDataset(dataset);
-      diagnostics.push({dataset,ok:r.ok,error:r.error||null,msg:r.msg||null,count:r.data?.length||0});
-      if(!r.ok||!r.data?.length) return;
-      if(name==="margin") margin=r.data;
-      if(name==="inst") inst=r.data;
-      if(name==="daytrade") daytrade=r.data;
-      source_detail[name]="FinMind";
-      await new Promise(res=>setTimeout(res,120));
+    async function fillMargin(){
+      if(margin.length) return;
+      const r=await finmindDataset("TaiwanStockMarginPurchaseShortSale");
+      diagnostics.push({dataset:"TaiwanStockMarginPurchaseShortSale",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
+      if(r.ok&&r.data?.length){margin=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));source_detail.margin="FinMind"}
     }
-    await fill("margin","TaiwanStockMarginPurchaseShortSale");
-    await fill("inst","TaiwanStockInstitutionalInvestorsBuySellWide");
-    await fill("daytrade","TaiwanStockDayTrading");
+    async function fillInst(){
+      if(inst.length) return;
+      let r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySellWide");
+      diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySellWide",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
+      if(r.ok&&r.data?.length){
+        inst=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        source_detail.inst="FinMind Wide"; return;
+      }
+      r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySell");
+      diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySell",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
+      const wide=institutionalStandardToWide(r.data||[]);
+      if(r.ok&&wide.length){inst=wide;source_detail.inst="FinMind Standard→Wide"}
+    }
+    async function fillDaytrade(){
+      if(daytrade.length) return;
+      const r=await finmindDataset("TaiwanStockDayTrading");
+      diagnostics.push({dataset:"TaiwanStockDayTrading",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
+      if(r.ok&&r.data?.length){daytrade=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));source_detail.daytrade="FinMind"}
+    }
 
-    const available=[margin.length>0,inst.length>0,daytrade.length>0].filter(Boolean).length;
+    await fillMargin();
+    await fillInst();
+    await fillDaytrade();
+
+    const flags={margin:margin.length>0,inst:inst.length>0,daytrade:daytrade.length>0};
+    const available=Object.values(flags).filter(Boolean).length;
     const body={
       ok:available>0,code,market,
-      source:"Official-first hybrid",
+      source:"TWSE + FinMind assist",
       source_detail,
       completeness:Math.round(available/3*100),
+      completeness_detail:flags,
       margin,inst,daytrade,
       data_dates:{
         margin:margin.at(-1)?.date||null,
         inst:inst.at(-1)?.date||null,
         daytrade:daytrade.at(-1)?.date||null
       },
+      finmind_assist:Object.values(source_detail).some(v=>String(v||"").startsWith("FinMind")),
       diagnostics
     };
     const resp=json(body,200,{"cache-control":"public,max-age=900"});
