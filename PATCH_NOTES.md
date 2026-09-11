@@ -1,23 +1,29 @@
-# V1.14.2-R3 + AC Display-Only
+# V1.16.0 — V1.14.2-R3 + Action / Confidence only
 
-基底：確認正常的 V1.14.2-R3。
+基底：已確認正常的 V1.14.2-R3。
 
-這版只新增顯示層的 Action / Confidence。
+只加入兩個顯示功能：
 
 ## Action
+固定公式：
 `Action = 40% Entry + 30% Setup + 30% Opportunity`
 
+不加門檻、不加 cap、不含 Hold。
+
 ## Confidence
-資料品質顯示，不參與模型。
+直接沿用現有 FinMind 重評完整度：
+- Scanner：`finmindCompleteness`
+- Detail：優先使用 Scanner snapshot / FinMind recheck 的 completeness
+- 若沒有 completeness，才依融資 / 法人 / 當沖三類資料是否存在換算 0/33/67/100
 
-## 關鍵保證
-- Scanner `formalScore()` 完全保持原始 R3
-- Scanner `worker()` 完全保持原始 R3
-- Scanner FinMind 重評流程完全保持原始 R3
-- Scanner Live 現價重評流程完全保持原始 R3
-- Worker `src/index.js` 完全保持原始 R3
-- `public/v44-engine.js` 完全保持原始 R3
-- Action / Confidence 只在畫面 render 時由既有四分數/資料計算
-- Detail 的原始 `combineScores()` / `entryEngine()` 路徑完全不改
+Confidence 不參與 Setup / Opportunity / Entry / Hold，也不影響掃描排序。
 
-因此 Action/Confidence 不可能影響「成功/略過/保留/Top100 FinMind」掃描數量。
+## 完全未修改
+- `src/index.js`
+- `public/v44-engine.js`
+- Scanner `formalScore()`
+- Scanner `worker()`
+- FinMind recheck
+- Live 現價重評
+- 盤中量預估
+- 13:30 收盤後正式 K 升格邏輯
