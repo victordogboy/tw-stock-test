@@ -161,6 +161,25 @@ function riskRR(entry,stop,t1,t2){
   const risk=(entry-stop)/entry*100,den=entry-stop;
   return {risk,rr1:den>0?(t1-entry)/den:NaN,rr2:den>0?(t2-entry)/den:NaN};
 }
+
+function recentEventKSupport(rows,lookback=8){
+  const lb=Math.min(lookback,rows.length-1);
+  for(let age=0;age<=lb;age++){
+    const k=rows.length-1-age;
+    if(k<1)break;
+    const r=rows[k],p=rows[k-1];
+    const dr=(r.close/p.close-1)*100;
+    const base=rows.slice(Math.max(0,k-5),k);
+    const av=avg(base.map(z=>z.volume))||r.volume||1;
+    const rg=Math.max(r.high-r.low,tick(r.close));
+    const loc=(r.close-r.low)/rg;
+    const isEvent=r.close>=r.open && loc>=.62 &&
+      ((dr>=5 && r.volume/av>=1.0) || (dr>=3.5 && r.volume/av>=1.35) || dr>=8.5);
+    if(isEvent)return {age,date:r.date,low:r.low,high:r.high,close:r.close,volume:r.volume};
+  }
+  return null;
+}
+
 function evaluate(rows,margin,inst,daytrade,entryMode='market'){
   const cur=last(rows),close=cur.close,ma5=ma(rows,5),ma10=ma(rows,10),ma20=ma(rows,20),ma60=ma(rows,60);
   const hl=higherLow(rows),swing=recentSwingLow(rows),gap=recentGap(rows);
@@ -168,14 +187,40 @@ function evaluate(rows,margin,inst,daytrade,entryMode='market'){
   const breakoutSupport=close>prevHigh ? prevHigh : NaN;
   let candidates=uniq([ma5,ma10,ma20,breakoutSupport,gap?.lower].filter(Number.isFinite).map(roundTick)).filter(x=>x<close*1.002&&x>close*.82);
   if(!candidates.length)candidates=[roundTick(ma10||close*.97)];
+
+  // V1.12 Structural-Safe Optimal Entry
+  const eventK=recentEventKSupport(rows,8);
+  const platformVals=[breakoutSupport,gap?.lower].filter(Number.isFinite);
+  const platformFloor=platformVals.length?Math.max(...platformVals):NaN;
+  const structuralGuard={
+    eventLow:eventK?.low ?? NaN,
+    eventDate:eventK?.date ?? null,
+    hlLow:hl.b?.low ?? NaN,
+    swingLow:swing?.low ?? NaN,
+    platformFloor,
+    ma10,ma20
+  };
+  const structuralSafeFor=(e)=>{
+    if(Number.isFinite(structuralGuard.eventLow) && e<=structuralGuard.eventLow*1.003)return false;
+    if(Number.isFinite(structuralGuard.hlLow) && e<=structuralGuard.hlLow*1.003)return false;
+    if(Number.isFinite(structuralGuard.swingLow) && e<=structuralGuard.swingLow*1.001)return false;
+    if(Number.isFinite(structuralGuard.platformFloor) && e<structuralGuard.platformFloor*.997)return false;
+    return true;
+  };
+
   const baseStopFor=(entry)=>roundTick(supportBelow(entry,[ma20,ma10,hl.b?.low,swing?.low,breakoutSupport]) - tick(entry));
-  let best=null;
+  let bestAll=null,bestSafe=null;
   for(const e0 of candidates){
     const e=roundTick(e0),stop=baseStopFor(e),tg=computeTargets(rows,e),rr=riskRR(e,stop,tg.t1,tg.t2);
     let s=100-Math.max(0,rr.risk-4)*5 + Math.min(8,Math.max(-8,(rr.rr2-3)*4));
     if(rr.risk<=4)s+=5;if(rr.rr1>=1.5)s+=4;if(rr.rr2>=3)s+=6;
-    if(!best||s>best.rank)best={entry:e,stop,...tg,...rr,rank:s};
+    const candidate={entry:e,stop,...tg,...rr,rank:s,structuralSafe:structuralSafeFor(e)};
+    if(!bestAll||s>bestAll.rank)bestAll=candidate;
+    if(candidate.structuralSafe&&(!bestSafe||s>bestSafe.rank))bestSafe=candidate;
   }
+  const best=bestSafe||bestAll;
+  structuralGuard.hasSafeCandidate=!!bestSafe;
+  structuralGuard.selectedSafe=!!best?.structuralSafe;
   const marketEntry=close;
   const marketStop=baseStopFor(marketEntry),marketT=computeTargets(rows,marketEntry),marketRR=riskRR(marketEntry,marketStop,marketT.t1,marketT.t2);
   const entry=entryMode==='optimal'?best.entry:marketEntry;
@@ -248,7 +293,7 @@ function evaluate(rows,margin,inst,daytrade,entryMode='market'){
   return {
     score:Math.round(raw),items:scoreItems,availableMax,confidence,ma5,ma10,ma20,ma60,bias,volRatio,rsi,macd,kd,boll,hl,gap,
     entry,stop,t1:tg.t1,t2:tg.t2,risk:tg.risk,rr1:tg.rr1,rr2:tg.rr2,best,marketRR,marginPct,marginChg,instPct,instConc,id,dayRatio,
-    hardBroken,longUpper,attack,dry,breakoutSupport,swing,prevHigh
+    hardBroken,longUpper,attack,dry,breakoutSupport,swing,prevHigh,structuralGuard
   };
 }
 

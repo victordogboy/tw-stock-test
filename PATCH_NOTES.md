@@ -1,20 +1,10 @@
-# V1.11.5 — K線圖直接顯示盤中資訊
+# V1.12.0 — Structural-Safe Optimal Entry
 
-個股明細的日K圖現在直接顯示盤中資訊，不必另外往上看盤中卡片。
-
-新增：
-- K線工具列新增「盤中：現價（漲跌幅）」紅色即時 pill。
-- K線圖右上角新增盤中即時 HUD：
-  - 日期 / 更新時間
-  - 現價
-  - 漲跌 / 漲跌幅
-  - Open / High / Low
-  - 盤中成交量（張）
-- 上漲紅、下跌綠、平盤黃，符合台股配色。
-- 原本完整「今日盤中資訊」卡片仍保留。
-
-重要：
-- 盤中資訊只是直接顯示層。
-- 正式 Setup / Opportunity / Entry / Hold 仍以最後完整交易日審計。
-- 不把未收盤 K 偷塞進正式分數。
-- 不修改原本 K 線 canvas renderer，也不碰既有按鈕事件，降低回歸風險。
+- 最佳進場候選除了 Risk / R:R，新增 Event K Low、HL、Swing Low、平台防守過濾。
+- 若有結構安全候選，Optimal Entry 優先選 Structural-Safe 價位。
+- Scanner 與 Detail 共用的 V4.4 engine 同步套用。
+- 價格階梯下方新增下一交易日三情境壓力測試：
+  A 健康量縮 0.65x、B 正常 1.00x、C 爆量長黑 2.00x。
+- 每個情境顯示 Entry、Entry Quality、Persistence、Risk、結構存活/破壞。
+- 同時顯示明日 MA5/10/20、Event Low、HL、Swing、平台、Hard Break 參考。
+- 全部只使用審計日與左側資料，符合 Strict No-Lookahead。
