@@ -1,29 +1,25 @@
-# V1.16.0 — V1.14.2-R3 + Action / Confidence only
+# V1.16.0 — R3 + Action/Confidence + Scanner reliability fix
 
-基底：已確認正常的 V1.14.2-R3。
+Base: confirmed-working V1.14.2-R3.
 
-只加入兩個顯示功能：
+## Added
+Action = 40% Entry + 30% Setup + 30% Opportunity.
 
-## Action
-固定公式：
-`Action = 40% Entry + 30% Setup + 30% Opportunity`
+Confidence = existing FinMind completeness. It does not affect scoring.
 
-不加門檻、不加 cap、不含 Hold。
+## Scanner root-cause fix
+The R3 full-market worker requested `fresh=1` for every one of ~2271 stocks.
+`fresh=1` intentionally bypasses the Worker's 6-hour history cache. Repeated whole-market
+scans therefore directly hammered Yahoo/TWSE thousands of times and can trigger upstream
+rate limiting / transient failures. The symptom is exactly:
+`成功 0 / 略過 N`.
 
-## Confidence
-直接沿用現有 FinMind 重評完整度：
-- Scanner：`finmindCompleteness`
-- Detail：優先使用 Scanner snapshot / FinMind recheck 的 completeness
-- 若沒有 completeness，才依融資 / 法人 / 當沖三類資料是否存在換算 0/33/67/100
+V1.16.0 changes only the HISTORY FETCH strategy of first-pass scanning:
+1. use the last completed Taiwan session date;
+2. request normal cached history first;
+3. only failed symbols retry `fresh=1`;
+4. cap first-pass concurrency at 3;
+5. show the latest concrete error beside the running status if success is still zero.
 
-Confidence 不參與 Setup / Opportunity / Entry / Hold，也不影響掃描排序。
-
-## 完全未修改
-- `src/index.js`
-- `public/v44-engine.js`
-- Scanner `formalScore()`
-- Scanner `worker()`
-- FinMind recheck
-- Live 現價重評
-- 盤中量預估
-- 13:30 收盤後正式 K 升格邏輯
+FinMind recheck, Live current-score recheck, V4.4 scoring, Detail R3 close promotion,
+and Worker API code are unchanged.
