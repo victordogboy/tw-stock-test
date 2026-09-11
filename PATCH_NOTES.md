@@ -1,33 +1,12 @@
-# V1.17.0-R1 — Production Source Architecture
+# V1.17.0-R2 — Emergency Stable Rollback
 
-這版開始修改正式 Scanner，而不是只做診斷。
+這不是再加新功能，而是撤回 R1 的錯誤 production 改動。
 
-## 核心修正
-1. Hard Date Gate
-   - 新增 `/api/market/target-date`
-   - 使用 TWSE `STOCK_DAY` exact-date monthly (2330 benchmark) 判定最新已完成交易日
-   - Stage1 每支股票最後一根 K 必須等於 Target Date
-   - 舊日期股票不得進排行
-   - 缺最新 K 顯示「最新K缺失」，不自行補日期
+- 撤回 R1 Hard Date Gate。
+- 撤回 R1 全市場逐股要求 2026-09-11 正式 K 的邏輯。
+- 撤回 R1 Official-first chips production 改造。
+- 回到 V1.16.0-R2 可正常掃描的 production code。
+- 保留 R2 的 null/0 價格修正與 Detail Action。
+- V4.4 不修改。
 
-2. 價格來源
-   - 上市：Yahoo 歷史 + fresh=1 時以 TWSE STOCK_DAY exact-date 補最新正式日 K
-   - 上櫃：若 Yahoo Daily 尚未更新至 Target，暫不納入正式 Stage1 排名
-   - Yahoo 1m 保留做 live/detail，不冒充正式 Daily Volume
-
-3. 籌碼來源改成 Official-first
-   - 上市：TWSE 官方 margin / T86 / day-trading 先取
-   - FinMind 只補缺少的 series
-   - 上櫃：TPEx 官方目前被 Worker redirect/WAF 擋住，因此 FinMind 僅作可用時備援
-   - 不再把 FinMind 當正式 Scanner 的必要依賴
-
-4. Scanner
-   - Stage1 先做 Target Date Gate 再排名
-   - Stage2 改呼叫 `/api/chips/hybrid`
-   - 顯示 Target、最新K缺失數、舊日期進排行固定為 0
-   - V4.4 / 四分數公式 / Action 公式未修改
-
-## 保留
-- Detail 的 V1.14.2-R3 after-close promotion 邏輯保留
-- Yahoo 1m volume 不當正式日量
-- 無日期不 stamp
+原因：R1 將「資料源診斷結論」直接套進全市場 Scanner，但 TWSE exact monthly 無法承受掃描時逐股大量 fresh requests，造成大量 `最新K缺失`，實際掃描只剩極少數成功。先恢復可用性，再把新資料架構放在獨立驗證路徑壓測通過後才進 production。
