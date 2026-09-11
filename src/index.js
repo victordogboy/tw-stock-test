@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.1)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.14.2)"}});
       const buf=await r.arrayBuffer();
       const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
       let big5="";
@@ -382,7 +382,7 @@ async function fetchTwseMonthlyHistory(code,startDate,endDate){
   const endM=new Date(endDate.slice(0,7)+"-01T12:00:00+08:00");
   while(cursor<=endM){
     const ds=cursor.toISOString().slice(0,10).replaceAll("-","");
-    const u=`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${ds}&stockNo=${encodeURIComponent(code)}&response=json`;
+    const u=`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${ds}&stockNo=${encodeURIComponent(code)}&response=json&_=${Date.now()}`;
     try{
       const r=await fetch(u,{headers:{
         "accept":"application/json,text/plain,*/*",
@@ -601,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.1)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.14.2)"
         }
       });
       const text=await r.text();
@@ -641,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.15.1",
+      version: "1.14.2",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -822,7 +822,7 @@ async function routeApi(request, env, url) {
       const symbol=String(code)+suffix;
       for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
         try{
-          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false`;
+          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m&includePrePost=false`;
           const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"}});
           attempts.push({host,symbol,status:r.status});
           if(!r.ok) continue;
@@ -855,41 +855,8 @@ async function routeApi(request, env, url) {
             const ratio=close/prevClose;
             if(ratio<0.2||ratio>5)validation_errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
           }
-          // Historical intraday volume profile: median fraction of full-day volume
-          // already traded by the same clock time over previous Yahoo 1m sessions.
-          const hhmm=t=>{
-            const s=time(t),m=String(s).match(/(\d{1,2}):(\d{2})/);
-            return m?Number(m[1])*60+Number(m[2]):null;
-          };
-          const cutoff=hhmm(last.t);
-          const byDay={};
-          for(let k=0;k<ts.length;k++){
-            const dk=day(ts[k]);
-            if(dk===latestDay)continue;
-            const vv=vol(q.volume?.[k]);
-            if(!byDay[dk])byDay[dk]=[];
-            byDay[dk].push({t:ts[k],v:vv});
-          }
-          const fractions=[];
-          for(const arr of Object.values(byDay)){
-            const total=arr.reduce((s,x)=>s+x.v,0);
-            if(total<=0||!Number.isFinite(cutoff))continue;
-            const cum=arr.filter(x=>hhmm(x.t)<=cutoff).reduce((s,x)=>s+x.v,0);
-            const f=cum/total;
-            if(Number.isFinite(f)&&f>.02&&f<=1)fractions.push(f);
-          }
-          fractions.sort((a,b)=>a-b);
-          const profileFraction=fractions.length
-            ? fractions.length%2?fractions[(fractions.length-1)/2]:(fractions[fractions.length/2-1]+fractions[fractions.length/2])/2
-            : null;
-
           const bar={date:latestDay,open,high,low,close,volume:rows.reduce((s,x)=>s+x.volume,0),last_time:time(last.t),last_timestamp:last.t,prev_close:prevClose,change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol};
-          return json({
-            ok:true,quote_valid:validation_errors.length===0,validation_errors,
-            source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,
-            market_state:meta.marketState||null,
-            volume_profile:{fraction:profileFraction,samples:fractions.length,method:'median prior 1m sessions at same clock time'}
-          },200,{"cache-control":"no-store"});
+          return json({ok:true,quote_valid:validation_errors.length===0,validation_errors,source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,market_state:meta.marketState||null},200,{"cache-control":"no-store"});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
       }
     }
@@ -910,8 +877,13 @@ async function routeApi(request, env, url) {
     const historyCacheKey=new Request(
       `${url.origin}/__cache/history-auto/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
     );
-    const historyCached=await historyCache.match(historyCacheKey);
-    if(historyCached) return historyCached;
+    // fresh=1 is used by Scanner/Detail latest-data requests.
+    // It must never reuse the 6-hour custom cache, otherwise an intraday
+    // request can pin yesterday's final bar after today's close.
+    if(!fresh){
+      const historyCached=await historyCache.match(historyCacheKey);
+      if(historyCached) return historyCached;
+    }
 
     const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
     if(yahoo.ok && yahoo.data.length>=150){
@@ -938,16 +910,22 @@ async function routeApi(request, env, url) {
         count:data.length,
         first:data[0]?.date||null,
         last:data.at(-1)?.date||null
-      },200,{"cache-control":"public,max-age=21600","x-history-cache":"miss"});
-      await historyCache.put(historyCacheKey,body.clone());
+      },200,{
+        "cache-control":fresh?"no-store":"public,max-age=21600",
+        "x-history-cache":fresh?"bypass-fresh":"miss"
+      });
+      if(!fresh) await historyCache.put(historyCacheKey,body.clone());
       return body;
     }
 
     if(market!=="tpex"){
       const twse=await fetchTwseMonthlyHistory(code,startDate,endDate);
       if(twse.ok){
-        const body=json({...twse,mode:"fallback",latest_merge:"TWSE exact-date monthly",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null},200,{"cache-control":"public,max-age=21600","x-history-cache":"miss"});
-        await historyCache.put(historyCacheKey,body.clone());
+        const body=json({...twse,mode:"fallback",latest_merge:"TWSE exact-date monthly",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null},200,{
+          "cache-control":fresh?"no-store":"public,max-age=21600",
+          "x-history-cache":fresh?"bypass-fresh":"miss"
+        });
+        if(!fresh) await historyCache.put(historyCacheKey,body.clone());
         return body;
       }
     }
@@ -1151,16 +1129,7 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
-      try {
-        return await routeApi(request, env, url);
-      } catch (e) {
-        return json({
-          ok:false,
-          error:`API exception: ${String(e?.message||e)}`,
-          path:url.pathname,
-          version:"1.15.1"
-        },500,{"cache-control":"no-store"});
-      }
+      return routeApi(request, env, url);
     }
 
     if (env.ASSETS) {
@@ -1171,7 +1140,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.15.1");
+        headers.set("X-App-Version","1.14.2");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

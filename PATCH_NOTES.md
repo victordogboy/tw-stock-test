@@ -1,19 +1,31 @@
-# V1.15.1 — API JSON / Scanner hotfix
+# V1.14.2-R1 — clean rollback + latest-data repair
 
-修正全市場掃描按下後只顯示 `non-json` 的問題。
+Base is the clean V1.14.2 project.
 
-## Worker
-- 所有 `/api/*` 路由加入最外層 try/catch。
-- 即使 Worker/上游發生例外，也一定回 JSON：
-  - error
-  - path
-  - version
-- 不再讓 Cloudflare 預設 HTML 500 頁面傳回 Scanner。
+This rebuild intentionally DOES NOT include V1.15.0 / V1.15.1 changes:
+- no Action Score
+- no Confidence score
+- no 5-day intraday-volume-profile change
+- no V1.15 scanner/API refactor
 
-## Scanner
-- `getJSON()` 改為先讀文字、再明確 JSON.parse。
-- API 失敗自動重試最多 3 次。
-- 每次加入 cache-buster，避免拿到錯誤快取。
-- 非 JSON 時會顯示 HTTP status、API 路徑、content-type、回應片段。
-- 開始新掃描時先清掉舊榜單/舊 Universe 統計，避免舊畫面讓人誤以為本次 Universe 已成功。
-- 若仍失敗，會顯示真正是哪個 API 出錯，不再只顯示 `non-json`。
+Only latest-data behavior is repaired:
+
+1. `/api/history/auto?fresh=1`
+   - bypasses the Worker's 6-hour history cache
+   - returns `cache-control: no-store`
+   - is not written back into the 6-hour cache
+
+2. Detail page
+   - requests fresh history first
+   - Scanner localStorage snapshot becomes fallback only
+   - therefore an old Scanner snapshot cannot keep the formal audit on 9/10 after 9/11 has completed
+
+3. Full-market Scanner
+   - all TWSE / TPEx history requests use `fresh=1`
+   - watchlist update uses `fresh=1`
+   - diagnostic history uses `fresh=1`
+
+4. TWSE `STOCK_DAY`
+   - request includes a cache-buster to avoid stale intermediary monthly responses
+
+Scoring/model behavior remains V1.14.2.

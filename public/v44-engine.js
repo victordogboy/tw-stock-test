@@ -825,64 +825,6 @@ function entryEngine(rows,R){
     setupPart:0,momentum:opportunity,earlyBonus:0,earlyReasons:[]
   };
 }
-
-function coreLatestDate(arr){
-  if(!Array.isArray(arr)||!arr.length)return null;
-  return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||null;
-}
-function coreChipFreshness(arr,target,prevDate){
-  const d=coreLatestDate(arr);
-  if(!d)return 0;
-  if(d>=target)return 10;
-  if(prevDate&&d>=prevDate)return 8;
-  return 4;
-}
-function decisionConfidence(rows,m,i,d,meta={}){
-  const n=rows?.length||0;
-  let score=n>=180?15:n>=120?12:n>=65?8:0;
-  const lastRow=rows?.at?.(-1)||{};
-  const prevRow=rows?.at?.(-2)||lastRow;
-  const target=String(meta.chipBaseDate||lastRow.date||'');
-  const priceOK=Number.isFinite(Number(lastRow.close))&&Number(lastRow.close)>0;
-  score+=priceOK?20:0;
-  score+=coreChipFreshness(m,target,String(prevRow.date||''));
-  score+=coreChipFreshness(i,target,String(prevRow.date||''));
-  score+=coreChipFreshness(d,target,String(prevRow.date||''));
-  const liveLike=meta.mode==='live'||meta.mode==='scenario';
-  score+=liveLike?(meta.quoteValid===false?0:15):15;
-  score+=liveLike?Math.round(10*Math.max(0,Math.min(1,Number(meta.volumeConfidence??.6)))):10;
-  if(Number.isFinite(Number(meta.finmindCompleteness))) score+=Math.round(Math.max(0,Math.min(100,Number(meta.finmindCompleteness)))*.10);
-  else score+=(m?.length&&i?.length&&d?.length)?10:(m?.length||i?.length||d?.length)?6:3;
-  return Math.max(0,Math.min(100,Math.round(score)));
-}
-function buildScorePacket(rows,m=[],i=[],d=[],meta={}){
-  const R=combineScores(rows,m,i,d);
-  const E=entryEngine(rows,R);
-  R.entry=E;
-  const setup=Math.round(Number(R.quality)||0);
-  const opportunity=Math.round(Number(E.opportunity)||0);
-  const entry=Math.round(Number(E.score)||0);
-  const hold=Math.round(Number(E.hold)||0);
-  const risk=Number(R.market?.risk);
-  const hardBroken=!!R.market?.hardBroken;
-  const rawAction=Math.round(entry*.40+setup*.30+opportunity*.30);
-  const gateReasons=[];
-  if(entry<62)gateReasons.push('Entry<62');
-  if(Number.isFinite(risk)&&risk>7)gateReasons.push('Risk>7%');
-  if(hardBroken)gateReasons.push('HardBroken');
-  let action=rawAction;
-  if(entry<62||Number.isFinite(risk)&&risk>7) action=Math.min(action,59);
-  if(hardBroken) action=Math.min(action,49);
-  action=Math.max(0,Math.min(100,action));
-  const confidence=decisionConfidence(rows,m,i,d,meta);
-  return {
-    R,E,setup,opportunity,entry,hold,action,actionRaw:rawAction,confidence,
-    gateOK:gateReasons.length===0,gateReasons,risk,hardBroken,
-    persistence:Math.round(Number(E.persistence)||0),
-    state:E.state||'',position:E.position||'0%'
-  };
-}
-
 function maProjection(rows,n,scenario){
   const cur=ma(rows,n),ded=rows.length>=n?rows[rows.length-n].close:NaN;
   const next=cur+(scenario-ded)/n;
