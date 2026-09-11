@@ -1,37 +1,26 @@
-# V1.16.0-R1 — Stable R3 + Detail Action only
+# V1.16.0-R2 — 0 元假資料修正
 
-基底：確認穩定的 V1.14.2-R3。
+基底：V1.14.2-R3。
 
-本版只做兩件事：
+真正原因：
+Yahoo/TWSE 若回傳 null / `--` 價格，舊程式會經過 `Number(null)` 或 `Number('')`
+轉成 0。接著 Scanner 把最後一根 K 的 close=0 當成真實股價，因此大量股票被標記：
 
-1. 個股頁新增 Action。
-2. 全站標題明確顯示版本：`V1.16.0-R1｜基底 V1.14.2-R3`。
+`低於最低股價`
 
-## Action
-預設：
-- Entry 40%
-- Setup 30%
-- Opportunity 30%
+這不是被封鎖，也不是 Action 造成。
 
-使用者可自由輸入三個比重。
-只有三者總和 = 100% 時才計算 Action。
-若不是 100%，Action 顯示 `—` 並提示修正。
+## 修正
+- Yahoo history：close 必須 > 0 才保留。
+- TWSE monthly：close 必須 > 0 才保留。
+- `roundTwPrice(null)` 不再變成 0。
+- `numTW('--')` 不再變成 0。
+- Scanner 再加一層防守：close<=0 的 K 棒先移除，再做最低股價篩選。
+- 真正低於最低股價時，錯誤訊息會顯示實際 close。
 
-公式：
-`Action = Entry×Entry權重 + Setup×Setup權重 + Opportunity×Opportunity權重`
-
-權重儲存在瀏覽器 localStorage，重新整理後仍保留。
-
-## 刻意不做
-- Scanner 不新增 Action
-- Scanner 不新增 Confidence
-- 不修改 Scanner worker
-- 不修改 Scanner formalScore
-- 不修改 FinMind recheck
-- 不修改 Live 現價重評
-- 不修改 Worker
-- 不修改 V4.4 Engine
-- 不修改 13:30 收盤後正式 K 升格
-- 不新增 Confidence
-
-也就是：Scanner 行為維持 V1.14.2-R3，只在個股頁增加 Action UI。
+## 功能
+- Scanner 維持 R3，不加入 Action / Confidence。
+- 個股頁只新增 Action。
+- Action 權重可自行輸入，Entry / Setup / Opportunity 三者總和必須 = 100%。
+- 預設 40 / 30 / 30。
+- 所有標題顯示 `V1.16.0-R2｜基底 V1.14.2-R3`。

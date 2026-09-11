@@ -351,7 +351,7 @@ async function fetchYahooHistory(code, market, startDate, endDate) {
           adj_close:adj?.[i]??null,
           volume:q.volume?.[i]??null,
           symbol
-        })).filter(x=>Number.isFinite(x.close));
+        })).filter(x=>Number.isFinite(x.close) && x.close>0);
         if(data.length) return {ok:true,source:"Yahoo Finance chart",symbol,data,attempts};
       }catch(e){
         attempts.push({source:"yahoo",host,symbol,error:String(e?.message||e)});
@@ -367,7 +367,10 @@ function rocToIso(s){
   return `${Number(m[1])+1911}-${m[2]}-${m[3]}`;
 }
 function numTW(v){
-  const n=Number(String(v??"").replaceAll(",","").replaceAll("--","").trim());
+  if(v===null||v===undefined||v==='') return null;
+  const s=String(v).replaceAll(",","").replaceAll("--","").trim();
+  if(!s) return null;
+  const n=Number(s);
   return Number.isFinite(n)?n:null;
 }
 
@@ -382,6 +385,7 @@ function twTickSize(price){
   return 5;
 }
 function roundTwPrice(price){
+  if(price===null||price===undefined||price==='') return null;
   const p=Number(price);
   if(!Number.isFinite(p)) return null;
   const tick=twTickSize(p);
@@ -424,7 +428,7 @@ async function fetchTwseMonthlyHistory(code,startDate,endDate){
     }catch(e){attempts.push({source:"twse-monthly",month:ds.slice(0,6),error:String(e?.message||e)})}
     cursor.setMonth(cursor.getMonth()+1);
   }
-  const map=new Map(rows.filter(x=>x.date>=startDate&&x.date<=endDate).map(x=>[x.date,x]));
+  const map=new Map(rows.filter(x=>x.date>=startDate&&x.date<=endDate&&Number.isFinite(x.close)&&x.close>0).map(x=>[x.date,x]));
   const data=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));
   return {ok:data.length>0,source:"TWSE STOCK_DAY monthly",data,attempts};
 }

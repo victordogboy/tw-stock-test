@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.16.0-R1｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</title>
+<title>台股 V1.16.0-R2｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.16.0-R1｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.16.0-R2｜基底 V1.14.2-R3 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -439,11 +439,13 @@ async function worker(item){
     const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE');
     const market=item.market||'twse';
     const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${start}&end_date=${end}&fresh=1&_=${Date.now()}`);
-    let hist=(j.data||[]).map(x=>({...x,open:twPrice(x.open),high:twPrice(x.high),low:twPrice(x.low),close:twPrice(x.close)}));
+    let hist=(j.data||[])
+      .map(x=>({...x,open:twPrice(x.open),high:twPrice(x.high),low:twPrice(x.low),close:twPrice(x.close)}))
+      .filter(x=>Number.isFinite(Number(x.close)) && Number(x.close)>0);
     if(hist.length<180)throw new Error(`歷史K不足 ${hist.length}`);
     const lastBar=hist.at(-1)||{};
     const latestClose=n(lastBar.close,0), latestLots=n(lastBar.volume,0)/1000;
-    if(latestClose<SCAN_FILTERS.minClose)throw new Error('低於最低股價');
+    if(latestClose<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${latestClose}`);
     if(SCAN_FILTERS.maxClose>0&&latestClose>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
     if(latestLots<SCAN_FILTERS.minLots)throw new Error('低於最低成交量');
     const s=formalScore(hist);
@@ -540,7 +542,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.16.0-R1 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.16.0-R2 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
