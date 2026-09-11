@@ -1097,7 +1097,7 @@ async function routeApi(request, env, url) {
       if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r13"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r14"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}

@@ -1,25 +1,33 @@
-# V1.17.0-R13 — FinMind Token Scope Fix
+# V1.17.0-R14 — Detail 籌碼與現價區恢復
 
-R12 的問題已定位為程式 bug，不是先判定 Token 次數用完。
+這版只處理使用者截圖暴露的兩個 Detail 問題。
 
-## Root cause
-R12 在 `export default.fetch()` 裡宣告：
-`const EFFECTIVE_FINMIND_TOKEN = ...`
+## 1. Scanner 100%，Detail 卻空白
+Root cause：
+R8 之後手動按「分析」時，Detail 被刻意禁止使用 Scanner snapshot。
+因此 Scanner 已經拿到 100% 籌碼，進個股頁後強制重抓若 FinMind/TWSE 只回部分資料，
+Detail 反而會把完整資料洗成 0~2 日。
 
-但真正處理 `/api/...` 的 `routeApi()` 是另一個函式 scope，
-卻直接使用 `EFFECTIVE_FINMIND_TOKEN`。
+R14：
+- Scanner snapshot 變成 Detail 的 baseline。
+- 每次「分析」仍真的重抓 Hybrid/FinMind/TWSE。
+- fresh 結果與 baseline 依日期合併。
+- 同日期 fresh 覆蓋 snapshot。
+- Detail 永遠不應比 Scanner 點進來時的資料更差。
 
-結果：
-- `/api/finmind/status` 會 ReferenceError
-- `/api/chips/hybrid` 內的 FinMind token/cache 邏輯也會 ReferenceError
-- 前端因此顯示「TOKEN 狀態確認失敗」
-- Scanner 籌碼完整度大量變成 0%
+## 2. 現貨狀況 / 更新按鈕消失
+Root cause：
+TODAY 卡原本 `display:none`，只有 `/api/intraday` 成功後才顯示。
+Yahoo intraday 一旦 503/失敗，整張卡連同「更新盤中資料」按鈕一起消失。
 
-## R13
-- 把 `EFFECTIVE_FINMIND_TOKEN` 移到 `routeApi()` 內建立。
-- 所有 status / hybrid / recheck / FinMind query 共用同一個有效 Token。
-- Browser Token 仍透過 Authorization Bearer 傳入。
-- 若瀏覽器未輸入 Token，才退回 Cloudflare Secret。
-- Token/匿名 cache 分流保留。
+R14：
+- 分析完成就先顯示 TODAY 卡。
+- intraday 成功：顯示真正現價與 Live score。
+- intraday 失敗：顯示最近正式日K作 fallback，並保留「更新盤中資料」按鈕讓使用者重試。
+- 不再因 Yahoo 暫時失敗把整區藏掉。
 
-這一版只修 Token scope，不改 V4.4、Scanner 排名、融資歷史演算法。
+## 保留
+- R13 Token 修正
+- R10 Scanner intraday 503 fallback
+- R9 上市融資歷史 MI_MARGN fallback
+- V4.4 / Action 不變
