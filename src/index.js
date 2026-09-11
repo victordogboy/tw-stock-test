@@ -755,6 +755,32 @@ async function routeApi(request, env, url) {
     }
   }
 
+
+  if (url.pathname === "/api/audit/tpex-transport") {
+    const path=(url.searchParams.get("path")||"tpex_mainboard_daily_close_quotes").replace(/^\/+/,"");
+    if(!/^[A-Za-z0-9_.-]+$/.test(path)) return json({ok:false,error:"invalid path"},400);
+    const urls=[
+      `https://www.tpex.org.tw/openapi/v1/${path}`,
+      `https://www.tpex.org.tw/openapi/${path}`,
+      `https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&o=json&d=115/09/11&s=0,asc,0`
+    ];
+    const out=[];
+    for(const upstream of urls){
+      const t0=Date.now();
+      try{
+        const r=await fetch(upstream,{redirect:"manual",headers:{
+          "accept":"application/json,text/plain,*/*",
+          "accept-language":"zh-TW,zh;q=0.9,en;q=0.7",
+          "referer":"https://www.tpex.org.tw/",
+          "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+        }});
+        const text=await r.text();
+        out.push({upstream,status:r.status,location:r.headers.get("location"),content_type:r.headers.get("content-type"),bytes:text.length,ms:Date.now()-t0,preview:text.slice(0,180)});
+      }catch(e){out.push({upstream,status:"FETCH",ms:Date.now()-t0,error:String(e?.message||e)})}
+    }
+    return json({ok:true,path,attempts:out},200,{"cache-control":"no-store"});
+  }
+
   if (url.pathname === "/api/audit/finmind-catalog") {
     const upstream="https://finmind.github.io/llms-full.txt";
     try{
