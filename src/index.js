@@ -653,6 +653,115 @@ async function routeApi(request, env, url) {
     return new Response(null, { status: 204, headers: CORS });
   }
 
+
+  // R6 full official API audit. Fixed upstream bases only; no arbitrary URL proxy.
+  if (url.pathname === "/api/audit/swagger") {
+    const source=(url.searchParams.get("source")||"").toLowerCase();
+    const upstream=source==="twse"
+      ? "https://openapi.twse.com.tw/v1/swagger.json"
+      : source==="tpex"
+      ? "https://www.tpex.org.tw/openapi/swagger.json"
+      : null;
+    if(!upstream) return json({ok:false,error:"source must be twse or tpex"},400);
+    try{
+      const r=await fetch(upstream,{headers:{"accept":"application/json","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R6"}});
+      const text=await r.text();
+      if(!r.ok) return json({ok:false,source,upstream,status:r.status,error:text.slice(0,300)},502);
+      let j=null; try{j=JSON.parse(text)}catch{}
+      if(!j) return json({ok:false,source,upstream,error:"swagger is not JSON"},502);
+      const gets=[];
+      for(const [p,ops] of Object.entries(j.paths||{})){
+        if(ops && ops.get) gets.push({path:p,summary:ops.get.summary||ops.get.description||"",tags:ops.get.tags||[]});
+      }
+      return json({ok:true,source,upstream,count:gets.length,gets,info:j.info||null},{"cache-control":"public,max-age=3600"});
+    }catch(e){ return json({ok:false,source,upstream,error:String(e?.message||e)},502); }
+  }
+
+  if (url.pathname === "/api/audit/endpoint") {
+    const source=(url.searchParams.get("source")||"").toLowerCase();
+    let path=url.searchParams.get("path")||"";
+    const code=url.searchParams.get("code")||"";
+    if(!["twse","tpex"].includes(source)) return json({ok:false,error:"source must be twse or tpex"},400);
+    if(!/^\/?[A-Za-z0-9_./-]+$/.test(path) || path.includes("..")) return json({ok:false,error:"invalid path"},400);
+    if(!path.startsWith("/")) path="/"+path;
+    const base=source==="twse"?"https://openapi.twse.com.tw/v1":"https://www.tpex.org.tw/openapi/v1";
+    const upstream=base+path;
+    const t0=Date.now();
+    try{
+      const r=await fetch(upstream,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R6"}});
+      const text=await r.text();
+      let j=null; try{j=JSON.parse(text)}catch{}
+      const ms=Date.now()-t0;
+      if(!r.ok) return json({ok:false,source,path,upstream,status:r.status,ms,error:text.slice(0,400)},502,{"cache-control":"no-store"});
+      const arr=Array.isArray(j)?j:(Array.isArray(j?.data)?j.data:[]);
+      const rows=arr.length;
+      const samples=arr.slice(0,3);
+      const keys=[...new Set(samples.flatMap(x=>x&&typeof x==="object"?Object.keys(x):[]))].slice(0,80);
+      const roc=s=>{
+        s=String(s||"").trim();
+        let m=s.match(/^(\d{3})(\d{2})(\d{2})$/);
+        if(m) return `${Number(m[1])+1911}-${m[2]}-${m[3]}`;
+        m=s.match(/^(\d{3})\/(\d{1,2})\/(\d{1,2})$/);
+        if(m) return `${Number(m[1])+1911}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+        m=s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+        if(m) return `${m[1]}-${String(m[2]).padStart(2,"0")}-${String(m[3]).padStart(2,"0")}`;
+        return null;
+      };
+      const dateKeys=["Date","date","資料日期","日期","TradeDate","TradingDate","年月日","統計日期"];
+      let latest=null;
+      for(const row of arr){
+        if(!row||typeof row!=="object") continue;
+        for(const k of dateKeys){
+          const d=roc(row[k]);
+          if(d && (!latest||d>latest)) latest=d;
+        }
+      }
+      let matched=null;
+      if(code){
+        const codeKeys=["Code","code","股票代號","證券代號","SecuritiesCompanyCode","stock_id","StockNo","公司代號"];
+        matched=arr.find(row=>{
+          if(!row||typeof row!=="object") return false;
+          for(const k of codeKeys) if(String(row[k]??"").trim()===String(code)) return true;
+          return false;
+        })||null;
+      }
+      return json({
+        ok:true,source,path,upstream,status:r.status,ms,rows,latest_date:latest,
+        matched:matched?Object.fromEntries(Object.entries(matched).slice(0,80)):null,
+        keys,sample:samples
+      },200,{"cache-control":"no-store"});
+    }catch(e){
+      return json({ok:false,source,path,upstream,status:"FETCH",ms:Date.now()-t0,error:String(e?.message||e)},502,{"cache-control":"no-store"});
+    }
+  }
+
+  if (url.pathname === "/api/audit/finmind-catalog") {
+    const upstream="https://finmind.github.io/llms-full.txt";
+    try{
+      const r=await fetch(upstream,{headers:{"accept":"text/plain","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R6"}});
+      const text=await r.text();
+      if(!r.ok) return json({ok:false,status:r.status,error:text.slice(0,300)},502);
+      // Catalog names used by Taiwan market datasets. Deduplicate while preserving lexical order.
+      const names=[...new Set(text.match(/\bTaiwan(?:Stock|Futures|Option|Asset|Business|Exchange|Various)[A-Za-z0-9_]+\b/g)||[])].sort();
+      return json({ok:true,source:"FinMind llms-full.txt",count:names.length,datasets:names},200,{"cache-control":"public,max-age=86400"});
+    }catch(e){return json({ok:false,error:String(e?.message||e)},502);}
+  }
+
+  if (url.pathname === "/api/audit/tdcc") {
+    const upstream="https://www.tdcc.com.tw/portal/zh/smWeb/qryStock";
+    const t0=Date.now();
+    try{
+      const r=await fetch(upstream,{headers:{"accept":"text/html","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R6"}});
+      const text=await r.text();
+      return json({
+        ok:r.ok,status:r.status,ms:Date.now()-t0,upstream,
+        bytes:text.length,
+        has_shareholding_spread:/股權分散|持股分級|集保戶/.test(text),
+        note:"TDCC 此頁為週頻股權分散查詢頁，非公開 Swagger/OpenAPI；R6 僅驗證官方頁可達性，不偽造 API。"
+      },r.ok?200:502,{"cache-control":"no-store"});
+    }catch(e){return json({ok:false,ms:Date.now()-t0,upstream,error:String(e?.message||e)},502);}
+  }
+
   if (url.pathname === "/api/health") {
     return json({
       ok: true,
