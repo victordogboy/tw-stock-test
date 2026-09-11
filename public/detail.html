@@ -411,9 +411,35 @@ async function api(dataset,data_id='',start_date='',end_date=''){
       const r=await fetch('/api/history/auto?'+q.toString(),{cache:'no-store'});
       const j=await r.json();
       if(!r.ok || j.ok===false || !(j.data||[]).length) throw new Error(j.error||`TaiwanStockPrice HTTP ${r.status}`);
-      window.__priceSource=`${j.source||'history/auto'}｜fresh｜last ${j.last||latestDataDate(j.data)||'—'}`;
-      if(snap) window.__scannerAuditSnapshot=snap;
-      return (j.data||[]).map(x=>({
+      let priceData=[...(j.data||[])];
+      if(snap && Array.isArray(snap.history) && snap.history.length){
+        window.__scannerAuditSnapshot=snap;
+        const apiLast=latestDataDate(priceData)||'';
+        const snapLast=latestDataDate(snap.history)||'';
+        const now=taipeiNowParts?.();
+        // Only promote a scanner row after the Taiwan session is closed.
+        if(snapLast>apiLast && now && now.minutes>=13*60+30){
+          const sr=snap.history.find(x=>String(x.date)===String(snapLast));
+          if(sr){
+            priceData.push({
+              date:sr.date,
+              open:sr.open,
+              high:sr.high ?? sr.max,
+              low:sr.low ?? sr.min,
+              close:sr.close,
+              volume:sr.volume ?? sr.Trading_Volume ?? 0,
+              turnover:sr.turnover ?? sr.Trading_money ?? 0
+            });
+            priceData.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+            window.__priceSource=`Scanner completed-day snapshot + ${j.source||'history/auto'}｜last ${snapLast}`;
+          }
+        }else{
+          window.__priceSource=`${j.source||'history/auto'}｜fresh｜last ${j.last||latestDataDate(priceData)||'—'}`;
+        }
+      }else{
+        window.__priceSource=`${j.source||'history/auto'}｜fresh｜last ${j.last||latestDataDate(priceData)||'—'}`;
+      }
+      return priceData.map(x=>({
         date:x.date, open:twPrice(x.open), max:twPrice(x.high), min:twPrice(x.low), close:twPrice(x.close),
         Trading_Volume:x.volume, Trading_money:x.turnover||0
       }));
@@ -1842,6 +1868,63 @@ setTimeout(refreshFuturesBadge,700);
     const est=linear*conf + base*(1-conf);
     return {volume:Math.max(Number(currentVol||0),Math.round(est)),fraction:frac,confidence:conf,elapsed};
   }
+  function promoteCompletedIntradayBar(b,j){
+    if(!STATE?.prices?.length || !b)return false;
+    if(isMarketOpen(j,b))return false;
+    if(j?.quote_valid===false || quoteErrors(j,b).length)return false;
+
+    const date=String(b.date||'');
+    const now=taipeiNowParts();
+    if(!date || date>now.date)return false;
+
+    const row={
+      date,
+      open:twPrice(b.open),
+      high:twPrice(b.high),
+      low:twPrice(b.low),
+      close:twPrice(b.close),
+      volume:Number(b.volume||0),
+      money:0,
+      finalizedIntraday:true
+    };
+    if(!row.open||!row.high||!row.low||!row.close||row.volume<0)return false;
+
+    const lastFormal=STATE.prices.at(-1);
+    const lastDate=String(lastFormal?.date||'');
+
+    if(date>lastDate){
+      STATE.prices.push(row);
+    }else if(date===lastDate){
+      // After close the 1m aggregate is the most recent complete O/H/L/C/V snapshot.
+      STATE.prices[STATE.prices.length-1]={...lastFormal,...row};
+    }else{
+      return false;
+    }
+
+    STATE.prices.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    STATE.auditIndex=STATE.prices.length-1;
+
+    const slider=byId('auditSlider');
+    if(slider){
+      slider.max=STATE.auditIndex;
+      slider.value=STATE.auditIndex;
+    }
+
+    try{render()}catch(e){console.warn('finalized intraday promotion render failed',e)}
+
+    const pDate=STATE.prices.at(-1)?.date||date;
+    const mDate=STATE.margin?.length?STATE.margin.at(-1).date:'—';
+    const iDate=STATE.inst?.length?STATE.inst.at(-1).date:'—';
+    const dDate=STATE.daytrade?.length?STATE.daytrade.at(-1).date:'—';
+    if(STATE.stock){
+      setBanner(
+        `✅ ${STATE.stock.stock_id} ${STATE.stock.stock_name} 完整分析完成｜最新K：${pDate}｜`+
+        `股價來源：Yahoo 1m 收盤完成K｜融資 ${mDate}｜法人 ${iDate}｜當沖 ${dDate}`,
+        'ok'
+      );
+    }
+    return true;
+  }
   function priorFormalIndex(date){
     if(!STATE?.prices?.length)return -1;
     let idx=-1;
@@ -1920,8 +2003,17 @@ setTimeout(refreshFuturesBadge,700);
         const card=byId('liveScoreCard');if(card)card.style.display='none';
         setRefreshUi(false,'盤中報價驗證失敗；正式盤後資料仍可正常使用');return;
       }
-      byId('todayMeta').textContent=`${j.source||'Yahoo 1分K'}｜${j.market_state||'—'}｜${marketOpen?'盤中：正式區固定上一完成交易日':'已收盤/非盤中：正式區使用最新完成日K'}`;
-      const live=makeLiveScore(b,j);
+      byId('todayMeta').textContent=`${j.source||'Yahoo 1分K'}｜${j.market_state||'—'}｜${marketOpen?'盤中：正式區固定上一完成交易日':'已收盤：今日 1 分K 併入正式日K'}`;
+
+      // After 13:30, if Yahoo/TWSE daily history still ends at yesterday,
+      // promote today's completed 1m aggregate into the formal K-line immediately.
+      // This keeps TPEX/TWSE Detail aligned with the Scanner without waiting for the daily endpoint.
+      let promoted=false;
+      if(!marketOpen){
+        promoted=promoteCompletedIntradayBar(b,j);
+        const card=byId('liveScoreCard');
+        if(card)card.style.display='none';
+      }
 
       // Existing chart live HUD.
       const pct=Number(b.change_pct),dir=pct>0?'up':pct<0?'down':'flat';
@@ -1938,9 +2030,17 @@ setTimeout(refreshFuturesBadge,700);
       const livePill=byId('liveToolbarPill');
       if(livePill){
         livePill.style.display='inline-block';
-        livePill.textContent=`${marketOpen?'盤中':'最新'}：${b.close??'—'} (${pctText})`;
+        livePill.textContent=`${marketOpen?'盤中':'收盤'}：${b.close??'—'} (${pctText})`;
       }
 
+      if(!marketOpen){
+        const formalDate=STATE.prices?.at(-1)?.date||'—';
+        byId('todayTitle').textContent=`${b.date} 今日收盤資訊`;
+        setRefreshUi(false,`${promoted?'已更新':'已確認'}正式日K：${formalDate}｜${new Date().toLocaleTimeString('zh-TW',{hour12:false})}`);
+        return;
+      }
+
+      const live=makeLiveScore(b,j);
       if(live){
         const card=byId('liveScoreCard');
         if(card)card.style.display='block';
