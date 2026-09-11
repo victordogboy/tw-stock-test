@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.16.0 · V4.4 個股完整審計</title>
+<title>台股 V1.16.0-R1｜基底 V1.14.2-R3 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -109,13 +109,21 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .live-refresh-btn{padding:8px 12px;border-radius:9px;border:1px solid #5472a4;background:#1c3154;color:#eef5ff;font-weight:900;cursor:pointer}
 .live-refresh-btn:disabled{opacity:.55;cursor:wait}
 .live-refresh-status{font-size:11px;color:#9fb0ca}
+
+.action-weight-wrap{margin-top:8px;padding-top:8px;border-top:1px solid #263b5e}
+.action-weight-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.action-weight-row label{font-size:11px;color:#9fb0ca}
+.action-weight-row input{width:72px;padding:6px 7px;border-radius:7px;border:1px solid #38537b;background:#081425;color:#edf3ff}
+.action-weight-sum{font-size:12px;font-weight:800}
+.action-weight-ok{color:#37d69b}
+.action-weight-bad{color:#ff6d7b}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.16.0 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.16.0-R1｜基底 V1.14.2-R3 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
@@ -322,6 +330,53 @@ const avg=a=>a.length?sum(a)/a.length:NaN;
 const last=a=>a[a.length-1];
 const uniq=a=>[...new Set(a)];
 const signClass=x=>x>0?'green':x<0?'red':'yellow';
+
+
+const ACTION_WEIGHT_KEY='twq_action_weights_v1160r1';
+function getActionWeights(){
+  const fallback={entry:40,setup:30,opportunity:30};
+  try{
+    const x=JSON.parse(localStorage.getItem(ACTION_WEIGHT_KEY)||'null');
+    if(!x)return fallback;
+    const entry=Number(x.entry),setup=Number(x.setup),opportunity=Number(x.opportunity);
+    if(![entry,setup,opportunity].every(Number.isFinite))return fallback;
+    return {entry,setup,opportunity};
+  }catch(e){return fallback}
+}
+function calcActionScore(setup,opportunity,entry,w=getActionWeights()){
+  const sum=Number(w.entry)+Number(w.setup)+Number(w.opportunity);
+  if(Math.abs(sum-100)>1e-9)return null;
+  return Math.round(
+    Number(entry||0)*(Number(w.entry)/100)+
+    Number(setup||0)*(Number(w.setup)/100)+
+    Number(opportunity||0)*(Number(w.opportunity)/100)
+  );
+}
+function bindActionWeights(setup,opportunity,entry){
+  const e=$('actionWEntry'),s=$('actionWSetup'),o=$('actionWOpp');
+  const sumEl=$('actionWeightSum'),scoreEl=$('actionScoreValue'),msg=$('actionWeightMsg');
+  if(!e||!s||!o||!sumEl||!scoreEl)return;
+  const refresh=()=>{
+    const w={entry:Number(e.value),setup:Number(s.value),opportunity:Number(o.value)};
+    const sum=w.entry+w.setup+w.opportunity;
+    localStorage.setItem(ACTION_WEIGHT_KEY,JSON.stringify(w));
+    sumEl.textContent=`總和 ${Number.isFinite(sum)?sum.toFixed(sum%1?1:0):'—'}%`;
+    const valid=Number.isFinite(sum)&&Math.abs(sum-100)<1e-9&&[w.entry,w.setup,w.opportunity].every(v=>Number.isFinite(v)&&v>=0&&v<=100);
+    sumEl.className='action-weight-sum '+(valid?'action-weight-ok':'action-weight-bad');
+    if(!valid){
+      scoreEl.textContent='—';
+      scoreEl.className='big red';
+      if(msg)msg.textContent='權重總和必須等於 100%，每項需介於 0～100。';
+      return;
+    }
+    const score=calcActionScore(setup,opportunity,entry,w);
+    scoreEl.textContent=String(score);
+    scoreEl.className='big '+(scoreGrade(score)?.[1]||'');
+    if(msg)msg.textContent=`目前公式：Entry ${w.entry}% + Setup ${w.setup}% + Opportunity ${w.opportunity}%`;
+  };
+  [e,s,o].forEach(x=>x.addEventListener('input',refresh));
+  refresh();
+}
 
 function setBanner(msg,type='ok'){
   const b=$('banner'); b.className=`banner ${type}`; b.innerHTML=msg; b.style.display='block';
@@ -1366,7 +1421,7 @@ function render(){
   const m=cut(STATE.margin,date),i=cut(STATE.inst,date),d=cut(STATE.daytrade,date);
   if(rows.length<65){setBanner('這個審計日之前的歷史資料不足 60 個交易日，請把游標往右移。','warn');return}
   clearBanner();
-  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionScore=Math.round(Number(E.score||0)*0.40+Number(R.quality||0)*0.30+Number(E.opportunity||0)*0.30);const snapConf=Number(window.__scannerAuditSnapshot?.finmindCompleteness);const chipConf=Number(window.__chipStatus?.completeness);const confidenceScore=Number.isFinite(snapConf)&&snapConf>0?snapConf:(Number.isFinite(chipConf)&&chipConf>0?chipConf:Math.round(([m.length,i.length,d.length].filter(Boolean).length/3)*100));
+  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionW=getActionWeights();const actionScore=calcActionScore(R.quality,E.opportunity,E.score,actionW);
   const a=R.market,o=R.optimal,cur=last(rows),grade=scoreGrade(a.score),qg=scoreGrade(R.quality),og=scoreGrade(o.score),eg=scoreGrade(E.score),hg=scoreGrade(E.hold);
   const kText=cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─';
   $('kColorPill').textContent=`K色：${kText}`;
@@ -1388,13 +1443,25 @@ function render(){
     <div class="card"><div class="label">Setup｜型態品質</div><div class="big ${qg[1]}">${R.quality}</div><div class="sub">底部 ${R.bottom.score}｜發動 ${R.ignition.score}｜趨勢 ${a.score}</div></div>
     <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
     <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
+    <div class="card">
+      <div class="label">Action｜自訂綜合進場</div>
+      <div class="big ${actionScore==null?'red':scoreGrade(actionScore)[1]}" id="actionScoreValue">${actionScore==null?'—':actionScore}</div>
+      <div class="sub" id="actionWeightMsg">權重總和必須等於 100%</div>
+      <div class="action-weight-wrap">
+        <div class="action-weight-row">
+          <label>Entry %<br><input id="actionWEntry" type="number" min="0" max="100" step="1" value="${actionW.entry}"></label>
+          <label>Setup %<br><input id="actionWSetup" type="number" min="0" max="100" step="1" value="${actionW.setup}"></label>
+          <label>Opportunity %<br><input id="actionWOpp" type="number" min="0" max="100" step="1" value="${actionW.opportunity}"></label>
+          <span id="actionWeightSum" class="action-weight-sum">總和 —%</span>
+        </div>
+      </div>
+    </div>
     <div class="card"><div class="label">Hold｜該審計日盤後</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
-    <div class="card"><div class="label">Action｜綜合進場</div><div class="big ${scoreGrade(actionScore)[1]}">${actionScore}</div><div class="sub">40% Entry + 30% Setup + 30% Opportunity</div></div>
-    <div class="card"><div class="label">Confidence｜資料可信度</div><div class="big ${scoreGrade(confidenceScore)[1]}">${confidenceScore}</div><div class="sub">沿用既有 FinMind 完整度；不參與交易分數計算</div></div>
     <div class="card"><div class="label">當日交易量｜隨回測日期更新</div>
       <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
       <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
     </div>`;
+  bindActionWeights(R.quality,E.opportunity,E.score);
   if(window.__scannerAuditSnapshot && String(window.__scannerAuditSnapshot.dataDate||'')===String(date)){
     const banner=$('banner');
     if(banner && !banner.textContent){
