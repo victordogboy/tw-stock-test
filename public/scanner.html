@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.17.0-R9｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
+<title>台股 V1.17.0-R10｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.17.0-R9｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
+<h1>台股 V1.17.0-R10｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -286,6 +286,8 @@ function renderWatchRows(rows=null){
 function renderWatchlist(){renderWatchRows()}
 const SCAN_STATE_KEY='twq_scan_state_v1100';
 let SCAN_TARGET_DATE=null;
+let SCAN_TARGET_SOURCE='';
+let SCAN_TARGET_DEGRADED=false;
 let SCAN_PROVISIONAL_COUNT=0;
 let SCAN_FORMALIZED_COUNT=0;
 let SCAN_LATEST_MISSING=0;
@@ -586,11 +588,42 @@ $('scanBtn').onclick=async()=>{
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='確認本輪市場資料日…';
-  const targetQuote=await getJSON(`/api/intraday?code=2330&market=twse&_=${Date.now()}`);
-  SCAN_TARGET_DATE=targetQuote?.bar?.date||null;
+  SCAN_TARGET_DATE=null; SCAN_TARGET_SOURCE=''; SCAN_TARGET_DEGRADED=false;
   SCAN_PROVISIONAL_COUNT=0; SCAN_FORMALIZED_COUNT=0; SCAN_LATEST_MISSING=0;
-  if(!SCAN_TARGET_DATE) throw new Error('無法確認本輪市場資料日');
-  $('status').textContent=`Target ${SCAN_TARGET_DATE}｜取得上市＋上櫃完整 Universe…`;
+  const targetErrors=[];
+  try{
+    const targetQuote=await getJSON(`/api/intraday?code=2330&market=twse&_=${Date.now()}`);
+    const d=String(targetQuote?.bar?.date||'');
+    if(/^\d{4}-\d{2}-\d{2}$/.test(d)){SCAN_TARGET_DATE=d;SCAN_TARGET_SOURCE='Yahoo 1m'}
+    else targetErrors.push('Yahoo 1m 無有效日期');
+  }catch(e){targetErrors.push('Yahoo 1m '+(e.message||e))}
+
+  if(!SCAN_TARGET_DATE){
+    try{
+      const end=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
+      const start=new Date(Date.now()-45*864e5).toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
+      const h=await getJSON(`/api/history/auto?code=2330&market=twse&start=${start}&end=${end}&fresh=1&_=${Date.now()}`);
+      const rows=Array.isArray(h?.data)?h.data:(Array.isArray(h?.prices)?h.prices:[]);
+      const d=String(rows.at(-1)?.date||h?.last_date||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(d)){SCAN_TARGET_DATE=d;SCAN_TARGET_SOURCE='TWSE fresh 2330'}
+      else targetErrors.push('TWSE fresh 無有效日期');
+    }catch(e){targetErrors.push('TWSE fresh '+(e.message||e))}
+  }
+
+  if(!SCAN_TARGET_DATE){
+    try{
+      const end=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
+      const start=new Date(Date.now()-45*864e5).toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
+      const h=await getJSON(`/api/history/auto?code=2330&market=twse&start=${start}&end=${end}&_=${Date.now()}`);
+      const rows=Array.isArray(h?.data)?h.data:(Array.isArray(h?.prices)?h.prices:[]);
+      const d=String(rows.at(-1)?.date||h?.last_date||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(d)){SCAN_TARGET_DATE=d;SCAN_TARGET_SOURCE='Cached daily';SCAN_TARGET_DEGRADED=true}
+      else targetErrors.push('Cached daily 無有效日期');
+    }catch(e){targetErrors.push('Cached daily '+(e.message||e))}
+  }
+
+  if(!SCAN_TARGET_DATE) throw new Error('無法確認本輪市場資料日｜'+targetErrors.join('｜'));
+  $('status').textContent=`Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜取得上市＋上櫃完整 Universe…`;
   const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),keepN=Math.max(1,n($('maxStocks').value,200));
   SCAN_FILTERS={minClose,maxClose,minLots};
   const [j,fj]=await Promise.all([getJSON('/api/market/universe'),getJSON('/api/futures/stock-list').catch(()=>({codes:[],source:'unavailable'}))]);
@@ -621,7 +654,7 @@ $('scanBtn').onclick=async()=>{
   // Only the retained candidates hit TWSE exact-date formal history.
   // This fixes the 9/10 Stage1 bias without repeating R1's 2271-stock TWSE overload.
   $('prog').value=0;
-  $('status').textContent=`第一階段完成｜Target ${SCAN_TARGET_DATE}｜保留 ${retained.length}，開始正式日K重評…`;
+  $('status').textContent=`第一階段完成｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE})｜保留 ${retained.length}，開始正式日K重評…`;
   await formalizeListedPool(retained,Math.min(3,n($('concurrency').value,3)));
   retained.sort((a,b)=>decisionScore(b,'entry')-decisionScore(a,'entry'));
 
@@ -647,8 +680,8 @@ $('scanBtn').onclick=async()=>{
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
-  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE}｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R9 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
+  $('status').textContent=`V1.17.0-R10 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
