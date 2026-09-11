@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.17.0-R3｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
+<title>台股 V1.17.0-R4｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.17.0-R3｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
+<h1>台股 V1.17.0-R4｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -438,6 +438,8 @@ async function stage1CurrentHistory(code,market,start,end){
     .filter(x=>Number.isFinite(Number(x.close))&&Number(x.close)>0);
   if(hist.length<180) throw new Error(`歷史K不足 ${hist.length}`);
   const last=hist.at(-1);
+  const lastFormalDate=last?.date||null;
+  const lastFormalVolume=Math.max(0,n(last?.volume,0));
   let provisional=false,liveSource=null;
 
   if(SCAN_TARGET_DATE && String(last?.date||'')<String(SCAN_TARGET_DATE)){
@@ -453,7 +455,7 @@ async function stage1CurrentHistory(code,market,start,end){
     provisional=true; liveSource=iq.source||'Yahoo Finance 1m';
     SCAN_PROVISIONAL_COUNT++;
   }
-  return {hist,source:j.source,provisional,liveSource};
+  return {hist,source:j.source,provisional,liveSource,lastFormalDate,lastFormalVolume};
 }
 
 async function formalizeListedOne(r){
@@ -498,10 +500,15 @@ async function worker(item){
     const sh=await stage1CurrentHistory(code,market,start,end);
     let hist=sh.hist;
     const lastBar=hist.at(-1)||{};
-    const latestClose=n(lastBar.close,0), latestLots=n(lastBar.volume,0)/1000;
+    const latestClose=n(lastBar.close,0);
+    // Audit proved Yahoo 1m volume can materially undercount official Daily volume.
+    // If Target-day K is provisional, use the previous completed Daily volume only
+    // for the liquidity filter. Target-day price/structure still uses the latest K.
+    const liquidityVolume=sh.provisional?sh.lastFormalVolume:n(lastBar.volume,0);
+    const liquidityLots=liquidityVolume/1000;
     if(latestClose<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${latestClose}`);
     if(SCAN_FILTERS.maxClose>0&&latestClose>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
-    if(latestLots<SCAN_FILTERS.minLots)throw new Error('低於最低成交量');
+    if(liquidityLots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${liquidityLots.toFixed(0)}張（${sh.provisional?'前一正式日':'正式日'}）`);
     const s=formalScore(hist);
     for(const k of ['setup','opportunity','entry','hold']){
       const v=Number(s[k]);
@@ -519,14 +526,19 @@ async function worker(item){
       historySource:sh.source,
       stage1Provisional:sh.provisional,
       stage1LiveSource:sh.liveSource,
+      liquidityDate:sh.provisional?sh.lastFormalDate:last.date,
+      liquidityLots:Math.round(liquidityLots),
       dataDate:last.date,
-      yahooLast:j.last||null,
+      yahooLast:null,
       latestTwseDate:null,
       latestMerge:sh.provisional?'Yahoo 1m Stage1 provisional':'Yahoo Daily',
       marketResolved:market,
       _hist:hist,
       finmindCompleteness:0
     };
+    if(SCAN_TARGET_DATE && String(rr.dataDate)!==String(SCAN_TARGET_DATE)){
+      throw new Error(`Stage1日期不一致 ${rr.dataDate||'—'}（Target ${SCAN_TARGET_DATE}）`);
+    }
     rr.prelimScore=decisionScore(rr,'entry');
     results.push(rr);
   }catch(e){
@@ -578,6 +590,8 @@ $('scanBtn').onclick=async()=>{
   const firstStageSuccess=results.length;
   const firstStageSkipped=errors.length;
   const firstStageProcessed=cand.length;
+  const staleStage1=results.filter(r=>SCAN_TARGET_DATE&&String(r.dataDate)!==String(SCAN_TARGET_DATE));
+  if(staleStage1.length) throw new Error(`內部檢查失敗：${staleStage1.length} 檔舊日期進入 Stage1`);
   const qualified=[...results].sort((a,b)=>b.prelimScore-a.prelimScore);
   let retained=qualified.slice(0,keepN);
 
@@ -610,8 +624,8 @@ $('scanBtn').onclick=async()=>{
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
-  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE}｜Stage1暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R3 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE}｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
+  $('status').textContent=`V1.17.0-R4 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
