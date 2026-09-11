@@ -793,6 +793,42 @@ async function routeApi(request, env, url) {
     }catch(e){return json({ok:false,error:String(e?.message||e)},502);}
   }
 
+
+
+  if (url.pathname === "/api/audit/official-source") {
+    const source=(url.searchParams.get("source")||"").toLowerCase();
+    const targets={
+      mops:"https://mops.twse.com.tw/mops/web/index",
+      taifex:"https://www.taifex.com.tw/cht/2/stockLists",
+      tdcc:"https://www.tdcc.com.tw/portal/zh/smWeb/qryStock"
+    };
+    const upstream=targets[source];
+    if(!upstream) return json({ok:false,error:"source must be mops, taifex or tdcc"},400);
+    const t0=Date.now();
+    try{
+      const r=await fetch(upstream,{redirect:"manual",headers:{"accept":"text/html,application/xhtml+xml","accept-language":"zh-TW,zh;q=0.9","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R10"}});
+      const text=await r.text();
+      return json({ok:r.ok||[301,302,303,307,308].includes(r.status),source,status:r.status,location:r.headers.get("location"),content_type:r.headers.get("content-type"),bytes:text.length,ms:Date.now()-t0,preview:text.slice(0,240)},200,{"cache-control":"no-store"});
+    }catch(e){return json({ok:false,source,status:"FETCH",ms:Date.now()-t0,error:String(e?.message||e)},502);}
+  }
+
+  if (url.pathname === "/api/audit/yahoo") {
+    const code=(url.searchParams.get("code")||"").trim(), market=(url.searchParams.get("market")||"twse").toLowerCase();
+    if(!/^\d{4,6}$/.test(code)) return json({ok:false,error:"invalid code"},400);
+    const suffix=market==="tpex"?".TWO":".TW", symbol=code+suffix, interval=url.searchParams.get("interval")==="1m"?"1m":"1d";
+    const range=interval==="1m"?"5d":"2y";
+    const upstream=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}&events=div%2Csplits&includePrePost=false`;
+    const t0=Date.now();
+    try{
+      const r=await fetch(upstream,{headers:{"accept":"application/json","user-agent":"Mozilla/5.0"}});
+      const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
+      const x=j?.chart?.result?.[0], ts=x?.timestamp||[], q=x?.indicators?.quote?.[0]||{};
+      const rows=ts.map((t,i)=>({t,open:q.open?.[i],high:q.high?.[i],low:q.low?.[i],close:q.close?.[i],volume:q.volume?.[i]}))
+        .filter(x=>Number.isFinite(x.close)&&x.close>0);
+      return json({ok:r.ok,status:r.status,source:"Yahoo",symbol,interval,market_state:x?.meta?.marketState||null,timezone:x?.meta?.exchangeTimezoneName||null,rows:rows.length,last:rows.at(-1)||null,ms:Date.now()-t0},r.ok?200:502,{"cache-control":"no-store"});
+    }catch(e){return json({ok:false,source:"Yahoo",symbol,interval,ms:Date.now()-t0,error:String(e?.message||e)},502);}
+  }
+
   if (url.pathname === "/api/audit/tdcc") {
     const upstream="https://www.tdcc.com.tw/portal/zh/smWeb/qryStock";
     const t0=Date.now();
