@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.15.0 · Top100 FinMind 完整重評</title>
+<title>台股 V1.15.1 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.15.0 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.15.1 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -89,11 +89,35 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='entry';
 let SCAN_FILTERS={minClose:10,maxClose:300,minLots:3000};
-async function getJSON(url){
- const r=await fetch(url,{cache:'no-store'});
- const j=await r.json().catch(()=>({ok:false,error:'non-json'}));
- if(!r.ok||j.ok===false) throw new Error(j.error||('HTTP '+r.status));
- return j;
+async function getJSON(url,opts={}){
+ const tries=Math.max(1,Number(opts.tries||3));
+ let lastErr=null;
+ for(let attempt=1;attempt<=tries;attempt++){
+   try{
+     const sep=url.includes('?')?'&':'?';
+     const u=`${url}${sep}_cb=${Date.now()}_${attempt}`;
+     const r=await fetch(u,{
+       cache:'no-store',
+       headers:{'accept':'application/json,text/plain,*/*'}
+     });
+     const ct=String(r.headers.get('content-type')||'');
+     const text=await r.text();
+     let j=null;
+     try{j=JSON.parse(text)}catch{}
+     if(!j){
+       const snippet=text.replace(/\s+/g,' ').trim().slice(0,160);
+       throw new Error(`API 非 JSON｜HTTP ${r.status}｜${url}${ct?`｜${ct}`:''}${snippet?`｜${snippet}`:''}`);
+     }
+     if(!r.ok||j.ok===false){
+       throw new Error(`${j.error||('HTTP '+r.status)}｜${url}`);
+     }
+     return j;
+   }catch(e){
+     lastErr=e;
+     if(attempt<tries) await new Promise(r=>setTimeout(r,250*attempt));
+   }
+ }
+ throw lastErr||new Error(`API 讀取失敗｜${url}`);
 }
 function n(v,d=0){v=Number(v);return Number.isFinite(v)?v:d}
 function twTickSize(p){p=Number(p);if(!Number.isFinite(p)||p<=0)return .01;if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5}
@@ -285,7 +309,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.15.0',
+    version:'1.15.1',
     savedAt:Date.now(),
     currentRank,
     results:slim,
@@ -491,6 +515,8 @@ async function runPool(items,limit){
 }
 $('scanBtn').onclick=async()=>{
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
+ $('stats').textContent='Universe：重新取得中…';
+ $('rows').innerHTML='';
  try{
   $('status').textContent='取得上市＋上櫃完整 Universe…';
   const minClose=n($('minClose').value,10),maxClose=n($('maxClose').value,300),minLots=n($('minLots').value,3000),keepN=Math.max(1,n($('maxStocks').value,200));
@@ -540,9 +566,13 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.15.0 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.15.1 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
- }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
+ }catch(e){
+   const msg=String(e?.message||e);
+   $('status').innerHTML='<span class="bad">掃描中止：'+msg.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</span>';
+   $('errors').textContent=msg;
+ }
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};
 

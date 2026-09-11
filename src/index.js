@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.0)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.1)"}});
       const buf=await r.arrayBuffer();
       const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
       let big5="";
@@ -601,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.0)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.15.1)"
         }
       });
       const text=await r.text();
@@ -641,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.15.0",
+      version: "1.15.1",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1151,7 +1151,16 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
-      return routeApi(request, env, url);
+      try {
+        return await routeApi(request, env, url);
+      } catch (e) {
+        return json({
+          ok:false,
+          error:`API exception: ${String(e?.message||e)}`,
+          path:url.pathname,
+          version:"1.15.1"
+        },500,{"cache-control":"no-store"});
+      }
     }
 
     if (env.ASSETS) {
@@ -1162,7 +1171,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.15.0");
+        headers.set("X-App-Version","1.15.1");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
