@@ -654,27 +654,47 @@ async function routeApi(request, env, url) {
   }
 
 
-  // R6 full official API audit. Fixed upstream bases only; no arbitrary URL proxy.
+  // R7 full official API audit. Swagger is discovery-only; audit must not depend on it.
   if (url.pathname === "/api/audit/swagger") {
     const source=(url.searchParams.get("source")||"").toLowerCase();
-    const upstream=source==="twse"
-      ? "https://openapi.twse.com.tw/v1/swagger.json"
-      : source==="tpex"
-      ? "https://www.tpex.org.tw/openapi/swagger.json"
-      : null;
-    if(!upstream) return json({ok:false,error:"source must be twse or tpex"},400);
-    try{
-      const r=await fetch(upstream,{headers:{"accept":"application/json","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R6"}});
-      const text=await r.text();
-      if(!r.ok) return json({ok:false,source,upstream,status:r.status,error:text.slice(0,300)},502);
-      let j=null; try{j=JSON.parse(text)}catch{}
-      if(!j) return json({ok:false,source,upstream,error:"swagger is not JSON"},502);
-      const gets=[];
-      for(const [p,ops] of Object.entries(j.paths||{})){
-        if(ops && ops.get) gets.push({path:p,summary:ops.get.summary||ops.get.description||"",tags:ops.get.tags||[]});
-      }
-      return json({ok:true,source,upstream,count:gets.length,gets,info:j.info||null},{"cache-control":"public,max-age=3600"});
-    }catch(e){ return json({ok:false,source,upstream,error:String(e?.message||e)},502); }
+    const FALLBACK={
+      twse:[
+        "/exchangeReport/STOCK_DAY_ALL","/exchangeReport/BWIBBU_ALL","/exchangeReport/MI_MARGN",
+        "/exchangeReport/TWTB4U","/SBL/TWT96U","/fund/T86","/fund/MI_QFIIS_cat",
+        "/announcement/notice","/announcement/punish","/opendata/t187ap05_L",
+        "/opendata/t187ap02_L","/opendata/t187ap11_L"
+      ],
+      tpex:[
+        "/tpex_mainboard_daily_close_quotes","/tpex_mainboard_quotes","/tpex_mainboard_peratio_analysis",
+        "/tpex_mainboard_margin_balance","/tpex_intraday_trading_statistics","/tpex_margin_sbl",
+        "/tpex_3insti_daily_trading","/tpex_3insti_dealer_trading","/tpex_3insti_qfii_trading",
+        "/tpex_short_sell","/tpex_daily_market_value","/tpex_daily_turnover",
+        "/mopsfin_t187ap05_O","/mopsfin_t187ap02_O","/mopsfin_t187ap11_O"
+      ]
+    };
+    if(!FALLBACK[source]) return json({ok:false,error:"source must be twse or tpex"},400);
+    const candidates=source==="twse"
+      ? ["https://openapi.twse.com.tw/v1/swagger.json","https://openapi.twse.com.tw/swagger.json"]
+      : ["https://www.tpex.org.tw/openapi/swagger.json","https://www.tpex.org.tw/openapi/v1/swagger.json"];
+    const attempts=[];
+    for(const upstream of candidates){
+      try{
+        const r=await fetch(upstream,{headers:{"accept":"application/json","user-agent":"Mozilla/5.0 tw-stock-audit/1.16.0-R7"}});
+        const text=await r.text(); attempts.push({upstream,status:r.status,bytes:text.length});
+        if(!r.ok) continue;
+        let j=null; try{j=JSON.parse(text)}catch{}
+        if(!j?.paths) continue;
+        const gets=[];
+        for(const [p,ops] of Object.entries(j.paths||{})) if(ops?.get) gets.push({path:p,summary:ops.get.summary||ops.get.description||"",tags:ops.get.tags||[]});
+        if(gets.length) return json({ok:true,source,mode:"swagger",upstream,count:gets.length,gets,attempts,info:j.info||null},{"cache-control":"public,max-age=3600"});
+      }catch(e){attempts.push({upstream,status:"FETCH",error:String(e?.message||e)})}
+    }
+    // Critical fix: TPEx currently returns 520 for swagger in this environment.
+    // Do not abort the audit. Use known official OpenAPI paths and test each endpoint independently.
+    const gets=FALLBACK[source].map(path=>({path,summary:"官方 OpenAPI 候選｜Swagger 不可達時逐端點實測",tags:["fallback"]}));
+    return json({ok:true,source,mode:"fallback-catalog",count:gets.length,gets,attempts,
+      warning:"Swagger discovery unavailable; using curated official endpoint catalog. Each endpoint will still be independently HTTP-tested."},
+      200,{"cache-control":"no-store"});
   }
 
   if (url.pathname === "/api/audit/endpoint") {

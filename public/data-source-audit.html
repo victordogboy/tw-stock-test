@@ -1,6 +1,6 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V1.16.0-R6｜台股資料源總盤點</title>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V1.16.0-R7｜台股資料源總盤點</title>
 <style>body{font-family:system-ui;background:#07111f;color:#eaf1ff;margin:20px}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #29415f;text-align:left}.box{background:#0d1b2e;border:1px solid #29415f;border-radius:12px;padding:14px;margin:12px 0}.muted{color:#9fb1cb}</style></head><body>
-<h1>V1.16.0-R6｜台股資料源總盤點</h1><div class="box"><b>目的：</b>先驗證資料源，再決定 Scanner Primary / Backup / Fallback。正式 Scanner 與 V4.4 未修改。</div>
+<h1>V1.16.0-R7｜台股資料源總盤點</h1><div class="box"><b>目的：</b>先驗證資料源，再決定 Scanner Primary / Backup / Fallback。正式 Scanner 與 V4.4 未修改。</div>
 <table><thead><tr><th>來源</th><th>資料族群</th><th>頻率</th><th>用途</th><th>注意</th></tr></thead><tbody>
 <tr><td>TWSE</td><td>OHLCV、三大法人、外資/投信/自營商、融資融券、借券、當沖、估值</td><td>日/盤後</td><td>上市 Primary 候選</td><td>區分免費官網/OpenAPI 與付費 E-Shop</td></tr>
 <tr><td>TPEx</td><td>OHLCV、三大法人、融資融券、當沖、估值及盤後統計</td><td>日/盤後</td><td>上櫃 Primary 候選</td><td>目前 Worker 端點需重新驗證</td></tr>
@@ -8,4 +8,4 @@
 <tr><td>Yahoo</td><td>Daily、1m、OHLCV、盤中行情</td><td>即時/日</td><td>Live / Backup</td><td>1m 聚合量不可直接視為官方日量</td></tr>
 <tr><td>FinMind</td><td>Price、Margin、Institutional、DayTrading 等</td><td>依 dataset</td><td>Cross-check / Backup</td><td>匿名 quota 可能 402</td></tr>
 <tr><td>Worker</td><td>history normal/fresh、intraday、cache</td><td>內部</td><td>正規化與快取</td><td>每筆必須保存 source/date</td></tr>
-</tbody></table><p class="muted">請先到 <a style="color:#9fd0ff" href="/api-diagnostic.html">API 診斷頁</a> 執行測試。</p><p style="text-align:center"><a href="/full-api-audit.html">Full API Audit｜V1.16.0-R6</a></p></body></html>
+</tbody></table><p class="muted">請先到 <a style="color:#9fd0ff" href="/api-diagnostic.html">API 診斷頁</a> 執行測試。</p><p style="text-align:center"><a href="/full-api-audit.html">Full API Audit｜V1.16.0-R7</a></p></body></html>

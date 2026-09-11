@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>V1.16.0-R6｜Full API Audit｜基底 V1.14.2-R3</title>
+<title>V1.16.0-R7｜Full API Audit｜基底 V1.14.2-R3</title>
 <style>
 body{font-family:system-ui;background:#07111f;color:#eaf1ff;margin:18px}.box{background:#0d1b2e;border:1px solid #29415f;border-radius:12px;padding:14px;margin:12px 0}
 button,input,select{background:#10243d;color:#fff;border:1px solid #3a587e;border-radius:7px;padding:8px;margin:3px}.ok{color:#42db9b}.bad{color:#ff6f7e}.warn{color:#ffd36a}.muted{color:#9fb1cb}
 table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:6px;border-bottom:1px solid #223957;text-align:left;vertical-align:top}code{color:#9fd0ff}.sticky{position:sticky;top:0;background:#0d1b2e}
 </style></head><body>
-<h1>V1.16.0-R6｜Full API Audit</h1>
+<h1>V1.16.0-R7｜Full API Audit</h1>
 <div class="box"><b>目的：</b>先把官方 API 全部列出並實測，再決定 Scanner 的 Primary → Backup → Fallback。
-<p class="muted">本頁不修改 Scanner / V4.4 / Action。TWSE、TPEx 會從官方 Swagger 自動列出「所有 GET API」。跑全部可能需要數分鐘，且可能遭官方限流；失敗會保留 HTTP/耗時，不會把缺資料當成功。</p>
+<p class="muted">本頁不修改 Scanner / V4.4 / Action。TWSE、TPEx 優先從官方 Swagger 探索 GET API；若 Swagger 本身被 Cloudflare/上游擋掉，會自動切到內建官方端點清單逐項實測，不再讓整輪測試中止。跑全部可能需要數分鐘，且可能遭官方限流；失敗會保留 HTTP/耗時，不會把缺資料當成功。</p>
 <label>測試股票 <input id="code" value="2330" size="10"></label>
 <button id="core">跑核心投資 API</button>
 <button id="allTwse">跑 TWSE 全部 GET</button>
@@ -31,12 +31,12 @@ let stopped=false; $('stop').onclick=()=>{stopped=true;$('status').textContent='
 async function get(u){const t=performance.now();try{const r=await fetch(u,{cache:'no-store'}),text=await r.text();let j=null;try{j=JSON.parse(text)}catch{}return{ok:r.ok,status:r.status,j,text,ms:Math.round(performance.now()-t)}}catch(e){return{ok:false,status:'FETCH',j:null,text:'',ms:Math.round(performance.now()-t),error:String(e)}}}
 function row(source,p,summary,r){const j=r.j||{},m=j.matched;const tr=document.createElement('tr');
 tr.innerHTML=`<td>${esc(source)}</td><td><code>${esc(p)}</code></td><td>${esc(summary||'')}</td><td class="${r.ok&&j.ok!==false?'ok':'bad'}">${esc(j.status??r.status)}</td><td>${esc(j.rows??'—')}</td><td>${esc(j.latest_date??'—')}</td><td class="${m?'ok':'muted'}">${m?'MATCH':'—'}</td><td>${esc(j.ms??r.ms)} ms</td><td class="${r.ok?'muted':'bad'}">${esc(j.keys?.slice(0,12).join(', ')||j.error||r.error||r.text.slice(0,140)||'')}</td>`;$('rows').appendChild(tr)}
-async function swagger(source){const r=await get(`/api/audit/swagger?source=${source}`);if(!r.ok||!r.j?.ok)throw new Error(`${source} swagger failed: ${r.j?.error||r.status}`);return r.j.gets||[]}
+async function swagger(source){const r=await get(`/api/audit/swagger?source=${source}`);if(!r.ok||!r.j?.ok)throw new Error(`${source} swagger failed: ${r.j?.error||r.status}`);window.__auditDiscovery=window.__auditDiscovery||{};window.__auditDiscovery[source]=r.j.mode||'swagger';return r.j.gets||[]}
 const CORE={
  twse:['/exchangeReport/STOCK_DAY_ALL','/exchangeReport/BWIBBU_ALL','/exchangeReport/MI_MARGN','/exchangeReport/TWTB4U','/SBL/TWT96U','/fund/T86','/fund/MI_QFIIS_cat','/announcement/notice','/announcement/punish','/opendata/t187ap05_L','/opendata/t187ap02_L','/opendata/t187ap11_L'],
  tpex:['/tpex_mainboard_daily_close_quotes','/tpex_mainboard_quotes','/tpex_mainboard_peratio_analysis','/tpex_mainboard_margin_balance','/tpex_intraday_trading_statistics','/tpex_margin_sbl','/tpex_3insti_daily_trading','/tpex_3insti_dealer_trading','/tpex_3insti_qfii_trading','/tpex_short_sell','/tpex_daily_market_value','/tpex_daily_turnover','/mopsfin_t187ap05_O','/mopsfin_t187ap02_O','/mopsfin_t187ap11_O']
 };
-async function runList(source,list){stopped=false;const code=$('code').value.trim();let i=0;for(const x of list){if(stopped)break;i++;$('status').textContent=`${source.toUpperCase()} ${i}/${list.length} ${x.path}`;const r=await get(`/api/audit/endpoint?source=${source}&path=${encodeURIComponent(x.path)}&code=${encodeURIComponent(code)}`);row(source.toUpperCase(),x.path,x.summary,r);await new Promise(r=>setTimeout(r,80));}$('status').textContent=stopped?'已停止':`${source.toUpperCase()} 完成 ${i}/${list.length}`;}
+async function runList(source,list){stopped=false;const code=$('code').value.trim();let i=0;for(const x of list){if(stopped)break;i++;$('status').textContent=`${source.toUpperCase()} ${i}/${list.length} ${x.path}`;const r=await get(`/api/audit/endpoint?source=${source}&path=${encodeURIComponent(x.path)}&code=${encodeURIComponent(code)}`);row(source.toUpperCase(),x.path,x.summary,r);await new Promise(r=>setTimeout(r,80));}$('status').textContent=stopped?'已停止':`${source.toUpperCase()} 完成 ${i}/${list.length}｜Discovery=${window.__auditDiscovery?.[source]||'catalog'}`;}
 $('core').onclick=async()=>{stopped=false;$('rows').innerHTML='';for(const source of ['twse','tpex']){let sw=[];try{sw=await swagger(source)}catch(e){$('status').textContent=String(e);continue}const map=new Map(sw.map(x=>[x.path,x]));const list=CORE[source].map(path=>map.get(path)||({path,summary:'核心投資資料'}));await runList(source,list);if(stopped)break;}};
 $('allTwse').onclick=async()=>{const list=await swagger('twse');$('rows').innerHTML='';await runList('twse',list)};
 $('allTpex').onclick=async()=>{const list=await swagger('tpex');$('rows').innerHTML='';await runList('tpex',list)};
