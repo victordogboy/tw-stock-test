@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.17.0-R14｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
+<title>台股 V1.17.0-R15｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,13 +30,13 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.17.0-R14｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
+<h1>台股 V1.17.0-R15｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput" type="password" autocomplete="off" placeholder="輸入 FinMind API Token" style="min-width:320px;max-width:560px;flex:1">
 <button id="saveFinmindTokenBtn" type="button">套用 TOKEN</button>
 <button id="clearFinmindTokenBtn" type="button">清除 TOKEN</button>
-<span style="font-size:11px;opacity:.75">Token 僅存在這個瀏覽器，不寫入 GitHub。</span>
+<span style="font-size:11px;opacity:.75">Token 會存此瀏覽器，並同步暫存 Worker 7 天；不寫入 GitHub。</span>
 </div>
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
@@ -106,8 +106,24 @@ function bindFinMindTokenPanel(){
   const input=document.getElementById('finmindTokenInput'),save=document.getElementById('saveFinmindTokenBtn'),clear=document.getElementById('clearFinmindTokenBtn');
   if(!input||!save||!clear)return;
   input.value=getBrowserFinMindToken();
-  save.onclick=async()=>{const v=input.value.trim();if(!v){alert('請先輸入 FinMind API Token');return}localStorage.setItem(FINMIND_TOKEN_STORAGE_KEY,v);await checkFinMindTokenStatus();};
-  clear.onclick=async()=>{localStorage.removeItem(FINMIND_TOKEN_STORAGE_KEY);input.value='';await checkFinMindTokenStatus();};
+  save.onclick=async()=>{
+    const v=input.value.trim();
+    if(!v){alert('請先輸入 FinMind API Token');return}
+    localStorage.setItem(FINMIND_TOKEN_STORAGE_KEY,v);
+    try{
+      const r=await fetch('/api/finmind/token-store',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:v})});
+      const j=await r.json();
+      if(!r.ok||!j.ok) throw new Error(j.error||('HTTP '+r.status));
+    }catch(e){
+      alert('Token 已存此瀏覽器，但伺服器 7 天暫存失敗：'+(e.message||e));
+    }
+    await checkFinMindTokenStatus();
+  };
+  clear.onclick=async()=>{
+    localStorage.removeItem(FINMIND_TOKEN_STORAGE_KEY);input.value='';
+    try{await fetch('/api/finmind/token-store',{method:'DELETE'})}catch(e){}
+    await checkFinMindTokenStatus();
+  };
 }
 
 async function checkFinMindTokenStatus(){
@@ -117,7 +133,7 @@ async function checkFinMindTokenStatus(){
     const r=await fetch('/api/finmind/status?_='+Date.now(),{cache:'no-store',headers:finmindAuthHeaders()});
     const j=await r.json();
     el.innerHTML=j.configured
-      ?'<span class="good">✓ FinMind TOKEN 已啟用</span>｜有 Token 的請求與匿名 Cache 已分流'
+      ?`<span class="good">✓ FinMind TOKEN 已啟用</span>｜${j.source==='server-saved'?'伺服器已暫存 7 天':(j.source==='browser'?'此瀏覽器 Token':'Worker Secret')}${j.expires_at?'｜到期 '+j.expires_at.slice(0,10):''}`
       :'<span class="bad">✗ FinMind TOKEN 未設定</span>｜目前仍使用匿名額度';
   }catch(e){
     el.textContent='FinMind TOKEN：狀態確認失敗（Worker 回應異常）';
@@ -716,7 +732,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R14 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R15 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };

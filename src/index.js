@@ -686,7 +686,7 @@ async function routeApi(request, env, url) {
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
   // R12 created it in export.fetch(), but routeApi() referenced it directly,
   // causing ReferenceError on /api/finmind/status and all FinMind-assisted routes.
-  const EFFECTIVE_FINMIND_TOKEN=requestFinMindToken(request,env);
+  const EFFECTIVE_FINMIND_TOKEN=await requestFinMindToken(request,env,url.origin);
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS });
   }
@@ -1097,7 +1097,7 @@ async function routeApi(request, env, url) {
       if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r14"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r15"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1249,15 +1249,66 @@ async function routeApi(request, env, url) {
     return resp;
   }
 
+  if (url.pathname === "/api/finmind/token-store") {
+    const cache=caches.default;
+    const slot=new Request(`${url.origin}/__private/finmind-token-slot-v1`,{method:"GET"});
+
+    if(request.method==="POST"){
+      let body={};
+      try{body=await request.json()}catch{}
+      const token=String(body?.token||"").trim();
+      if(!token) return json({ok:false,error:"token is required"},400,{"cache-control":"no-store"});
+
+      const savedAt=Date.now();
+      const expiresAt=savedAt+7*24*60*60*1000;
+      const payload={token,saved_at:savedAt,expires_at:expiresAt};
+      await cache.put(slot,new Response(JSON.stringify(payload),{
+        headers:{
+          "content-type":"application/json;charset=UTF-8",
+          "cache-control":"public,max-age=604800"
+        }
+      }));
+      return json({
+        ok:true,
+        saved:true,
+        storage:"worker-cache",
+        expires_at:new Date(expiresAt).toISOString()
+      },200,{"cache-control":"no-store"});
+    }
+
+    if(request.method==="DELETE"){
+      await cache.delete(slot);
+      return json({ok:true,cleared:true},200,{"cache-control":"no-store"});
+    }
+
+    return json({ok:false,error:"Method not allowed"},405,{"cache-control":"no-store"});
+  }
+
   if (url.pathname === "/api/finmind/status") {
     const configured=Boolean(EFFECTIVE_FINMIND_TOKEN);
+    let saved=false,expires_at=null;
+    try{
+      const slot=new Request(`${url.origin}/__private/finmind-token-slot-v1`,{method:"GET"});
+      const hit=await caches.default.match(slot);
+      if(hit){
+        const p=await hit.json();
+        if(Number(p?.expires_at)>Date.now()){
+          saved=true;
+          expires_at=new Date(Number(p.expires_at)).toISOString();
+        }
+      }
+    }catch{}
+    const browserAuth=/^Bearer\s+/i.test(String(request.headers.get("authorization")||""));
     return json({
       ok:true,
       configured,
       mode:configured?"token":"anonymous",
+      source:browserAuth?"browser":(env.FINMIND_TOKEN?"worker-secret":(saved?"server-saved":"anonymous")),
+      server_saved:saved,
+      expires_at,
       note:configured
-        ?"FinMind Token 已進入 Worker，可用於 FinMind API 請求。"
-        :"未收到瀏覽器 Token，也未設定 Cloudflare FINMIND_TOKEN Secret。"
+        ?"FinMind Token 可用。"
+        :"未收到瀏覽器 Token、Worker Secret 或伺服器暫存 Token。"
     },200,{"cache-control":"no-store"});
   }
 
@@ -1298,10 +1349,28 @@ async function routeApi(request, env, url) {
   return json({ ok:false, error:"Unknown API route", path:url.pathname }, 404);
 }
 
-function requestFinMindToken(request,env){
+async function requestFinMindToken(request,env,origin){
   const auth=String(request.headers.get("authorization")||"");
   const m=auth.match(/^Bearer\s+(.+)$/i);
-  return (m?.[1]||"").trim() || String(env?.FINMIND_TOKEN||"").trim() || "";
+  const browserToken=(m?.[1]||"").trim();
+  if(browserToken) return browserToken;
+
+  const secret=String(env?.FINMIND_TOKEN||"").trim();
+  if(secret) return secret;
+
+  try{
+    const slot=new Request(`${origin}/__private/finmind-token-slot-v1`,{method:"GET"});
+    const hit=await caches.default.match(slot);
+    if(!hit) return "";
+    const p=await hit.json();
+    if(Number(p?.expires_at)<=Date.now()){
+      await caches.default.delete(slot);
+      return "";
+    }
+    return String(p?.token||"").trim();
+  }catch{
+    return "";
+  }
 }
 
 export default {
