@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.12.0 · V4.4 個股完整審計</title>
+<title>台股 V1.13.0 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -89,13 +89,22 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .guard{padding:8px;border:1px solid var(--line);border-radius:9px;background:#0a1627}
 .guard b{display:block;margin-top:3px}
 @media(max-width:800px){.stressgrid{grid-template-columns:1fr}.guardgrid{grid-template-columns:repeat(2,1fr)}}
+
+.live-score-card{margin-top:10px;border-color:#4a6289;background:linear-gradient(135deg,#101f37,#0b1729)}
+.live-score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+.live-score-item{background:#081321;border:1px solid var(--line);border-radius:10px;padding:10px}
+.live-score-item .v{font-size:25px;font-weight:1000;margin-top:3px}
+.live-score-item .s{font-size:11px;color:#9fb0ca;margin-top:4px;line-height:1.45}
+.layer-title{margin:14px 0 8px;padding:8px 11px;border-left:4px solid #6b86b6;background:#0e1b30;border-radius:7px;font-weight:900}
+.layer-title .tiny{font-weight:400;margin-left:8px}
+@media(max-width:800px){.live-score-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.12.0 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.13.0 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
@@ -122,27 +131,44 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <div class="intraday-item">盤中量 / 更新<b id="tVolTime">—</b></div>
     </div>
   </div>
-
-  <div class="grid" id="summary">
-    <div class="card"><div class="label">等待分析</div><div class="big">—</div></div>
-    <div class="card"><div class="label">股票品質</div><div class="big">—</div></div>
-    <div class="card"><div class="label">現價進場</div><div class="big">—</div></div>
-    <div class="card"><div class="label">最佳進場</div><div class="big">—</div></div>
-    <div class="card"><div class="label">交易狀態</div><div class="big">—</div></div>
-  </div>
-
-  <div class="section card" id="priceLadderCard">
-    <h2>價格階梯</h2>
-    <div class="pricegrid" id="prices"></div>
-    <div class="note" id="targetNote" style="margin-top:8px"></div>
+  <div id="liveScoreCard" class="card live-score-card" style="display:none">
+    <div><span class="livebadge">LIVE EST.</span> <b>今日盤中預估分數</b>
+      <span class="tiny" id="liveScoreMeta" style="margin-left:8px">以現價 + 預估收盤量 + 上一交易日籌碼試算</span>
+    </div>
+    <div class="live-score-grid">
+      <div class="live-score-item"><div class="label">盤中預估 Entry</div><div class="v" id="liveEntry">—</div><div class="s" id="liveEntrySub">—</div></div>
+      <div class="live-score-item"><div class="label">盤中預估 Hold</div><div class="v" id="liveHold">—</div><div class="s" id="liveHoldSub">—</div></div>
+      <div class="live-score-item"><div class="label">盤中 Opportunity</div><div class="v" id="liveOpportunity">—</div><div class="s">以目前 K 型態與預估量試算</div></div>
+      <div class="live-score-item"><div class="label">預估收盤量</div><div class="v blue" id="liveProjectedVol">—</div><div class="s" id="liveProjectedVolSub">—</div></div>
+      <div class="live-score-item"><div class="label">預估量比 / 狀態</div><div class="v" id="liveVolRatio">—</div><div class="s" id="liveState">—</div></div>
+    </div>
+    <div class="note" id="liveScoreNote" style="margin-top:9px">—</div>
   </div>
   <div class="section card" id="entryStressCard">
-    <h2>最佳進場情境壓力測試 <span class="pill">Strict No-Lookahead</span></h2>
+    <h2>今日最佳進場情境壓力測試 <span class="pill">以上一交易日盤後推演</span></h2>
     <div class="note" id="stressHeadline">等待分析…</div>
     <div class="guardgrid" id="stressGuards"></div>
     <div class="stressgrid" id="stressCases"></div>
     <div class="note" id="stressNote" style="margin-top:9px"></div>
   </div>
+  <div class="layer-title" id="formalLayerTitle">上一交易日正式盤後審計
+    <span class="tiny">以下全部是已完成交易日資料，不含今日盤中預估。</span>
+  </div>
+
+  <div class="grid" id="summary">
+    <div class="card"><div class="label">等待分析</div><div class="big">—</div></div>
+    <div class="card"><div class="label">股票品質</div><div class="big">—</div></div>
+    <div class="card"><div class="label">盤後 Entry</div><div class="big">—</div></div>
+    <div class="card"><div class="label">盤後最佳進場</div><div class="big">—</div></div>
+    <div class="card"><div class="label">交易狀態</div><div class="big">—</div></div>
+  </div>
+
+  <div class="section card" id="priceLadderCard">
+    <h2>盤後價格階梯</h2>
+    <div class="pricegrid" id="prices"></div>
+    <div class="note" id="targetNote" style="margin-top:8px"></div>
+  </div>
+
 
   <div class="section card chartwrap">
     <div class="toolbar">
@@ -218,7 +244,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 
   <div class="section cols">
     <div class="card">
-      <h2>一、現價進出評分 vs 最佳進出價格</h2>
+      <h2>一、盤後進出評分 vs 最佳進出價格</h2>
       <div style="overflow:auto">
       <table>
         <thead><tr><th>股票</th><th>最高分最佳買入價</th><th>最佳進場評分</th><th>可買價格區間</th><th>現價買進評分</th><th>第1道減碼</th><th>第2道硬停損</th><th>雙階梯 R:R / 扣抵 / 籌碼</th></tr></thead>
@@ -1205,7 +1231,7 @@ function structuralEntryStress(rows,R,m,i,d){
   const pma5=projectedMA(rows,5,proposed),pma10=projectedMA(rows,10,proposed),pma20=projectedMA(rows,20,proposed);
   const floors=[g.eventLow,g.hlLow,g.swingLow,g.platformFloor].filter(Number.isFinite);
   const hardBreak=floors.length?Math.max(...floors):NaN;
-  const structuralSafe=!!R.optimal?.best?.structuralSafe;
+  const structuralSafe=!!g.selectedSafe;
   const avgVol=avg(rows.slice(-5).map(x=>Number(x.volume||0)))||Number(cur.volume||0)||1;
   const baseOpen=Number(cur.close);
   const scenarioDate=nextCalendarDate(cur.date);
@@ -1295,8 +1321,8 @@ function render(){
     </div>
     <div class="card"><div class="label">Setup｜型態品質</div><div class="big ${qg[1]}">${R.quality}</div><div class="sub">底部 ${R.bottom.score}｜發動 ${R.ignition.score}｜趨勢 ${a.score}</div></div>
     <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
-    <div class="card"><div class="label">Entry｜現在能不能買</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
-    <div class="card"><div class="label">Hold｜已持有是否續抱</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
+    <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
+    <div class="card"><div class="label">Hold｜該審計日盤後</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
     <div class="card"><div class="label">當日交易量｜隨回測日期更新</div>
       <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
       <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
@@ -1704,11 +1730,92 @@ setTimeout(refreshFuturesBadge,700);
 </script>
 
 <script>
-/* V1.12.0: isolated optional intraday module.
-   It does not modify or bind any existing V1.10 buttons. */
+/* V1.13.0: isolated live-estimation layer.
+   Formal audit stays on the last completed trading day while the market is open.
+   Live Entry/Hold uses current O/H/L/price + projected full-day volume + prior-day chips. */
 (function(){
   const byId=id=>document.getElementById(id);
+  let lastCode='', busy=false;
+
+  function parseMinutes(hms){
+    const m=String(hms||'').match(/(\d{1,2}):(\d{2})/);
+    if(!m)return null;
+    return Number(m[1])*60+Number(m[2]);
+  }
+  function isMarketOpen(j,b){
+    const st=String(j?.market_state||'').toUpperCase();
+    if(['REGULAR','OPEN'].includes(st))return true;
+    const mins=parseMinutes(b?.last_time);
+    return Number.isFinite(mins) && mins>=9*60 && mins<13*60+30;
+  }
+  function projectedVolume(currentVol,lastTime,avg5,open){
+    const mins=parseMinutes(lastTime);
+    if(!open || !Number.isFinite(mins) || mins>=13*60+30){
+      return {volume:Number(currentVol||0),fraction:1,confidence:1,elapsed:270};
+    }
+    const elapsed=Math.max(1,Math.min(270,mins-9*60));
+    const frac=Math.max(.03,elapsed/270);
+    const linear=Number(currentVol||0)/frac;
+    // Early session volume is noisy. Blend pace projection with previous 5-day average,
+    // then gradually trust the live pace more as the session matures.
+    const conf=Math.max(.28,Math.min(1,elapsed/120));
+    const base=Number(avg5||0)>0?Number(avg5):linear;
+    const est=linear*conf + base*(1-conf);
+    return {volume:Math.max(Number(currentVol||0),Math.round(est)),fraction:frac,confidence:conf,elapsed};
+  }
+  function priorFormalIndex(date){
+    if(!STATE?.prices?.length)return -1;
+    let idx=-1;
+    for(let k=0;k<STATE.prices.length;k++){
+      if(String(STATE.prices[k].date)<String(date))idx=k;
+    }
+    return idx;
+  }
+  function makeLiveScore(b,j){
+    if(!STATE?.prices?.length)return null;
+    const open=isMarketOpen(j,b);
+    let formalIdx=open?priorFormalIndex(b.date):STATE.prices.length-1;
+    if(formalIdx<64)formalIdx=Math.min(STATE.prices.length-1,Math.max(64,formalIdx));
+    const formalRows=STATE.prices.slice(0,formalIdx+1);
+    const formalDate=formalRows.at(-1)?.date;
+    if(!formalDate)return null;
+
+    // While market is open, force all formal UI to the prior completed session.
+    if(open && STATE.auditIndex!==formalIdx){
+      STATE.auditIndex=formalIdx;
+      const slider=byId('auditSlider');
+      if(slider){
+        slider.max=formalIdx;
+        slider.value=formalIdx;
+      }
+      try{render()}catch(e){console.warn('formal prior-day render failed',e)}
+    }
+
+    const avg5=avg(formalRows.slice(-5).map(x=>Number(x.volume||0)))||0;
+    const pv=projectedVolume(Number(b.volume||0),b.last_time,avg5,open);
+    const synthetic={
+      date:b.date,
+      open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
+      volume:Number(pv.volume||0),money:0,intradayProjected:true
+    };
+    const sim=formalRows.concat([synthetic]);
+
+    // Today's chips are not guessed. Use only chip data known at the previous completed session.
+    const m=cut(STATE.margin,formalDate),i=cut(STATE.inst,formalDate),dt=cut(STATE.daytrade,formalDate);
+    const R=combineScores(sim,m,i,dt);
+    const E=entryEngine(sim,R);
+    return {R,E,formalDate,pv,avg5,open,synthetic};
+  }
+  function paintScore(id,val){
+    const el=byId(id); if(!el)return;
+    const g=scoreGrade(Number(val)||0);
+    el.textContent=Number.isFinite(Number(val))?String(Math.round(Number(val))):'—';
+    el.className='v '+(g?.[1]||'');
+  }
+
   async function refreshToday(){
+    if(busy)return;
+    busy=true;
     try{
       const input=byId('stockInput');
       if(!input)return;
@@ -1721,8 +1828,12 @@ setTimeout(refreshFuturesBadge,700);
       if(!r.ok||!j.ok||!j.bar)return;
       const b=j.bar,p=byId('todayInfo'); if(!p)return;
       p.style.display='block';
-      byId('todayTitle').textContent=b.date+' 今日盤中資訊';
-      byId('todayMeta').textContent=`Yahoo 1分K｜${j.market_state||'—'}｜正式分數不受盤中資料影響`;
+
+      const live=makeLiveScore(b,j);
+      const marketOpen=live?.open ?? isMarketOpen(j,b);
+
+      byId('todayTitle').textContent=b.date+(marketOpen?' 今日盤中資訊':' 今日最新資訊');
+      byId('todayMeta').textContent=`Yahoo 1分K｜${j.market_state||'—'}｜${marketOpen?'下方正式區固定上一完成交易日':'市場非盤中，正式區依可得日K為準'}`;
       byId('tClose').textContent=String(b.close??'—');
       byId('tChange').textContent=`${Number(b.change)>0?'+':''}${b.change??'—'} / ${Number.isFinite(Number(b.change_pct))?(Number(b.change_pct)>0?'+':'')+Number(b.change_pct).toFixed(2)+'%':'—'}`;
       byId('tOpen').textContent=String(b.open??'—');
@@ -1731,16 +1842,14 @@ setTimeout(refreshFuturesBadge,700);
       const lots=Math.round(Number(b.volume||0)/1000).toLocaleString('zh-TW');
       byId('tVolTime').textContent=`${lots} 張 / ${b.last_time||'—'}`;
 
-      // Direct display inside the K-chart area. This is visual-only and never enters formal scoring.
-      const pct=Number(b.change_pct);
-      const dir=pct>0?'up':pct<0?'down':'flat';
+      // Existing chart live HUD.
+      const pct=Number(b.change_pct),dir=pct>0?'up':pct<0?'down':'flat';
       const sign=Number(b.change)>0?'+':'';
       const pctText=Number.isFinite(pct)?`${pct>0?'+':''}${pct.toFixed(2)}%`:'—';
       const hud=byId('chartLiveHud');
       if(hud){
-        hud.className=`chart-live-hud ${dir}`;
-        hud.style.display='block';
-        byId('chartLiveTitle').textContent=`盤中 ${b.date} ${b.last_time||''}`;
+        hud.className=`chart-live-hud ${dir}`; hud.style.display='block';
+        byId('chartLiveTitle').textContent=`${marketOpen?'盤中':'最新'} ${b.date} ${b.last_time||''}`;
         byId('chartLivePrice').textContent=String(b.close??'—');
         byId('chartLiveChange').textContent=`${sign}${b.change??'—'} / ${pctText}`;
         byId('chartLiveOhlv').textContent=`O ${b.open??'—'} / H ${b.high??'—'} / L ${b.low??'—'} / V ${lots}張`;
@@ -1748,16 +1857,56 @@ setTimeout(refreshFuturesBadge,700);
       const livePill=byId('liveToolbarPill');
       if(livePill){
         livePill.style.display='inline-block';
-        livePill.textContent=`盤中：${b.close??'—'} (${pctText})`;
+        livePill.textContent=`${marketOpen?'盤中':'最新'}：${b.close??'—'} (${pctText})`;
       }
-    }catch(e){console.warn('optional intraday failed',e)}
+
+      if(live){
+        const card=byId('liveScoreCard');
+        if(card)card.style.display='block';
+        paintScore('liveEntry',live.E.score);
+        paintScore('liveHold',live.E.hold);
+        paintScore('liveOpportunity',live.E.opportunity);
+
+        const projLots=Math.round(live.pv.volume/1000);
+        const avgLots=Math.round(live.avg5/1000);
+        const vr=live.avg5>0?live.pv.volume/live.avg5:null;
+        byId('liveProjectedVol').textContent=projLots.toLocaleString('zh-TW')+' 張';
+        byId('liveProjectedVolSub').textContent=`目前 ${lots} 張｜5日均量 ${avgLots.toLocaleString('zh-TW')} 張｜進度 ${(live.pv.fraction*100).toFixed(0)}%`;
+        byId('liveVolRatio').textContent=Number.isFinite(vr)?vr.toFixed(2)+'×':'—';
+        byId('liveEntrySub').textContent=`Entry Quality ${live.E.entryQuality}｜Risk ${Number(live.R.market.risk).toFixed(1)}%｜${live.E.state}`;
+        byId('liveHoldSub').textContent=`以目前價 ${b.close} 假設今日收盤｜正式盤後基準 ${live.formalDate}`;
+        byId('liveState').textContent=`${live.E.phase}｜${live.E.position}`;
+        byId('liveScoreMeta').textContent=`基準 ${live.formalDate} 盤後｜今日假設收盤=現價 ${b.close}｜今日量=預估 ${projLots.toLocaleString('zh-TW')} 張`;
+        byId('liveScoreNote').innerHTML=`<b>盤中估算邏輯：</b>今日 O/H/L 使用已發生資料，Close 暫用現價，成交量依目前進度與近5日均量估計收盤量；融資/法人/當沖只沿用 ${live.formalDate} 以前已取得資料，<b>不猜今日籌碼</b>。因此 Entry / Hold 是「現在若以這個價位與預估量收盤」的即時預估，不是正式收盤分數。`;
+
+        const ft=byId('formalLayerTitle');
+        if(ft){
+          ft.innerHTML=`上一交易日正式盤後審計 <span class="tiny">基準日 ${live.formalDate}；以下不含今日盤中預估。</span>`;
+        }
+
+        // Stress card predicts today's possible close from the same prior-day formal baseline.
+        try{
+          const formalRows=STATE.prices.slice(0,STATE.auditIndex+1);
+          const fm=cut(STATE.margin,live.formalDate),fi=cut(STATE.inst,live.formalDate),fd=cut(STATE.daytrade,live.formalDate);
+          const FR=combineScores(formalRows,fm,fi,fd);
+          renderStructuralStress(formalRows,FR,fm,fi,fd);
+        }catch(e){console.warn('stress refresh failed',e)}
+      }
+    }catch(e){
+      console.warn('optional live estimation failed',e);
+    }finally{
+      busy=false;
+    }
   }
-  // Observe stock input changes produced by the existing analyzer, without touching its handlers.
-  let last='';
+
+  // Refresh when a new stock is loaded; while viewing the same stock, refresh once per minute.
   setInterval(()=>{
     const v=byId('stockInput')?.value||'';
-    if(v!==last){last=v;if(/\d{4,6}/.test(v))refreshToday()}
-  },1200);
+    const m=String(v).match(/\d{4,6}/);
+    const code=m?.[0]||'';
+    if(code && code!==lastCode){lastCode=code;refreshToday()}
+  },1000);
+  setInterval(()=>{ if(lastCode)refreshToday(); },60000);
   setTimeout(refreshToday,1500);
 })();
 </script>

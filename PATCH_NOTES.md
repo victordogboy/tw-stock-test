@@ -1,10 +1,47 @@
-# V1.12.0 — Structural-Safe Optimal Entry
+# V1.13.0 — 今日盤中預估層 / 昨日正式盤後層分離
 
-- 最佳進場候選除了 Risk / R:R，新增 Event K Low、HL、Swing Low、平台防守過濾。
-- 若有結構安全候選，Optimal Entry 優先選 Structural-Safe 價位。
-- Scanner 與 Detail 共用的 V4.4 engine 同步套用。
-- 價格階梯下方新增下一交易日三情境壓力測試：
-  A 健康量縮 0.65x、B 正常 1.00x、C 爆量長黑 2.00x。
-- 每個情境顯示 Entry、Entry Quality、Persistence、Risk、結構存活/破壞。
-- 同時顯示明日 MA5/10/20、Event Low、HL、Swing、平台、Hard Break 參考。
-- 全部只使用審計日與左側資料，符合 Strict No-Lookahead。
+## 核心修正
+介面拆成兩層：
+
+### A. 今日盤中預估
+放在最上方：
+1. 今日盤中資訊
+2. 今日盤中預估 Entry / Hold / Opportunity
+3. 預估收盤量、預估量比
+4. 今日最佳進場情境壓力測試
+
+盤中預估使用：
+- 今日已發生 O/H/L
+- Close 暫用現價
+- 累計盤中量
+- 依市場進度推估收盤量
+- 近 5 日均量作早盤穩定化
+- 籌碼只用上一完成交易日已取得資料
+
+預估量：
+- 線性盤中量速率 × 今日交易進度
+- 早盤因量能波動大，與近5日均量做 blend
+- 越接近收盤，越信任今日實際量速率
+- 市場收盤後，預估量 = 已完成實際量
+
+### B. 正式盤後審計
+其餘 K 線、籌碼、Setup / Opportunity / Entry / Hold、價格階梯、13因子等，
+盤中時固定在上一完成交易日，不把今天的未收盤資料混進正式評分。
+
+## 盤中 Entry / Hold
+把今日 synthetic K 接到上一交易日之後：
+- O/H/L = 今日已發生
+- C = 現價
+- V = 預估收盤量
+再交給同一套 combineScores + entryEngine。
+
+因此盤中可以直接看到：
+- Entry
+- Hold
+- Opportunity
+- Entry Quality
+- Risk
+- 預估量比
+- 當前交易狀態
+
+今日融資 / 法人 / 當沖若尚未公布，不捏造，沿用上一完成日資料並清楚標示。
