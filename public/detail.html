@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.14.2 · V4.4 個股完整審計</title>
+<title>台股 V1.15.0 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -153,6 +153,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
     <div class="live-score-grid">
       <div class="live-score-item"><div class="label">盤中預估 Entry</div><div class="v" id="liveEntry">—</div><div class="s" id="liveEntrySub">—</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Hold</div><div class="v" id="liveHold">—</div><div class="s" id="liveHoldSub">—</div></div>
+      <div class="live-score-item"><div class="label">Action｜綜合進場</div><div class="v" id="liveAction">—</div><div class="s" id="liveActionSub">40% Entry + 30% Setup + 30% Opportunity</div></div>
+      <div class="live-score-item"><div class="label">Confidence｜資料可信度</div><div class="v" id="liveConfidence">—</div><div class="s">資料新鮮度 / 籌碼 / 量能估算</div></div>
       <div class="live-score-item"><div class="label">盤中 Opportunity</div><div class="v" id="liveOpportunity">—</div><div class="s">以目前 K 型態與預估量試算</div></div>
       <div class="live-score-item"><div class="label">預估收盤量</div><div class="v blue" id="liveProjectedVol">—</div><div class="s" id="liveProjectedVolSub">—</div></div>
       <div class="live-score-item"><div class="label">預估量比 / 狀態</div><div class="v" id="liveVolRatio">—</div><div class="s" id="liveState">—</div></div>
@@ -1262,6 +1264,77 @@ function entryEngine(rows,R){
     setupPart:0,momentum:opportunity,earlyBonus:0,earlyReasons:[]
   };
 }
+
+function coreLatestDate(arr){
+  if(!Array.isArray(arr)||!arr.length)return null;
+  return arr.map(x=>String(x?.date||'')).filter(Boolean).sort().at(-1)||null;
+}
+function coreChipFreshness(arr,target,prior){
+  const d=coreLatestDate(arr);
+  if(!d)return 0;
+  if(target&&d>=target)return 10;
+  if(prior&&d>=prior)return 8;
+  return 4;
+}
+function decisionConfidence(rows,margin=[],inst=[],daytrade=[],meta={}){
+  const count=rows?.length||0;
+  let s=count>=180?15:count>=120?12:count>=65?8:0;
+  const lastRow=rows?.at?.(-1)||{};
+  const prevRow=rows?.at?.(-2)||lastRow;
+  const target=String(meta.chipBaseDate||lastRow.date||'');
+  const prior=String(prevRow.date||'');
+  s+=Number.isFinite(Number(lastRow.close))&&Number(lastRow.close)>0?20:0;
+  s+=coreChipFreshness(margin,target,prior);
+  s+=coreChipFreshness(inst,target,prior);
+  s+=coreChipFreshness(daytrade,target,prior);
+
+  const liveLike=meta.mode==='live'||meta.mode==='scenario';
+  s+=liveLike?(meta.quoteValid===false?0:15):15;
+  const vc=Math.max(0,Math.min(1,Number(meta.volumeConfidence??(liveLike?.6:1))));
+  s+=Math.round(10*vc);
+
+  if(Number.isFinite(Number(meta.finmindCompleteness))){
+    s+=Math.round(Math.max(0,Math.min(100,Number(meta.finmindCompleteness)))*.10);
+  }else{
+    const sets=[margin,inst,daytrade].filter(x=>Array.isArray(x)&&x.length).length;
+    s+=sets===3?10:sets===2?7:sets===1?4:1;
+  }
+  return Math.max(0,Math.min(100,Math.round(s)));
+}
+function buildScorePacket(rows,margin=[],inst=[],daytrade=[],meta={}){
+  const R=combineScores(rows,margin,inst,daytrade);
+  const E=entryEngine(rows,R);
+  R.entry=E;
+
+  const setup=Math.round(Number(R.quality)||0);
+  const opportunity=Math.round(Number(E.opportunity)||0);
+  const entry=Math.round(Number(E.score)||0);
+  const hold=Math.round(Number(E.hold)||0);
+
+  const risk=Number(R.market?.risk);
+  const hardBroken=!!R.market?.hardBroken;
+  const actionRaw=Math.round(entry*.40+setup*.30+opportunity*.30);
+  const gateReasons=[];
+  if(entry<62)gateReasons.push('Entry<62');
+  if(Number.isFinite(risk)&&risk>7)gateReasons.push('Risk>7%');
+  if(hardBroken)gateReasons.push('HardBroken');
+
+  let action=actionRaw;
+  if(entry<62 || (Number.isFinite(risk)&&risk>7)) action=Math.min(action,59);
+  if(hardBroken) action=Math.min(action,49);
+  action=Math.max(0,Math.min(100,action));
+
+  return {
+    R,E,setup,opportunity,entry,hold,
+    action,actionRaw,
+    confidence:decisionConfidence(rows,margin,inst,daytrade,meta),
+    gateOK:gateReasons.length===0,gateReasons,
+    risk,hardBroken,
+    persistence:Math.round(Number(E.persistence)||0),
+    state:E.state||'',position:E.position||'0%'
+  };
+}
+
 function maProjection(rows,n,scenario){
   const cur=ma(rows,n),ded=rows.length>=n?rows[rows.length-n].close:NaN;
   const next=cur+(scenario-ded)/n;
@@ -1366,7 +1439,7 @@ function render(){
   const m=cut(STATE.margin,date),i=cut(STATE.inst,date),d=cut(STATE.daytrade,date);
   if(rows.length<65){setBanner('這個審計日之前的歷史資料不足 60 個交易日，請把游標往右移。','warn');return}
   clearBanner();
-  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;
+  const P=buildScorePacket(rows,m,i,d,{mode:'formal',chipBaseDate:date});const R=P.R,E=P.E;STATE.lastAnalysis=R;
   const a=R.market,o=R.optimal,cur=last(rows),grade=scoreGrade(a.score),qg=scoreGrade(R.quality),og=scoreGrade(o.score),eg=scoreGrade(E.score),hg=scoreGrade(E.hold);
   const kText=cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─';
   $('kColorPill').textContent=`K色：${kText}`;
@@ -1389,6 +1462,8 @@ function render(){
     <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
     <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
     <div class="card"><div class="label">Hold｜該審計日盤後</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
+    <div class="card"><div class="label">Action｜綜合進場</div><div class="big ${scoreGrade(P.action)[1]}">${P.action}</div><div class="sub">${P.gateOK?'通過門檻':'限制：'+P.gateReasons.join(' / ')}｜Raw ${P.actionRaw}</div></div>
+    <div class="card"><div class="label">Confidence｜資料可信度</div><div class="big ${scoreGrade(P.confidence)[1]}">${P.confidence}</div><div class="sub">只代表資料可信度，不直接改變交易分數</div></div>
     <div class="card"><div class="label">當日交易量｜隨回測日期更新</div>
       <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
       <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
@@ -1853,20 +1928,31 @@ setTimeout(refreshFuturesBadge,700);
     if(barDate!==now.date)return false;
     return Number.isFinite(now.minutes) && now.minutes>=9*60 && now.minutes<13*60+30;
   }
-  function projectedVolume(currentVol,lastTime,avg5,open){
+  function projectedVolume(currentVol,lastTime,avg5,open,profile){
     const mins=parseMinutes(lastTime);
     if(!open || !Number.isFinite(mins) || mins>=13*60+30){
-      return {volume:Number(currentVol||0),fraction:1,confidence:1,elapsed:270};
+      return {volume:Number(currentVol||0),fraction:1,confidence:1,elapsed:270,method:'actual'};
     }
     const elapsed=Math.max(1,Math.min(270,mins-9*60));
-    const frac=Math.max(.03,elapsed/270);
-    const linear=Number(currentVol||0)/frac;
-    // Early session volume is noisy. Blend pace projection with previous 5-day average,
-    // then gradually trust the live pace more as the session matures.
-    const conf=Math.max(.28,Math.min(1,elapsed/120));
-    const base=Number(avg5||0)>0?Number(avg5):linear;
-    const est=linear*conf + base*(1-conf);
-    return {volume:Math.max(Number(currentVol||0),Math.round(est)),fraction:frac,confidence:conf,elapsed};
+    const timeFrac=Math.max(.03,elapsed/270);
+    const linear=Number(currentVol||0)/timeFrac;
+
+    const pf=Number(profile?.fraction),samples=Number(profile?.samples||0);
+    const hasProfile=Number.isFinite(pf)&&pf>.02&&pf<1&&samples>=2;
+    const pace=hasProfile?Number(currentVol||0)/pf:linear;
+    const timeConf=Math.max(.28,Math.min(1,elapsed/120));
+    const profileConf=hasProfile?Math.min(.92,.58+samples*.06):timeConf;
+    const base=Number(avg5||0)>0?Number(avg5):pace;
+    const w=Math.max(.35,Math.min(.92,hasProfile?profileConf:timeConf));
+    const est=pace*w + base*(1-w);
+
+    return {
+      volume:Math.max(Number(currentVol||0),Math.round(est)),
+      fraction:hasProfile?pf:timeFrac,
+      confidence:w,
+      elapsed,
+      method:hasProfile?'歷史同時段量能曲線':'時間進度模型'
+    };
   }
   function promoteCompletedIntradayBar(b,j){
     if(!STATE?.prices?.length || !b)return false;
@@ -1955,7 +2041,7 @@ setTimeout(refreshFuturesBadge,700);
     }
 
     const avg5=avg(formalRows.slice(-5).map(x=>Number(x.volume||0)))||0;
-    const pv=projectedVolume(Number(b.volume||0),b.last_time,avg5,open);
+    const pv=projectedVolume(Number(b.volume||0),b.last_time,avg5,open,j?.volume_profile);
     const synthetic={
       date:b.date,
       open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
@@ -1965,9 +2051,14 @@ setTimeout(refreshFuturesBadge,700);
 
     // Today's chips are not guessed. Use only chip data known at the previous completed session.
     const m=cut(STATE.margin,formalDate),i=cut(STATE.inst,formalDate),dt=cut(STATE.daytrade,formalDate);
-    const R=combineScores(sim,m,i,dt);
-    const E=entryEngine(sim,R);
-    return {R,E,formalDate,pv,avg5,open,synthetic};
+    const P=buildScorePacket(sim,m,i,dt,{
+      mode:'live',
+      quoteValid:j?.quote_valid!==false,
+      volumeConfidence:pv.confidence,
+      chipBaseDate:formalDate
+    });
+    const R=P.R,E=P.E;
+    return {P,R,E,formalDate,pv,avg5,open,synthetic};
   }
   function paintScore(id,val){
     const el=byId(id); if(!el)return;
@@ -2047,12 +2138,17 @@ setTimeout(refreshFuturesBadge,700);
         paintScore('liveEntry',live.E.score);
         paintScore('liveHold',live.E.hold);
         paintScore('liveOpportunity',live.E.opportunity);
+        paintScore('liveAction',live.P.action);
+        paintScore('liveConfidence',live.P.confidence);
+        byId('liveActionSub').textContent=live.P.gateOK
+          ? `通過門檻｜Raw ${live.P.actionRaw}`
+          : `限制：${live.P.gateReasons.join(' / ')}｜Raw ${live.P.actionRaw}`;
 
         const projLots=Math.round(live.pv.volume/1000);
         const avgLots=Math.round(live.avg5/1000);
         const vr=live.avg5>0?live.pv.volume/live.avg5:null;
         byId('liveProjectedVol').textContent=projLots.toLocaleString('zh-TW')+' 張';
-        byId('liveProjectedVolSub').textContent=`目前 ${lots} 張｜5日均量 ${avgLots.toLocaleString('zh-TW')} 張｜進度 ${(live.pv.fraction*100).toFixed(0)}%`;
+        byId('liveProjectedVolSub').textContent=`目前 ${lots} 張｜5日均量 ${avgLots.toLocaleString('zh-TW')} 張｜${live.pv.method} ${(live.pv.fraction*100).toFixed(0)}%`;
         byId('liveVolRatio').textContent=Number.isFinite(vr)?vr.toFixed(2)+'×':'—';
         byId('liveEntrySub').textContent=`Entry Quality ${live.E.entryQuality}｜Risk ${Number(live.R.market.risk).toFixed(1)}%｜${live.E.state}`;
         byId('liveHoldSub').textContent=`以目前價 ${b.close} 假設今日收盤｜正式盤後基準 ${live.formalDate}`;
