@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.11.0 · V4.4 個股完整審計</title>
+<title>台股 V1.11.1 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -71,7 +71,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.11.0 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.11.1 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
@@ -1436,7 +1436,7 @@ async function analyze(){
     setBanner(`已載入 ${id} ${stock.stock_name}。股價 ${pDate}｜融資 ${mDate}｜法人 ${iDate}｜當沖 ${dDate}｜籌碼來源 ${chipSrc}${fmDetail}${scoreNote}${failed.length?`；未取得：${failed.join('、')}`:''}`,'ok');
     try{
       render();
-      loadIntraday();
+      Promise.resolve().then(()=>loadIntraday()).catch(e=>console.warn('intraday optional feature failed',e));
     }catch(renderErr){
       console.error('render failed',renderErr);
       setBanner(`資料已取得，但畫面繪製失敗：${renderErr.message||renderErr}`,'err');
@@ -1516,11 +1516,12 @@ async function refreshFuturesBadge(){
 setTimeout(refreshFuturesBadge,700);
 
 
-$('intradayPreviewBtn').onclick=()=>{
+const intradayPreviewBtn=$('intradayPreviewBtn');
+if(intradayPreviewBtn) intradayPreviewBtn.addEventListener('click',()=>{
   if(!STATE.intraday)return;
   STATE.intradayPreview=!STATE.intradayPreview;
   renderIntradayPreview();
-};
+});
 </script>
 </body>
 </html>
