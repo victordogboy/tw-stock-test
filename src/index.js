@@ -489,16 +489,22 @@ function cleanNum(v){
   const n=Number(s); return Number.isFinite(n)?n:null;
 }
 function rowByFields(payload,code){
-  const tables=Array.isArray(payload?.tables)?payload.tables:[];
+  // TWSE RWD responses are not uniform:
+  // some reports return top-level {fields,data}; others return {tables:[{fields,data}]}.
+  // R5 only parsed tables[], which made valid official data look missing (0% completeness).
+  const tables=[];
+  if(Array.isArray(payload?.fields) && Array.isArray(payload?.data)){
+    tables.push({fields:payload.fields,data:payload.data});
+  }
+  if(Array.isArray(payload?.tables)) tables.push(...payload.tables);
   for(const t of tables){
     const fields=(t?.fields||[]).map(x=>String(x).replace(/<[^>]+>/g,"").trim());
     const data=Array.isArray(t?.data)?t.data:[];
     for(const row of data){
       if(!Array.isArray(row))continue;
       const obj={}; fields.forEach((f,i)=>obj[f]=row[i]);
-      const vals=row.map(x=>String(x??"").trim());
-      const c=vals.find(v=>v===String(code));
-      if(c) return {obj,fields,row};
+      const vals=row.map(x=>String(x??"").replace(/<[^>]+>/g,"").trim());
+      if(vals.some(v=>v===String(code))) return {obj,fields,row};
     }
   }
   return null;
@@ -1046,13 +1052,13 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r5/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r6/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
 
     async function finmindDataset(dataset){
-      const dsKey=new Request(`${url.origin}/__cache/finmind-r5/${dataset}/${code}/${startDate}/${endDate}`,request);
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r6/${dataset}/${code}/${startDate}/${endDate}`,request);
       const hit=await cache.match(dsKey);
       if(hit){ try{return await hit.json()}catch{} }
 
@@ -1060,7 +1066,7 @@ async function routeApi(request, env, url) {
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r5"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r6"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
