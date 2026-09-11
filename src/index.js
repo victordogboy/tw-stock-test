@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.1)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.2)"}});
       const buf=await r.arrayBuffer();
       const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
       let big5="";
@@ -601,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.1)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.2)"
         }
       });
       const text=await r.text();
@@ -641,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.11.1",
+      version: "1.11.2",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -811,37 +811,32 @@ async function routeApi(request, env, url) {
     for(const suffix of suffixes){
       const symbol=String(code)+suffix;
       for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
-        const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false&events=div%2Csplits`;
         try{
-          const r=await fetch(u,{headers:{
-            "accept":"application/json,text/plain,*/*",
-            "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
-          }});
+          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false`;
+          const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"}});
           attempts.push({host,symbol,status:r.status});
           if(!r.ok) continue;
-          const j=await r.json();
-          const z=j?.chart?.result?.[0],ts=z?.timestamp||[],q=z?.indicators?.quote?.[0]||{};
+          const j=await r.json(),z=j?.chart?.result?.[0],ts=z?.timestamp||[],q=z?.indicators?.quote?.[0]||{};
           if(!ts.length) continue;
-          const localDate=t=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t*1000));
-          const localTime=t=>new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(t*1000));
-          const latestDate=localDate(ts.at(-1)),rows=[];
+          const day=t=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t*1000));
+          const time=t=>new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(t*1000));
+          const latestDay=day(ts.at(-1)),rows=[];
           for(let i=0;i<ts.length;i++){
-            if(localDate(ts[i])!==latestDate) continue;
-            const close=Number(q.close?.[i]);
-            if(!Number.isFinite(close)) continue;
-            rows.push({t:ts[i],open:Number(q.open?.[i]),high:Number(q.high?.[i]),low:Number(q.low?.[i]),close,volume:Number(q.volume?.[i]||0)});
+            if(day(ts[i])!==latestDay) continue;
+            const c=Number(q.close?.[i]);
+            if(!Number.isFinite(c)) continue;
+            rows.push({t:ts[i],open:Number(q.open?.[i]),high:Number(q.high?.[i]),low:Number(q.low?.[i]),close:c,volume:Number(q.volume?.[i]||0)});
           }
           if(!rows.length) continue;
-          const opens=rows.map(x=>x.open).filter(Number.isFinite), highs=rows.map(x=>x.high).filter(Number.isFinite), lows=rows.map(x=>x.low).filter(Number.isFinite);
-          const last=rows.at(-1),meta=z?.meta||{},prevClose=Number(meta.chartPreviousClose??meta.previousClose),close=roundTwPrice(last.close);
-          const bar={
-            date:latestDate,open:roundTwPrice(opens[0]),high:roundTwPrice(Math.max(...highs)),low:roundTwPrice(Math.min(...lows)),close,
+          const hi=rows.map(x=>x.high).filter(Number.isFinite),lo=rows.map(x=>x.low).filter(Number.isFinite),op=rows.map(x=>x.open).filter(Number.isFinite);
+          const last=rows.at(-1),meta=z?.meta||{},prev=Number(meta.chartPreviousClose??meta.previousClose),close=roundTwPrice(last.close);
+          return json({ok:true,source:"Yahoo Finance 1m intraday",market_state:meta.marketState||null,bar:{
+            date:latestDay,open:roundTwPrice(op[0]),high:roundTwPrice(Math.max(...hi)),low:roundTwPrice(Math.min(...lo)),close,
             volume:rows.reduce((s,x)=>s+(Number.isFinite(x.volume)?x.volume:0),0),
-            last_time:localTime(last.t),last_timestamp:last.t,prev_close:roundTwPrice(prevClose),
-            change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,
-            change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol
-          };
-          return json({ok:true,source:"Yahoo Finance 1m intraday",symbol,bar,points:rows.length,attempts,market_state:meta.marketState||null},200,{"cache-control":"no-store"});
+            last_time:time(last.t),prev_close:roundTwPrice(prev),
+            change:Number.isFinite(prev)?roundTwPrice(close-prev):null,
+            change_pct:Number.isFinite(prev)&&prev!==0?(close-prev)/prev*100:null
+          },attempts},200,{"cache-control":"no-store"});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
       }
     }
@@ -1113,7 +1108,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.11.1");
+        headers.set("X-App-Version","1.11.2");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
