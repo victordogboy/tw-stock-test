@@ -405,7 +405,16 @@ async function runFinmindTop(topList,limit){
 
 
 function scanMinutes(hms){const m=String(hms||'').match(/(\d{1,2}):(\d{2})/);return m?Number(m[1])*60+Number(m[2]):null}
-function scanMarketOpen(j,b){const st=String(j?.market_state||'').toUpperCase();if(['REGULAR','OPEN'].includes(st))return true;const mins=scanMinutes(b?.last_time);return Number.isFinite(mins)&&mins>=540&&mins<810}
+function scanTaipeiNow(){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());
+  const o={};for(const p of parts)o[p.type]=p.value;
+  return {date:`${o.year}-${o.month}-${o.day}`,minutes:Number(o.hour)*60+Number(o.minute)};
+}
+function scanMarketOpen(j,b){
+  const now=scanTaipeiNow();
+  if(String(b?.date||'')!==now.date)return false;
+  return Number.isFinite(now.minutes)&&now.minutes>=540&&now.minutes<810;
+}
 function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');return [...new Set(errs)]}
 function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
 function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}

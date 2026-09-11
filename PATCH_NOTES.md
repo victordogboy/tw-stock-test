@@ -1,31 +1,19 @@
-# V1.14.2-R1 — clean rollback + latest-data repair
+# V1.14.2-R2 — 收盤後仍跳回前一日修正
 
-Base is the clean V1.14.2 project.
+真正原因已找到：
 
-This rebuild intentionally DOES NOT include V1.15.0 / V1.15.1 changes:
-- no Action Score
-- no Confidence score
-- no 5-day intraday-volume-profile change
-- no V1.15 scanner/API refactor
+Yahoo `marketState` 在收盤後仍可能保留 `REGULAR`。
+V1.14.2 原本把這個欄位當成「市場仍開盤」，因此個股頁在載入 2026-09-11 後，
+`makeLiveScore()` 又把正式審計日強制退回前一交易日 2026-09-10。
 
-Only latest-data behavior is repaired:
+這就是為什麼：
+- 全市場掃描已是 2026-09-11
+- 個股頁卻仍顯示 2026-09-10
 
-1. `/api/history/auto?fresh=1`
-   - bypasses the Worker's 6-hour history cache
-   - returns `cache-control: no-store`
-   - is not written back into the 6-hour cache
-
-2. Detail page
-   - requests fresh history first
-   - Scanner localStorage snapshot becomes fallback only
-   - therefore an old Scanner snapshot cannot keep the formal audit on 9/10 after 9/11 has completed
-
-3. Full-market Scanner
-   - all TWSE / TPEx history requests use `fresh=1`
-   - watchlist update uses `fresh=1`
-   - diagnostic history uses `fresh=1`
-
-4. TWSE `STOCK_DAY`
-   - request includes a cache-buster to avoid stale intermediary monthly responses
-
-Scoring/model behavior remains V1.14.2.
+修正：
+- 個股頁市場狀態改以 Asia/Taipei 當下日期與時間判斷。
+- 只有「今日資料 + 台灣時間 09:00~13:29」才視為盤中。
+- 13:30 後，今日 K 線視為完成交易日，不再退回前一日。
+- Scanner 同步採用相同規則。
+- Worker 額外回傳 session_open / session_date 供診斷。
+- V1.14.2 評分邏輯完全不變。

@@ -1806,11 +1806,26 @@ setTimeout(refreshFuturesBadge,700);
     if(!m)return null;
     return Number(m[1])*60+Number(m[2]);
   }
+  function taipeiNowParts(){
+    const parts=new Intl.DateTimeFormat('en-CA',{
+      timeZone:'Asia/Taipei',
+      year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit',hour12:false
+    }).formatToParts(new Date());
+    const o={};
+    for(const p of parts)o[p.type]=p.value;
+    return {
+      date:`${o.year}-${o.month}-${o.day}`,
+      minutes:Number(o.hour)*60+Number(o.minute)
+    };
+  }
   function isMarketOpen(j,b){
-    const st=String(j?.market_state||'').toUpperCase();
-    if(['REGULAR','OPEN'].includes(st))return true;
-    const mins=parseMinutes(b?.last_time);
-    return Number.isFinite(mins) && mins>=9*60 && mins<13*60+30;
+    // Yahoo meta.marketState may remain REGULAR after close.
+    // Taiwan local clock + today's bar date are authoritative.
+    const now=taipeiNowParts();
+    const barDate=String(b?.date||'');
+    if(barDate!==now.date)return false;
+    return Number.isFinite(now.minutes) && now.minutes>=9*60 && now.minutes<13*60+30;
   }
   function projectedVolume(currentVol,lastTime,avg5,open){
     const mins=parseMinutes(lastTime);
@@ -1905,7 +1920,7 @@ setTimeout(refreshFuturesBadge,700);
         const card=byId('liveScoreCard');if(card)card.style.display='none';
         setRefreshUi(false,'盤中報價驗證失敗；正式盤後資料仍可正常使用');return;
       }
-      byId('todayMeta').textContent=`${j.source||'Yahoo 1分K'}｜${j.market_state||'—'}｜${marketOpen?'下方正式區固定上一完成交易日':'市場非盤中，正式區依可得日K為準'}`;
+      byId('todayMeta').textContent=`${j.source||'Yahoo 1分K'}｜${j.market_state||'—'}｜${marketOpen?'盤中：正式區固定上一完成交易日':'已收盤/非盤中：正式區使用最新完成日K'}`;
       const live=makeLiveScore(b,j);
 
       // Existing chart live HUD.

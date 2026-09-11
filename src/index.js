@@ -254,6 +254,18 @@ function ordinaryStock(x) {
 function unixSec(dateStr) {
   return Math.floor(new Date(dateStr + "T00:00:00+08:00").getTime()/1000);
 }
+
+function taipeiSessionState(){
+  const parts=new Intl.DateTimeFormat("en-CA",{
+    timeZone:"Asia/Taipei",
+    year:"numeric",month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hour12:false
+  }).formatToParts(new Date());
+  const o={}; for(const p of parts)o[p.type]=p.value;
+  const date=`${o.year}-${o.month}-${o.day}`;
+  const minutes=Number(o.hour)*60+Number(o.minute);
+  return {date,minutes,is_open:minutes>=540&&minutes<810};
+}
 function isoDateTaipei(d=new Date()) {
   return new Intl.DateTimeFormat("sv-SE", {timeZone:"Asia/Taipei"}).format(d);
 }
@@ -856,7 +868,14 @@ async function routeApi(request, env, url) {
             if(ratio<0.2||ratio>5)validation_errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
           }
           const bar={date:latestDay,open,high,low,close,volume:rows.reduce((s,x)=>s+x.volume,0),last_time:time(last.t),last_timestamp:last.t,prev_close:prevClose,change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol};
-          return json({ok:true,quote_valid:validation_errors.length===0,validation_errors,source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,market_state:meta.marketState||null},200,{"cache-control":"no-store"});
+          const session=taipeiSessionState();
+          return json({
+            ok:true,quote_valid:validation_errors.length===0,validation_errors,
+            source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,
+            market_state:meta.marketState||null,
+            session_open:session.is_open && latestDay===session.date,
+            session_date:session.date
+          },200,{"cache-control":"no-store"});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
       }
     }
