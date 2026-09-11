@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>V1.16.0-R3｜API 診斷｜基底 V1.14.2-R3</title>
+<style>
+body{font-family:system-ui;background:#07111f;color:#eaf1ff;margin:20px}.box{background:#0d1b2e;border:1px solid #29415f;border-radius:12px;padding:14px;margin-bottom:14px}
+input,button{background:#10243d;color:#fff;border:1px solid #3a587e;border-radius:7px;padding:8px}button{cursor:pointer}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:7px;border-bottom:1px solid #223957;text-align:left}.ok{color:#42db9b}.bad{color:#ff6f7e}.muted{color:#9fb1cb}code{color:#ffd36a}
+</style></head><body>
+<h1>V1.16.0-R3｜API 診斷｜基底 V1.14.2-R3</h1>
+<div class="box"><b>只做資料源診斷，不修改 Scanner / V4.4 / FinMind / Action。</b><p class="muted">測試 Worker normal、fresh、intraday。上市股票另外測 TWSE 官方 STOCK_DAY。Target Date 必須由你指定；診斷頁不會偽造日期。</p>
+<label>Target Date <input id="target" type="date"></label>
+<label style="margin-left:8px">股票 <input id="codes" size="55" value="2330:twse,2801:twse,2303:twse,5347:tpex,6488:tpex"></label>
+<button id="run">開始診斷</button></div>
+<div class="box"><div id="status">尚未測試</div><div style="overflow:auto"><table><thead><tr><th>股票</th><th>市場</th><th>來源</th><th>HTTP</th><th>最後日期</th><th>Target</th><th>O/H/L/C</th><th>Volume</th><th>筆數</th><th>耗時</th><th>錯誤</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<script>
+const $=id=>document.getElementById(id);
+function fmtDate(d){return d.toISOString().slice(0,10)}
+function priorWeekday(d=new Date()){let x=new Date(d);do{x.setDate(x.getDate()-1)}while(x.getDay()==0||x.getDay()==6);return fmtDate(x)}
+$('target').value=priorWeekday();
+function esc(x){return String(x??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+async function timed(url){
+ const t=performance.now();
+ try{const r=await fetch(url,{cache:'no-store'});const text=await r.text();let j=null;try{j=JSON.parse(text)}catch{}
+ return {ok:r.ok,status:r.status,j,text,ms:Math.round(performance.now()-t)}}
+ catch(e){return {ok:false,status:'FETCH',j:null,text:'',ms:Math.round(performance.now()-t),error:String(e)}}
+}
+function lastBar(j){
+ const a=Array.isArray(j?.data)?j.data:[];
+ const b=a.filter(x=>x&&x.date).sort((x,y)=>String(x.date).localeCompare(String(y.date))).at(-1);
+ return {bar:b,n:a.length};
+}
+function add(code,market,source,res,bar,n,target){
+ const tr=document.createElement('tr');const date=String(bar?.date||'');
+ const match=date===target;
+ tr.innerHTML=`<td>${esc(code)}</td><td>${esc(market)}</td><td>${esc(source)}</td><td class="${res.ok?'ok':'bad'}">${esc(res.status)}</td><td>${esc(date||'—')}</td><td class="${match?'ok':'bad'}">${match?'✓ '+target:'✗ '+target}</td><td>${bar?`${esc(bar.open)}/${esc(bar.high)}/${esc(bar.low)}/${esc(bar.close)}`:'—'}</td><td>${esc(bar?.volume??'—')}</td><td>${esc(n??'—')}</td><td>${res.ms} ms</td><td class="bad">${esc(res.error||(!res.ok?(res.j?.error||res.text.slice(0,100)):'')||'')}</td>`;
+ $('rows').appendChild(tr);
+}
+async function workerHistory(code,market,target,fresh){
+ const start=new Date(target+'T12:00:00+08:00');start.setDate(start.getDate()-470);
+ const u=`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${fmtDate(start)}&end_date=${target}${fresh?'&fresh=1&_='+Date.now():''}`;
+ const r=await timed(u),x=lastBar(r.j);add(code,market,fresh?'Worker history fresh':'Worker history normal',r,x.bar,x.n,target);
+}
+async function intraday(code,market,target){
+ const r=await timed(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&_=${Date.now()}`);
+ const j=r.j||{};let b=null;
+ if(j.data&&typeof j.data==='object'&&!Array.isArray(j.data))b=j.data;
+ if(Array.isArray(j.data))b=j.data.at(-1);
+ if(b&&!b.date&&j.date)b={...b,date:j.date};
+ add(code,market,'Worker intraday',r,b,Array.isArray(j.data)?j.data.length:(b?1:0),target);
+}
+function rocToIso(s){const m=String(s||'').match(/(\d+)\/(\d+)\/(\d+)/);return m?`${Number(m[1])+1911}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`:''}
+async function twse(code,target){
+ const ymd=target.replaceAll('-','');
+ const r=await timed(`https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY?date=${ymd}&stockNo=${encodeURIComponent(code)}&response=json`);
+ const a=Array.isArray(r.j?.data)?r.j.data:[];const rows=a.map(x=>({date:rocToIso(x[0]),volume:String(x[1]||'').replaceAll(',',''),open:x[3],high:x[4],low:x[5],close:x[6]})).filter(x=>x.date).sort((a,b)=>a.date.localeCompare(b.date));
+ add(code,'twse','TWSE STOCK_DAY direct',r,rows.at(-1),rows.length,target);
+}
+$('run').onclick=async()=>{
+ $('rows').innerHTML='';const target=$('target').value;
+ const items=$('codes').value.split(',').map(x=>{const [code,market='twse']=x.trim().split(':');return {code,market}}).filter(x=>x.code);
+ $('status').textContent=`測試中：Target ${target}，${items.length} 檔`;
+ let done=0;
+ for(const x of items){
+   await workerHistory(x.code,x.market,target,false);
+   await workerHistory(x.code,x.market,target,true);
+   await intraday(x.code,x.market,target);
+   if(x.market==='twse')await twse(x.code,target);
+   done++;$('status').textContent=`測試中 ${done}/${items.length}｜Target ${target}`;
+ }
+ $('status').textContent=`完成 ${done}/${items.length}｜Target ${target}。紅色 Target = 該來源沒有真正取得目標交易日。`;
+};
+</script></body></html>
