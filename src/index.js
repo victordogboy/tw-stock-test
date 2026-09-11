@@ -1052,13 +1052,13 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r6/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r7/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
 
     async function finmindDataset(dataset){
-      const dsKey=new Request(`${url.origin}/__cache/finmind-r6/${dataset}/${code}/${startDate}/${endDate}`,request);
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r7/${dataset}/${code}/${startDate}/${endDate}`,request);
       const hit=await cache.match(dsKey);
       if(hit){ try{return await hit.json()}catch{} }
 
@@ -1066,7 +1066,7 @@ async function routeApi(request, env, url) {
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r6"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r7"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1106,41 +1106,64 @@ async function routeApi(request, env, url) {
     const diagnostics=[];
 
     if(market==="twse"){
-      const dates=recentWeekdays(endDate,12),rows=[];
-      for(const d of dates) rows.push(await chipForDate(code,d));
-      margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
-      inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
-      daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date));
-      if(margin.length) source_detail.margin="TWSE";
-      if(inst.length) source_detail.inst="TWSE";
-      if(daytrade.length) source_detail.daytrade="TWSE";
+      // Market-wide reports: validate Target date only here. R6's 12×3 upstream
+      // requests in one hybrid call were too heavy and could surface platform HTML errors.
+      const rows=[await chipForDate(code,endDate)];
+      margin=rows.map(x=>x.margin).filter(Boolean);
+      inst=rows.map(x=>x.inst).filter(Boolean);
+      daytrade=rows.map(x=>x.daytrade).filter(Boolean);
+      if(margin.length) source_detail.margin="TWSE latest";
+      if(inst.length) source_detail.inst="TWSE latest";
+      if(daytrade.length) source_detail.daytrade="TWSE latest";
       diagnostics.push(...rows.filter(x=>x.errors?.length).map(x=>({date:x.date,errors:x.errors})));
     }
 
     async function fillMargin(){
-      if(margin.length) return;
+      const officialLatest=margin.at(-1)||null;
       const r=await finmindDataset("TaiwanStockMarginPurchaseShortSale");
       diagnostics.push({dataset:"TaiwanStockMarginPurchaseShortSale",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
-      if(r.ok&&r.data?.length){margin=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));source_detail.margin="FinMind"}
+      if(r.ok&&r.data?.length){
+        margin=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        if(officialLatest){
+          margin=margin.filter(x=>String(x.date)!==String(officialLatest.date)).concat([officialLatest]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+          source_detail.margin="FinMind hist + TWSE latest";
+        }else source_detail.margin="FinMind";
+      }
     }
     async function fillInst(){
-      if(inst.length) return;
+      const officialLatest=inst.at(-1)||null;
       let r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySellWide");
       diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySellWide",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
       if(r.ok&&r.data?.length){
         inst=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-        source_detail.inst="FinMind Wide"; return;
+        if(officialLatest){
+          inst=inst.filter(x=>String(x.date)!==String(officialLatest.date)).concat([officialLatest]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+          source_detail.inst="FinMind Wide hist + TWSE latest";
+        }else source_detail.inst="FinMind Wide";
+        return;
       }
       r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySell");
       diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySell",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
       const wide=institutionalStandardToWide(r.data||[]);
-      if(r.ok&&wide.length){inst=wide;source_detail.inst="FinMind Standard→Wide"}
+      if(r.ok&&wide.length){
+        inst=wide;
+        if(officialLatest){
+          inst=inst.filter(x=>String(x.date)!==String(officialLatest.date)).concat([officialLatest]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+          source_detail.inst="FinMind Std hist + TWSE latest";
+        }else source_detail.inst="FinMind Standard→Wide";
+      }
     }
     async function fillDaytrade(){
-      if(daytrade.length) return;
+      const officialLatest=daytrade.at(-1)||null;
       const r=await finmindDataset("TaiwanStockDayTrading");
       diagnostics.push({dataset:"TaiwanStockDayTrading",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
-      if(r.ok&&r.data?.length){daytrade=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));source_detail.daytrade="FinMind"}
+      if(r.ok&&r.data?.length){
+        daytrade=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+        if(officialLatest){
+          daytrade=daytrade.filter(x=>String(x.date)!==String(officialLatest.date)).concat([officialLatest]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+          source_detail.daytrade="FinMind hist + TWSE latest";
+        }else source_detail.daytrade="FinMind";
+      }
     }
 
     await fillMargin();
@@ -1155,6 +1178,7 @@ async function routeApi(request, env, url) {
       source_detail,
       completeness:Math.round(available/3*100),
       completeness_detail:flags,
+      coverage_days:{margin:margin.length,inst:inst.length,daytrade:daytrade.length},
       margin,inst,daytrade,
       data_dates:{
         margin:margin.at(-1)?.date||null,
