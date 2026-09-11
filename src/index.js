@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.13.3)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.14.0)"}});
       const buf=await r.arrayBuffer();
       const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
       let big5="";
@@ -601,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.13.3)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.14.0)"
         }
       });
       const text=await r.text();
@@ -641,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.13.3",
+      version: "1.14.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -808,11 +808,21 @@ async function routeApi(request, env, url) {
     const market=url.searchParams.get("market")||"";
     const suffixes=market==="tpex"?[".TWO",".TW"]:market==="twse"?[".TW",".TWO"]:[".TW",".TWO"];
     const attempts=[];
+    const pos=v=>{
+      if(v===null||v===undefined||v==='')return null;
+      const n=Number(v);
+      return Number.isFinite(n)&&n>0?n:null;
+    };
+    const vol=v=>{
+      if(v===null||v===undefined||v==='')return 0;
+      const n=Number(v);
+      return Number.isFinite(n)&&n>=0?n:0;
+    };
     for(const suffix of suffixes){
       const symbol=String(code)+suffix;
       for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
         try{
-          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false`;
+          const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m&includePrePost=false`;
           const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"}});
           attempts.push({host,symbol,status:r.status});
           if(!r.ok) continue;
@@ -823,25 +833,36 @@ async function routeApi(request, env, url) {
           const latestDay=day(ts.at(-1)),rows=[];
           for(let i=0;i<ts.length;i++){
             if(day(ts[i])!==latestDay) continue;
-            const c=Number(q.close?.[i]);
-            if(!Number.isFinite(c)) continue;
-            rows.push({t:ts[i],open:Number(q.open?.[i]),high:Number(q.high?.[i]),low:Number(q.low?.[i]),close:c,volume:Number(q.volume?.[i]||0)});
+            const close=pos(q.close?.[i]);
+            if(close===null) continue;
+            rows.push({t:ts[i],open:pos(q.open?.[i]),high:pos(q.high?.[i]),low:pos(q.low?.[i]),close,volume:vol(q.volume?.[i])});
           }
           if(!rows.length) continue;
-          const hi=rows.map(x=>x.high).filter(Number.isFinite),lo=rows.map(x=>x.low).filter(Number.isFinite),op=rows.map(x=>x.open).filter(Number.isFinite);
-          const last=rows.at(-1),meta=z?.meta||{},prev=Number(meta.chartPreviousClose??meta.previousClose),close=roundTwPrice(last.close);
-          return json({ok:true,source:"Yahoo Finance 1m intraday",market_state:meta.marketState||null,bar:{
-            date:latestDay,open:roundTwPrice(op[0]),high:roundTwPrice(Math.max(...hi)),low:roundTwPrice(Math.min(...lo)),close,
-            volume:rows.reduce((s,x)=>s+(Number.isFinite(x.volume)?x.volume:0),0),
-            last_time:time(last.t),prev_close:roundTwPrice(prev),
-            change:Number.isFinite(prev)?roundTwPrice(close-prev):null,
-            change_pct:Number.isFinite(prev)&&prev!==0?(close-prev)/prev*100:null
-          },attempts},200,{"cache-control":"no-store"});
+          const opens=rows.map(x=>x.open).filter(v=>v!==null),highs=rows.map(x=>x.high).filter(v=>v!==null),lows=rows.map(x=>x.low).filter(v=>v!==null),closes=rows.map(x=>x.close).filter(v=>v!==null);
+          const last=rows.at(-1),meta=z?.meta||{},prev=pos(meta.chartPreviousClose??meta.previousClose);
+          const openRaw=opens[0]??closes[0]??null,closeRaw=last.close;
+          const highPool=[...highs,openRaw,closeRaw].filter(v=>v!==null),lowPool=[...lows,openRaw,closeRaw].filter(v=>v!==null);
+          const highRaw=highPool.length?Math.max(...highPool):null,lowRaw=lowPool.length?Math.min(...lowPool):null;
+          const open=openRaw===null?null:roundTwPrice(openRaw),high=highRaw===null?null:roundTwPrice(highRaw),low=lowRaw===null?null:roundTwPrice(lowRaw),close=roundTwPrice(closeRaw),prevClose=prev===null?null:roundTwPrice(prev);
+          const validation_errors=[];
+          for(const [k,v] of Object.entries({open,high,low,close}))if(!Number.isFinite(Number(v))||Number(v)<=0)validation_errors.push(`${k} missing/invalid`);
+          if(Number.isFinite(low)&&Number.isFinite(high)&&low>high)validation_errors.push('low > high');
+          if(Number.isFinite(open)&&Number.isFinite(high)&&open>high*1.002)validation_errors.push('open > high');
+          if(Number.isFinite(open)&&Number.isFinite(low)&&open<low*.998)validation_errors.push('open < low');
+          if(Number.isFinite(close)&&Number.isFinite(high)&&close>high*1.002)validation_errors.push('close > high');
+          if(Number.isFinite(close)&&Number.isFinite(low)&&close<low*.998)validation_errors.push('close < low');
+          if(Number.isFinite(prevClose)&&prevClose>0&&Number.isFinite(close)){
+            const ratio=close/prevClose;
+            if(ratio<0.2||ratio>5)validation_errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
+          }
+          const bar={date:latestDay,open,high,low,close,volume:rows.reduce((s,x)=>s+x.volume,0),last_time:time(last.t),last_timestamp:last.t,prev_close:prevClose,change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol};
+          return json({ok:true,quote_valid:validation_errors.length===0,validation_errors,source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,market_state:meta.marketState||null},200,{"cache-control":"no-store"});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
       }
     }
-    return json({ok:false,error:"intraday unavailable",attempts},502,{"cache-control":"no-store"});
+    return json({ok:false,error:'intraday unavailable',attempts},502,{"cache-control":"no-store"});
   }
+
 
   if (url.pathname === "/api/history/auto") {
     const code=url.searchParams.get("code")||"3443";
@@ -1108,7 +1129,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.13.3");
+        headers.set("X-App-Version","1.14.0");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

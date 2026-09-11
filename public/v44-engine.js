@@ -208,6 +208,20 @@ function evaluate(rows,margin,inst,daytrade,entryMode='market'){
     return true;
   };
 
+  const safeFloors=[
+    Number.isFinite(structuralGuard.eventLow)?structuralGuard.eventLow*1.003:NaN,
+    Number.isFinite(structuralGuard.hlLow)?structuralGuard.hlLow*1.003:NaN,
+    Number.isFinite(structuralGuard.swingLow)?structuralGuard.swingLow*1.001:NaN,
+    Number.isFinite(structuralGuard.platformFloor)?structuralGuard.platformFloor*.997:NaN
+  ].filter(Number.isFinite);
+  const safeFloor=safeFloors.length?Math.max(...safeFloors):NaN;
+  if(Number.isFinite(safeFloor)&&safeFloor<close){
+    const lo=roundTick(safeFloor+tick(safeFloor)),span=Math.max(0,close-lo),grid=[];
+    for(let k=0;k<=20;k++){const p=roundTick(lo+span*k/20);if(p>0&&p<=close*1.002)grid.push(p)}
+    candidates=uniq([...candidates,...grid]);
+    structuralGuard.safeFloor=lo;
+  }else structuralGuard.safeFloor=NaN;
+
   const baseStopFor=(entry)=>roundTick(supportBelow(entry,[ma20,ma10,hl.b?.low,swing?.low,breakoutSupport]) - tick(entry));
   let bestAll=null,bestSafe=null;
   for(const e0 of candidates){

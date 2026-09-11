@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.13.3 · Top100 FinMind 完整重評</title>
+<title>台股 V1.14.0 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -30,7 +30,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.13.3 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.14.0 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -285,7 +285,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.13.2',
+    version:'1.14.0',
     savedAt:Date.now(),
     currentRank,
     results:slim,
@@ -344,7 +344,7 @@ function renderRankOnly(key=currentRank){
     <td>${r.market==='tpex'?'上櫃':'上市'}</td>
     <td>${r.dataDate||'—'}</td>
     <td>${r.hasFutures?'● 有':'—'}</td><td>${fmtPrice(r.close)}</td>
-    <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%'+(r.postFinmind?' FM':''):'Price-only'}</td>
+    <td>${r.finmindCompleteness!=null?r.finmindCompleteness+'%'+(r.postFinmind?' FM':''):'Price-only'}${r.liveCurrent?'<br><span class="good">LIVE現價</span>':''}</td>
     <td>${r.decision?`${r.decision.buyLow.toFixed(1)}–${r.decision.buyHigh.toFixed(1)}`:'-'}</td>
     <td>${r.decision?r.decision.maxBuy.toFixed(1):'-'}</td>
     <td>${r.decision?r.decision.stop.toFixed(1):'-'}</td>
@@ -402,6 +402,25 @@ async function runFinmindTop(topList,limit){
   }
   await Promise.all(Array.from({length:Math.max(1,Math.min(4,limit))},lane));
 }
+
+
+function scanMinutes(hms){const m=String(hms||'').match(/(\d{1,2}):(\d{2})/);return m?Number(m[1])*60+Number(m[2]):null}
+function scanMarketOpen(j,b){const st=String(j?.market_state||'').toUpperCase();if(['REGULAR','OPEN'].includes(st))return true;const mins=scanMinutes(b?.last_time);return Number.isFinite(mins)&&mins>=540&&mins<810}
+function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');return [...new Set(errs)]}
+function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
+function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}
+async function liveCurrentRecheckOne(r){
+  const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`),b=j.bar||{},errs=scanQuoteErrors(j,b);
+  if(j.quote_valid===false||errs.length)throw new Error(`盤中報價異常 ${errs.join('/')}`);
+  const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
+  if(base.length<65)base=(r._hist||[]).filter(x=>String(x.date)<=String(b.date)).slice(0,-1);
+  if(base.length<65)throw new Error('盤中基準K不足');
+  const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
+  const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
+  const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
+  r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
+}
+async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
 
 async function worker(item){
   const code=String(item.code||item.stock_id||'').trim();
@@ -503,13 +522,17 @@ $('scanBtn').onclick=async()=>{
   $('status').textContent=`第一階段完成｜先顯示 Price-only Top ${top.length}；FinMind 開始漸進回刷，可立即查看排名`;
   await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
   showRank('entry');
+  $('prog').value=0;
+  $('status').textContent=`FinMind 完成，開始以現價重算四大分數 ${top.length} 檔…`;
+  await runLiveCurrent(results,Math.max(2,Math.min(6,n($('concurrency').value,6))));
+  showRank('entry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.13.3 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.14.0 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };
