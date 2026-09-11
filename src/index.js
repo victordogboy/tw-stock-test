@@ -1023,7 +1023,8 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const cacheKey=new Request(`${url.origin}/__cache/finmind-recheck/${code}/${startDate}/${endDate}`);
+    const finmindMode=env.FINMIND_TOKEN?"token":"anon";
+    const cacheKey=new Request(`${url.origin}/__cache/finmind-recheck-r11/${finmindMode}/${code}/${startDate}/${endDate}`);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
     if(cached) return cached;
@@ -1073,7 +1074,8 @@ async function routeApi(request, env, url) {
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
     const force=url.searchParams.get("force")==="1";
 
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r9/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const finmindMode=env.FINMIND_TOKEN?"token":"anon";
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r11/${finmindMode}/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     if(!force){
       const cached=await cache.match(cacheKey);
@@ -1081,7 +1083,7 @@ async function routeApi(request, env, url) {
     }
 
     async function finmindDataset(dataset){
-      const dsKey=new Request(`${url.origin}/__cache/finmind-r9/${dataset}/${code}/${startDate}/${endDate}`,request);
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r11/${finmindMode}/${dataset}/${code}/${startDate}/${endDate}`,request);
       if(!force){
         const hit=await cache.match(dsKey);
         if(hit){ try{return await hit.json()}catch{} }
@@ -1091,7 +1093,7 @@ async function routeApi(request, env, url) {
       if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r10"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r11"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1235,11 +1237,24 @@ async function routeApi(request, env, url) {
       },
       finmind_assist:Object.values(source_detail).some(v=>String(v||"").startsWith("FinMind")),
       refresh_mode:force?"forced-upstream":"cache-allowed",
+      finmind_mode:env.FINMIND_TOKEN?"token":"anonymous",
       diagnostics
     };
     const resp=json(body,200,{"cache-control":"public,max-age=900"});
     await cache.put(cacheKey,resp.clone());
     return resp;
+  }
+
+  if (url.pathname === "/api/finmind/status") {
+    const configured=Boolean(String(env.FINMIND_TOKEN||"").trim());
+    return json({
+      ok:true,
+      configured,
+      mode:configured?"token":"anonymous",
+      note:configured
+        ?"FINMIND_TOKEN 已由 Cloudflare Worker Secret 啟用。"
+        :"尚未設定 FINMIND_TOKEN，目前使用匿名額度。"
+    },200,{"cache-control":"no-store"});
   }
 
   if (url.pathname === "/api/finmind") {

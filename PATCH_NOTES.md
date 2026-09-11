@@ -1,16 +1,8 @@
-# V1.17.0-R10 — Intraday 503 Fallback
+# V1.17.0-R11 — FinMind TOKEN
 
-截圖已直接定位：
-`HTTP 503 /api/intraday?code=2330&market=twse`
-
-R9 把這一個 Yahoo 1m request 當成 Scanner 的唯一 Target 日期來源，因此一次暫時性 503 就會讓整個掃描停止。
-
-R10 只修改 Target 日期解析：
-1. Yahoo 1m 2330
-2. 失敗 -> TWSE fresh/exact 2330
-3. 再失敗 -> cached Daily 2330，畫面明確標 degraded
-4. 三個來源全部失敗才停止
-
-TWSE fresh fallback 只查 2330 一檔，不會重新造成 2271 檔 exact API overload。
-
-保留 R9 融資歷史修正、R8 強制分析、Stage1 日期防線、V4.4/Action。
+- 正式支援 Cloudflare Worker Secret `FINMIND_TOKEN`。
+- R10 已有 token 注入能力；R11 新增狀態確認與 Cache 分流。
+- Token 模式與匿名模式使用不同 cache key，設定 Token 後不會繼續讀到之前匿名 402/缺資料 cache。
+- Scanner / Detail 會顯示 TOKEN 已啟用或未設定。
+- `/api/finmind/status` 只回 configured/mode，不會回傳 Token。
+- 保留 R10 503 fallback、R9 融資歷史補強、R8 強制重新分析。
