@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股 V1.11.4 · V4.4 個股完整審計</title>
+<title>台股 V1.11.5 · V4.4 個股完整審計</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -62,13 +62,31 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .intraday-item b{display:block;font-size:17px;margin-top:4px}
 .livebadge{display:inline-block;padding:3px 8px;border-radius:999px;background:#55212a;border:1px solid #9d4050;color:#ff9eaa;font-size:11px;font-weight:900}
 @media(max-width:700px){.intraday-grid{grid-template-columns:repeat(2,1fr)}}
+
+.livepill{display:none;background:#3a1822;border-color:#8b3b4c;color:#ffd6dd;font-weight:900}
+.chart-live-hud{
+  display:none;position:absolute;top:10px;right:10px;z-index:5;
+  min-width:190px;padding:9px 11px;border-radius:10px;
+  background:rgba(8,18,33,.92);border:1px solid #8b3b4c;
+  box-shadow:0 4px 18px rgba(0,0,0,.28);pointer-events:none
+}
+.chart-live-hud .hd{font-size:11px;color:#ff9aaa;font-weight:900;margin-bottom:4px}
+.chart-live-hud .px{font-size:22px;font-weight:1000;line-height:1.05}
+.chart-live-hud .sub{font-size:11px;color:#c9d6eb;margin-top:4px;line-height:1.45}
+.chart-live-hud.up .px,.chart-live-hud.up .chg{color:#ff6d7b}
+.chart-live-hud.down .px,.chart-live-hud.down .chg{color:#35d6a0}
+.chart-live-hud.flat .px,.chart-live-hud.flat .chg{color:#f4c95d}
+@media(max-width:600px){
+  .chart-live-hud{top:7px;right:7px;min-width:150px;padding:7px 9px}
+  .chart-live-hud .px{font-size:18px}
+}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股 V1.11.4 · V4.4 個股完整審計</h1>
+      <h1>台股 V1.11.5 · V4.4 個股完整審計</h1>
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
@@ -112,9 +130,15 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="pill ma20pill">MA20 ●</span>
       <span class="pill ma60pill">MA60 ●</span>
       <span class="pill">成交量</span>
-      <span class="pill" id="auditPill">審計日：—</span><span class="pill" id="marketPill">市場：—</span><span class="pill" id="kColorPill">K色：—</span><span class="pill" id="volumePill">量：—</span>
+      <span class="pill" id="auditPill">審計日：—</span><span class="pill livepill" id="liveToolbarPill">盤中：—</span><span class="pill" id="marketPill">市場：—</span><span class="pill" id="kColorPill">K色：—</span><span class="pill" id="volumePill">量：—</span>
     </div>
-    <div class="chart"><canvas id="chart"></canvas></div>
+    <div class="chart"><canvas id="chart"></canvas>
+      <div id="chartLiveHud" class="chart-live-hud flat">
+        <div class="hd" id="chartLiveTitle">盤中即時</div>
+        <div><span class="px" id="chartLivePrice">—</span> <span class="chg" id="chartLiveChange">—</span></div>
+        <div class="sub" id="chartLiveOhlv">O — / H — / L — / V —</div>
+      </div>
+    </div>
     <div class="cursorbar">
       <span class="tiny">歷史盲測</span>
       <input type="range" id="auditSlider" min="0" max="0" value="0">
@@ -1469,7 +1493,7 @@ setTimeout(refreshFuturesBadge,700);
 </script>
 
 <script>
-/* V1.11.4: isolated optional intraday module.
+/* V1.11.5: isolated optional intraday module.
    It does not modify or bind any existing V1.10 buttons. */
 (function(){
   const byId=id=>document.getElementById(id);
@@ -1493,7 +1517,28 @@ setTimeout(refreshFuturesBadge,700);
       byId('tOpen').textContent=String(b.open??'—');
       byId('tHigh').textContent=String(b.high??'—');
       byId('tLow').textContent=String(b.low??'—');
-      byId('tVolTime').textContent=`${Math.round(Number(b.volume||0)/1000).toLocaleString('zh-TW')} 張 / ${b.last_time||'—'}`;
+      const lots=Math.round(Number(b.volume||0)/1000).toLocaleString('zh-TW');
+      byId('tVolTime').textContent=`${lots} 張 / ${b.last_time||'—'}`;
+
+      // Direct display inside the K-chart area. This is visual-only and never enters formal scoring.
+      const pct=Number(b.change_pct);
+      const dir=pct>0?'up':pct<0?'down':'flat';
+      const sign=Number(b.change)>0?'+':'';
+      const pctText=Number.isFinite(pct)?`${pct>0?'+':''}${pct.toFixed(2)}%`:'—';
+      const hud=byId('chartLiveHud');
+      if(hud){
+        hud.className=`chart-live-hud ${dir}`;
+        hud.style.display='block';
+        byId('chartLiveTitle').textContent=`盤中 ${b.date} ${b.last_time||''}`;
+        byId('chartLivePrice').textContent=String(b.close??'—');
+        byId('chartLiveChange').textContent=`${sign}${b.change??'—'} / ${pctText}`;
+        byId('chartLiveOhlv').textContent=`O ${b.open??'—'} / H ${b.high??'—'} / L ${b.low??'—'} / V ${lots}張`;
+      }
+      const livePill=byId('liveToolbarPill');
+      if(livePill){
+        livePill.style.display='inline-block';
+        livePill.textContent=`盤中：${b.close??'—'} (${pctText})`;
+      }
     }catch(e){console.warn('optional intraday failed',e)}
   }
   // Observe stock input changes produced by the existing analyzer, without touching its handlers.
