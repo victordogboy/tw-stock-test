@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 V1.9.3 · Top100 FinMind 完整重評</title>
+<title>台股 V1.11.0 · Top100 FinMind 完整重評</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -28,7 +28,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .futures-badge{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#6d4bc3;color:#fff;font-size:11px;font-weight:800}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 V1.9.3 · Top100 FinMind 完整重評</h1>
+<h1>台股 V1.11.0 · Top100 FinMind 完整重評</h1>
 <p class="muted">第一階段先用價格資料取前 100 名；第二階段加入 FinMind 籌碼重評。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
 
 <div class="card grid">
@@ -36,9 +36,10 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
 <div><label>最大保留檔數</label><input id="maxStocks" type="number" value="200"></div>
-<div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="4"></div>
+<div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="6"></div>
 <div><label>FinMind 重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
 </div>
+<div class="small muted" style="margin-top:8px">加速不會少掃股票：Universe 仍全部處理；同交易日重掃會優先命中 Worker 快取。第一階段完成後先顯示 Price-only TopN，再逐檔用 FinMind 即時改分。</div>
 <div class="card">
 <button id="scanBtn">開始兩階段掃描</button>
 <button id="stopBtn">停止</button>
@@ -209,6 +210,8 @@ function openDetail(code,hasFutures=false,market='twse'){
   u.searchParams.set('code',code);
   u.searchParams.set('from','scanner');
   u.searchParams.set('market',market);
+  const row=results.find(x=>String(x.code)===String(code));
+  if(row?.name) u.searchParams.set('name',row.name);
   if(hasFutures) u.searchParams.set('futures','1');
   u.searchParams.set('popup','1');
   const win=window.open(u.toString(),'_blank','noopener');
@@ -246,7 +249,7 @@ async function updateWatchlist(){
      rows.push({code,...snaps[code]});
    }catch(e){rows.push({code,error:e.message})}
    done++;status.textContent=`更新中 ${done}/${list.length}…`;
-   await new Promise(r=>setTimeout(r,180));
+   await new Promise(r=>setTimeout(r,35));
  }
  saveSnaps(snaps);
  renderWatchRows(rows);
@@ -265,7 +268,7 @@ function renderWatchRows(rows=null){
  }).join('');
 }
 function renderWatchlist(){renderWatchRows()}
-const SCAN_STATE_KEY='twq_scan_state_v193';
+const SCAN_STATE_KEY='twq_scan_state_v1100';
 
 function buildPersistPayload(){
   const slim=results.map(r=>{
@@ -274,7 +277,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.9.3',
+    version:'1.11.0',
     savedAt:Date.now(),
     currentRank,
     results:slim,
@@ -384,9 +387,9 @@ async function runFinmindTop(topList,limit){
       catch(e){fail++;errors.push(`FinMind ${r.code}: ${e.message}`)}
       done++;
       $('prog').value=Math.round(done/topList.length*100);
-      $('status').textContent=`第二階段 FinMind 重評 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;
-      if(done%5===0)showRank('entry');
-      await new Promise(res=>setTimeout(res,350));
+      $('status').textContent=`FinMind 漸進回刷 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail} · 排行榜已即時更新`;
+      showRank(currentRank);
+      await new Promise(res=>setTimeout(res,120));
     }
   }
   await Promise.all(Array.from({length:Math.max(1,Math.min(4,limit))},lane));
@@ -446,7 +449,7 @@ async function runPool(items,limit){
    $('prog').value=Math.round(done/items.length*100);
    $('status').textContent=`掃描中 ${done}/${items.length} · 成功 ${results.length} · 略過 ${errors.length}`;
    if(done%5===0){showRank(currentRank);$('errors').textContent=errors.slice(-20).join(' | ')||'—'}
-   await new Promise(r=>setTimeout(r,180));
+   await new Promise(r=>setTimeout(r,35));
   }
  }
  await Promise.all(Array.from({length:limit},lane));
@@ -481,17 +484,24 @@ $('scanBtn').onclick=async()=>{
   const retained=qualified.slice(0,keepN);
   const topN=Math.max(1,Math.min(100,n($('finTopN').value,100),retained.length));
   const top=retained.slice(0,topN);
+
+  // Price-only list is useful immediately. From this point the visible result set
+  // is exactly the FinMind TopN; each completed recheck updates these same objects.
+  results=top;
+  showRank('entry');
+  persistScan();
+
   $('prog').value=0;
-  $('status').textContent=`全市場第一階段完成 ${cand.length}/${cand.length}｜符合 ${qualified.length}｜保留 ${retained.length}｜開始 FinMind ${top.length}`;
+  $('status').textContent=`第一階段完成｜先顯示 Price-only Top ${top.length}；FinMind 開始漸進回刷，可立即查看排名`;
   await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
-  results=top; showRank('entry');
+  showRank('entry');
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜FinMind ${results.length}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.9.3 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.11.0 完成 · 全市場 → Entry保留 ${retained.length} → FinMind ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
 };

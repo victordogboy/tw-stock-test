@@ -67,7 +67,7 @@ async function fetchTpexUniverse(){
   const attempts=[];
   for(const u of urls){
     try{
-      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.3)"}});
+      const r=await fetch(u,{headers:{"accept":"text/html,*/*","user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.0)"}});
       const buf=await r.arrayBuffer();
       const utf8=new TextDecoder("utf-8",{fatal:false}).decode(buf);
       let big5="";
@@ -601,7 +601,7 @@ async function fetchTaifexStockFuturesCodes(){
       const r=await fetch(u,{
         headers:{
           "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.9.3)"
+          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.11.0)"
         }
       });
       const text=await r.text();
@@ -641,7 +641,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.9.3",
+      version: "1.11.0",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -802,15 +802,70 @@ async function routeApi(request, env, url) {
     return json({...r,count:r.data.length,first:r.data[0]?.date||null,last:r.data.at(-1)?.date||null},r.ok?200:502);
   }
 
+
+  if (url.pathname === "/api/intraday") {
+    const code=url.searchParams.get("code")||"2330";
+    const market=url.searchParams.get("market")||"";
+    const suffixes=market==="tpex"?[".TWO",".TW"]:market==="twse"?[".TW",".TWO"]:[".TW",".TWO"];
+    const attempts=[];
+    for(const suffix of suffixes){
+      const symbol=String(code)+suffix;
+      for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
+        const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=5d&interval=1m&includePrePost=false&events=div%2Csplits`;
+        try{
+          const r=await fetch(u,{headers:{
+            "accept":"application/json,text/plain,*/*",
+            "user-agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+          }});
+          attempts.push({host,symbol,status:r.status});
+          if(!r.ok) continue;
+          const j=await r.json();
+          const z=j?.chart?.result?.[0],ts=z?.timestamp||[],q=z?.indicators?.quote?.[0]||{};
+          if(!ts.length) continue;
+          const localDate=t=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t*1000));
+          const localTime=t=>new Intl.DateTimeFormat("zh-TW",{timeZone:"Asia/Taipei",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).format(new Date(t*1000));
+          const latestDate=localDate(ts.at(-1)),rows=[];
+          for(let i=0;i<ts.length;i++){
+            if(localDate(ts[i])!==latestDate) continue;
+            const close=Number(q.close?.[i]);
+            if(!Number.isFinite(close)) continue;
+            rows.push({t:ts[i],open:Number(q.open?.[i]),high:Number(q.high?.[i]),low:Number(q.low?.[i]),close,volume:Number(q.volume?.[i]||0)});
+          }
+          if(!rows.length) continue;
+          const opens=rows.map(x=>x.open).filter(Number.isFinite), highs=rows.map(x=>x.high).filter(Number.isFinite), lows=rows.map(x=>x.low).filter(Number.isFinite);
+          const last=rows.at(-1),meta=z?.meta||{},prevClose=Number(meta.chartPreviousClose??meta.previousClose),close=roundTwPrice(last.close);
+          const bar={
+            date:latestDate,open:roundTwPrice(opens[0]),high:roundTwPrice(Math.max(...highs)),low:roundTwPrice(Math.min(...lows)),close,
+            volume:rows.reduce((s,x)=>s+(Number.isFinite(x.volume)?x.volume:0),0),
+            last_time:localTime(last.t),last_timestamp:last.t,prev_close:roundTwPrice(prevClose),
+            change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,
+            change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol
+          };
+          return json({ok:true,source:"Yahoo Finance 1m intraday",symbol,bar,points:rows.length,attempts,market_state:meta.marketState||null},200,{"cache-control":"no-store"});
+        }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
+      }
+    }
+    return json({ok:false,error:"intraday unavailable",attempts},502,{"cache-control":"no-store"});
+  }
+
   if (url.pathname === "/api/history/auto") {
     const code=url.searchParams.get("code")||"3443";
     const market=url.searchParams.get("market")||"";
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-460);
+    const fresh=url.searchParams.get("fresh")==="1";
+
+    // Same code/date is requested repeatedly during rescans. Cache the completed
+    // merged history at the Worker edge so a second scan does not hit Yahoo/TWSE again.
+    const historyCache=caches.default;
+    const historyCacheKey=new Request(
+      `${url.origin}/__cache/history-auto/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
+    );
+    const historyCached=await historyCache.match(historyCacheKey);
+    if(historyCached) return historyCached;
 
     const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
     if(yahoo.ok && yahoo.data.length>=150){
-      const fresh=url.searchParams.get("fresh")==="1";
       let data=yahoo.data, freshness={
         merged:0,source:"Yahoo only",last_twse:null,error:null
       };
@@ -822,7 +877,7 @@ async function routeApi(request, env, url) {
         data=freshness.data;
       }
 
-      return json({
+      const body=json({
         ...yahoo,
         data,
         mode:"primary",
@@ -834,13 +889,17 @@ async function routeApi(request, env, url) {
         count:data.length,
         first:data[0]?.date||null,
         last:data.at(-1)?.date||null
-      });
+      },200,{"cache-control":"public,max-age=21600","x-history-cache":"miss"});
+      await historyCache.put(historyCacheKey,body.clone());
+      return body;
     }
 
     if(market!=="tpex"){
       const twse=await fetchTwseMonthlyHistory(code,startDate,endDate);
       if(twse.ok){
-        return json({...twse,mode:"fallback",latest_merge:"TWSE exact-date monthly",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null});
+        const body=json({...twse,mode:"fallback",latest_merge:"TWSE exact-date monthly",yahoo_attempts:yahoo.attempts,count:twse.data.length,first:twse.data[0]?.date||null,last:twse.data.at(-1)?.date||null},200,{"cache-control":"public,max-age=21600","x-history-cache":"miss"});
+        await historyCache.put(historyCacheKey,body.clone());
+        return body;
       }
     }
 
@@ -902,11 +961,13 @@ async function routeApi(request, env, url) {
       }
     }
 
-    const [margin,inst,daytrade]=await Promise.all([
-      ds("TaiwanStockMarginPurchaseShortSale"),
-      ds("TaiwanStockInstitutionalInvestorsBuySellWide"),
-      ds("TaiwanStockDayTrading")
-    ]);
+    // Sequential requests are deliberate: anonymous FinMind is much more fragile
+    // when three datasets are fired simultaneously.
+    const margin=await ds("TaiwanStockMarginPurchaseShortSale");
+    await new Promise(r=>setTimeout(r,120));
+    const inst=await ds("TaiwanStockInstitutionalInvestorsBuySellWide");
+    await new Promise(r=>setTimeout(r,120));
+    const daytrade=await ds("TaiwanStockDayTrading");
 
     const complete=[margin,inst,daytrade].filter(x=>x.ok&&x.count>0).length;
     const body={
@@ -916,7 +977,7 @@ async function routeApi(request, env, url) {
       completeness:Math.round(complete/3*100),
       margin,inst,daytrade
     };
-    const resp=json(body,complete>0?200:502,{"cache-control":"public, max-age=3600"});
+    const resp=json(body,complete>0?200:502,{"cache-control":"public, max-age=21600"});
     if(complete>0) await cache.put(cacheKey,resp.clone());
     return resp;
   }
@@ -952,41 +1013,47 @@ async function routeApi(request, env, url) {
       finmindDataset("TaiwanStockDayTrading")
     ]);
 
-    // If FinMind is available, prefer its richer historical arrays.
-    if(fmMargin.ok || fmInst.ok || fmDay.ok){
-      const body={
-        ok:true,source:"FinMind hybrid",
-        finmind_token:Boolean(env.FINMIND_TOKEN),
-        margin:fmMargin.data||[],
-        inst:fmInst.data||[],
-        daytrade:fmDay.data||[],
-        finmind_status:{
-          margin:{ok:fmMargin.ok,count:fmMargin.data?.length||0,error:fmMargin.error||null,msg:fmMargin.msg||null},
-          inst:{ok:fmInst.ok,count:fmInst.data?.length||0,error:fmInst.error||null,msg:fmInst.msg||null},
-          daytrade:{ok:fmDay.ok,count:fmDay.data?.length||0,error:fmDay.error||null,msg:fmDay.msg||null}
-        }
-      };
-      const resp=json(body,200,{"cache-control":"public, max-age=900"});
-      await cache.put(cacheKey,resp.clone());
-      return resp;
+    // Fill datasets independently. V1.9.3 treated "one FinMind dataset succeeded"
+    // as total success, so a valid day-trading response could hide missing margin/inst.
+    let margin=fmMargin.ok?(fmMargin.data||[]):[];
+    let inst=fmInst.ok?(fmInst.data||[]):[];
+    let daytrade=fmDay.ok?(fmDay.data||[]):[];
+    let fallbackUsed=false;
+
+    // TWSE public reports are a valid fallback for LISTED stocks only.
+    // For TPEx, never fabricate missing institutional/margin series.
+    const isTwseCode=await (async()=>{
+      try{
+        const raw=await fetchJson("https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL");
+        return normalizeTwse(raw).some(x=>String(x.code)===String(code));
+      }catch{return false}
+    })();
+
+    if(isTwseCode && (!margin.length || !inst.length || !daytrade.length)){
+      const dates=recentWeekdays(endDate,12),rows=[];
+      for(const d of dates){
+        rows.push(await chipForDate(code,d));
+        await new Promise(r=>setTimeout(r,35));
+      }
+      if(!margin.length){ margin=rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(margin.length)fallbackUsed=true; }
+      if(!inst.length){ inst=rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(inst.length)fallbackUsed=true; }
+      if(!daytrade.length){ daytrade=rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)); if(daytrade.length)fallbackUsed=true; }
     }
 
-    // Fallback to TWSE recent public reports if FinMind anonymous quota is exhausted.
-    const dates=recentWeekdays(endDate,12),rows=[];
-    for(const d of dates){
-      rows.push(await chipForDate(code,d));
-      await new Promise(r=>setTimeout(r,35));
-    }
+    const parts=[];
+    if(fmMargin.ok||fmInst.ok||fmDay.ok) parts.push("FinMind");
+    if(fallbackUsed) parts.push("TWSE fallback");
+    if(!parts.length) parts.push(isTwseCode?"TWSE fallback unavailable":"FinMind unavailable for TPEx");
     const body={
-      ok:true,source:"TWSE fallback",
+      ok:margin.length>0||inst.length>0||daytrade.length>0,
+      source:parts.join(" + "),
+      finmind_token:Boolean(env.FINMIND_TOKEN),
       finmind_status:{
-        margin:{ok:false,error:fmMargin.error||null,msg:fmMargin.msg||null},
-        inst:{ok:false,error:fmInst.error||null,msg:fmInst.msg||null},
-        daytrade:{ok:false,error:fmDay.error||null,msg:fmDay.msg||null}
+        margin:{ok:fmMargin.ok,count:fmMargin.data?.length||0,error:fmMargin.error||null,msg:fmMargin.msg||null,final_count:margin.length},
+        inst:{ok:fmInst.ok,count:fmInst.data?.length||0,error:fmInst.error||null,msg:fmInst.msg||null,final_count:inst.length},
+        daytrade:{ok:fmDay.ok,count:fmDay.data?.length||0,error:fmDay.error||null,msg:fmDay.msg||null,final_count:daytrade.length}
       },
-      margin:rows.map(x=>x.margin).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)),
-      inst:rows.map(x=>x.inst).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date)),
-      daytrade:rows.map(x=>x.daytrade).filter(Boolean).sort((a,b)=>a.date.localeCompare(b.date))
+      margin,inst,daytrade
     };
     const resp=json(body,200,{"cache-control":"public, max-age=900"});
     await cache.put(cacheKey,resp.clone());
@@ -1046,7 +1113,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.9.3");
+        headers.set("X-App-Version","1.11.0");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
