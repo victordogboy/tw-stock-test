@@ -1023,7 +1023,7 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
 
-    const finmindMode=env.FINMIND_TOKEN?"token":"anon";
+    const finmindMode=EFFECTIVE_FINMIND_TOKEN?"token":"anon";
     const cacheKey=new Request(`${url.origin}/__cache/finmind-recheck-r11/${finmindMode}/${code}/${startDate}/${endDate}`);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
@@ -1031,7 +1031,7 @@ async function routeApi(request, env, url) {
 
     async function ds(dataset){
       const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
-      if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
+      if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
         const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.7"}});
@@ -1074,7 +1074,7 @@ async function routeApi(request, env, url) {
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
     const force=url.searchParams.get("force")==="1";
 
-    const finmindMode=env.FINMIND_TOKEN?"token":"anon";
+    const finmindMode=EFFECTIVE_FINMIND_TOKEN?"token":"anon";
     const cacheKey=new Request(`${url.origin}/__cache/chips-r11/${finmindMode}/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
     if(!force){
@@ -1090,10 +1090,10 @@ async function routeApi(request, env, url) {
       }
 
       const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
-      if(env.FINMIND_TOKEN) q.set("token",env.FINMIND_TOKEN);
+      if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r11"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r12"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1237,7 +1237,7 @@ async function routeApi(request, env, url) {
       },
       finmind_assist:Object.values(source_detail).some(v=>String(v||"").startsWith("FinMind")),
       refresh_mode:force?"forced-upstream":"cache-allowed",
-      finmind_mode:env.FINMIND_TOKEN?"token":"anonymous",
+      finmind_mode:EFFECTIVE_FINMIND_TOKEN?"token":"anonymous",
       diagnostics
     };
     const resp=json(body,200,{"cache-control":"public,max-age=900"});
@@ -1246,7 +1246,7 @@ async function routeApi(request, env, url) {
   }
 
   if (url.pathname === "/api/finmind/status") {
-    const configured=Boolean(String(env.FINMIND_TOKEN||"").trim());
+    const configured=Boolean(EFFECTIVE_FINMIND_TOKEN);
     return json({
       ok:true,
       configured,
@@ -1294,8 +1294,15 @@ async function routeApi(request, env, url) {
   return json({ ok:false, error:"Unknown API route", path:url.pathname }, 404);
 }
 
+function requestFinMindToken(request,env){
+  const auth=String(request.headers.get("authorization")||"");
+  const m=auth.match(/^Bearer\s+(.+)$/i);
+  return (m?.[1]||"").trim() || String(env?.FINMIND_TOKEN||"").trim() || "";
+}
+
 export default {
   async fetch(request, env) {
+    const EFFECTIVE_FINMIND_TOKEN=requestFinMindToken(request,env);
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
