@@ -1389,7 +1389,7 @@ async function routeApi(request, env, url) {
       const hr=await callOwnApiJSON(hp,request,env,url.origin);
       const hrows=hr.body?.data||hr.body?.prices||[];
       if(hr.ok&&Array.isArray(hrows)&&hrows.length){history=mergeDateRows(history,hrows);anyHistory=true;}
-      diagnostics.push({range:[rs,re],history_ok:hr.ok,history_count:hrows?.length||0});
+      diagnostics.push({range:[rs,re],history_ok:hr.ok&&Array.isArray(hrows)&&hrows.length>0,history_count:hrows?.length||0});
 
       const cp=`/api/chips/hybrid?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${rs}&end_date=${re}`;
       const cr=await callOwnApiJSON(cp,request,env,url.origin);
@@ -1404,6 +1404,15 @@ async function routeApi(request, env, url) {
       diagnostics[diagnostics.length-1].chips_completeness=Number(cr.body?.completeness)||0;
     }
 
+    // A previous cache may contain history even when every extension failed.
+    // Publish coverage atomically only after all requested ranges succeeded.
+    // Keep the old cache intact on failure so an explicit build can retry.
+    const failedRanges=diagnostics.filter(d=>!d.history_ok||!d.chips_ok||d.chips_completeness!==100);
+    if(failedRanges.length) return json({ok:false,code,market,incomplete:true,
+      cache_preserved:Boolean(old),coverage_start:old?.coverage_start||null,coverage_end:old?.coverage_end||null,
+      error:"Research data is incomplete; coverage was not extended. Retry build explicitly after the sources recover.",
+      diagnostics,failed_ranges:failedRanges.map(d=>d.range)
+    },502,{"cache-control":"no-store"});
     if(!history.length) return json({ok:false,code,market,error:"Unable to build research cache: no history data",diagnostics},502,{"cache-control":"no-store"});
     const coverageStart=old?String(old.coverage_start<startDate?old.coverage_start:startDate):startDate;
     const coverageEnd=old?String(old.coverage_end>endDate?old.coverage_end:endDate):endDate;
