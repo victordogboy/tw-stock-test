@@ -731,7 +731,76 @@ async function callOwnApiJSON(path,request,env,origin){
   return {ok:resp.ok&&body?.ok!==false,status:resp.status,body};
 }
 
+/* R19: dated, full-market snapshots. GET never fetches upstream. */
+function r19Date(value) {
+  const s=String(value||'').trim();
+  let m=s.match(/^(\d{3,4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if(!m && /^\d{8}$/.test(s)) m=[s,s.slice(0,4),s.slice(4,6),s.slice(6,8)];
+  if(!m) return null;
+  const y=Number(m[1])+(m[1].length===3?1911:0);
+  const d=`${y}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return Number.isFinite(Date.parse(d))&&new Date(d).toISOString().slice(0,10)===d?d:null;
+}
+function r19Snapshot(raw, market, date) {
+  const returned=r19Date(raw.date||raw.reportDate||raw.queryDate);
+  if(returned && returned!==date) throw new Error('Upstream returned a different date');
+  const status=String(raw.stat||raw.status||raw.message||'');
+  if(/沒有符合|查無資料|無交易資料|休市/.test(status)) return {date,market,rows:[],closed:true};
+  if(!returned) throw new Error('Historical response has no verifiable date; refusing latest-day fallback');
+  const tables=[...(raw.tables||[])];
+  // Legacy TPEx full-market report: fixed published field order, dated report only.
+  if(market==='tpex' && Array.isArray(raw.aaData) && returned===date){
+    tables.push({fields:['代號','名稱','收盤','漲跌','開盤','最高','最低','均價','成交股數'],data:raw.aaData});
+  }
+  if(raw.fields) tables.push({fields:raw.fields,data:raw.data});
+  for(const k of Object.keys(raw)) if(/^fields\d+$/.test(k)) tables.push({fields:raw[k],data:raw[k.replace('fields','data')]});
+  const clean=s=>String(s).replace(/<[^>]*>/g,'').replace(/\s/g,'');
+  const number=s=>{const t=clean(s??'').replace(/,/g,'');return t && !/--|除權|除息/.test(t)&&Number.isFinite(Number(t))?Number(t):null};
+  for(const t of tables){
+    const fields=(t.fields||[]).map(x=>clean(typeof x==='object'?(x.title||x.name||''):x));
+    const index=re=>fields.findIndex(f=>re.test(f));
+    const ix={code:index(/^(證券代號|代號|股票代號)$/),name:index(/^(證券名稱|名稱|股票名稱)$/),open:index(/^開盤(價)?$/),high:index(/^最高(價)?$/),low:index(/^最低(價)?$/),close:index(/^收盤(價)?$/),volume:index(/^成交(股數|仟股|千股|張數)(\(.*\))?$/)};
+    if(Object.values(ix).some(i=>i<0)||!Array.isArray(t.data))continue;
+    const declared=Number(t.totalCount??raw.iTotalRecords);
+    if(Number.isFinite(declared)&&declared>t.data.length)throw new Error('Paginated market report is incomplete');
+    const factor=/仟股|千股|張數/.test(fields[ix.volume])?1000:1;
+    if(t.data.length===0 && /^(ok|200)$/i.test(status)) return {date,market,rows:[],closed:true};
+    const rows=t.data.filter(Array.isArray).map(r=>({date,market,code:clean(r[ix.code]),name:clean(r[ix.name]),open:number(r[ix.open]),high:number(r[ix.high]),low:number(r[ix.low]),close:number(r[ix.close]),volume:number(r[ix.volume])===null?null:number(r[ix.volume])*factor})).filter(r=>/^[1-9]\d{3}$/.test(r.code));
+    if(rows.length<100||rows.some(r=>r.volume===null||r.volume<0))throw new Error('Incomplete full-market table or invalid volume');
+    if(new Set(rows.map(r=>r.code)).size!==rows.length)throw new Error('Duplicate stock in market snapshot');
+    return {date,market,rows,closed:false};
+  }
+  throw new Error('Unrecognized historical OHLC/volume table; no snapshot published');
+}
+async function r19MarketRoute(request,url) {
+  const date=url.searchParams.get('date'),market=url.searchParams.get('market');
+  const todayTW=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+  if(typeof date!=='string'||r19Date(date)!==date||!['twse','tpex'].includes(market)||date>=''+todayTW||date<'2010-01-01')return json({ok:false,error:'Valid historical date (before Taiwan today) and market required'},400);
+  if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET to load, POST to build'},405);
+  const key=new Request(`${url.origin}/__research-market/r19/${market}/${date}`);
+  const hit=await caches.default.match(key);
+  if(hit) return json({...await hit.json(),cache_hit:true,upstream_used:false});
+  if(request.method==='GET')return json({ok:false,cache_only:true,error:'Market snapshot missing; explicitly build first'},404);
+  const roc=`${Number(date.slice(0,4))-1911}/${date.slice(5,7)}/${date.slice(8,10)}`;
+  const urls=market==='twse'
+    ? [`https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=${date.replace(/-/g,'')}&type=ALLBUT0999`]
+    : [`https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date=${date.replace(/-/g,'/')}&id=&response=json`,
+       `https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d=${roc}&o=json&se=EW`];
+  const errors=[];
+  for(const upstream of urls){
+    try{
+      const raw=await fetchJson(upstream,{signal:AbortSignal.timeout(15000)});
+      const snapshot=r19Snapshot(raw,market,date);
+      const payload={ok:true,version:19,...snapshot,source:upstream,cached_at:new Date().toISOString(),token_used:false};
+      await caches.default.put(key,new Response(JSON.stringify(payload),{headers:{'content-type':'application/json','cache-control':'public,max-age=31536000'}}));
+      return json({...payload,cache_hit:false,upstream_used:true});
+    }catch(e){errors.push(String(e.message||e));}
+  }
+  return json({ok:false,error:errors.join(' / '),date,market,cache_preserved:true},502);
+}
+
 async function routeApi(request, env, url) {
+  if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url);
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
   // R12 created it in export.fetch(), but routeApi() referenced it directly,
   // causing ReferenceError on /api/finmind/status and all FinMind-assisted routes.

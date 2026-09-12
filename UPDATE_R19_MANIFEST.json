@@ -1,0 +1,19 @@
+{
+  "version": "1.17.0-r19",
+  "base_commit": "ad5d249cbcc0534741574b03442ac1134e8901c8",
+  "tests_passed": 28,
+  "files": {
+    "src/index.js": "6c533845c120bdfe0920f6ebb5891cefa43aa04ff926fdfb2aacf80c006939bd",
+    "public/index.html": "8ec87268f28fcfa7b347337f1e5af5c8057d2e1c506c12a7f06e21512fc99038",
+    "public/strategy-regression-lab.html": "ff65ecd1ccde4036155da514b855a63d365fb6fc76bdd0ea591730a122737a13",
+    "public/strategy-regression-lab-r18.html": "918115ec09ade7958574f12f075ff00ff5d1a4898ff9fddf4942ea332e5584ea",
+    "public/research-r19-core.js": "72156c84d6c0d1084fc7e9d7c2f11499c5d565be075550c361951ea831010ded",
+    "public/research-r19-ui.js": "fbd48cf60988c0f117e13bb6185f752650d345b16f62bf718cd44b5a46a47fa9",
+    "public/research-r19-worker.js": "f984377aa07de7f6afab18f0ec4aa4c4c9981f35e02d6a6fabe7c8331c1ad5e0",
+    "tests/research-market-r19.test.cjs": "41e7f75e1729bcbfa9994d5b388c2330987ff21a4dfa6535552936095e88b13f",
+    "tests/research-r19.test.cjs": "605c790adde8f01894251b75e34d1bbbf3cc9a6190d00a821899b09219faacec",
+    "tests/research-ui-r19.test.cjs": "5247a053b4e29213451a3bd704722780f840a6db869567f2034b299248bbb1b0",
+    "tests/research-worker-r19.test.cjs": "071e84d9e8e9fb63d307ab4f1f1d7f090f98bd2155327be4a3516d83ae65ab7d",
+    "RESEARCH_R19_NOTES.md": "9f8c9acec1d699841df23b4811c68b70456b7d595b6ce9694de195185e970e95"
+  }
+}
