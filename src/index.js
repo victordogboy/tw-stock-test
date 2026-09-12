@@ -682,6 +682,55 @@ async function fetchTaifexStockFuturesCodes(){
   return {ok:true,codes:[...new Set(FUTURES_FALLBACK_CODES)].sort(),source:"embedded fallback",attempts};
 }
 
+
+/* ===== R17 Strategy Research Cache =====
+   Isolated from Scanner/Detail/V4.4 production logic.
+   The research lab NEVER calls FinMind during backtest runs. It reads this
+   long-lived server-side cache only. Upstream/token usage happens only when
+   the user explicitly presses "build missing cache".
+*/
+function researchCacheKey(origin,code,market){
+  return new Request(`${origin}/__research-cache/v1/${String(market||"auto")}/${String(code)}`,{method:"GET"});
+}
+function mergeDateRows(a,b){
+  const m=new Map();
+  for(const r of [...(a||[]),...(b||[])]){
+    const d=String(r?.date||"");
+    if(d) m.set(d,r);
+  }
+  return [...m.values()].sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+}
+async function readResearchCache(origin,code,market){
+  try{
+    const hit=await caches.default.match(researchCacheKey(origin,code,market));
+    if(!hit) return null;
+    const p=await hit.json();
+    return p&&p.code?p:null;
+  }catch{return null}
+}
+function researchCoverageOK(p,startDate,endDate){
+  return Boolean(p && p.coverage_start && p.coverage_end && p.coverage_start<=startDate && p.coverage_end>=endDate);
+}
+async function writeResearchCache(origin,payload){
+  const key=researchCacheKey(origin,payload.code,payload.market);
+  const resp=new Response(JSON.stringify(payload),{headers:{
+    "content-type":"application/json;charset=UTF-8",
+    // Historical research data is deliberately long-lived. Cache API remains
+    // best-effort, so the UI never claims this is a durable database.
+    "cache-control":"public,max-age=31536000"
+  }});
+  await caches.default.put(key,resp);
+}
+async function callOwnApiJSON(path,request,env,origin){
+  const headers=new Headers();
+  const auth=request.headers.get("authorization");
+  if(auth) headers.set("authorization",auth);
+  const r=new Request(`${origin}${path}`,{method:"GET",headers});
+  const resp=await routeApi(r,env,new URL(r.url));
+  let body=null; try{body=await resp.clone().json()}catch{}
+  return {ok:resp.ok&&body?.ok!==false,status:resp.status,body};
+}
+
 async function routeApi(request, env, url) {
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
   // R12 created it in export.fetch(), but routeApi() referenced it directly,
@@ -1097,7 +1146,7 @@ async function routeApi(request, env, url) {
       if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r15"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r16"}});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1222,6 +1271,10 @@ async function routeApi(request, env, url) {
     await fillInst();
     await fillDaytrade();
 
+    // R16: "missing" margin balance must stay missing, never become numeric 0.
+    // Explicit 0 is still valid; null/undefined/''/'--' are removed.
+    margin=margin.filter(r=>cleanNum(r?.MarginPurchaseTodayBalance)!==null);
+
     const flags={margin:margin.length>0,inst:inst.length>0,daytrade:daytrade.length>0};
     const history_ready={margin:margin.length>=5,inst:inst.length>=5,daytrade:daytrade.length>=5};
     const available=Object.values(flags).filter(Boolean).length;
@@ -1247,6 +1300,123 @@ async function routeApi(request, env, url) {
     const resp=json(body,200,{"cache-control":"public,max-age=900"});
     await cache.put(cacheKey,resp.clone());
     return resp;
+  }
+
+
+  // ===== R17 Strategy Research Cache APIs =====
+  // status/load are guaranteed cache-only: they never call Yahoo/TWSE/TPEx/FinMind.
+  if (url.pathname === "/api/research/cache/status") {
+    const code=String(url.searchParams.get("code")||"").trim();
+    const market=String(url.searchParams.get("market")||"").toLowerCase();
+    const startDate=String(url.searchParams.get("start_date")||"");
+    const endDate=String(url.searchParams.get("end_date")||"");
+    if(!code) return json({ok:false,error:"code is required"},400,{"cache-control":"no-store"});
+    const p=await readResearchCache(url.origin,code,market);
+    return json({ok:true,code,market,hit:Boolean(p),coverage_ok:researchCoverageOK(p,startDate,endDate),
+      coverage_start:p?.coverage_start||null,coverage_end:p?.coverage_end||null,cached_at:p?.cached_at||null,
+      history_count:p?.history?.length||0,margin_count:p?.chips?.margin?.length||0,
+      inst_count:p?.chips?.inst?.length||0,daytrade_count:p?.chips?.daytrade?.length||0,
+      completeness:p?.completeness??null
+    },200,{"cache-control":"no-store"});
+  }
+
+  if (url.pathname === "/api/research/cache/status-bulk") {
+    if(request.method!=="POST") return json({ok:false,error:"POST required"},405,{"cache-control":"no-store"});
+    let body={}; try{body=await request.json()}catch{}
+    const stocks=Array.isArray(body?.stocks)?body.stocks.slice(0,800):[];
+    const startDate=String(body?.start_date||"");
+    const endDate=String(body?.end_date||"");
+    const data=[];
+    for(const s of stocks){
+      const code=String(s?.code||"").trim(),market=String(s?.market||"").toLowerCase();
+      if(!code)continue;
+      const p=await readResearchCache(url.origin,code,market);
+      data.push({code,market,hit:Boolean(p),coverage_ok:researchCoverageOK(p,startDate,endDate),
+        coverage_start:p?.coverage_start||null,coverage_end:p?.coverage_end||null,cached_at:p?.cached_at||null,
+        history_count:p?.history?.length||0,completeness:p?.completeness??null});
+    }
+    const ready=data.filter(x=>x.coverage_ok).length;
+    return json({ok:true,count:data.length,ready,need_build:data.length-ready,data},200,{"cache-control":"no-store"});
+  }
+
+  if (url.pathname === "/api/research/cache/load") {
+    const code=String(url.searchParams.get("code")||"").trim();
+    const market=String(url.searchParams.get("market")||"").toLowerCase();
+    const startDate=String(url.searchParams.get("start_date")||"");
+    const endDate=String(url.searchParams.get("end_date")||"");
+    if(!code) return json({ok:false,error:"code is required"},400,{"cache-control":"no-store"});
+    const p=await readResearchCache(url.origin,code,market);
+    if(!p) return json({ok:false,cache_only:true,cache_miss:true,error:"Research cache missing. Build cache explicitly first."},404,{"cache-control":"no-store"});
+    if(!researchCoverageOK(p,startDate,endDate)) return json({ok:false,cache_only:true,coverage_miss:true,
+      coverage_start:p.coverage_start,coverage_end:p.coverage_end,error:"Research cache does not cover requested period."},409,{"cache-control":"no-store"});
+    const inRange=rows=>(rows||[]).filter(r=>String(r?.date||"")>=startDate&&String(r?.date||"")<=endDate);
+    return json({ok:true,cache_only:true,token_used:false,code,market,
+      coverage_start:p.coverage_start,coverage_end:p.coverage_end,cached_at:p.cached_at,
+      completeness:p.completeness??null,
+      history:inRange(p.history),chips:{margin:inRange(p.chips?.margin),inst:inRange(p.chips?.inst),daytrade:inRange(p.chips?.daytrade)}
+    },200,{"cache-control":"no-store"});
+  }
+
+  if (url.pathname === "/api/research/cache/build") {
+    if(request.method!=="POST") return json({ok:false,error:"POST required"},405,{"cache-control":"no-store"});
+    let body={}; try{body=await request.json()}catch{}
+    const code=String(body?.code||"").trim(),market=String(body?.market||"").toLowerCase();
+    const startDate=String(body?.start_date||"");
+    const endDate=String(body?.end_date||"");
+    if(!/^\d{4,6}[A-Za-z]?$/.test(code)||!startDate||!endDate) return json({ok:false,error:"code/start_date/end_date required"},400,{"cache-control":"no-store"});
+
+    const old=await readResearchCache(url.origin,code,market);
+    if(researchCoverageOK(old,startDate,endDate)){
+      return json({ok:true,code,market,cache_hit:true,upstream_used:false,token_may_have_been_used:false,
+        coverage_start:old.coverage_start,coverage_end:old.coverage_end,cached_at:old.cached_at,
+        history_count:old.history?.length||0,completeness:old.completeness??null
+      },200,{"cache-control":"no-store"});
+    }
+
+    const ranges=[];
+    if(!old){ ranges.push([startDate,endDate]); }
+    else{
+      if(startDate<old.coverage_start) ranges.push([startDate,addDaysISO(old.coverage_start,-1)]);
+      if(endDate>old.coverage_end) ranges.push([addDaysISO(old.coverage_end,1),endDate]);
+    }
+    let history=old?.history||[], margin=old?.chips?.margin||[], inst=old?.chips?.inst||[], daytrade=old?.chips?.daytrade||[];
+    const diagnostics=[];
+    let anyHistory=false, anyChipCall=false, bestCompleteness=Number(old?.completeness)||0;
+
+    for(const [rs,re] of ranges){
+      if(rs>re) continue;
+      const hp=`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${rs}&end_date=${re}`;
+      const hr=await callOwnApiJSON(hp,request,env,url.origin);
+      const hrows=hr.body?.data||hr.body?.prices||[];
+      if(hr.ok&&Array.isArray(hrows)&&hrows.length){history=mergeDateRows(history,hrows);anyHistory=true;}
+      diagnostics.push({range:[rs,re],history_ok:hr.ok,history_count:hrows?.length||0});
+
+      const cp=`/api/chips/hybrid?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${rs}&end_date=${re}`;
+      const cr=await callOwnApiJSON(cp,request,env,url.origin);
+      anyChipCall=true;
+      if(cr.ok&&cr.body){
+        margin=mergeDateRows(margin,cr.body.margin||[]);
+        inst=mergeDateRows(inst,cr.body.inst||[]);
+        daytrade=mergeDateRows(daytrade,cr.body.daytrade||[]);
+        bestCompleteness=Math.max(bestCompleteness,Number(cr.body.completeness)||0);
+      }
+      diagnostics[diagnostics.length-1].chips_ok=cr.ok;
+      diagnostics[diagnostics.length-1].chips_completeness=Number(cr.body?.completeness)||0;
+    }
+
+    if(!history.length) return json({ok:false,code,market,error:"Unable to build research cache: no history data",diagnostics},502,{"cache-control":"no-store"});
+    const coverageStart=old?String(old.coverage_start<startDate?old.coverage_start:startDate):startDate;
+    const coverageEnd=old?String(old.coverage_end>endDate?old.coverage_end:endDate):endDate;
+    const payload={version:1,code,market,coverage_start:coverageStart,coverage_end:coverageEnd,
+      cached_at:new Date().toISOString(),history,chips:{margin,inst,daytrade},completeness:bestCompleteness,diagnostics};
+    await writeResearchCache(url.origin,payload);
+    return json({ok:true,code,market,cache_hit:false,upstream_used:true,
+      // We cannot know the provider's exact accounting, so never claim an exact token-call count.
+      token_may_have_been_used:anyChipCall&&Boolean(EFFECTIVE_FINMIND_TOKEN),
+      ranges_fetched:ranges,coverage_start:coverageStart,coverage_end:coverageEnd,cached_at:payload.cached_at,
+      history_count:history.length,margin_count:margin.length,inst_count:inst.length,daytrade_count:daytrade.length,
+      completeness:bestCompleteness,diagnostics
+    },200,{"cache-control":"no-store"});
   }
 
   if (url.pathname === "/api/finmind/token-store") {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>策略自動回歸實驗室 R1｜基底 V1.17.0-R16</title>
+<title>策略自動回歸實驗室 R2｜Server Cache｜基底 V1.17.0-R16</title>
 <style>
 :root{--bg:#07101d;--panel:#0d1728;--line:#24324a;--text:#e7edf7;--muted:#9fb0c8;--good:#4ade80;--bad:#fb7185;--warn:#facc15;--cyan:#22d3ee}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
@@ -25,8 +25,8 @@ code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;c
 <div class="wrap">
   <div class="head">
     <div>
-      <h1>策略自動回歸實驗室 R1</h1>
-      <div class="sub">基底 V1.17.0-R16｜完全獨立研究頁，不修改正式 Scanner / V4.4。<br>
+      <h1>策略自動回歸實驗室 R2｜Server Cache</h1>
+      <div class="sub">基底 V1.17.0-R16｜完全獨立研究頁，不修改正式 Scanner / Detail / V4.4。<br>
       驗證 H1：ΔEntry / ΔAction 是否具有獨立預測力。H2：Exit Risk 是否只是價格鏡像，還是真的能領先未來下跌。</div>
     </div>
     <div class="pill" id="tokenState">FinMind TOKEN：檢查中</div>
@@ -42,11 +42,14 @@ code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;c
       <div><label>測試集比例</label><select id="testPct"><option value=".2">20%</option><option value=".3" selected>30%</option><option value=".4">40%</option></select></div>
     </div>
     <div class="row" style="margin-top:10px">
-      <button class="primary" id="runBtn" style="max-width:220px">開始多股票回測</button>
-      <button id="stopBtn" style="max-width:160px">停止</button>
+      <button id="checkBtn" style="max-width:190px">① 檢查研究快取｜0 Token</button>
+      <button id="buildBtn" style="max-width:210px">② 補齊缺少資料｜可能耗 Token</button>
+      <button class="primary" id="runBtn" style="max-width:220px">③ 開始回測｜只讀快取</button>
+      <button id="stopBtn" style="max-width:120px">停止</button>
       <button id="exportBtn" style="max-width:180px">匯出觀察值 CSV</button>
-      <span class="note">Strict No-Lookahead：第 t 日分數只使用 t 與左側資料；T+1/T+3/T+5/T+10 僅做事後 outcome。</span>
     </div>
+    <div class="note" style="margin-top:8px">回測本身<strong>保證只讀研究快取</strong>，不會因為重新算策略而呼叫 FinMind。只有你明確按下「補齊缺少資料」時，缺少的股票才允許抓上游資料。Strict No-Lookahead：第 t 日分數只使用 t 與左側資料。</div>
+    <div id="cacheSummary" class="status muted" style="margin-top:8px">尚未檢查研究快取。</div>
     <progress id="prog" value="0" max="1" style="margin-top:10px"></progress>
     <div id="status" class="status muted">尚未開始。</div>
   </div>
@@ -91,9 +94,10 @@ code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;c
   <div class="panel">
     <h3>研究限制</h3>
     <div class="note">
-      1. Universe 是「目前」上市櫃名單，因此仍有 survivorship bias；這是第一版研究工具，不代表正式學術級結果。<br>
-      2. 籌碼 API 若某些股票缺資料，V4.4 仍可計算，但報告會記錄籌碼完整度；請優先看大量樣本與測試集結果。<br>
-      3. 這頁不會自動修改正式策略；即使結果支持，也只做研究結論。
+      1. Universe 是「目前」上市櫃名單，因此仍有 survivorship bias；這是研究工具，不代表正式學術級結果。<br>
+      2. Server Cache 使用 Cloudflare Cache API，屬 best-effort，不是永久 DB；但只要快取仍存在，重跑策略就是 0 FinMind Token。<br>
+      3. 籌碼 API 若某些股票缺資料，V4.4 仍可計算，但報告會記錄籌碼完整度；請優先看大量樣本與測試集結果。<br>
+      4. 這頁不會自動修改正式策略；即使結果支持，也只做研究結論。
     </div>
   </div>
 </div>
@@ -102,7 +106,7 @@ code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;c
 'use strict';
 const $=id=>document.getElementById(id);
 const TOKEN_KEY='twq_finmind_token_v1';
-let STOP=false, OBS=[], STOCK_SUM=[];
+let STOP=false, OBS=[], STOCK_SUM=[], CURRENT=null, CACHE_STATUS=null;
 const n=(x,d=0)=>Number.isFinite(Number(x))?Number(x):d;
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;
 const median=a=>{if(!a.length)return NaN;const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2);return b.length%2?b[m]:(b[m-1]+b[m])/2};
@@ -182,18 +186,53 @@ function outcomes(hist,i){
   return out;
 }
 
-async function loadOne(stock,start,end){
-  const hj=await getJSON(`/api/history/auto?code=${encodeURIComponent(stock.code)}&market=${stock.market}&start=${start}&end=${end}&_=${Date.now()}`);
-  let hist=(hj.data||hj.prices||[]).map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}))
-    .filter(x=>x.close>0).sort((a,b)=>a.date.localeCompare(b.date));
-  if(hist.length<120)throw new Error('history<120');
-  let chips={margin:[],inst:[],daytrade:[]},comp=0;
+async function postJSON(url,body){
+  const r=await fetch(url,{method:'POST',cache:'no-store',headers:authHeaders({'content-type':'application/json'}),body:JSON.stringify(body)});
+  const text=await r.text();let j=null;try{j=JSON.parse(text)}catch{}
+  if(!r.ok||!j)throw new Error(`${r.status} ${url} ${text.slice(0,120)}`);
+  if(j.ok===false)throw new Error(j.error||'API error'); return j;
+}
+async function getSelection(){
+  const N=Number($('sampleN').value),days=Number($('daysN').value),seed=$('seed').value,marketSel=$('marketSel').value;
+  $('status').textContent='取得 Universe…';
+  const u=await getJSON('/api/market/universe');
+  let all=(u.data||u.stocks||u.universe||[]).map(x=>({code:String(x.code||x.stock_id||x.id||''),name:String(x.name||x.stock_name||''),market:String(x.market||'').toLowerCase()})).filter(x=>/^\d{4}$/.test(x.code)&&['twse','tpex'].includes(x.market));
+  if(marketSel!=='all')all=all.filter(x=>x.market===marketSel);
+  const sample=deterministicSample(all,Math.min(N,all.length),seed);
+  const calendarDays=Math.ceil(days*1.7)+150,start=isoDaysAgo(calendarDays),end=new Date().toISOString().slice(0,10);
+  CURRENT={sample,start,end,days,seed,marketSel}; return CURRENT;
+}
+async function checkCache(silent=false){
+  const C=await getSelection();
+  if(!silent)$('status').textContent=`檢查 ${C.sample.length} 檔研究快取中（不呼叫 FinMind）…`;
+  const j=await postJSON('/api/research/cache/status-bulk',{stocks:C.sample,start_date:C.start,end_date:C.end}); CACHE_STATUS=j;
+  const ready=n(j.ready),missing=n(j.need_build),estLo=missing*3,estHi=missing*4;
+  $('cacheSummary').innerHTML=`<b>研究快取：</b><span class="good">可直接回測 ${ready} 檔</span>｜<span class="${missing?'warn':'good'}">需補資料 ${missing} 檔</span>｜期間 ${C.start}～${C.end}`+
+    (missing?`<br>若按「補齊」，FinMind dataset 請求粗估約 <b>${estLo}～${estHi}</b> 次；實際可能因既有短期 API Cache 而更少。<b>重新回測本身 = 0 次 FinMind。</b>`:`<br><span class="good">此樣本已全部可由 Server Cache 回測，重新跑策略不消耗 FinMind Token。</span>`)+
+    `<br><span class="muted">Cloudflare Cache API 為 best-effort 快取，不等同永久資料庫；若平台淘汰快取，該檔才會再次顯示需要補資料。</span>`;
+  if(!silent)$('status').textContent=`快取檢查完成：${ready}/${j.count} 檔可直接回測，${missing} 檔需要補資料。`; return j;
+}
+async function buildMissing(){
+  STOP=false;$('buildBtn').disabled=true;$('runBtn').disabled=true;
   try{
-    const cj=await getJSON(`/api/chips/hybrid?code=${stock.code}&market=${stock.market}&start_date=${start}&end_date=${end}`);
-    chips={margin:cj.margin||[],inst:cj.inst||[],daytrade:cj.daytrade||[]};
-    comp=n(cj.completeness);
-  }catch(e){}
-  return {hist,chips,comp};
+    const st=await checkCache(true),C=CURRENT,missing=(st.data||[]).filter(x=>!x.coverage_ok);
+    if(!missing.length){$('status').innerHTML='<span class="good">不用補資料：目前選擇已全部在研究快取。</span>';return}
+    const estLo=missing.length*3,estHi=missing.length*4;
+    if(!confirm(`目前缺 ${missing.length} 檔研究資料。\n\n只有這一步可能使用 FinMind Token。\n粗估約 ${estLo}～${estHi} 個 dataset 請求（實際可能較少）。\n\n確定開始補齊？`)){$('status').textContent='已取消補資料；沒有執行研究資料建置。';return}
+    let ok=0,fail=0,tokenPossible=0;
+    for(let i=0;i<missing.length;i++){
+      if(STOP)break; const x=missing[i],meta=C.sample.find(s=>s.code===x.code&&s.market===x.market)||x;
+      $('status').textContent=`補研究快取 ${i+1}/${missing.length}｜${meta.code} ${meta.name||''}…`; $('prog').value=(i+1)/missing.length;
+      try{const r=await postJSON('/api/research/cache/build',{code:meta.code,market:meta.market,start_date:C.start,end_date:C.end});ok++;if(r.token_may_have_been_used)tokenPossible++}catch(e){fail++}
+    }
+    await checkCache(true);
+    $('status').innerHTML=`<span class="good">補資料完成 ${ok} 檔</span>${fail?`｜<span class="bad">失敗 ${fail} 檔</span>`:''}｜其中 ${tokenPossible} 檔建置流程有使用 Token 的可能。<br>現在按「開始回測」只會讀 Server Cache。`;
+  }catch(e){$('status').innerHTML=`<span class="bad">補資料停止：</span>${e.message||e}`}finally{$('buildBtn').disabled=false;$('runBtn').disabled=false}
+}
+async function loadOne(stock,start,end){
+  const j=await getJSON(`/api/research/cache/load?code=${encodeURIComponent(stock.code)}&market=${stock.market}&start_date=${start}&end_date=${end}`);
+  let hist=(j.history||[]).map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)})).filter(x=>x.close>0).sort((a,b)=>a.date.localeCompare(b.date));
+  if(hist.length<120)throw new Error('cached history<120'); return {hist,chips:j.chips||{margin:[],inst:[],daytrade:[]},comp:n(j.completeness)};
 }
 
 function binOf(d){
@@ -303,68 +342,32 @@ function autoConclusion(entryBins,actionBins,reg){
 }
 
 async function run(){
-  STOP=false;OBS=[];STOCK_SUM=[];$('runBtn').disabled=true;
-  const N=Number($('sampleN').value),days=Number($('daysN').value),seed=$('seed').value,testPct=Number($('testPct').value);
-  const marketSel=$('marketSel').value;
+  STOP=false;OBS=[];STOCK_SUM=[];$('runBtn').disabled=true;$('buildBtn').disabled=true; const testPct=Number($('testPct').value);
   try{
     if(typeof combineScores!=='function'||typeof entryEngine!=='function')throw new Error('V4.4 engine 未載入');
-    $('status').textContent='取得 Universe…';
-    const u=await getJSON('/api/market/universe');
-    let all=(u.data||u.stocks||u.universe||[]).map(x=>({
-      code:String(x.code||x.stock_id||x.id||''),
-      name:String(x.name||x.stock_name||''),
-      market:String(x.market||'').toLowerCase()
-    })).filter(x=>/^\d{4}$/.test(x.code)&&['twse','tpex'].includes(x.market));
-    if(marketSel!=='all')all=all.filter(x=>x.market===marketSel);
-    const sample=deterministicSample(all,Math.min(N,all.length),seed);
-    const calendarDays=Math.ceil(days*1.7)+150,start=isoDaysAgo(calendarDays),end=new Date().toISOString().slice(0,10);
-    let ok=0,chipOk=0;
+    const st=await checkCache(true),C=CURRENT;
+    if(st.need_build>0)throw new Error(`還有 ${st.need_build} 檔未完成研究快取。為避免回測途中偷用 Token，已停止。請先按「補齊缺少資料」。`);
+    const sample=C.sample,start=C.start,end=C.end,days=C.days; let ok=0,chipOk=0;
     for(let si=0;si<sample.length;si++){
-      if(STOP)break;
-      const st=sample[si];
-      $('status').textContent=`${si+1}/${sample.length} ${st.code} ${st.name}｜下載 K線＋籌碼，Strict No-Lookahead 重播中…`;
-      $('prog').value=si/sample.length;
+      if(STOP)break; const stx=sample[si]; $('status').textContent=`${si+1}/${sample.length} ${stx.code} ${stx.name}｜只讀 Server Cache，Strict No-Lookahead 重播中…`; $('prog').value=si/sample.length;
       try{
-        const {hist,chips,comp}=await loadOne(st,start,end);
-        if(comp>=67)chipOk++;
-        const begin=Math.max(90,hist.length-days-11),finish=hist.length-11;
-        let prev=null,obs0=OBS.length;
+        const {hist,chips,comp}=await loadOne(stx,start,end); if(comp>=67)chipOk++;
+        const begin=Math.max(90,hist.length-days-11),finish=hist.length-11; let prev=null,obs0=OBS.length;
         for(let i=begin;i<finish;i++){
-          const date=hist[i].date,h=hist.slice(0,i+1);
-          const cc={margin:cutAt(chips.margin,date),inst:cutAt(chips.inst,date),daytrade:cutAt(chips.daytrade,date)};
+          const date=hist[i].date,h=hist.slice(0,i+1),cc={margin:cutAt(chips.margin,date),inst:cutAt(chips.inst,date),daytrade:cutAt(chips.daytrade,date)};
           let sc;try{sc=scorePack(h,cc)}catch(e){prev=null;continue}
-          if(prev){
-            const ctl=controls(hist,i),out=outcomes(hist,i);
-            OBS.push({
-              code:st.code,market:st.market,date,chipCompleteness:comp,
-              setup:sc.setup,opportunity:sc.opportunity,entry:sc.entry,action:sc.action,hold:sc.hold,
-              dEntry:sc.entry-prev.entry,dAction:sc.action-prev.action,
-              exitRisk:100-sc.hold,dExitRisk:(100-sc.hold)-(100-prev.hold),
-              retToday:ctl.ret1,ret5past:ctl.ret5,logVR:ctl.logVR,atrPct:ctl.atrPct,bias20:ctl.bias20,breakout20:ctl.breakout20,
-              ret1f:out.ret1,ret3:out.ret3,ret5:out.ret5,ret10:out.ret10,mfe5:out.mfe5,mae5:out.mae5,downside5:out.downside5
-            });
-          }
-          prev=sc;
-          if(i%25===0)await new Promise(r=>setTimeout(r,0));
+          if(prev){const ctl=controls(hist,i),out=outcomes(hist,i);OBS.push({code:stx.code,market:stx.market,date,chipCompleteness:comp,setup:sc.setup,opportunity:sc.opportunity,entry:sc.entry,action:sc.action,hold:sc.hold,dEntry:sc.entry-prev.entry,dAction:sc.action-prev.action,exitRisk:100-sc.hold,dExitRisk:(100-sc.hold)-(100-prev.hold),retToday:ctl.ret1,ret5past:ctl.ret5,logVR:ctl.logVR,atrPct:ctl.atrPct,bias20:ctl.bias20,breakout20:ctl.breakout20,ret1f:out.ret1,ret3:out.ret3,ret5:out.ret5,ret10:out.ret10,mfe5:out.mfe5,mae5:out.mae5,downside5:out.downside5})}
+          prev=sc;if(i%25===0)await new Promise(r=>setTimeout(r,0));
         }
-        if(OBS.length>obs0){ok++;STOCK_SUM.push({code:st.code,obs:OBS.length-obs0,comp})}
+        if(OBS.length>obs0){ok++;STOCK_SUM.push({code:stx.code,obs:OBS.length-obs0,comp})}
       }catch(e){}
-      $('stockCount').textContent=ok;
-      $('obsCount').textContent=OBS.length.toLocaleString();
-      $('chipCount').textContent=chipOk;
+      $('stockCount').textContent=ok;$('obsCount').textContent=OBS.length.toLocaleString();$('chipCount').textContent=chipOk;
     }
-    $('prog').value=1;
-    const minObs=Number($('minObs').value);
-    if(OBS.length<minObs)throw new Error(`有效觀察只有 ${OBS.length}，低於設定的 ${minObs}`);
-    $('status').textContent=`完成：${ok} 檔、${OBS.length.toLocaleString()} 個日觀察。正在統計…`;
-    const entryBins=renderBins('entryBins','dEntry',OBS);
-    const actionBins=renderBins('actionBins','dAction',OBS);
-    const reg=renderRegression(OBS,testPct);
-    autoConclusion(entryBins,actionBins,reg);
-    $('status').innerHTML=`<span class="good">完成</span>｜${ok} 檔｜${OBS.length.toLocaleString()} observations｜Test 起始日 ${reg.cut}`;
-  }catch(e){
-    $('status').innerHTML=`<span class="bad">停止：</span>${e.message||e}`;
-  }finally{$('runBtn').disabled=false}
+    $('prog').value=1; const minObs=Number($('minObs').value); if(OBS.length<minObs)throw new Error(`有效觀察只有 ${OBS.length}，低於設定的 ${minObs}`);
+    $('status').textContent=`完成 Cache-only replay：${ok} 檔、${OBS.length.toLocaleString()} 個日觀察。正在統計…`;
+    const entryBins=renderBins('entryBins','dEntry',OBS),actionBins=renderBins('actionBins','dAction',OBS),reg=renderRegression(OBS,testPct); autoConclusion(entryBins,actionBins,reg);
+    $('status').innerHTML=`<span class="good">完成｜本次回測 FinMind Token 消耗 = 0</span>｜${ok} 檔｜${OBS.length.toLocaleString()} observations｜Test 起始日 ${reg.cut}`;
+  }catch(e){$('status').innerHTML=`<span class="bad">停止：</span>${e.message||e}`}finally{$('runBtn').disabled=false;$('buildBtn').disabled=false}
 }
 function exportCSV(){
   if(!OBS.length){alert('尚無回測資料');return}
@@ -373,7 +376,7 @@ function exportCSV(){
   const blob=new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='score-momentum-regression-observations.csv';a.click();URL.revokeObjectURL(a.href);
 }
-$('runBtn').onclick=run;$('stopBtn').onclick=()=>{STOP=true;$('status').textContent+='\\n使用者要求停止，將在目前股票完成後停止。'};$('exportBtn').onclick=exportCSV;
+$('checkBtn').onclick=()=>checkCache(false).catch(e=>$('status').innerHTML=`<span class="bad">快取檢查失敗：</span>${e.message||e}`);$('buildBtn').onclick=buildMissing;$('runBtn').onclick=run;$('stopBtn').onclick=()=>{STOP=true;$('status').textContent+='\n使用者要求停止，將在目前股票完成後停止。'};$('exportBtn').onclick=exportCSV;
 tokenStatus();
 </script>
 </body></html>
