@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>策略自動回歸實驗室 R1｜基底 V1.17.0-R16</title>
+<style>
+:root{--bg:#07101d;--panel:#0d1728;--line:#24324a;--text:#e7edf7;--muted:#9fb0c8;--good:#4ade80;--bad:#fb7185;--warn:#facc15;--cyan:#22d3ee}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+.wrap{max-width:1500px;margin:auto;padding:18px}.head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:23px;margin:0 0 5px}.sub{color:var(--muted);font-size:13px;line-height:1.55}.pill{border:1px solid var(--line);border-radius:999px;padding:5px 9px;font-size:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px;margin-top:12px}.grid{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr));gap:10px}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px} input,select,button{width:100%;background:#091220;color:var(--text);border:1px solid #34445f;border-radius:8px;padding:9px}
+button{cursor:pointer;font-weight:700}button.primary{background:#12365a;border-color:#2f6da2}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.status{font-size:13px;line-height:1.6;white-space:pre-wrap}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.muted{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}th,td{border-bottom:1px solid #20304a;padding:7px 6px;text-align:right}th:first-child,td:first-child{text-align:left}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(180px,1fr));gap:10px}.card{background:#091220;border:1px solid #263751;border-radius:10px;padding:11px}.big{font-size:22px;font-weight:800}
+progress{width:100%;height:12px}.scroll{overflow:auto;max-height:520px}
+code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;color:var(--muted);line-height:1.6}
+@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr 1fr}}
+</style>
+<script src="/v44-engine.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>策略自動回歸實驗室 R1</h1>
+      <div class="sub">基底 V1.17.0-R16｜完全獨立研究頁，不修改正式 Scanner / V4.4。<br>
+      驗證 H1：ΔEntry / ΔAction 是否具有獨立預測力。H2：Exit Risk 是否只是價格鏡像，還是真的能領先未來下跌。</div>
+    </div>
+    <div class="pill" id="tokenState">FinMind TOKEN：檢查中</div>
+  </div>
+
+  <div class="panel">
+    <div class="grid">
+      <div><label>隨機樣本股票數</label><select id="sampleN"><option>50</option><option selected>100</option><option>200</option><option>300</option><option>500</option></select></div>
+      <div><label>回測交易日數</label><select id="daysN"><option>180</option><option selected>260</option><option>390</option><option>520</option></select></div>
+      <div><label>市場</label><select id="marketSel"><option value="all">上市＋上櫃</option><option value="twse">只上市</option><option value="tpex">只上櫃</option></select></div>
+      <div><label>隨機種子</label><input id="seed" value="20260912"></div>
+      <div><label>最少有效觀察</label><input id="minObs" type="number" value="500" min="100"></div>
+      <div><label>測試集比例</label><select id="testPct"><option value=".2">20%</option><option value=".3" selected>30%</option><option value=".4">40%</option></select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="runBtn" style="max-width:220px">開始多股票回測</button>
+      <button id="stopBtn" style="max-width:160px">停止</button>
+      <button id="exportBtn" style="max-width:180px">匯出觀察值 CSV</button>
+      <span class="note">Strict No-Lookahead：第 t 日分數只使用 t 與左側資料；T+1/T+3/T+5/T+10 僅做事後 outcome。</span>
+    </div>
+    <progress id="prog" value="0" max="1" style="margin-top:10px"></progress>
+    <div id="status" class="status muted">尚未開始。</div>
+  </div>
+
+  <div class="panel">
+    <div class="cards">
+      <div class="card"><div class="muted">成功股票</div><div class="big" id="stockCount">0</div></div>
+      <div class="card"><div class="muted">有效日觀察</div><div class="big" id="obsCount">0</div></div>
+      <div class="card"><div class="muted">Train / Test</div><div class="big" id="splitCount">—</div></div>
+      <div class="card"><div class="muted">籌碼完整股票</div><div class="big" id="chipCount">0</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>自動結論</h3>
+    <div id="conclusion" class="status">等待回測。</div>
+  </div>
+
+  <div class="panel">
+    <h3>H1｜Score Momentum：ΔEntry</h3>
+    <div class="note">固定分桶，觀察 ΔEntry 越大時未來報酬 / MFE 是否近似單調改善。這比只看相關係數更不容易被少數極端值騙。</div>
+    <div class="scroll"><table id="entryBins"></table></div>
+  </div>
+
+  <div class="panel">
+    <h3>H1｜Score Momentum：ΔAction</h3>
+    <div class="scroll"><table id="actionBins"></table></div>
+  </div>
+
+  <div class="panel">
+    <h3>控制當日價格後的回歸</h3>
+    <div class="note">模型分開測 ΔEntry 與 ΔAction，控制：當日報酬、5日報酬、量比、ATR%、MA20乖離、20日突破、分數絕對值。Beta 為 predictor 增加 1 個標準差時，outcome 改變多少百分點。t 值僅作探索性參考，未做個股 cluster robust SE。</div>
+    <div class="scroll"><table id="regTable"></table></div>
+  </div>
+
+  <div class="panel">
+    <h3>H2｜出場訊號是否只是價格鏡像</h3>
+    <div class="note">定義 <code>ExitRisk = 100 - Hold</code>，<code>ΔExitRisk = ExitRisk(t)-ExitRisk(t-1)</code>。先看 ΔExitRisk 被當日價格變化解釋多少，再看控制價格後是否仍能預測未來 5 日最大不利波動（Downside5）。</div>
+    <div class="scroll"><table id="exitTable"></table></div>
+  </div>
+
+  <div class="panel">
+    <h3>研究限制</h3>
+    <div class="note">
+      1. Universe 是「目前」上市櫃名單，因此仍有 survivorship bias；這是第一版研究工具，不代表正式學術級結果。<br>
+      2. 籌碼 API 若某些股票缺資料，V4.4 仍可計算，但報告會記錄籌碼完整度；請優先看大量樣本與測試集結果。<br>
+      3. 這頁不會自動修改正式策略；即使結果支持，也只做研究結論。
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const TOKEN_KEY='twq_finmind_token_v1';
+let STOP=false, OBS=[], STOCK_SUM=[];
+const n=(x,d=0)=>Number.isFinite(Number(x))?Number(x):d;
+const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:NaN;
+const median=a=>{if(!a.length)return NaN;const b=[...a].sort((x,y)=>x-y),m=Math.floor(b.length/2);return b.length%2?b[m]:(b[m-1]+b[m])/2};
+const sd=a=>{if(a.length<2)return NaN;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1))};
+const fmt=(x,d=2)=>Number.isFinite(x)?x.toFixed(d):'—';
+const pct=(x,d=2)=>Number.isFinite(x)?`${x>=0?'+':''}${x.toFixed(d)}%`:'—';
+
+function authHeaders(extra={}){
+  const t=String(localStorage.getItem(TOKEN_KEY)||'').trim();
+  return t?{...extra,Authorization:`Bearer ${t}`}:{...extra};
+}
+async function getJSON(url){
+  const r=await fetch(url,{cache:'no-store',headers:authHeaders()});
+  const text=await r.text();let j=null;try{j=JSON.parse(text)}catch{}
+  if(!r.ok||!j)throw new Error(`${r.status} ${url} ${text.slice(0,100)}`);
+  if(j.ok===false)throw new Error(j.error||'API error');
+  return j;
+}
+async function tokenStatus(){
+  try{
+    const j=await getJSON('/api/finmind/status?_='+Date.now());
+    $('tokenState').innerHTML=j.configured?'<span class="good">✓ FinMind TOKEN 已啟用</span>':'<span class="warn">FinMind：匿名模式</span>';
+  }catch(e){$('tokenState').textContent='FinMind 狀態未知'}
+}
+
+function hash32(str){
+  let h=2166136261>>>0;
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}
+  return h>>>0;
+}
+function deterministicSample(arr,k,seed){
+  return [...arr].sort((a,b)=>hash32(seed+'|'+a.code)-hash32(seed+'|'+b.code)).slice(0,k);
+}
+function isoDaysAgo(days){
+  const d=new Date();d.setDate(d.getDate()-days);return d.toISOString().slice(0,10);
+}
+function cutAt(rows,date){return (rows||[]).filter(x=>String(x.date)<=date)}
+function scorePack(hist,chips){
+  const rows=hist.map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}));
+  const R=combineScores(rows,chips.margin||[],chips.inst||[],chips.daytrade||[]);
+  const E=entryEngine(rows,R);
+  const scoreOf=v=>{
+    if(Number.isFinite(Number(v)))return Number(v);
+    if(v&&typeof v==='object')for(const k of ['score','total','value'])if(Number.isFinite(Number(v[k])))return Number(v[k]);
+    return 0;
+  };
+  const setup=scoreOf(R?.quality);
+  const opportunity=scoreOf(E?.opportunity??E?.opportunityScore);
+  const entry=scoreOf(E?.score??E?.entryScore);
+  const hold=scoreOf(E?.hold??E?.holdScore);
+  const action=entry*.40+setup*.30+opportunity*.30;
+  return {setup,opportunity,entry,hold,action};
+}
+function controls(hist,i){
+  const c=hist[i].close,p=hist[i-1]?.close||c,p5=hist[Math.max(0,i-5)]?.close||c;
+  const ret1=(c/p-1)*100,ret5=(c/p5-1)*100;
+  const vols=hist.slice(Math.max(0,i-5),i).map(x=>x.volume).filter(Number.isFinite);
+  const vr=mean(vols)?hist[i].volume/mean(vols):1;
+  let trs=[];for(let k=Math.max(1,i-13);k<=i;k++){const r=hist[k],pp=hist[k-1].close;trs.push(Math.max(r.high-r.low,Math.abs(r.high-pp),Math.abs(r.low-pp)))}
+  const atrPct=(mean(trs)||0)/c*100;
+  const ma20=mean(hist.slice(Math.max(0,i-19),i+1).map(x=>x.close));
+  const bias20=ma20?(c/ma20-1)*100:0;
+  const ph=Math.max(...hist.slice(Math.max(0,i-20),i).map(x=>x.high));
+  const breakout20=c>ph?1:0;
+  return {ret1,ret5,logVR:Math.log(Math.max(vr,.05)),atrPct,bias20,breakout20};
+}
+function outcomes(hist,i){
+  const c=hist[i].close,out={};
+  for(const h of [1,3,5,10]){
+    if(i+h>=hist.length){out['ret'+h]=NaN;out['mfe'+h]=NaN;out['mae'+h]=NaN;continue}
+    out['ret'+h]=(hist[i+h].close/c-1)*100;
+    const win=hist.slice(i+1,i+h+1);
+    out['mfe'+h]=(Math.max(...win.map(x=>x.high))/c-1)*100;
+    out['mae'+h]=(Math.min(...win.map(x=>x.low))/c-1)*100;
+  }
+  out.downside5=Number.isFinite(out.mae5)?Math.max(0,-out.mae5):NaN;
+  return out;
+}
+
+async function loadOne(stock,start,end){
+  const hj=await getJSON(`/api/history/auto?code=${encodeURIComponent(stock.code)}&market=${stock.market}&start=${start}&end=${end}&_=${Date.now()}`);
+  let hist=(hj.data||hj.prices||[]).map(x=>({date:x.date,open:n(x.open),high:n(x.high),low:n(x.low),close:n(x.close),volume:n(x.volume)}))
+    .filter(x=>x.close>0).sort((a,b)=>a.date.localeCompare(b.date));
+  if(hist.length<120)throw new Error('history<120');
+  let chips={margin:[],inst:[],daytrade:[]},comp=0;
+  try{
+    const cj=await getJSON(`/api/chips/hybrid?code=${stock.code}&market=${stock.market}&start_date=${start}&end_date=${end}`);
+    chips={margin:cj.margin||[],inst:cj.inst||[],daytrade:cj.daytrade||[]};
+    comp=n(cj.completeness);
+  }catch(e){}
+  return {hist,chips,comp};
+}
+
+function binOf(d){
+  if(d<=0)return '≤0';
+  if(d<5)return '+1~4';
+  if(d<10)return '+5~9';
+  if(d<15)return '+10~14';
+  return '≥+15';
+}
+const BIN_ORDER=['≤0','+1~4','+5~9','+10~14','≥+15'];
+function summarizeBins(field, rows){
+  return BIN_ORDER.map(bin=>{
+    const a=rows.filter(r=>binOf(r[field])===bin && Number.isFinite(r.ret5));
+    return {
+      bin,n:a.length,
+      win1:mean(a.filter(r=>Number.isFinite(r.ret1f)).map(r=>r.ret1f>0?1:0))*100,
+      win3:mean(a.filter(r=>Number.isFinite(r.ret3)).map(r=>r.ret3>0?1:0))*100,
+      win5:mean(a.map(r=>r.ret5>0?1:0))*100,
+      win10:mean(a.filter(r=>Number.isFinite(r.ret10)).map(r=>r.ret10>0?1:0))*100,
+      med5:median(a.map(r=>r.ret5)),
+      avg5:mean(a.map(r=>r.ret5)),
+      mfe5:mean(a.map(r=>r.mfe5)),
+      mae5:mean(a.map(r=>r.mae5))
+    };
+  });
+}
+function renderBins(id,field,rows){
+  const data=summarizeBins(field,rows);
+  $(id).innerHTML='<tr><th>Δ分數</th><th>N</th><th>T+1勝率</th><th>T+3勝率</th><th>T+5勝率</th><th>T+10勝率</th><th>T+5中位報酬</th><th>T+5平均</th><th>MFE5</th><th>MAE5</th></tr>'+
+    data.map(r=>`<tr><td>${r.bin}</td><td>${r.n}</td><td>${fmt(r.win1,1)}%</td><td>${fmt(r.win3,1)}%</td><td>${fmt(r.win5,1)}%</td><td>${fmt(r.win10,1)}%</td><td>${pct(r.med5)}</td><td>${pct(r.avg5)}</td><td>${pct(r.mfe5)}</td><td>${pct(r.mae5)}</td></tr>`).join('');
+  return data;
+}
+
+/* Small OLS with standardized predictor/controls. Exploratory t-stat only. */
+function invert(A){
+  const n=A.length,M=A.map((r,i)=>[...r,...Array.from({length:n},(_,j)=>i===j?1:0)]);
+  for(let i=0;i<n;i++){
+    let p=i;for(let k=i+1;k<n;k++)if(Math.abs(M[k][i])>Math.abs(M[p][i]))p=k;
+    if(Math.abs(M[p][i])<1e-10)return null;
+    [M[i],M[p]]=[M[p],M[i]];
+    const v=M[i][i];for(let j=0;j<2*n;j++)M[i][j]/=v;
+    for(let k=0;k<n;k++)if(k!==i){const f=M[k][i];for(let j=0;j<2*n;j++)M[k][j]-=f*M[i][j]}
+  }
+  return M.map(r=>r.slice(n));
+}
+function matMul(A,B){return A.map(r=>B[0].map((_,j)=>r.reduce((s,v,k)=>s+v*B[k][j],0)))}
+function ols(rows,yKey,predKey,controlKeys){
+  let data=rows.filter(r=>Number.isFinite(r[yKey])&&Number.isFinite(r[predKey])&&controlKeys.every(k=>Number.isFinite(r[k])));
+  if(data.length<100)return null;
+  const keys=[predKey,...controlKeys],stats={};
+  for(const k of keys){const a=data.map(r=>r[k]),m=mean(a),ss=sd(a)||1;stats[k]={m,sd:ss}}
+  const X=data.map(r=>[1,...keys.map(k=>(r[k]-stats[k].m)/stats[k].sd)]),Y=data.map(r=>[r[yKey]]);
+  const Xt=X[0].map((_,j)=>X.map(r=>r[j])),XtX=matMul(Xt,X),inv=invert(XtX);if(!inv)return null;
+  const beta=matMul(matMul(inv,Xt),Y).map(r=>r[0]);
+  const pred=X.map(r=>r.reduce((s,v,j)=>s+v*beta[j],0)),res=Y.map((r,i)=>r[0]-pred[i]);
+  const sse=res.reduce((s,x)=>s+x*x,0),ybar=mean(Y.map(r=>r[0])),sst=Y.reduce((s,r)=>s+(r[0]-ybar)**2,0);
+  const sigma2=sse/Math.max(1,data.length-X[0].length);
+  const se=inv.map((r,i)=>Math.sqrt(Math.max(0,r[i]*sigma2)));
+  return {n:data.length,beta:beta[1],se:se[1],t:se[1]?beta[1]/se[1]:NaN,r2:sst?1-sse/sst:NaN};
+}
+function simpleR2(rows,yKey,xKeys){
+  const m=ols(rows,yKey,xKeys[0],xKeys.slice(1));return m?.r2;
+}
+function splitRows(rows,testPct){
+  const dates=[...new Set(rows.map(r=>r.date))].sort(),cut=dates[Math.floor(dates.length*(1-testPct))]||dates[0];
+  return {cut,train:rows.filter(r=>r.date<cut),test:rows.filter(r=>r.date>=cut)};
+}
+function renderRegression(rows,testPct){
+  const {cut,train,test}=splitRows(rows,testPct);
+  $('splitCount').textContent=`${train.length.toLocaleString()} / ${test.length.toLocaleString()}`;
+  const controls=['retToday','ret5past','logVR','atrPct','bias20','breakout20'];
+  const models=[
+    ['ΔEntry → T+5報酬','ret5','dEntry',[...controls,'entry']],
+    ['ΔEntry → T+10報酬','ret10','dEntry',[...controls,'entry']],
+    ['ΔAction → T+5報酬','ret5','dAction',[...controls,'action']],
+    ['ΔAction → T+10報酬','ret10','dAction',[...controls,'action']]
+  ];
+  const out=models.map(([name,y,p,c])=>({name,full:ols(rows,y,p,c),test:ols(test,y,p,c)}));
+  $('regTable').innerHTML='<tr><th>模型</th><th>Full N</th><th>Full β/1SD</th><th>Full t</th><th>Test N</th><th>Test β/1SD</th><th>Test t</th><th>Test R²</th></tr>'+
+    out.map(o=>`<tr><td>${o.name}</td><td>${o.full?.n||0}</td><td>${fmt(o.full?.beta)}</td><td>${fmt(o.full?.t)}</td><td>${o.test?.n||0}</td><td>${fmt(o.test?.beta)}</td><td>${fmt(o.test?.t)}</td><td>${fmt((o.test?.r2||0)*100,2)}%</td></tr>`).join('');
+
+  const exitFuture=ols(test,'downside5','dExitRisk',[...controls,'exitRisk']);
+  const mirror=ols(test,'dExitRisk','retToday',['ret5past','logVR','atrPct','bias20','breakout20']);
+  const retPred=ols(test,'ret5','dExitRisk',[...controls,'exitRisk']);
+  $('exitTable').innerHTML='<tr><th>檢驗</th><th>N</th><th>β/1SD</th><th>t</th><th>R²</th><th>解讀</th></tr>'+
+    `<tr><td>ΔExitRisk → 未來5日 Downside</td><td>${exitFuture?.n||0}</td><td>${fmt(exitFuture?.beta)}</td><td>${fmt(exitFuture?.t)}</td><td>${fmt((exitFuture?.r2||0)*100)}%</td><td>β>0 才符合「先惡化、後下跌」</td></tr>`+
+    `<tr><td>今日報酬 → ΔExitRisk（價格鏡像檢驗）</td><td>${mirror?.n||0}</td><td>${fmt(mirror?.beta)}</td><td>${fmt(mirror?.t)}</td><td>${fmt((mirror?.r2||0)*100)}%</td><td>R²越高，越像只是價格重述</td></tr>`+
+    `<tr><td>ΔExitRisk → T+5報酬</td><td>${retPred?.n||0}</td><td>${fmt(retPred?.beta)}</td><td>${fmt(retPred?.t)}</td><td>${fmt((retPred?.r2||0)*100)}%</td><td>β<0 才符合出場風險有預測力</td></tr>`;
+
+  return {cut,test,models:out,exitFuture,mirror,retPred};
+}
+function autoConclusion(entryBins,actionBins,reg){
+  const e0=entryBins[0],e4=entryBins[4],a0=actionBins[0],a4=actionBins[4];
+  const eSpread=(e4.med5||0)-(e0.med5||0),aSpread=(a4.med5||0)-(a0.med5||0);
+  const eTest=reg.models[0].test,aTest=reg.models[2].test;
+  const h1e=eSpread>0.8 && eTest?.beta>0 && eTest?.t>1.65;
+  const h1a=aSpread>0.8 && aTest?.beta>0 && aTest?.t>1.65;
+  const mirrorR2=reg.mirror?.r2||0;
+  const exitUseful=reg.exitFuture?.beta>0 && reg.exitFuture?.t>1.65 && reg.retPred?.beta<0;
+  let txt=[];
+  txt.push(`<b>H1 ΔEntry：</b>${h1e?'<span class="good">初步支持</span>':'<span class="warn">證據不足</span>'}。高Δ與≤0組 T+5中位報酬差 ${pct(eSpread)}；Test β=${fmt(eTest?.beta)}, t=${fmt(eTest?.t)}。`);
+  txt.push(`<b>H1 ΔAction：</b>${h1a?'<span class="good">初步支持</span>':'<span class="warn">證據不足</span>'}。高Δ與≤0組 T+5中位報酬差 ${pct(aSpread)}；Test β=${fmt(aTest?.beta)}, t=${fmt(aTest?.t)}。`);
+  txt.push(`<b>H2 Exit：</b>${exitUseful?'<span class="good">有額外領先資訊</span>':'<span class="warn">目前未證明有額外領先資訊</span>'}。ΔExitRisk 的價格鏡像模型 R²=${fmt(mirrorR2*100,1)}%；對未來 Downside5 的 Test β=${fmt(reg.exitFuture?.beta)}, t=${fmt(reg.exitFuture?.t)}。`);
+  if(mirrorR2>.60 && !exitUseful)txt.push(`<span class="bad">目前結果偏向你觀察的情況：出場分數很可能主要是在描述價格已經發生的變化，而不是提前預警。</span>`);
+  txt.push(`<span class="muted">這是 R1 自動判讀，不會自動改 V4.4。請以 Test 集、樣本數與多個 horizon 一起判斷。</span>`);
+  $('conclusion').innerHTML=txt.join('<br><br>');
+}
+
+async function run(){
+  STOP=false;OBS=[];STOCK_SUM=[];$('runBtn').disabled=true;
+  const N=Number($('sampleN').value),days=Number($('daysN').value),seed=$('seed').value,testPct=Number($('testPct').value);
+  const marketSel=$('marketSel').value;
+  try{
+    if(typeof combineScores!=='function'||typeof entryEngine!=='function')throw new Error('V4.4 engine 未載入');
+    $('status').textContent='取得 Universe…';
+    const u=await getJSON('/api/market/universe');
+    let all=(u.data||u.stocks||u.universe||[]).map(x=>({
+      code:String(x.code||x.stock_id||x.id||''),
+      name:String(x.name||x.stock_name||''),
+      market:String(x.market||'').toLowerCase()
+    })).filter(x=>/^\d{4}$/.test(x.code)&&['twse','tpex'].includes(x.market));
+    if(marketSel!=='all')all=all.filter(x=>x.market===marketSel);
+    const sample=deterministicSample(all,Math.min(N,all.length),seed);
+    const calendarDays=Math.ceil(days*1.7)+150,start=isoDaysAgo(calendarDays),end=new Date().toISOString().slice(0,10);
+    let ok=0,chipOk=0;
+    for(let si=0;si<sample.length;si++){
+      if(STOP)break;
+      const st=sample[si];
+      $('status').textContent=`${si+1}/${sample.length} ${st.code} ${st.name}｜下載 K線＋籌碼，Strict No-Lookahead 重播中…`;
+      $('prog').value=si/sample.length;
+      try{
+        const {hist,chips,comp}=await loadOne(st,start,end);
+        if(comp>=67)chipOk++;
+        const begin=Math.max(90,hist.length-days-11),finish=hist.length-11;
+        let prev=null,obs0=OBS.length;
+        for(let i=begin;i<finish;i++){
+          const date=hist[i].date,h=hist.slice(0,i+1);
+          const cc={margin:cutAt(chips.margin,date),inst:cutAt(chips.inst,date),daytrade:cutAt(chips.daytrade,date)};
+          let sc;try{sc=scorePack(h,cc)}catch(e){prev=null;continue}
+          if(prev){
+            const ctl=controls(hist,i),out=outcomes(hist,i);
+            OBS.push({
+              code:st.code,market:st.market,date,chipCompleteness:comp,
+              setup:sc.setup,opportunity:sc.opportunity,entry:sc.entry,action:sc.action,hold:sc.hold,
+              dEntry:sc.entry-prev.entry,dAction:sc.action-prev.action,
+              exitRisk:100-sc.hold,dExitRisk:(100-sc.hold)-(100-prev.hold),
+              retToday:ctl.ret1,ret5past:ctl.ret5,logVR:ctl.logVR,atrPct:ctl.atrPct,bias20:ctl.bias20,breakout20:ctl.breakout20,
+              ret1f:out.ret1,ret3:out.ret3,ret5:out.ret5,ret10:out.ret10,mfe5:out.mfe5,mae5:out.mae5,downside5:out.downside5
+            });
+          }
+          prev=sc;
+          if(i%25===0)await new Promise(r=>setTimeout(r,0));
+        }
+        if(OBS.length>obs0){ok++;STOCK_SUM.push({code:st.code,obs:OBS.length-obs0,comp})}
+      }catch(e){}
+      $('stockCount').textContent=ok;
+      $('obsCount').textContent=OBS.length.toLocaleString();
+      $('chipCount').textContent=chipOk;
+    }
+    $('prog').value=1;
+    const minObs=Number($('minObs').value);
+    if(OBS.length<minObs)throw new Error(`有效觀察只有 ${OBS.length}，低於設定的 ${minObs}`);
+    $('status').textContent=`完成：${ok} 檔、${OBS.length.toLocaleString()} 個日觀察。正在統計…`;
+    const entryBins=renderBins('entryBins','dEntry',OBS);
+    const actionBins=renderBins('actionBins','dAction',OBS);
+    const reg=renderRegression(OBS,testPct);
+    autoConclusion(entryBins,actionBins,reg);
+    $('status').innerHTML=`<span class="good">完成</span>｜${ok} 檔｜${OBS.length.toLocaleString()} observations｜Test 起始日 ${reg.cut}`;
+  }catch(e){
+    $('status').innerHTML=`<span class="bad">停止：</span>${e.message||e}`;
+  }finally{$('runBtn').disabled=false}
+}
+function exportCSV(){
+  if(!OBS.length){alert('尚無回測資料');return}
+  const cols=Object.keys(OBS[0]),esc=v=>`"${String(v??'').replace(/"/g,'""')}"`;
+  const csv=[cols.join(','),...OBS.map(r=>cols.map(c=>esc(r[c])).join(','))].join('\n');
+  const blob=new Blob(["\ufeff"+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='score-momentum-regression-observations.csv';a.click();URL.revokeObjectURL(a.href);
+}
+$('runBtn').onclick=run;$('stopBtn').onclick=()=>{STOP=true;$('status').textContent+='\\n使用者要求停止，將在目前股票完成後停止。'};$('exportBtn').onclick=exportCSV;
+tokenStatus();
+</script>
+</body></html>
