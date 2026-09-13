@@ -1,3 +1,5 @@
+> R19.1 補充：來源阻擋處理、可選 FinMind 與行情匯入，請先閱讀 RESEARCH_R191_NOTES.md；下列為 R19 原始設計紀錄。
+
 # R19：每日成交量前 100 名與樣本外策略搜尋
 
 基底：victordogboy/tw-stock-test，r18 commit `ad5d249cbcc0534741574b03442ac1134e8901c8`。

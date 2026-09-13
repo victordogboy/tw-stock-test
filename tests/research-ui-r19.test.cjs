@@ -19,3 +19,10 @@ test('cache-only UI flow completes and renders with zero network calls',async()=
 test('missing local snapshots stops without fetching and unlocks UI',async()=>{
  const h=harness();await vm.runInContext("gather('local')",h.context);assert.equal(h.calls,0);assert.match(h.elements.status.textContent,/本機資料不足/);assert.equal(h.elements.run.disabled,false);assert.equal(h.records.has('last-report'),false);
 });
+test('fixed pure-price cached UI does not fetch market snapshots or FinMind chips',async()=>{
+ const h=harness();for(const [id,value] of Object.entries({universe:'fixed',scoreMode:'price',fixedStocks:'twse:2330',poolDate:'2025-07-01'}))h.elements[id]=new Element(value);
+ const o=vm.runInContext('options()',h.context),data=[];
+ for(let d=o.warmupStart;d<=o.end;d=new Date(Date.parse(d)+86400000).toISOString().slice(0,10))if(new Date(d).getUTCDay()%6)data.push({date:d,open:100,close:101,high:102,low:99,volume:10000});
+ for(const id of ['twse:0050','twse:2330'])h.records.set(`price192:${id}:${o.warmupStart}:${o.end}`,{data});
+ await vm.runInContext("gather('local')",h.context);assert.equal(h.calls,0);assert.match(h.elements.status.textContent,/研究完成/);assert.equal(h.elements.export.disabled,false);
+});

@@ -1,11 +1,11 @@
-importScripts('/v44-engine.js?r19','/research-r19-core.js?r19');
+importScripts('/v44-engine.js?r19','/research-r19-core.js?r192');
 self.onmessage=async ({data:input})=>{
   try{
     const C=ResearchR19,{snapshots,chips,options}=input;
-    const data=C.prepare(snapshots,options.markets),splits=C.split(data.dates,options.start);
+    const data=C.prepare(snapshots,options.markets,options),splits=C.split(data.dates,options.start);
     const union=new Set();for(const date of data.dates)if(date>=options.start)for(const id of data.ranks.get(date).keys())union.add(id);
     const rows=[],coverage={selectedStocks:union.size,warmup:0,missingChips:0,invalidScore:0,selectedObservations:0,scoredObservations:0};
-    const scorer=(h,cc)=>{const R=combineScores(h,cc.margin,cc.inst,cc.daytrade),E=entryEngine(h,R);return {setup:R.quality,opportunity:E.opportunity,entry:E.score,hold:E.hold};};
+    const scorer=options.scoreMode==='price'?C.priceScore:(h,cc)=>{const R=combineScores(h,cc.margin,cc.inst,cc.daytrade),E=entryEngine(h,R);return {setup:R.quality,opportunity:E.opportunity,entry:E.score,hold:E.hold};};
     let done=0;
     for(const id of union){
       const r=C.replayStock(data,id,chips[id]||{},scorer,options);
@@ -32,7 +32,7 @@ self.onmessage=async ({data:input})=>{
       chosen={parameters:selected.p,train:strip(selected.train),validation:strip(selected.result),test:strip(result),ci:result.unresolved?null:C.bootstrapCI(result.trades,options.seed),trades:result.trades};
     }
     const baseline=C.simulate(data,rows,pool[0],splits.test,options.cost);
-    const report={version:C.VERSION,base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
+    const report={version:C.VERSION,patch:'19.2',base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:options.scoreMode==='price'?'R19.2 price-only hypotheses (not V4.4)':'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',market_mapping:s.market_mapping||'reported',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
     self.postMessage({type:'done',report});
   }catch(e){self.postMessage({type:'error',error:e.message,stack:e.stack});}
 };

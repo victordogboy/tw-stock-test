@@ -15,7 +15,7 @@ function ranked(rows,n=100){
   for(const r of rows){if(seen.has(key(r)))throw Error('Duplicate market/code');seen.add(key(r));if(!finite(r.volume)||r.volume<0)throw Error('Invalid ranking volume');}
   return rows.filter(r=>/^[1-9]\d{3}$/.test(r.code)&&r.volume>0).sort((a,b)=>b.volume-a.volume||key(a).localeCompare(key(b))).slice(0,n);
 }
-function prepare(snapshots,markets=['twse','tpex']){
+function prepare(snapshots,markets=['twse','tpex'],options={}){
   const grouped=new Map();
   for(const s of snapshots){
     if(!markets.includes(s.market))continue;
@@ -31,12 +31,24 @@ function prepare(snapshots,markets=['twse','tpex']){
     if(markets.some(m=>g.get(m).closed))throw Error(date+': inconsistent market calendar');
     const rows=markets.flatMap(m=>g.get(m).rows);
     if(rows.some(r=>r.date!==date||!markets.includes(r.market)))throw Error('Snapshot date/market mismatch');
-    if(rows.length<100)throw Error('Full market snapshot has fewer than 100 stocks');
+    if(options.universe!=='fixed'&&rows.length<100)throw Error('Full market snapshot has fewer than 100 stocks');
     dates.push(date);daily.set(date,new Map(rows.map(r=>[key(r),r])));
-    const top=ranked(rows);ranks.set(date,new Map(top.map((r,i)=>[key(r),i+1])));
+    const top=options.universe==='fixed'?options.fixedStocks.map(id=>{const [market,code]=id.split(':');return {market,code};}):ranked(rows);ranks.set(date,new Map(top.map((r,i)=>[key(r),i+1])));
     for(const r of rows){if(!series.has(key(r)))series.set(key(r),[]);if(validBar(r))series.get(key(r)).push(r);}
   }
   return {dates,daily,series,ranks};
+}
+// R19.2 price-only hypotheses, not the original V4.4 scores. Uses left-side bars only.
+function priceScore(h){
+  const clamp=x=>Math.max(0,Math.min(100,x)),c=h.at(-1).close;
+  const ma=n=>mean(h.slice(-n).map(r=>r.close));
+  const prior=h.slice(-21,-1),hi=Math.max(...prior.map(r=>r.high));
+  const vr=h.at(-1).volume/mean(prior.map(r=>r.volume));
+  const trend=clamp(50+500*(ma(20)/ma(60)-1));
+  const momentum=clamp(50+500*(c/h.at(-6).close-1));
+  const breakout=clamp(50+500*(c/hi-1));
+  const volume=clamp(50+25*Math.log2(Math.max(.01,vr)));
+  return {setup:trend,opportunity:.5*momentum+.5*volume,entry:.5*breakout+.25*momentum+.25*volume,hold:clamp(50+500*(c/ma(20)-1))};
 }
 function controls(hist){
   const i=hist.length-1,c=hist[i].close,prev=hist[i-1].close;
@@ -56,10 +68,10 @@ function replayStock(data,id,chips,scoreFn,options){
     const date=data.dates[di],h=hist.filter(r=>r.date<=date);
     if(h.length<minimum||h.at(-1)?.date!==date){stats.warmup++;previous=null;continue;}
     const cc=sliceChips(chips,data.dates[di-lag]||'');
-    if(!chipReady(cc,data.dates[Math.max(0,di-lag-4)])){stats.missingChips++;previous=null;continue;}
+    if(options.scoreMode!=='price'&&!chipReady(cc,data.dates[Math.max(0,di-lag-4)])){stats.missingChips++;previous=null;continue;}
     let sc;try{sc=scoreFn(h,cc);}catch(e){stats.invalidScore++;previous=null;continue;}
     if(!NAMES.every(k=>finite(sc[k])&&sc[k]>=0&&sc[k]<=100)){stats.invalidScore++;previous=null;continue;}
-    const r={code:h.at(-1).code,market:h.at(-1).market,date,di,rank:data.ranks.get(date)?.get(id)||null,...sc,...controls(h),chipDate:cc.margin.at(-1).date};
+    const r={code:h.at(-1).code,market:h.at(-1).market,date,di,rank:data.ranks.get(date)?.get(id)||null,...sc,...controls(h),chipDate:options.scoreMode==='price'?null:cc.margin.at(-1).date};
     for(const name of NAMES)r['d'+name[0].toUpperCase()+name.slice(1)]=previous&&previous.di===di-1?sc[name]-previous[name]:null;
     if(di>=start)out.push(r);previous=r;
   }
@@ -169,6 +181,6 @@ function bootstrapCI(trades,seed=17){
   for(let b=0;b<300;b++){let total=0,n=0;for(let i=0;i<a.length;i+=20){const start=Math.floor(rnd()*a.length);for(let k=0;k<Math.min(20,a.length-i);k++)for(const r of a[(start+k)%a.length]){total+=r;n++;}}means.push(total/n);}
   means.sort((a,b)=>a-b);return [means[7],means[292]];
 }
-const api={VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
+const api={priceScore,VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
 if(typeof module!=='undefined')module.exports=api;root.ResearchR19=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>策略研究 R19｜每日成交量前 100 名</title><style>
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>策略研究 R19.2｜固定股票池與價量回測</title><style>
 :root{--bg:#07101d;--panel:#0d1728;--line:#24324a;--text:#e7edf7;--muted:#9fb0c8;--good:#4ade80;--bad:#fb7185;--warn:#facc15;--cyan:#22d3ee}
 *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
 .wrap{max-width:1500px;margin:auto;padding:18px}.head{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
@@ -12,11 +12,18 @@ table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}th,td{bo
 progress{width:100%;height:12px}.scroll{overflow:auto;max-height:520px}
 code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;color:var(--muted);line-height:1.6}
 @media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr 1fr}}
+body{overflow-wrap:anywhere}.grid>div{min-width:0}input,select{min-width:0;max-width:100%}.status{overflow-wrap:anywhere}a{color:#7dd3fc}@media(pointer:coarse){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style></head><body><div class="wrap">
-<div class="head"><div><h1>策略研究 R19｜每日成交量前 100 名</h1><div class="sub">r18 基底 · Setup / Opportunity / Entry / Hold 與每日變化 · 下一交易日開盤成交 · 含成本 · 時間順序樣本外驗證</div></div><a href="/scanner.html">返回掃描器</a></div>
+<div class="head"><div><h1>策略研究 R19.2｜固定股票池與價量回測</h1><div class="sub">r18 基底 · Setup / Opportunity / Entry / Hold 與每日變化 · 下一交易日開盤成交 · 含成本 · 時間順序樣本外驗證</div></div><a href="/scanner.html">返回掃描器</a></div>
 <div class="panel"><div class="grid">
+<div><label for="universe">股票池</label><select id="universe"><option value="fixed">固定股票池（免費行情）</option><option value="top100">每日成交量前 100</option></select></div>
+<div><label for="scoreMode">分數版本</label><select id="scoreMode"><option value="price">純價量假說版（不抓籌碼）</option><option value="full">原版 V4.4（需完整籌碼）</option></select></div>
+<div><label for="fixedStocks">固定名單（市場:代碼，以空白分隔）</label><input id="fixedStocks" placeholder="twse:2330 twse:2317 tpex:6488"></div>
+<div><label for="poolDate">名單取得日期</label><input id="poolDate" type="date"></div>
+<div><label>股票期貨標的</label><button id="loadFutures">載入目前名單供檢視</button></div>
 <div><label for="start">訊號開始日</label><input type="date" id="start"></div><div><label for="end">資料截止日（不含今天）</label><input type="date" id="end"></div>
 <div><label for="market">歷史市場</label><select id="market"><option value="all">上市＋上櫃合併前 100</option value="twse">上市前 100</option value="tpex">上櫃前 100</option></select></div>
+<div><label for="source">歷史行情來源</label><select id="source"><option value="official">交易所官方</option><option value="finmind">FinMind（需全市場權限）</option><option value="import">匯入的歷史行情</option></select></div>
 <div><label for="candidates">候選參數數量</label><select id="candidates"><option>64</option><option selected>128</option><option>256</option><option>512</option></select></div>
 <div><label for="seed">固定搜尋種子</label><input type="number" id="seed" value="20260912"></div><div><label for="minTrades">訓練最少成交筆數</label><input type="number" min="20" max="1000" id="minTrades" value="30"></div>
 <div><label for="fee">單邊手續費 %</label><input type="number" id="fee" value="0.1425" min="0" max="2" step="0.0001"></div>
@@ -25,14 +32,16 @@ code{background:#08111f;padding:2px 4px;border-radius:4px}.note{font-size:12px;c
 <div><label>籌碼使用時點</label><input value="前一交易日以前（保守延遲）" disabled></div>
 </div>
 <div class="row" style="margin-top:12px"><button id="check" style="width:auto">① 檢查快取</button><button id="build" style="width:auto">② 補齊歷史資料</button><button class="primary" id="run" style="width:auto">③ 搜尋與樣本外驗證</button><button id="stop" style="width:auto">停止</button></div>
-<p class="note">排名使用各日上市／上櫃官方完整行情的成交股數；限定四位數股票代號（排除 0 開頭 ETF），同量以市場／代號排序。先排名再檢查分數資料，缺資料不拿第 101 名遞補。需要至少 160 個訊號交易日，系統另抓 180 個日曆日供 90 根 K 線暖機。初次建置可能需較長時間，可停止後續接。</p>
-<p class="note">排名資料由交易所取得，不使用 FinMind。補齊個股籌碼沿用 r18 研究快取，可能使用 FinMind API 配額；重新搜尋只讀本機資料，不呼叫上游。快取保存在這個瀏覽器，可匯出備份。請先在原掃描器設定 FinMind Token。</p>
+<p class="note">排名使用各日上市／上櫃官方完整行情的成交股數；限定四位數股票代號（排除 0 開頭 ETF），同量以市場／代號排序。先排名再檢查分數資料，缺資料不拿第 101 名遞補。需要至少 160 個訊號交易日，系統另抓 180 個日曆日供 90 根 K 線暖機。初次建置可能需較長時間，可停止後續接。FinMind 的歷史市場別依供應商轉板紀錄日期推估，仍需與官方歷史成分核對；分類不明會停止。</p>
+<p class="note">官方來源的排名資料不使用 FinMind；選 FinMind 來源則行情也會使用 API 配額，且需要 backer／sponsor 全市場權限。補齊個股籌碼沿用 r18 研究快取，可能使用 FinMind API 配額；重新搜尋只讀本機資料，不呼叫上游。快取保存在這個瀏覽器，可匯出備份。請先在原掃描器設定 FinMind Token。</p>
+<p class="note">固定池不抓每日全市場排名，行情走免費 Yahoo／交易所來源，純價量模式完全不呼叫 FinMind。股票期貨按鈕填入目前名單（沿用舊版官方頁面解析，請核對名單），凍結後不自動刷新；這是標的股票現貨回測，不是期貨合約回測。今日成分回測歷史存在存活者與選樣偏差，只作探索。免費來源仍可能拒絕存取，失敗會保留已完成快取並停止。0050 歷史交易日作日曆代理，不是官方完整日曆。</p>
+<p class="note">價量分數不是原版 V4.4：Setup＝MA20／MA60 趨勢；Opportunity＝5日動能＋量比；Entry＝前20日高點突破＋動能＋量比；Hold＝收盤／MA20。分數及日變化的權重在訓練／驗證期選擇。原版仍要求完整籌碼，缺值不補零。未處理股息與除權息，結果為初步價格報酬研究。</p>
 <progress id="progress" value="0" max="1"></progress><div class="status" id="status">等待檢查。</div><div class="status muted" id="cache"></div>
 </div>
-<div class="panel"><div class="row"><button id="backup" style="width:auto">匯出資料備份 JSON</button><label style="margin:0">還原資料備份 <input id="restore" type="file" accept=".json" style="width:220px"></label><button id="export" style="width:auto" disabled>匯出完整研究結果 JSON</button></div></div>
+<div class="panel"><div class="row"><button id="backup" style="width:auto">匯出資料備份 JSON</button><label style="margin:0">還原資料備份 <input id="restore" type="file" accept=".json" style="width:220px"></label><label style="margin:0">匯入完整歷史行情 JSON <input id="marketImport" type="file" accept=".json" style="width:220px"></label><button id="export" style="width:auto" disabled>匯出完整研究結果 JSON</button></div></div>
 <div class="panel"><h3>樣本外結果</h3><div id="summary" class="status">尚未執行。正相關、有效出場或最佳權重，都必須由保留測試期間驗證。</div><div class="scroll"><table id="metrics"></table></div><pre id="weights" style="white-space:pre-wrap"></pre></div>
 <div class="panel"><h3>分數與未來淨報酬的關聯</h3><p class="note">按訊號日分別算截面 Spearman IC，再取日期平均；Q5−Q1 為高低分組平均淨報酬差（百分點）。h 代表 T+1 開盤買進、T+h+1 開盤賣出。每組至少 20 檔；分組邊界同分不計價差。測試統計僅作診斷，不用來選參數。</p><div class="scroll"><table id="correlations"></table></div></div>
 <div class="panel"><h3>控制價格後，是否改善樣本外預測？</h3><p class="note">控制當日報酬、過去 5 日報酬、量比與 MA20 乖離。只在訓練集估計標準化與固定 ridge 回歸；測試 MSE 改善 > 0 代表加入該分數降低測試誤差。β 為訓練係數，沒有用測試資料重擬合；未宣稱因果或統計顯著。</p><div class="scroll"><table id="controls"></table></div></div>
 <div class="panel"><h3>訓練入選 → 驗證挑選</h3><div class="scroll"><table id="shortlist"></table></div></div>
 <div class="panel"><h3>成交與限制</h3><div class="note">期間按日期切成 55% 訓練、20% 驗證、25% 最終測試。每段最後 26 個交易日不開新倉，供最長 20 日持有及退出緩衝；跨界未平倉明確計數，參數不得入選。預測標籤在各段結束以前完整實現。<br>進出場均由收盤訊號觸發，最早次一交易所交易日開盤成交。買單當日不能成交即取消；賣單不能成交則延後。零成交、缺價或一價鎖住的日 K 不假設可成交；持倉退出不受前百名限制。<br>有未平倉時整段平均淨報酬不顯示，其餘統計僅供診斷。績效為每筆等名目本金交易的淨報酬，個股持倉不重疊，但多股可重疊；沒有資金／部位上限，因此不是可直接實現的投資組合報酬、年化或 Sharpe。費率為可調研究假設，未計最低手續費、整張限制、股息、除權調整或市場衝擊。<br>歷史官方名單避免以今日名單選股，但分數暖機、歷史籌碼缺漏與下市後退出仍可能造成偏差；完整度另列。行情或日期無法驗證會停止，不以最新行情代替。重複看測試結果後改設定仍會污染樣本外，應再保留新的未看過期間。</div></div>
-</div><script src="/research-r19-core.js?r19"></script><script src="/research-r19-ui.js?r19"></script></body></html>
+</div><script src="/research-r191-import.js?r192"></script><script src="/research-r19-core.js?r192"></script><script src="/research-r19-ui.js?r192"></script></body></html>

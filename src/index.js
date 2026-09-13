@@ -772,15 +772,90 @@ function r19Snapshot(raw, market, date) {
   }
   throw new Error('Unrecognized historical OHLC/volume table; no snapshot published');
 }
-async function r19MarketRoute(request,url) {
+/* R19.1: independent, explicitly selected FinMind data service. */
+function r191Failure(code,message){const e=new Error(message);e.code=code;return e;}
+function r191Blocked(e){return /安全性考量|FOR SECURITY REASONS|PAGE CAN ?NOT BE ACCESSED|access denied/i.test(String(e?.message||e));}
+async function r191FinMindDS(dataset,date,token){
+  const q=new URLSearchParams({dataset});if(date)q.set('start_date',date);
+  let response,raw;
+  try{
+    response=await fetch(`https://api.finmindtrade.com/api/v4/data?${q}`,{headers:{Authorization:`Bearer ${token}`,accept:'application/json'},signal:AbortSignal.timeout(30000)});
+    raw=await response.json();
+  }catch(e){throw r191Failure('PROVIDER_UNAVAILABLE','FinMind 目前無法取得資料，未寫入成功快取。');}
+  if(response.status===429||Number(raw.status)===402||Number(raw.status)===429)throw r191Failure('PROVIDER_QUOTA','FinMind 配額或方案限制；請確認帳戶額度，稍後再補齊。');
+  if(!response.ok||Number(raw.status)!==200||!Array.isArray(raw.data))throw r191Failure('PROVIDER_ACCESS','FinMind 未授權此請求。全市場 TaiwanStockPrice 需要 backer／sponsor 權限；一般 Token 不保證可用。');
+  return raw.data;
+}
+async function r191Metadata(origin,token,dataset){
+  const k=new Request(`${origin}/__research-provider/r191/${dataset}`),hit=await caches.default.match(k);
+  if(hit)return (await hit.json()).data;
+  const data=await r191FinMindDS(dataset,null,token);
+  if(!data.length)throw r191Failure('PROVIDER_DATA','FinMind 市場分類或交易日資料為空。');
+  await caches.default.put(k,new Response(JSON.stringify({data}),{headers:{'content-type':'application/json','cache-control':'public,max-age=86400'}}));return data;
+}
+function r191Classify(info,date){
+  // Provider documents that a former market row's date stops at departure.
+  // Infer intervals from those end dates; never use today's latest type for all history.
+  const rows=info.filter(r=>['twse','tpex','emerging'].includes(r.type)&&r19Date(r.date)===r.date).sort((a,b)=>a.date.localeCompare(b.date));
+  const picked=rows.find(r=>r.date>=date);if(!picked)return null;
+  if(new Set(rows.filter(r=>r.date===picked.date).map(r=>r.type)).size!==1)return null;
+  return picked;
+}
+function r191NormalizeFinMind(raw,info,date){
+  const map=new Map();for(const r of info){const code=String(r.stock_id);if(!map.has(code))map.set(code,[]);map.get(code).push(r);}
+  const out={twse:[],tpex:[]},unknown=[],seen=new Set();
+  const number=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
+  for(const r of raw){
+    if(r.date!==date)throw r191Failure('PROVIDER_DATE','FinMind 回傳日期不符，拒絕將最新資料用於歷史排名。');
+    const code=String(r.stock_id);if(!/^[1-9]\d{3}$/.test(code))continue;
+    if(seen.has(code))throw r191Failure('PROVIDER_DATA','FinMind 同日股票代號重複。');seen.add(code);
+    const meta=r191Classify(map.get(code)||[],date);if(!meta){unknown.push(code);continue;}
+    if(meta.type==='emerging')continue;
+    const volume=number(r.Trading_Volume);if(volume===null||volume<0)throw r191Failure('PROVIDER_DATA','FinMind 成交股數缺漏，不能排名。');
+    out[meta.type].push({date,market:meta.type,code,name:String(meta.stock_name||code),open:number(r.open),high:number(r.max),low:number(r.min),close:number(r.close),volume});
+  }
+  if(unknown.length)throw r191Failure('MARKET_MAPPING',`無法確定 ${unknown.length} 檔歷史市場別（${unknown.slice(0,5).join('、')}）。未排除後硬算前百名；請改用帶市場別的歷史資料匯入。`);
+  if(out.twse.length<100||out.tpex.length<100)throw r191Failure('PROVIDER_DATA','FinMind 回傳市場資料不足，未發布部分市場快取。');
+  return out;
+}
+async function r191FinMindDay(request,env,url,date){
+  const token=await requestFinMindToken(request,env,url.origin);
+  if(!token)throw r191Failure('TOKEN_REQUIRED','請先在原掃描器設定 FinMind Token；全市場日資料另需 backer／sponsor 權限。');
+  const raw=await r191FinMindDS('TaiwanStockPrice',date,token);
+  let rows;
+  if(!raw.length){
+    const calendar=await r191Metadata(url.origin,token,'TaiwanStockTradingDate');const dates=calendar.map(x=>x.date).filter(d=>r19Date(d)===d).sort();
+    if(!dates.length||date<=dates[0]||date>=dates.at(-1)||dates.includes(date))throw r191Failure('PROVIDER_EMPTY','當日全市場資料為空，且無法確認休市。請等待資料完整後再試。');
+    rows={twse:[],tpex:[]};
+  }else rows=r191NormalizeFinMind(raw,await r191Metadata(url.origin,token,'TaiwanStockInfo'),date);
+  const result={};
+  for(const market of ['twse','tpex']){
+    const payload={ok:true,version:19,patch:'19.1',date,market,rows:rows[market],closed:!raw.length,source:'FinMind TaiwanStockPrice',provider:'finmind',market_mapping:'provider-end-date-inference',cached_at:new Date().toISOString(),token_used:true};
+    result[market]=payload;
+  }
+  // Validate both markets before publishing either; cached second market saves another bulk call.
+  for(const market of ['twse','tpex'])await caches.default.put(new Request(`${url.origin}/__research-market/r191/finmind/${market}/${date}`),new Response(JSON.stringify(result[market]),{headers:{'content-type':'application/json','cache-control':'public,max-age=31536000'}}));
+  return result;
+}
+
+async function r19MarketRoute(request,url,env={}) {
   const date=url.searchParams.get('date'),market=url.searchParams.get('market');
   const todayTW=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
   if(typeof date!=='string'||r19Date(date)!==date||!['twse','tpex'].includes(market)||date>=''+todayTW||date<'2010-01-01')return json({ok:false,error:'Valid historical date (before Taiwan today) and market required'},400);
   if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET to load, POST to build'},405);
-  const key=new Request(`${url.origin}/__research-market/r19/${market}/${date}`);
+  const provider=url.searchParams.get('source')||'official';
+  if(!['official','finmind'].includes(provider))return json({ok:false,error:'Unknown source'},400);
+  const key=new Request(provider==='official'?`${url.origin}/__research-market/r19/${market}/${date}`:`${url.origin}/__research-market/r191/finmind/${market}/${date}`);
   const hit=await caches.default.match(key);
   if(hit) return json({...await hit.json(),cache_hit:true,upstream_used:false});
   if(request.method==='GET')return json({ok:false,cache_only:true,error:'Market snapshot missing; explicitly build first'},404);
+  if(provider==='finmind'){
+    try{return json({...((await r191FinMindDay(request,env,url,date))[market]),cache_hit:false,upstream_used:true});}
+    catch(e){return json({ok:false,code:e.code||'PROVIDER_ERROR',error:e.message||'FinMind 資料建置失敗',market,date,source:'finmind',cache_preserved:true},502);}
+  }
+  const blockKey=new Request(`${url.origin}/__research-source-block/r191/${market}`);
+  const blocked=await caches.default.match(blockKey);
+  if(blocked)return json({...await blocked.json(),date,retry_after:600},503,{'retry-after':'600'});
   const roc=`${Number(date.slice(0,4))-1911}/${date.slice(5,7)}/${date.slice(8,10)}`;
   const urls=market==='twse'
     ? [`https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date=${date.replace(/-/g,'')}&type=ALLBUT0999`]
@@ -794,13 +869,20 @@ async function r19MarketRoute(request,url) {
       const payload={ok:true,version:19,...snapshot,source:upstream,cached_at:new Date().toISOString(),token_used:false};
       await caches.default.put(key,new Response(JSON.stringify(payload),{headers:{'content-type':'application/json','cache-control':'public,max-age=31536000'}}));
       return json({...payload,cache_hit:false,upstream_used:true});
-    }catch(e){errors.push(String(e.message||e));}
+    }catch(e){
+      if(r191Blocked(e)){
+        const failure={ok:false,code:'SOURCE_BLOCKED',market,date,source:'official',cache_preserved:true,error:`${market.toUpperCase()} 拒絕伺服器存取歷史行情，並回傳安全性阻擋頁。已停止重試；可選擇有權限的 FinMind 全市場來源，或匯入完整歷史行情 JSON。`};
+        await caches.default.put(blockKey,new Response(JSON.stringify(failure),{headers:{'content-type':'application/json','cache-control':'public,max-age=600'}}));
+        return json(failure,503,{'retry-after':'600'});
+      }
+      errors.push(/timeout|abort/i.test(String(e.message))?'來源逾時':'來源回應錯誤或格式無法驗證');
+    }
   }
-  return json({ok:false,error:errors.join(' / '),date,market,cache_preserved:true},502);
+  return json({ok:false,code:'SOURCE_UNAVAILABLE',error:`${market.toUpperCase()} ${date}：${errors.join(' / ')}。未寫入成功快取，可改選 FinMind 或匯入歷史行情。`,date,market,cache_preserved:true},502);
 }
 
 async function routeApi(request, env, url) {
-  if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url);
+  if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url,env);
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
   // R12 created it in export.fetch(), but routeApi() referenced it directly,
   // causing ReferenceError on /api/finmind/status and all FinMind-assisted routes.
