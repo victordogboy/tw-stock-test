@@ -20,12 +20,12 @@ function options(){
   if(universe==='fixed'&&(!fixedStocks.length||fixedStocks.some(x=>!/^(twse|tpex):[1-9]\d{3}$/.test(x))))throw Error('請先載入股票期貨名單，或輸入固定名單如 twse:2330');
   const poolDate=el('poolDate')?.value||null;
   if(universe==='fixed'&&(!poolDate||poolDate>twToday))throw Error('請填寫有效的名單取得日期');
-  return {universe,scoreMode,fixedStocks,poolDate,start,end,warmupStart:day(start,-180),source:el('source')?.value||'official',markets:el('market').value==='all'?['twse','tpex']:[el('market').value],cost,chipLag:1,minTrades,seed,candidates:Number(el('candidates').value)};
+  return {fixedSource:el('fixedSource')?.value||'auto',universe,scoreMode,fixedStocks,poolDate,start,end,warmupStart:day(start,-180),source:el('source')?.value||'official',markets:el('market').value==='all'?['twse','tpex']:[el('market').value],cost,chipLag:1,minTrades,seed,candidates:Number(el('candidates').value)};
 }
 function expected(o){const out=[];for(let d=o.warmupStart;d<=o.end;d=day(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w!==0&&w!==6)for(const market of o.markets)out.push({date:d,market});}return out;}
 function status(s,value){el('status').textContent=s;if(value!==undefined)el('progress').value=value;}
 function checkStop(){if(stopped)throw Error('已停止。已完成的資料仍可續接；未產生部分樣本的研究結論。');}
-function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures']){if(el(id))el(id).disabled=on;};}
+function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource']){if(el(id))el(id).disabled=on;};}
 async function api(path,method='GET',body){
   const token=localStorage.getItem('twq_finmind_token_v1')||'',headers={};if(token)headers.Authorization='Bearer '+token;if(body)headers['content-type']='application/json';
   const res=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:requestAbort?AbortSignal.any([requestAbort.signal,AbortSignal.timeout(90000)]):AbortSignal.timeout(90000)});
@@ -82,7 +82,7 @@ async function gather(mode){
     if(c.missing.length){if(mode==='local')throw Error('籌碼資料不足；請先補齊');status('檢查完成，可按補齊歷史資料。',1);return;}
     if(mode!=='local'){status('資料已就緒，現在可執行搜尋。',1);return;}
     status('分數重播與參數搜尋中；本次計算不呼叫上游。',0);report=null;clearReport();
-    worker=new Worker('/research-r19-worker.js?r192');
+    worker=new Worker('/research-r19-worker.js?r193');
     await new Promise((resolve,reject)=>{
       worker.onmessage=async ({data:m})=>{
         if(m.type==='progress')status(m.text,m.value);
@@ -102,6 +102,7 @@ const table=(id,heads,rows)=>{const t=el(id);t.textContent='';const tr=document.
 function render(r){
   const q=r.chosen,cv=r.coverage;el('export').disabled=false;
   const summary=[`資料覆蓋：${cv.scoredObservations}/${cv.selectedObservations} 個入選股票日有有效分數（${fmt(100*cv.scoredObservations/cv.selectedObservations,1)}%）。`,...Object.entries(r.splits).map(([k,v])=>`${k}：${v.join(' ～ ')}`)];
+  if(r.options.universe==='fixed')summary.push('固定池行情來源：'+(r.options.fixedSource==='finmind'?'FinMind 個股歷史':'Yahoo／交易所')+'；補齊可能使用配額，重跑搜尋不呼叫上游。');
   if(r.options.scoreMode==='price')summary.push('本次為純價量假說分數，未驗證原版 V4.4；未使用法人／融資／當沖。');
   if(r.options.universe==='fixed')summary.push(`固定池 ${r.options.fixedStocks.length} 檔；名單取得 ${r.options.poolDate}。今日成分回測歷史存在存活者／選樣偏差；日曆使用 0050 交易日代理。`);
   if(r.options.source==='finmind'&&r.options.universe!=='fixed')summary.push('市場別使用 FinMind 轉板日期推估；不等同完整官方 point-in-time 成分檔，需另行核對。');
@@ -134,7 +135,7 @@ el('restore').onchange=async e=>{
       if(typeof k!=='string'||!v)throw Error('無效備份記錄');
       if(k.startsWith('market:')){if(![`market:${v.market}:${v.date}`,`market:finmind:${v.market}:${v.date}`,`market:import:${v.market}:${v.date}`].includes(k)||!v.ok||!Array.isArray(v.rows)||v.rows.some(x=>x.date!==v.date||x.market!==v.market)||(!v.closed&&v.rows.length<100))throw Error('市場備份驗證失敗');}
       else if(k.startsWith('chips:')){if(!v.chips||!v.coverage_start||!v.coverage_end)throw Error('籌碼備份驗證失敗');}
-      else if(k.startsWith('price192:')){if(!Array.isArray(v.data)||!v.data.length)throw Error('價量備份驗證失敗');}
+      else if((k.startsWith('price192:')||k.startsWith('price193:finmind:'))){if(!Array.isArray(v.data)||!v.data.length)throw Error('價量備份驗證失敗');}
       else if(k!=='last-report')throw Error('未知備份類型');
     }
     for(const [k,v] of b.records)await dbPut(k,v);status(`已還原 ${b.records.length} 筆快取。`);
@@ -155,20 +156,27 @@ async function fixedState(o,mode){
   o.markets=[...new Set(o.fixedStocks.map(x=>x.split(':')[0]))];
   const histories=new Map(),missing=[];
   for(const id of ['twse:0050',...o.fixedStocks]){
-    checkStop();const key=`price192:${id}:${o.warmupStart}:${o.end}`;
+    checkStop();const key=`${o.fixedSource==='finmind'?'price193:finmind':'price192'}:${id}:${o.warmupStart}:${o.end}`;
     let p=await dbGet(key);status(`固定池行情 ${histories.size}/${o.fixedStocks.length+1}：${id}`);
-    if(!p&&mode==='build'){
+    if(!p&&mode!=='local'){
       const [market,code]=id.split(':');
-      p=await api(`/api/history/auto?code=${code}&market=${market}&start_date=${o.warmupStart}&end_date=${o.end}`);
+      const path=`/api/research/stock-history?code=${code}&market=${market}&start_date=${o.warmupStart}&end_date=${o.end}&source=${o.fixedSource||'auto'}`;
+      try{p=await api(path);}catch(e){if(e.status!==404)throw Error(id+'：'+e.message);}
+      if(!p&&mode==='build'){
+        el('cache').textContent=`正在下載 ${id}；已讀取 ${histories.size} 檔。來源 ${o.fixedSource==='finmind'?'FinMind 個股':'Yahoo／交易所'}。`;
+        try{p=await api(path,'POST');}catch(e){throw Error(id+'：'+e.message);}
+      }
+      if(p){
       if(!Array.isArray(p.data)||!p.data.length)throw Error(id+' 無歷史行情；停止而非靜默排除');
       await dbPut(key,p);
+      }
     }
     if(p)histories.set(id,p.data);else missing.push(id);
   }
   if(missing.length){el('cache').textContent=`缺 ${missing.length} 檔固定池行情`;throw Error('固定池資料不足；請按補齊歷史資料。');}
   const dates=histories.get('twse:0050').filter(r=>r.date>=o.warmupStart&&r.date<=o.end&&C.validBar(r)).map(r=>r.date);
   if(new Set(dates).size!==dates.length)throw Error('日曆代理有重複日期');
-  const snapshots=dates.sort().flatMap(date=>o.markets.map(market=>({ok:true,date,market,source:'fixed-history-auto',rows:[]})));
+  const snapshots=dates.sort().flatMap(date=>o.markets.map(market=>({ok:true,date,market,source:o.fixedSource==='finmind'?'FinMind TaiwanStockPrice individual':'fixed-history-auto',rows:[]})));
   const map=new Map(snapshots.map(s=>[s.market+':'+s.date,s]));
   for(const id of o.fixedStocks){const [market,code]=id.split(':'),seen=new Set();
     for(const r of histories.get(id)){
@@ -190,7 +198,7 @@ if(el('loadFutures'))el('loadFutures').onclick=async()=>{
     status(`已載入 ${codes.length} 檔目前股票期貨標的供檢視；請匯出研究結果保存凍結名單。這是股票現貨回測。`);
   }catch(e){status(e.message);}finally{lock(false);}
 };
-const poolFields=['universe','scoreMode','fixedStocks','poolDate'];
+const poolFields=['universe','scoreMode','fixedStocks','poolDate','fixedSource'];
 try{const saved=JSON.parse(localStorage.getItem('twq_research192_pool')||'null');if(saved)for(const k of poolFields)if(el(k)&&typeof saved[k]==='string')el(k).value=saved[k];}catch{}
 function savePool(){try{localStorage.setItem('twq_research192_pool',JSON.stringify(Object.fromEntries(poolFields.map(k=>[k,el(k)?.value||'']))));}catch{status('名單設定儲存失敗，請另存名單。');}}
 for(const k of poolFields)if(el(k))el(k).onchange=savePool;

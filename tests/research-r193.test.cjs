@@ -1,0 +1,12 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const src=fs.readFileSync('src/index.js','utf8').replace('export default {','globalThis.worker = {');
+function harness(status=200,raw){const store=new Map(),calls=[];const ctx=vm.createContext({Request,Response,Headers,URL,URLSearchParams,AbortSignal,console,caches:{default:{async match(k){return store.get(k.url)?.clone()},async put(k,v){store.set(k.url,v.clone())}}},fetch:async(u,o)=>{calls.push({u,o});return new Response(JSON.stringify(raw||{status:200,data:[{date:'2024-01-02',stock_id:'1565',open:10,max:12,min:9,close:11,Trading_Volume:1000}]}),{status});}});vm.runInContext(src,ctx);ctx.requestFinMindToken=async()=> 'test-secret';return {ctx,calls,store,async run(method='POST',source='finmind'){const u=new URL('https://test/api/research/stock-history?code=1565&market=tpex&start_date=2024-01-01&end_date=2024-12-31&source='+source),r=await ctx.worker.fetch(new Request(u,{method}),{});return {status:r.status,j:await r.json()}}};}
+test('individual provider uses data_id, bounded period, header authentication; GET and repeat build use cache',async()=>{
+ const h=harness();assert.equal((await h.run('GET')).status,404);assert.equal(h.calls.length,0);const r=await h.run();assert.equal(r.status,200);assert.equal(r.j.data.length,1);const q=new URL(h.calls[0].u);assert.equal(q.searchParams.get('data_id'),'1565');assert.equal(q.searchParams.get('end_date'),'2024-12-31');assert.equal(q.searchParams.get('token'),null);assert.equal(h.calls[0].o.headers.Authorization,'Bearer test-secret');await h.run('GET');await h.run();assert.equal(h.calls.length,1);assert.equal((await h.run('GET','auto')).status,404);
+});
+test('quota, invalid token, empty or wrong-symbol histories never publish success',async()=>{
+ for(const [status,raw] of [[429,{status:429}],[401,{status:401}],[200,{status:200,data:[]}],[200,{status:200,data:[{stock_id:'2330',date:'2024-01-02'}]}]]){const h=harness(status,raw),r=await h.run();assert.ok(r.status>=400);assert.equal(h.store.size,0);assert.equal(JSON.stringify(r.j).includes('test-secret'),false);assert.match(r.j.error,/1565/);}
+});
+test('free history failure identifies symbol and status and never calls FinMind',async()=>{
+ const h=harness();h.ctx.fetchYahooHistory=async()=>({ok:false,attempts:[{status:429}],data:[]});const r=await h.run('POST','auto');assert.equal(r.status,502);assert.match(r.j.error,/tpex:1565/);assert.match(r.j.error,/429/);assert.match(r.j.error,/上櫃/);assert.equal(h.calls.length,0);
+});

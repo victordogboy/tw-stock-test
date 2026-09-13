@@ -18,5 +18,5 @@ const ctx=vm.createContext({console});ctx.self=ctx;ctx.postMessage=m=>messages.p
 vm.runInContext(fs.readFileSync('public/research-r19-worker.js','utf8'),ctx);
 await ctx.onmessage({data:{snapshots,chips:{},options:{universe:'fixed',fixedStocks:['twse:2330'],scoreMode:'price',start:dates[90],markets:['twse'],cost:{fee:.001425,tax:.003,slippage:.0005},candidates:32,seed:123,minTrades:20}}});
 assert.equal(messages.find(m=>m.type==='error'),undefined);const r=messages.find(m=>m.type==='done').report;
-assert.equal(r.coverage.scoredObservations,190);assert.equal(r.coverage.missingChips,0);assert.match(r.provenance.engine,/price-only/);assert.equal(r.patch,'19.2');
+assert.equal(r.coverage.scoredObservations,190);assert.equal(r.coverage.missingChips,0);assert.match(r.provenance.engine,/price-only/);assert.equal(r.patch,'19.3');
 });

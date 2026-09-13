@@ -881,7 +881,55 @@ async function r19MarketRoute(request,url,env={}) {
   return json({ok:false,code:'SOURCE_UNAVAILABLE',error:`${market.toUpperCase()} ${date}：${errors.join(' / ')}。未寫入成功快取，可改選 FinMind 或匯入歷史行情。`,date,market,cache_preserved:true},502);
 }
 
+// R19.3 fixed-universe history: explicit provider, cache-only reads, no paid bulk API.
+function r193Bars(raw,code,start,end){
+  const seen=new Set();
+  const data=raw.map(r=>{
+    if(String(r.stock_id)!==code||r19Date(r.date)!==r.date||r.date<start||r.date>end||seen.has(r.date))throw Error('個股代碼、日期範圍或重複資料驗證失敗');
+    seen.add(r.date);
+    const b={date:r.date,open:r.open,high:r.max,low:r.min,close:r.close,volume:r.Trading_Volume};
+    if(!Object.values(b).slice(1).every(v=>typeof v==='number'&&Number.isFinite(v))||b.volume<0||b.low<0||b.high<Math.max(b.open,b.close,b.low)||b.low>Math.min(b.open,b.close))throw Error('個股 OHLC／成交量驗證失敗');
+    return b;
+  }).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!data.length)throw Error('這個期間沒有個股行情；未快取為成功');
+  return data;
+}
+async function r193History(request,env,url){
+  const code=url.searchParams.get('code'),market=url.searchParams.get('market'),start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date'),provider=url.searchParams.get('source')||'auto';
+  if(!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1280||!['auto','finmind'].includes(provider))return json({ok:false,error:'無效個股、歷史期間或來源'},400);
+  if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET 查快取，POST 補齊'},405);
+  const key=new Request(`${url.origin}/__research-history/r193/${provider}/${market}/${code}/${start}/${end}`);
+  const cached=await caches.default.match(key);if(cached)return json({...await cached.json(),cache_hit:true});
+  if(request.method==='GET')return json({ok:false,error:'個股行情快取尚未建立'},404);
+  const label=`${market}:${code}（${start} ～ ${end}）`;
+  let payload;
+  try{
+    if(provider==='finmind'){
+      const token=await requestFinMindToken(request,env,url.origin);
+      if(!token)return json({ok:false,error:label+'：請先在掃描器設定 FinMind Token；此處使用個股歷史 API。'},401);
+      const q=new URLSearchParams({dataset:'TaiwanStockPrice',data_id:code,start_date:start,end_date:end});
+      const r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+token,accept:'application/json'},signal:AbortSignal.timeout(30000)});
+      let j;try{j=await r.json();}catch{throw Error('FinMind 回應不是 JSON，請稍後續接');}
+      if(r.status===429||[402,429].includes(Number(j.status)))return json({ok:false,error:label+'：FinMind 配額／方案限制，已停止；保留已完成資料，稍後再補齊。'},429);
+      if(!r.ok||Number(j.status)!==200||!Array.isArray(j.data))throw Error('FinMind 無法提供個股資料（狀態 '+r.status+'）；請確認 Token／帳戶權限');
+      payload={ok:true,data:r193Bars(j.data,code,start,end),source:'FinMind TaiwanStockPrice individual',token_used:true};
+    }else{
+      const u=new URL(url.origin+'/api/history/auto');for(const [k,v] of Object.entries({code,market,start_date:start,end_date:end}))u.searchParams.set(k,v);
+      const r=await routeApi(new Request(u),env,u);const j=await r.json();
+      if(!r.ok||!j.ok){
+        const statuses=[...new Set((j.yahoo_attempts||[]).map(a=>a.status?'HTTP '+a.status:'連線／解析失敗'))].join('、');
+        throw Error('Yahoo '+(statuses||'資料不足或來源失敗')+(market==='tpex'?'；目前沒有上櫃官方個股歷史備援':'；上市官方備援也未成功')+'。可改選「FinMind 個股行情」再補齊；不需全市場查詢權限');
+      }
+      payload={...j,token_used:false};
+    }
+    payload={...payload,code,market,start_date:start,end_date:end,provider,cached_at:new Date().toISOString()};
+    await caches.default.put(key,new Response(JSON.stringify(payload),{headers:{'content-type':'application/json','cache-control':'public,max-age=31536000'}}));
+    return json(payload);
+  }catch(e){return json({ok:false,error:label+'：'+(/timeout|abort|fetch failed/i.test(e.message)?'來源逾時或連線失敗，已保留完成快取，請稍後續接':e.message),code,market,provider},502);}
+}
+
 async function routeApi(request, env, url) {
+  if(url.pathname === "/api/research/stock-history") return r193History(request,env,url);
   if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url,env);
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.
   // R12 created it in export.fetch(), but routeApi() referenced it directly,
