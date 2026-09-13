@@ -18,5 +18,11 @@ const ctx=vm.createContext({console});ctx.self=ctx;ctx.postMessage=m=>messages.p
 vm.runInContext(fs.readFileSync('public/research-r19-worker.js','utf8'),ctx);
 await ctx.onmessage({data:{snapshots,chips:{},options:{universe:'fixed',fixedStocks:['twse:2330'],scoreMode:'price',start:dates[90],markets:['twse'],cost:{fee:.001425,tax:.003,slippage:.0005},candidates:32,seed:123,minTrades:20}}});
 assert.equal(messages.find(m=>m.type==='error'),undefined);const r=messages.find(m=>m.type==='done').report;
-assert.equal(r.coverage.scoredObservations,190);assert.equal(r.coverage.missingChips,0);assert.match(r.provenance.engine,/price-only/);assert.equal(r.patch,'19.5');
+assert.equal(r.coverage.scoredObservations,190);assert.equal(r.coverage.missingChips,0);assert.match(r.provenance.engine,/price-only/);assert.equal(r.patch,'19.6');
+});
+test('real Worker evaluates manual parameters even below selection minimum and keeps separate baseline',async()=>{
+const fs=require('node:fs'),vm=require('node:vm'),{snapshots,dates}=fixture(),messages=[];
+const ctx=vm.createContext({console:{warn(){}}});ctx.self=ctx;ctx.postMessage=m=>messages.push(m);ctx.importScripts=(...files)=>files.forEach(f=>vm.runInContext(fs.readFileSync('public'+f.split('?')[0],'utf8'),ctx));vm.runInContext(fs.readFileSync('public/research-r19-worker.js','utf8'),ctx);
+await ctx.onmessage({data:{snapshots,chips:{},options:{universe:'fixed',fixedStocks:['twse:2330'],scoreMode:'price',start:dates[90],markets:['twse'],cost:{fee:.001425,tax:.003,slippage:.0005},candidates:128,seed:123,minTrades:9999,manual:{entry:[0,0,1,0,0,0,0,0],exit:[0,0,0,-1,0,0,0,0],entryThreshold:50,exitThreshold:65,maxHold:8},exploratoryRetest:true}}});
+assert.equal(messages.find(m=>m.type==='error'),undefined);const r=messages.find(m=>m.type==='done').report;assert.ok(r.chosen);assert.equal(r.chosen.parameters.entryThreshold,50);assert.equal(r.chosen.parameters.maxHold,8);assert.equal(r.candidates.length,1);assert.equal(r.options.exploratoryRetest,true);
 });

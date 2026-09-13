@@ -928,7 +928,42 @@ async function r193History(request,env,url){
   }catch(e){return json({ok:false,error:label+'：'+(/timeout|abort|fetch failed/i.test(e.message)?'來源逾時或連線失敗，已保留完成快取，請稍後續接':e.message),code,market,provider},502);}
 }
 
+// Independent research chip pieces; never downloads price history.
+const r196Datasets={margin:'TaiwanStockMarginPurchaseShortSale',inst:'TaiwanStockInstitutionalInvestorsBuySellWide',daytrade:'TaiwanStockDayTrading'};
+function r196Validate(rows,kind,code,start,end){
+  const seen=new Set(),num=v=>typeof v==='number'&&Number.isFinite(v);
+  for(const r of rows){
+    if(String(r.stock_id)!==code||r19Date(r.date)!==r.date||r.date<start||r.date>end||seen.has(r.date))throw Error('資料代碼／日期驗證失敗');
+    seen.add(r.date);
+    const keys=kind==='margin'?['MarginPurchaseTodayBalance','MarginPurchaseYesterdayBalance']:kind==='daytrade'?['Volume']:['Foreign_Investor_buy','Foreign_Investor_sell','Investment_Trust_buy','Investment_Trust_sell'];
+    if(keys.some(k=>!num(r[k])||r[k]<0))throw Error('欄位缺漏或格式錯誤，不補零');
+  }
+  return rows.sort((a,b)=>a.date.localeCompare(b.date));
+}
+async function r196ChipRoute(request,env,url){
+  const code=url.searchParams.get('code'),market=url.searchParams.get('market'),start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date'),kind=url.searchParams.get('kind');
+  if(!r196Datasets[kind]||!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1280)return json({ok:false,error:'無效籌碼參數'},400);
+  if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET 查快取，POST 補齊'},405);
+  const key=new Request(`${url.origin}/__research-chip/r196/${kind}/${market}/${code}/${start}/${end}`),cache=caches.default,hit=await cache.match(key);
+  if(hit)return json({...await hit.json(),cache_hit:true});
+  if(request.method==='GET')return json({ok:false,error:'尚未下載',reason:'not_downloaded'},404);
+  const token=await requestFinMindToken(request,env,url.origin);
+  if(!token)return json({ok:false,error:'請設定 FinMind Token',reason:'auth'},401);
+  try{
+    const q=new URLSearchParams({dataset:r196Datasets[kind],data_id:code,start_date:start,end_date:end});
+    const response=await fetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+token,accept:'application/json'},signal:AbortSignal.timeout(30000)});
+    let j;try{j=await response.json();}catch{return json({ok:false,error:'來源未回傳 JSON',reason:'source_error'},502);}
+    if(response.status===429||[402,429].includes(Number(j.status)))return json({ok:false,error:'FinMind 配額／方案限制；已完成的各類籌碼可續接',reason:'quota'},429);
+    if([401,403].includes(response.status)||[401,403].includes(Number(j.status)))return json({ok:false,error:'FinMind Token 或資料集權限不足',reason:'auth'},403);
+    if(!response.ok||Number(j.status)!==200||!Array.isArray(j.data))return json({ok:false,error:'FinMind 資料集請求失敗',reason:'source_error'},502);
+    const data=r196Validate(j.data,kind,code,start,end),payload={ok:true,data,kind,code,market,coverage_start:start,coverage_end:end,source:r196Datasets[kind],state:data.length?'received':'no_data',cached_at:new Date().toISOString()};
+    await cache.put(key,new Response(JSON.stringify(payload),{headers:{'content-type':'application/json','cache-control':'public,max-age='+ (data.length?31536000:3600)}}));
+    return json(payload);
+  }catch(e){return json({ok:false,error:/欄位|驗證/.test(e.message)?e.message:'來源連線失敗或逾時',reason:/欄位|驗證/.test(e.message)?'invalid_data':'source_error'},502);}
+}
+
 async function routeApi(request, env, url) {
+  if(url.pathname === "/api/research/chip-piece") return r196ChipRoute(request,env,url);
   if(url.pathname === "/api/research/stock-history") return r193History(request,env,url);
   if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url,env);
   // R12 bug fix: EFFECTIVE_FINMIND_TOKEN must exist in THIS scope.

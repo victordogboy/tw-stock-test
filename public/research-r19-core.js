@@ -172,7 +172,17 @@ function simulate(data,rows,p,range,cost){
   const returns=trades.map(t=>t.net),mu=mean(returns),down=returns.length?Math.sqrt(mean(returns.map(r=>Math.min(0,r)**2))):null;
   return {n:trades.length,mean:unresolved?null:mu,closedMean:mu,win:returns.length?100*returns.filter(r=>r>0).length/returns.length:null,downside:down,objective:mu===null?null:mu-.5*down,unfilled,unresolved,trades,entrySignalEnd:data.dates[entryLast]||null};
 }
-function select(results,minTrades){return results.filter(x=>x.result.n>=minTrades&&!x.result.unresolved&&finite(x.result.objective)).sort((a,b)=>b.result.objective-a.result.objective||a.p.id-b.p.id);}
+function select(results,minTrades,goal='balanced'){return results.filter(x=>x.result.n>=minTrades&&!x.result.unresolved&&finite(x.result.objective)).sort((a,b)=>(goal==='winrate'?(b.result.win-a.result.win||b.result.mean-a.result.mean):b.result.objective-a.result.objective)||a.p.id-b.p.id);}
+function manualParameters(p){
+  const out={id:'manual'};
+  for(const k of ['entry','exit']){
+    if(!Array.isArray(p[k])||p[k].length!==8||p[k].some(x=>!finite(x)||Math.abs(x)>100)||p[k].every(x=>x===0))throw Error('進出場各需八個有限權重，不能全為零');
+    const den=p[k].reduce((s,x)=>s+Math.abs(x),0);out[k]=p[k].map(x=>x/den);
+  }
+  for(const k of ['entryThreshold','exitThreshold']){if(!finite(p[k])||p[k]<0||p[k]>100)throw Error('門檻須介於0至100');out[k]=p[k];}
+  if(!Number.isInteger(p.maxHold)||p.maxHold<1||p.maxHold>20)throw Error('持有上限須為1至20個交易日');out.maxHold=p.maxHold;
+  return out;
+}
 function eligible(rows,range){return rows.filter(r=>r.rank&&r.date>=range[0]&&r.date<=range[1]&&r.end10&&r.end10<=range[1]);}
 function bootstrapCI(trades,seed=17){
   const groups=new Map();for(const t of trades){if(!groups.has(t.entryDate))groups.set(t.entryDate,[]);groups.get(t.entryDate).push(t.net);}
@@ -182,6 +192,6 @@ function bootstrapCI(trades,seed=17){
   for(let b=0;b<300;b++){let total=0,n=0;for(let i=0;i<a.length;i+=20){const start=Math.floor(rnd()*a.length);for(let k=0;k<Math.min(20,a.length-i);k++)for(const r of a[(start+k)%a.length]){total+=r;n++;}}means.push(total/n);}
   means.sort((a,b)=>a-b);return [means[7],means[292]];
 }
-const api={priceScore,VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
+const api={manualParameters,priceScore,VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
 if(typeof module!=='undefined')module.exports=api;root.ResearchR19=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
