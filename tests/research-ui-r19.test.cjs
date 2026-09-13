@@ -26,3 +26,22 @@ test('fixed pure-price cached UI does not fetch market snapshots or FinMind chip
  for(const id of ['twse:0050','twse:2330'])h.records.set(`price192:${id}:${o.warmupStart}:${o.end}`,{data});
  await vm.runInContext("gather('local')",h.context);assert.equal(h.calls,0);assert.match(h.elements.status.textContent,/研究完成/);assert.equal(h.elements.export.disabled,false);
 });
+function partialHarness(scoreMode='full'){
+ const h=harness();for(const [id,value] of Object.entries({universe:'fixed',scoreMode,fixedStocks:'twse:2330 twse:2317',poolDate:'2025-07-01'}))h.elements[id]=new Element(value);
+ const o=vm.runInContext('options()',h.context),data=[];
+ for(let d=o.warmupStart;d<=o.end;d=new Date(Date.parse(d)+86400000).toISOString().slice(0,10))if(new Date(d).getUTCDay()%6)data.push({date:d,open:100,close:101,high:102,low:99,volume:10000});
+ for(const id of ['twse:0050','twse:2330'])h.records.set(`price192:${id}:${o.warmupStart}:${o.end}`,{data});return {h,o,data};
+}
+test('partial run preserves intended universe, lists missing prices, and explicitly falls back to price without chips',async()=>{
+ const {h}=partialHarness();await vm.runInContext("gather('partial')",h.context);assert.equal(h.calls,0);const r=h.records.get('last-report');assert.ok(r);assert.equal(r.options.fixedStocks.length,2);assert.equal(r.options.partialInfo.availablePriceStocks,1);assert.deepEqual([...r.options.partialInfo.missingPrice],['twse:2317']);assert.equal(r.options.scoreMode,'price');assert.equal(r.options.partialInfo.requestedScoreMode,'full');assert.match(h.elements.summary.textContent,/不是原版/);
+});
+test('build source failure automatically calculates locally without further provider calls',async()=>{
+ const {h}=partialHarness();await vm.runInContext("gather('build')",h.context);assert.equal(h.calls,1);const r=h.records.get('last-report');assert.ok(r);assert.equal(r.options.partial,true);assert.match(r.options.downloadFailure,/Unexpected upstream/);assert.equal(h.elements.run.disabled,false);
+});
+test('partial original scores retain only available full-chip inputs and never silently switch when any are available',async()=>{
+ const {h,o}=partialHarness();h.records.set('chips:twse:2330',{coverage_start:o.warmupStart,coverage_end:o.end,completeness:100,chips:{margin:[],inst:[],daytrade:[]}});
+ await vm.runInContext("gather('partial')",h.context);assert.equal(h.calls,0);const r=h.records.get('last-report');assert.equal(r.options.scoreMode,'full');assert.equal(r.options.partialInfo.availableChipStocks,1);assert.equal(r.options.partialInfo.fallback,undefined);
+});
+test('partial data without calendar stops rather than inventing trading sessions',async()=>{
+ const {h,o}=partialHarness();h.records.delete(`price192:twse:0050:${o.warmupStart}:${o.end}`);await vm.runInContext("gather('partial')",h.context);assert.equal(h.calls,0);assert.equal(h.records.has('last-report'),false);assert.match(h.elements.status.textContent,/日曆代理/);
+});

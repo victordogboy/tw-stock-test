@@ -1,4 +1,4 @@
-importScripts('/v44-engine.js?r19','/research-r19-core.js?r194');
+importScripts('/v44-engine.js?r19','/research-r19-core.js?r195');
 self.onmessage=async ({data:input})=>{
   try{
     const C=ResearchR19,{snapshots,chips,options}=input;
@@ -38,7 +38,7 @@ self.onmessage=async ({data:input})=>{
       chosen={parameters:selected.p,train:strip(selected.train),validation:strip(selected.result),test:strip(result),ci:result.unresolved?null:C.bootstrapCI(result.trades,options.seed),trades:result.trades};
     }
     const baseline=C.simulate(data,rows,pool[0],splits.test,options.cost);
-    const report={version:C.VERSION,patch:'19.4',base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:options.scoreMode==='price'?'R19.2 price-only hypotheses (not V4.4)':'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',market_mapping:s.market_mapping||'reported',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
+    const report={version:C.VERSION,patch:'19.5',base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:options.scoreMode==='price'?'R19.2 price-only hypotheses (not V4.4)':'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',market_mapping:s.market_mapping||'reported',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
     self.postMessage({type:'done',report});
   }catch(e){self.postMessage({type:'error',error:e.message,stack:e.stack});}
 };
