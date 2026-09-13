@@ -50,7 +50,7 @@ test('individual chip pieces are saved before later quota failure and reused on 
  const {h,o}=partialHarness();let calls=[];
  h.context.fetch=async(path,opts)=>{calls.push([path,opts.method]);const u=new URL(path,'https://test'),kind=u.searchParams.get('kind');if(opts.method==='GET')return new Response(JSON.stringify({ok:false}),{status:404});if(kind==='inst')return new Response(JSON.stringify({ok:false,error:'quota',reason:'quota'}),{status:429});return new Response(JSON.stringify({ok:true,kind,data:[{date:'2025-06-01',MarginPurchaseTodayBalance:10}]}));};
  h.context.Response=Response;
- const data=C.prepare([{ok:true,date:'2025-06-01',market:'twse',rows:[]}],['twse'],{universe:'fixed',fixedStocks:['twse:2330']});h.context.fixtureData=data;h.context.fixtureOptions=o;
+ const data=C.prepare([{ok:true,date:'2025-06-01',market:'twse',rows:[]}],['twse'],{universe:'fixed',fixedStocks:['twse:2330']});data.series.set('twse:2330',[{date:'2025-06-01'}]);h.context.fixtureData=data;h.context.fixtureOptions=o;
  await assert.rejects(vm.runInContext("chipState(fixtureData,fixtureOptions,'build')",h.context),/配額/);
  const key=`piece196:twse:2330:margin:${o.warmupStart}:${o.end}`;assert.ok(h.records.has(key));assert.equal(calls.filter(x=>x[0].includes('daytrade')).length,0);
  calls=[];await assert.rejects(vm.runInContext("chipState(fixtureData,fixtureOptions,'build')",h.context));assert.equal(calls.filter(x=>x[0].includes('kind=margin')).length,0);
@@ -63,4 +63,18 @@ test('manual form passes changed thresholds and weights using previous report da
  h.context.previousOptions=o;vm.runInContext("report={options:previousOptions};fillManual({entry:[.2,.3,.5,0,0,0,0,0],exit:[0,0,0,-1,0,0,0,0],entryThreshold:61,exitThreshold:64,maxHold:12})",h.context);
  h.elements.manualEntryThreshold.value='58';h.elements.manualExitThreshold.value='66';h.elements.manualMaxHold.value='8';h.elements.start.value='2025-01-01';
  await vm.runInContext("gather('manual')",h.context);assert.equal(h.calls,0);const r=h.records.get('last-report');assert.ok(r);assert.equal(r.options.manual.entryThreshold,58);assert.equal(r.options.manual.exitThreshold,66);assert.equal(r.options.manual.maxHold,8);assert.equal(r.options.start,o.start);assert.equal(r.options.exploratoryRetest,true);
+});
+test('one invalid stock price no longer prevents cached-price stocks from downloading chips',async()=>{
+ const {h}=partialHarness('full'),calls=[];
+ h.context.fetch=async(path,opts)=>{
+  calls.push(path);if(opts.method==='GET')return new Response(JSON.stringify({ok:false}),{status:404});
+  if(path.includes('stock-history'))return new Response(JSON.stringify({ok:false,error:'2024-01-02 個股 OHLC／成交量驗證失敗'}),{status:502});
+  const kind=new URL(path,'https://test').searchParams.get('kind');return new Response(JSON.stringify({ok:true,kind,data:[{date:'2025-06-01',MarginPurchaseTodayBalance:10}]}));
+ };
+ await vm.runInContext("gather('build')",h.context);const r=h.records.get('last-report');assert.ok(r);assert.equal(r.options.scoreMode,'full');assert.equal(r.options.partialInfo.availableChipStocks,1);assert.equal(r.options.partialInfo.missingPrice[0],'twse:2317');assert.match(r.options.priceDiagnostics[0].error,/驗證失敗/);assert.ok(calls.some(p=>p.includes('chip-piece')&&p.includes('code=2330')));assert.ok(!calls.some(p=>p.includes('chip-piece')&&p.includes('code=2317')));
+});
+test('account report renderer displays monetary results separately from signal percentages',()=>{
+ const h=harness();for(const id of ['portfolioSummary','accountROI','accountProfit','accountDD','accountWin','accountPayoff','accountTrades','equityChart','monthly','accountTradesTable'])h.elements[id]=new Element();
+ h.context.accountFixture={options:{scoreMode:'price',partial:true},portfolio:{roi:10,netProfit:100,maxDrawdown:5,win:50,payoffRatio:2,n:2,range:['2024-01-01','2024-01-31'],initial:1000,finalEquity:1100,maxInvested:1000,wins:1,losses:1,breakeven:0,maxDrawdownMoney:50,skippedSlots:1,skippedFunds:0,unresolved:0,staleMarks:0,curve:[{roi:0},{roi:10}],monthly:[{month:'2024-01',returnPct:10,pnl:100,endEquity:1100}],trades:[]}};
+ vm.runInContext('renderPortfolio(accountFixture)',h.context);assert.equal(h.elements.accountROI.textContent,'10.00%');assert.equal(h.elements.accountProfit.textContent,'NT$ 100');assert.equal(h.elements.accountDD.textContent,'-5.00%');assert.match(h.elements.portfolioSummary.textContent,/純價量/);assert.match(h.elements.equityChart.innerHTML,/polyline/);assert.equal(h.calls,0);
 });

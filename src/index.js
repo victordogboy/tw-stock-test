@@ -888,7 +888,7 @@ function r193Bars(raw,code,start,end){
     if(String(r.stock_id)!==code||r19Date(r.date)!==r.date||r.date<start||r.date>end||seen.has(r.date))throw Error('個股代碼、日期範圍或重複資料驗證失敗');
     seen.add(r.date);
     const b={date:r.date,open:r.open,high:r.max,low:r.min,close:r.close,volume:r.Trading_Volume};
-    if(!Object.values(b).slice(1).every(v=>typeof v==='number'&&Number.isFinite(v))||b.volume<0||b.low<0||b.high<Math.max(b.open,b.close,b.low)||b.low>Math.min(b.open,b.close))throw Error('個股 OHLC／成交量驗證失敗');
+    if(!Object.values(b).slice(1).every(v=>typeof v==='number'&&Number.isFinite(v))||b.volume<0||b.low<0||b.high<Math.max(b.open,b.close,b.low)||b.low>Math.min(b.open,b.close))throw Error(r.date+' 個股 OHLC／成交量驗證失敗：'+JSON.stringify(b));
     return b;
   }).sort((a,b)=>a.date.localeCompare(b.date));
   if(!data.length)throw Error('這個期間沒有個股行情；未快取為成功');

@@ -1,4 +1,4 @@
-importScripts('/v44-engine.js?r19','/research-r19-core.js?r197');
+importScripts('/v44-engine.js?r19','/research-r19-core.js?r199','/research-r199-portfolio.js?r199');
 self.onmessage=async ({data:input})=>{
   try{
     const C=ResearchR19,{snapshots,chips,options}=input;
@@ -38,9 +38,11 @@ self.onmessage=async ({data:input})=>{
       self.postMessage({type:'progress',text:'估計測試期報酬區間',value:.98});
       chosen={parameters:selected.p,train:strip(selected.train),validation:strip(selected.result),test:strip(result),ci:result.unresolved?null:C.bootstrapCI(result.trades,options.seed),trades:result.trades};
     }
+    self.postMessage({type:'progress',text:'模擬資金配置與每日帳戶淨值',value:.99});
+    const portfolio=chosen?ResearchPortfolio.run(C,data,rows,chosen.parameters,splits.test,options.cost,options.portfolio):null;
     const withoutLiquidity=chosen?C.simulate(data,rows,{...chosen.parameters,minVolumeLots:0,minAvgVolumeLots20:0,minAvgValue20:0},splits.test,options.cost):null;
     const baseline=C.simulate(data,rows,C.candidates(1,options.seed)[0],splits.test,options.cost);
-    const report={version:C.VERSION,patch:'19.7',base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:options.scoreMode==='price'?'R19.2 price-only hypotheses (not V4.4)':'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',market_mapping:s.market_mapping||'reported',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,withoutLiquidity:strip(withoutLiquidity),baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
+    const report={version:C.VERSION,patch:'19.9',base:'ad5d249cbcc0534741574b03442ac1134e8901c8',options,splits,coverage,provenance:{engine:options.scoreMode==='price'?'R19.2 price-only hypotheses (not V4.4)':'r18 V4.4 unchanged',priceType:'raw OHLC',chipTiming:'prior exchange session; historical revisions not controlled',snapshots:snapshots.map(s=>({date:s.date,market:s.market,source:s.source||'import',market_mapping:s.market_mapping||'reported',cached_at:s.cached_at||null,rows:s.rows.length}))},correlations,controls,chosen,portfolio,withoutLiquidity:strip(withoutLiquidity),baseline:strip(baseline),candidates:validationResults.map(x=>({parameters:x.p,train:strip(x.train),validation:strip(x.result)})),observations:rows.filter(r=>r.rank)};
     self.postMessage({type:'done',report});
   }catch(e){self.postMessage({type:'error',error:e.message,stack:e.stack});}
 };

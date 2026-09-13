@@ -21,12 +21,12 @@ function options(){
   if(universe==='fixed'&&(!fixedStocks.length||fixedStocks.some(x=>!/^(twse|tpex):[1-9]\d{3}$/.test(x))))throw Error('請先載入股票期貨名單，或輸入固定名單如 twse:2330');
   const poolDate=el('poolDate')?.value||null;
   if(universe==='fixed'&&(!poolDate||poolDate>twToday))throw Error('請填寫有效的名單取得日期');
-  return {searchLiquidity:true,goal:el('goal')?.value||'balanced',fixedSource:el('fixedSource')?.value||'auto',universe,scoreMode,fixedStocks,poolDate,start,end,warmupStart:day(start,-180),source:el('source')?.value||'official',markets:el('market').value==='all'?['twse','tpex']:[el('market').value],cost,chipLag:1,minTrades,seed,candidates:Number(el('candidates').value)};
+  return {portfolio:portfolioOptions(),searchLiquidity:true,goal:el('goal')?.value||'balanced',fixedSource:el('fixedSource')?.value||'auto',universe,scoreMode,fixedStocks,poolDate,start,end,warmupStart:day(start,-180),source:el('source')?.value||'official',markets:el('market').value==='all'?['twse','tpex']:[el('market').value],cost,chipLag:1,minTrades,seed,candidates:Number(el('candidates').value)};
 }
 function expected(o){const out=[];for(let d=o.warmupStart;d<=o.end;d=day(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w!==0&&w!==6)for(const market of o.markets)out.push({date:d,market});}return out;}
 function status(s,value){el('status').textContent=s;if(value!==undefined)el('progress').value=value;}
 function checkStop(){if(stopped)throw Error('已停止。已完成的資料仍可續接；未產生部分樣本的研究結論。');}
-function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource','researchToken','saveResearchToken','runPartial','goal','manualRun','loadBest','manualEntryThreshold','manualExitThreshold','manualMaxHold','manualMinVolume','manualMinAvgVolume','manualMinAvgValue',...C.FEATURES.flatMap(f=>['manualEntry_'+f,'manualExit_'+f])]){if(el(id))el(id).disabled=on;};}
+function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource','researchToken','saveResearchToken','runPartial','goal','manualRun','loadBest','manualEntryThreshold','manualExitThreshold','manualMaxHold','manualMinVolume','manualMinAvgVolume','manualMinAvgValue','initialCapital','maxPositions','lotSize',...C.FEATURES.flatMap(f=>['manualEntry_'+f,'manualExit_'+f])]){if(el(id))el(id).disabled=on;};}
 async function api(path,method='GET',body){
   const token=localStorage.getItem('twq_finmind_token_v1')||'',headers={};if(token)headers.Authorization='Bearer '+token;if(body)headers['content-type']='application/json';
   const res=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:requestAbort?AbortSignal.any([requestAbort.signal,AbortSignal.timeout(90000)]):AbortSignal.timeout(90000)});
@@ -55,12 +55,13 @@ function requiredStocks(data,o){
 const covered=(p,o)=>p&&p.coverage_start<=o.warmupStart&&p.coverage_end>=o.end&&p.chips&&p.completeness===100;
 async function gather(mode){
   if(busy)return;lock(true);stopped=false;requestAbort=new AbortController();
-  let resumePartial=false;const manualRun=mode==='manual';const partial=mode==='partial'||(manualRun&&report?.options.partial);if(partial||manualRun)mode='local';
+  let resumePartial=false;const manualRun=mode==='manual';let partial=mode==='partial'||(manualRun&&report?.options.partial);if(partial||manualRun)mode='local';
   try{
-    const o=manualRun?JSON.parse(JSON.stringify(report.options)):options();if(manualRun){o.manual=readManual();o.exploratoryRetest=true;o.previousRun=report.chosen?{win:report.chosen.test.win,mean:report.chosen.test.mean,n:report.chosen.test.n}:null;}else delete o.manual;o.partial=partial;if(partial)o.downloadFailure=partialFailure;else partialFailure=null;
+    const o=manualRun?JSON.parse(JSON.stringify(report.options)):options();if(manualRun){o.manual=readManual();o.portfolio=portfolioOptions();o.exploratoryRetest=true;o.previousRun=report.chosen?{win:report.chosen.test.win,mean:report.chosen.test.mean,n:report.chosen.test.n}:null;}else delete o.manual;o.partial=partial;if(partial)o.downloadFailure=partialFailure;else partialFailure=null;
     if(partial&&o.universe!=='fixed')throw Error('部分資料計算目前限固定股票池；每日前100仍需完整市場排名，請切換固定池。');
     if(mode==='build'&&o.scoreMode!=='price'&&!confirm('將補齊缺少行情與籌碼。籌碼各資料集獨立保存，每個缺資料股票最多先請求融資、法人、當沖各一次；FinMind 配額或權限錯誤會停止下載並使用現有資料計算。確定開始？'))return;
     const s=o.universe==='fixed'?await fixedState(o,mode):await snapshotState(o,mode);
+    if(o.priceIncomplete){partial=true;o.partial=true;}
     if(s.missing.length){el('cache').textContent=`缺 ${s.missing.length} 份歷史市場日資料；必須先補齊，才能知道每日前百名及籌碼需求。`;if(mode==='local')throw Error('本機資料不足；請先按補齊歷史資料');status(o.source==='import'?'匯入資料尚未涵蓋所選期間；請先匯入完整歷史行情 JSON。':'快取檢查完成，請先補齊歷史市場資料。',1);return;}
     const data=C.prepare(s.snapshots,o.markets,o);C.split(data.dates,o.start);
     const c=o.scoreMode==='price'?{chips:{},missing:[],stocks:requiredStocks(data,o)}:await chipState(data,o,mode);
@@ -70,9 +71,10 @@ async function gather(mode){
       if(o.scoreMode==='full'&&!Object.keys(c.chips).length){o.scoreMode='price';o.partialInfo.fallback='沒有三類籌碼快取，改跑纯價量假說版';}
     }
     if(c.missing.length&&!partial){if(mode==='local')throw Error('籌碼資料不足；請先補齊');status('檢查完成，可按補齊歷史資料。',1);return;}
+    if(mode==='build'&&partial)mode='local';
     if(mode!=='local'){status('資料已就緒，現在可執行搜尋。',1);return;}
     status('分數重播與參數搜尋中；本次計算不呼叫上游。',0);report=null;clearReport();
-    worker=new Worker('/research-r19-worker.js?r197');
+    worker=new Worker('/research-r19-worker.js?r199');
     await new Promise((resolve,reject)=>{
       worker.onmessage=async ({data:m})=>{
         if(m.type==='progress')status(m.text,m.value);
@@ -98,6 +100,8 @@ function render(r){
   const q=r.chosen,cv=r.coverage;el('export').disabled=false;
   const summary=[`資料覆蓋：${cv.scoredObservations}/${cv.selectedObservations} 個入選股票日有有效分數（${fmt(100*cv.scoredObservations/cv.selectedObservations,1)}%）。`,...Object.entries(r.splits).map(([k,v])=>`${k}：${v.join(' ～ ')}`)];
   if(el('simpleResult'))renderSimple(r);
+  if(el('portfolioSummary'))renderPortfolio(r);
+  if(r.options.priceDiagnostics?.length)summary.push('行情缺漏：'+r.options.priceDiagnostics.map(d=>d.id+'：'+(d.error||d.state)).join('；'));
   if(r.options.exploratoryRetest)summary.push('手動重測：已看過同一測試期間，這是探索結果，不能視為新的樣本外驗證。');
   if(r.options.partial){
     const p=r.options.partialInfo||{};
@@ -141,6 +145,7 @@ el('restore').onchange=async e=>{
       if(typeof k!=='string'||!v)throw Error('無效備份記錄');
       if(k.startsWith('market:')){if(![`market:${v.market}:${v.date}`,`market:finmind:${v.market}:${v.date}`,`market:import:${v.market}:${v.date}`].includes(k)||!v.ok||!Array.isArray(v.rows)||v.rows.some(x=>x.date!==v.date||x.market!==v.market)||(!v.closed&&v.rows.length<100))throw Error('市場備份驗證失敗');}
       else if(k.startsWith('chips:')){if(!v.chips||!v.coverage_start||!v.coverage_end)throw Error('籌碼備份驗證失敗');}
+      else if(k.startsWith('priceStatus198:')){if(v.error!==null&&typeof v.error!=='string')throw Error('行情狀態備份驗證失敗');}
       else if(k.startsWith('pieceStatus196:')){if(typeof v.state!=='string')throw Error('籌碼狀態備份驗證失敗');}
       else if(k.startsWith('piece196:')){if(!Array.isArray(v.data)||!['margin','inst','daytrade'].includes(v.kind))throw Error('籌碼分項備份驗證失敗');}
       else if((k.startsWith('price192:')||k.startsWith('price193:finmind:'))){if(!Array.isArray(v.data)||!v.data.length)throw Error('價量備份驗證失敗');}
@@ -162,11 +167,12 @@ if(el('marketImport'))el('marketImport').onchange=async e=>{
 // Range-specific persistent browser cache; local research never calls providers.
 async function fixedState(o,mode){
   o.markets=[...new Set(o.fixedStocks.map(x=>x.split(':')[0]))];
-  const histories=new Map(),missing=[];
+  const histories=new Map(),missing=[];o.priceDiagnostics=[];
   for(const id of ['twse:0050',...o.fixedStocks]){
     checkStop();const key=`${o.fixedSource==='finmind'?'price193:finmind':'price192'}:${id}:${o.warmupStart}:${o.end}`;
-    let p=await dbGet(key);status(`固定池行情 ${histories.size}/${o.fixedStocks.length+1}：${id}`);
+    let p=await dbGet(key);const prior=await dbGet('priceStatus198:'+key);let failure=prior?.error||null;status(`固定池行情 ${histories.size}/${o.fixedStocks.length+1}：${id}`);
     if(!p&&mode!=='local'){
+      try{
       const [market,code]=id.split(':');
       const path=`/api/research/stock-history?code=${code}&market=${market}&start_date=${o.warmupStart}&end_date=${o.end}&source=${o.fixedSource||'auto'}`;
       try{p=await api(path);}catch(e){if(e.status!==404)throw Error(id+'：'+e.message);}
@@ -176,11 +182,18 @@ async function fixedState(o,mode){
       }
       if(p){
       if(!Array.isArray(p.data)||!p.data.length)throw Error(id+' 無歷史行情；停止而非靜默排除');
-      await dbPut(key,p);
+      await dbPut(key,p);failure=null;await dbPut('priceStatus198:'+key,{error:null});
+      }
+      }catch(e){
+        if(stopped)throw e;
+        failure=e.message;await dbPut('priceStatus198:'+key,{error:failure});
+        if(mode!=='build'||!/驗證失敗|欄位缺漏|格式錯誤/.test(failure))throw e;
       }
     }
+    if(!p)o.priceDiagnostics.push({id,state:failure?'資料驗證或來源失敗':'尚未下載',error:failure});
     if(p)histories.set(id,p.data);else missing.push(id);
   }
+  if(missing.length&&mode==='build'){o.partial=true;o.priceIncomplete=true;}
   if(missing.length&&!o.partial){el('cache').textContent=`缺 ${missing.length} 檔固定池行情`;throw Error('固定池資料不足；請按補齊歷史資料。');}
   if(!histories.has('twse:0050'))throw Error('缺少 0050 日曆代理，無法確定下一交易日；已保存資料，但尚不能產生可信回測。');
   if(o.partial){o.partialInfo={missingPrice:missing.filter(x=>x!=='twse:0050'),availablePriceStocks:o.fixedStocks.filter(id=>histories.has(id)).length};if(!o.partialInfo.availablePriceStocks)throw Error('尚無可用股票行情；保留現有快取，至少補齊一檔後才能計算。');}
@@ -228,6 +241,7 @@ async function chipState(data,o,mode){
   let blocked=null,sourceFailures=0;
   for(const x of stocks){
     checkStop();
+    if(data.series&&!data.series.get(x.id)?.length){missing.push(x);for(const kind of Object.values(names))diagnostics.push({id:x.id,kind,state:'缺行情，暫不下載籌碼'});continue;}
     const old=await dbGet('chips:'+x.id);
     if(covered(old,o)){chips[x.id]=old.chips;diagnostics.push({id:x.id,kind:'舊快取',state:'三類資料可用（非逐日100%）'});continue;}
     const cc={};
@@ -287,4 +301,23 @@ if(el('manualWeights')){
   }
   el('loadBest').onclick=()=>{if(report?.chosen)fillManual(report.chosen.parameters);};
   el('manualRun').onclick=()=>{if(!report||busy)return;try{readManual();gather('manual');}catch(e){status(e.message);}};
+}
+
+function portfolioOptions(){
+ const initial=Number(el('initialCapital')?.value||1000000),maxPositions=Number(el('maxPositions')?.value||5),lotSize=Number(el('lotSize')?.value||1000);
+ if(!Number.isFinite(initial)||initial<=0||initial>1e12||!Number.isInteger(maxPositions)||maxPositions<1||maxPositions>100||![1,1000].includes(lotSize))throw Error('請設定有效資金、持倉上限及股數單位');
+ return {initial,maxPositions,lotSize};
+}
+function renderPortfolio(r){
+ const p=r.portfolio,money=x=>Number.isFinite(x)?Math.round(x).toLocaleString('zh-TW'):'—';
+ const labels={accountROI:p?fmt(p.roi,2)+'%':'—',accountProfit:p?'NT$ '+money(p.netProfit):'—',accountDD:p?'-'+fmt(p.maxDrawdown,2)+'%':'—',accountWin:p?fmt(p.win,1)+'%':'—',accountPayoff:p?fmt(p.payoffRatio,2):'—',accountTrades:p?String(p.n):'0'};
+ for(const [id,text] of Object.entries(labels))el(id).textContent=text;
+ if(!p){el('portfolioSummary').textContent='尚無可模擬的選中設定。';el('equityChart').textContent='';el('monthly').textContent='';el('accountTradesTable').textContent='';return;}
+ el('portfolioSummary').textContent=[`測試期間：${p.range.join(' ～ ')}；本次實際分數版本：${r.options.scoreMode==='price'?'純價量（不是原版籌碼分數）':'原版 V4.4'}。`, `初始資金 NT$ ${money(p.initial)} → 期末淨值 NT$ ${money(p.finalEquity)}；最大持倉成本 NT$ ${money(p.maxInvested)}。`,`已平倉 ${p.n} 筆：賺錢 ${p.wins}、虧損 ${p.losses}、損益兩平 ${p.breakeven}。最大回撤金額 NT$ ${money(p.maxDrawdownMoney)}。`,`因持倉上限略過 ${p.skippedSlots} 次、資金／股數單位不足略過 ${p.skippedFunds} 次；未平倉 ${p.unresolved} 檔。`,p.staleMarks?`缺收盤價時沿用最後價格估值共 ${p.staleMarks} 個持倉日，回撤可能低估。`:'',r.options.partial?'這是部分資料的帳戶模擬，不能當作完整股票池驗證。':''].filter(Boolean).join('\n');
+ const values=p.curve.map(x=>x.roi),lo=Math.min(0,...values),hi=Math.max(0,...values),span=hi-lo||1;
+ const point=(x,i)=>`${40+700*i/Math.max(1,values.length-1)},${220-180*(x-lo)/span}`;
+ const zero=220-180*(0-lo)/span;
+ el('equityChart').innerHTML=`<svg viewBox="0 0 780 270" role="img" aria-label="測試期帳戶報酬率曲線" style="width:100%;height:auto"><line x1="40" y1="${zero}" x2="740" y2="${zero}" stroke="#667085"/><polyline points="${values.map(point).join(' ')}" fill="none" stroke="#22d3ee" stroke-width="3"/><text x="5" y="28" fill="#e7edf7">${fmt(hi,1)}%</text><text x="5" y="240" fill="#e7edf7">${fmt(lo,1)}%</text><text x="40" y="263" fill="#e7edf7">${p.range[0]}</text><text x="625" y="263" fill="#e7edf7">${p.range[1]}</text></svg>`;
+ table('monthly',['月份','帳戶月報酬','淨值變動 NT$','月底淨值 NT$'],p.monthly.map(m=>[m.month,fmt(m.returnPct,2)+'%',money(m.pnl),money(m.endEquity)]));
+ table('accountTradesTable',['股票','買入日','賣出日','股數','買入成交價','賣出成交價','淨損益 NT$','淨報酬','原因'],p.trades.map(t=>[t.id,t.entryDate,t.exitDate,t.shares,fmt(t.buyPrice,2),fmt(t.sellPrice,2),money(t.pnl),fmt(t.net,2)+'%',t.reason==='maxHold'?'持有到期':'出場分數']));
 }
