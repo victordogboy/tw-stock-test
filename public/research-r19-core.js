@@ -71,7 +71,7 @@ function replayStock(data,id,chips,scoreFn,options){
     if(options.scoreMode!=='price'&&!chipReady(cc,data.dates[Math.max(0,di-lag-4)])){stats.missingChips++;previous=null;continue;}
     let sc;try{sc=scoreFn(h,cc);}catch(e){stats.invalidScore++;previous=null;continue;}
     if(!NAMES.every(k=>finite(sc[k])&&sc[k]>=0&&sc[k]<=100)){stats.invalidScore++;previous=null;continue;}
-    const r={code:h.at(-1).code,market:h.at(-1).market,date,di,rank:data.ranks.get(date)?.get(id)||null,...sc,...controls(h),chipDate:options.scoreMode==='price'?null:cc.margin.at(-1).date};
+    const r={code:h.at(-1).code,market:h.at(-1).market,date,di,rank:data.ranks.get(date)?.get(id)||null,...sc,...controls(h),volumeLots:h.at(-1).volume/1000,avgVolumeLots20:mean(h.slice(-21,-1).map(x=>x.volume))/1000,avgValue20:mean(h.slice(-21,-1).map(x=>x.close*x.volume)),chipDate:options.scoreMode==='price'?null:cc.margin.at(-1).date};
     for(const name of NAMES)r['d'+name[0].toUpperCase()+name.slice(1)]=previous&&previous.di===di-1?sc[name]-previous[name]:null;
     if(di>=start)out.push(r);previous=r;
   }
@@ -135,19 +135,26 @@ function split(dates,start){
 function weightsScore(r,weights){
   let total=0,den=0;for(let i=0;i<FEATURES.length;i++){if(!weights[i])continue;const v=r[FEATURES[i]];if(!finite(v))return null;const z=i<4?(v-50):Math.max(-50,Math.min(50,v*2.5));total+=weights[i]*z;den+=Math.abs(weights[i]);}return den?50+total/den:50;
 }
-function candidates(count,seed){
+function candidates(count,seed,liquidity=false){
   let s=Number(seed)>>>0;const random=()=>{s+=0x6D2B79F5;let t=s;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296};
   const out=[{id:0,entry:[.3,.3,.4,0,0,0,0,0],exit:[0,0,0,-1,0,0,0,0],entryThreshold:65,exitThreshold:60,maxHold:10}];
   for(let i=1;i<count;i++){
     const w=()=>{let a=FEATURES.map(()=>random()<.35?0:Math.round((random()*2-1)*100)/100);if(a.every(x=>!x))a[2]=1;const z=a.reduce((s,x)=>s+Math.abs(x),0);return a.map(x=>x/z)};
     const ew=w(),xw=w();if(i<=16){ew.fill(0);ew[(i-1)%8]=i<=8?1:-1;}
     out.push({id:i,entry:ew,exit:xw,entryThreshold:[50,55,60,65,70][Math.floor(random()*5)],exitThreshold:[50,55,60,65,70][Math.floor(random()*5)],maxHold:[3,5,10,20][Math.floor(random()*4)]});
-  }return out;
+  }
+  if(liquidity)for(let i=0;i<out.length;i++){
+    out[i].minVolumeLots=i===0?0:[500,1000,3000,5000,10000][Math.floor(random()*5)];
+    out[i].minAvgVolumeLots20=i===0?0:[0,500,1000,3000][Math.floor(random()*4)];
+    out[i].minAvgValue20=i===0?0:[0,5000000,10000000,30000000][Math.floor(random()*4)];
+  }
+  return out;
 }
+function liquidEntry(r,p){return [['volumeLots','minVolumeLots'],['avgVolumeLots20','minAvgVolumeLots20'],['avgValue20','minAvgValue20']].every(([field,param])=>!(p[param]>0)||(finite(r[field])&&r[field]>=p[param]));}
 function simulate(data,rows,p,range,cost){
   const first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=last-26;
   const byId=new Map();for(const r of rows)if(r.di>=first&&r.di<=last){const id=key(r);if(!byId.has(id))byId.set(id,new Map());byId.get(id).set(r.di,r);}
-  const trades=[];let unfilled=0,unresolved=0;
+  const trades=[];let unfilled=0,unresolved=0,liquidityBlocked=0;
   for(const [id,signals] of byId){
     let pos=null,pending=null;
     for(let di=first;di<=last;di++){
@@ -163,14 +170,14 @@ function simulate(data,rows,p,range,cost){
         if(!pending){const risk=r?weightsScore(r,p.exit):null;const timed=di-pos.di+1>=p.maxHold;
           if(timed||(risk!==null&&risk>=p.exitThreshold))pending={side:'sell',signalDate:date,reason:timed?'maxHold':'score'};}
       }else if(di<=entryLast&&r?.rank){
-        const sc=weightsScore(r,p.entry);if(sc!==null&&sc>=p.entryThreshold)pending={side:'buy',signalDate:date};
+        const sc=weightsScore(r,p.entry);if(sc!==null&&sc>=p.entryThreshold){if(liquidEntry(r,p))pending={side:'buy',signalDate:date};else liquidityBlocked++;}
       }
     }
     if(pos)unresolved++;
   }
   trades.sort((a,b)=>a.entryDate.localeCompare(b.entryDate)||a.id.localeCompare(b.id));
   const returns=trades.map(t=>t.net),mu=mean(returns),down=returns.length?Math.sqrt(mean(returns.map(r=>Math.min(0,r)**2))):null;
-  return {n:trades.length,mean:unresolved?null:mu,closedMean:mu,win:returns.length?100*returns.filter(r=>r>0).length/returns.length:null,downside:down,objective:mu===null?null:mu-.5*down,unfilled,unresolved,trades,entrySignalEnd:data.dates[entryLast]||null};
+  return {n:trades.length,mean:unresolved?null:mu,closedMean:mu,win:returns.length?100*returns.filter(r=>r>0).length/returns.length:null,downside:down,objective:mu===null?null:mu-.5*down,unfilled,unresolved,liquidityBlocked,trades,entrySignalEnd:data.dates[entryLast]||null};
 }
 function select(results,minTrades,goal='balanced'){return results.filter(x=>x.result.n>=minTrades&&!x.result.unresolved&&finite(x.result.objective)).sort((a,b)=>(goal==='winrate'?(b.result.win-a.result.win||b.result.mean-a.result.mean):b.result.objective-a.result.objective)||a.p.id-b.p.id);}
 function manualParameters(p){
@@ -181,6 +188,7 @@ function manualParameters(p){
   }
   for(const k of ['entryThreshold','exitThreshold']){if(!finite(p[k])||p[k]<0||p[k]>100)throw Error('門檻須介於0至100');out[k]=p[k];}
   if(!Number.isInteger(p.maxHold)||p.maxHold<1||p.maxHold>20)throw Error('持有上限須為1至20個交易日');out.maxHold=p.maxHold;
+  for(const k of ['minVolumeLots','minAvgVolumeLots20','minAvgValue20']){const v=p[k]??0;if(!finite(v)||v<0||v>1e12)throw Error('量能門檻須為有限非負數');out[k]=v;}
   return out;
 }
 function eligible(rows,range){return rows.filter(r=>r.rank&&r.date>=range[0]&&r.date<=range[1]&&r.end10&&r.end10<=range[1]);}
@@ -192,6 +200,6 @@ function bootstrapCI(trades,seed=17){
   for(let b=0;b<300;b++){let total=0,n=0;for(let i=0;i<a.length;i+=20){const start=Math.floor(rnd()*a.length);for(let k=0;k<Math.min(20,a.length-i);k++)for(const r of a[(start+k)%a.length]){total+=r;n++;}}means.push(total/n);}
   means.sort((a,b)=>a-b);return [means[7],means[292]];
 }
-const api={manualParameters,priceScore,VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
+const api={liquidEntry,manualParameters,priceScore,VERSION,NAMES,FEATURES,finite,mean,sd,key,validBar,executable,netReturn,ranked,prepare,replayStock,labels,pearson,correlation,controlled,fit,predict,split,weightsScore,candidates,simulate,select,eligible,bootstrapCI};
 if(typeof module!=='undefined')module.exports=api;root.ResearchR19=api;
 })(typeof globalThis!=='undefined'?globalThis:this);
