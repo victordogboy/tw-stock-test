@@ -1,0 +1,35 @@
+{
+  "version": "1.17.0-r19.4",
+  "base_commit": "ad5d249cbcc0534741574b03442ac1134e8901c8",
+  "tests_passed": 42,
+  "benchmark": {
+    "stocks": 249,
+    "observations": 88644,
+    "candidates": 128,
+    "seconds": 25.133,
+    "synthetic": true
+  },
+  "files": {
+    "RESEARCH_R191_NOTES.md": "8ae847f02041bed0f3ab92f61eb4b90e1c9fcb71594142a21a497f1245fed585",
+    "RESEARCH_R192_NOTES.md": "0d21dc6990638db79bd4961ebd07c34641e35b9268d0f611d604deaf3f88253a",
+    "RESEARCH_R193_NOTES.md": "ffb0fadb275af77ded660ad3c1c1ae5dc7fd843ff33d44ca2e2ef2a22fbb0706",
+    "RESEARCH_R194_NOTES.md": "58e091f99966582ddd3b46c18893c530e79a28acd8e40c0efb8e7c5fcc6702e7",
+    "RESEARCH_R19_NOTES.md": "b74f57550543f3242fea2e4ae235b16fa98d408236f91a223d2cb13d2a1aa5a1",
+    "public/index.html": "8ec87268f28fcfa7b347337f1e5af5c8057d2e1c506c12a7f06e21512fc99038",
+    "public/research-r19-core.js": "8768d7ba315701ab585c50f07833e757dcf93acfbd3455a8fb09a578bc6b55c4",
+    "public/research-r19-ui.js": "f80c9813a29751b54b3a68901aa88db6fc00695f522b59a34967bc07b9bfd94d",
+    "public/research-r19-worker.js": "4f1730d60cf74cdd66c7006097c31347e29b652abd9ad07ce1bb25c1ecf19fdc",
+    "public/research-r191-import.js": "1f47facf6ad2157d119b7b9c711adc6273a00727226e2dd068649221463dbe6c",
+    "public/strategy-regression-lab-r18.html": "918115ec09ade7958574f12f075ff00ff5d1a4898ff9fddf4942ea332e5584ea",
+    "public/strategy-regression-lab.html": "3fbb9ed189b966c3f8b6837b3f48103f399e79eb69dc73bc74eec9ed2b3f5026",
+    "src/index.js": "944abf7bdcd64e1ae694275c8b980b56736803dfef176788e900136539a25991",
+    "tests/research-market-r19.test.cjs": "41e7f75e1729bcbfa9994d5b388c2330987ff21a4dfa6535552936095e88b13f",
+    "tests/research-r19.test.cjs": "605c790adde8f01894251b75e34d1bbbf3cc9a6190d00a821899b09219faacec",
+    "tests/research-r191-provider.test.cjs": "80180e52f55cd0603eab40dbc5838f8968f2681bf4fd2277c6b14218f906f924",
+    "tests/research-r192.test.cjs": "ccfda92fcff95eac809ef9331e0a4b86154cca2639ac92fc35b530b1787d61db",
+    "tests/research-r193.test.cjs": "a69a88c5276225f5c3421d354a2fcecbb661d08bffbac635a87b0d2de882f637",
+    "tests/research-r194.test.cjs": "3f198f98bd983649cea640455a794fa20689aafb554b2f5cfa46f99a55c3d132",
+    "tests/research-ui-r19.test.cjs": "259ce2dc9927d703846d964faf1eb3b35afeec61010aba40b312c2cfe0f57e95",
+    "tests/research-worker-r19.test.cjs": "071e84d9e8e9fb63d307ab4f1f1d7f090f98bd2155327be4a3516d83ae65ab7d"
+  }
+}

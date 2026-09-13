@@ -4,7 +4,7 @@
 const VERSION='r19', NAMES=['setup','opportunity','entry','hold'], FEATURES=[...NAMES,...NAMES.map(x=>'d'+x[0].toUpperCase()+x.slice(1))];
 const finite=x=>typeof x==='number'&&Number.isFinite(x);
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
-const sd=a=>a.length>1?Math.sqrt(a.reduce((s,x)=>s+(x-mean(a))**2,0)/(a.length-1)):null;
+const sd=a=>{if(a.length<2)return null;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1));};
 const key=r=>r.market+':'+r.code;
 const validBar=r=>r&&['open','high','low','close','volume'].every(k=>finite(r[k]))&&r.open>0&&r.low>0&&r.high>=Math.max(r.open,r.close,r.low)&&r.low<=Math.min(r.open,r.close)&&r.volume>0;
 // Conservatively reject all one-price sessions; daily OHLC cannot establish queue fills.
@@ -117,9 +117,10 @@ function fit(rows,keys,y='net5'){
   const beta=solve(A,b);return beta?{keys,center,scale,beta,n:a.length}:null;
 }
 function predict(model,r){return model.beta[0]+model.keys.reduce((s,k,i)=>s+model.beta[i+1]*(r[k]-model.center[i])/model.scale[i],0);}
-function controlled(train,test){
+function controlled(train,test,onProgress=()=>{}){
   const base=['retToday','ret5past','logVR','bias20'];
-  return FEATURES.map(feature=>{
+  return FEATURES.map((feature,index)=>{
+    onProgress(feature,index);
     const valid=r=>[...base,feature,'net5'].every(k=>finite(r[k]));const tr=train.filter(valid),te=test.filter(valid);
     const a=fit(tr,base),b=fit(tr,[...base,feature]);if(!a||!b||!te.length)return {feature,n:te.length,beta:null,mseGain:null};
     const ma=mean(te.map(r=>(r.net5-predict(a,r))**2)),mb=mean(te.map(r=>(r.net5-predict(b,r))**2));

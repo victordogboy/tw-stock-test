@@ -25,7 +25,7 @@ function options(){
 function expected(o){const out=[];for(let d=o.warmupStart;d<=o.end;d=day(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w!==0&&w!==6)for(const market of o.markets)out.push({date:d,market});}return out;}
 function status(s,value){el('status').textContent=s;if(value!==undefined)el('progress').value=value;}
 function checkStop(){if(stopped)throw Error('已停止。已完成的資料仍可續接；未產生部分樣本的研究結論。');}
-function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource']){if(el(id))el(id).disabled=on;};}
+function lock(on){busy=on;for(const id of ['check','build','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource','researchToken','saveResearchToken']){if(el(id))el(id).disabled=on;};}
 async function api(path,method='GET',body){
   const token=localStorage.getItem('twq_finmind_token_v1')||'',headers={};if(token)headers.Authorization='Bearer '+token;if(body)headers['content-type']='application/json';
   const res=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:requestAbort?AbortSignal.any([requestAbort.signal,AbortSignal.timeout(90000)]):AbortSignal.timeout(90000)});
@@ -82,7 +82,7 @@ async function gather(mode){
     if(c.missing.length){if(mode==='local')throw Error('籌碼資料不足；請先補齊');status('檢查完成，可按補齊歷史資料。',1);return;}
     if(mode!=='local'){status('資料已就緒，現在可執行搜尋。',1);return;}
     status('分數重播與參數搜尋中；本次計算不呼叫上游。',0);report=null;clearReport();
-    worker=new Worker('/research-r19-worker.js?r193');
+    worker=new Worker('/research-r19-worker.js?r194');
     await new Promise((resolve,reject)=>{
       worker.onmessage=async ({data:m})=>{
         if(m.type==='progress')status(m.text,m.value);
@@ -202,3 +202,12 @@ const poolFields=['universe','scoreMode','fixedStocks','poolDate','fixedSource']
 try{const saved=JSON.parse(localStorage.getItem('twq_research192_pool')||'null');if(saved)for(const k of poolFields)if(el(k)&&typeof saved[k]==='string')el(k).value=saved[k];}catch{}
 function savePool(){try{localStorage.setItem('twq_research192_pool',JSON.stringify(Object.fromEntries(poolFields.map(k=>[k,el(k)?.value||'']))));}catch{status('名單設定儲存失敗，請另存名單。');}}
 for(const k of poolFields)if(el(k))el(k).onchange=savePool;
+
+if(el('researchToken')){
+  el('researchToken').value=localStorage.getItem('twq_finmind_token_v1')||'';
+  el('saveResearchToken').onclick=()=>{
+    const token=el('researchToken').value.trim();
+    if(!token){status('請輸入 FinMind API Token，不是帳號或密碼。');return;}
+    try{localStorage.setItem('twq_finmind_token_v1',token);status('Token 已儲存在此瀏覽器，研究請求將使用此 Token。未驗證帳戶額度；Token 不會包含在資料備份或結果匯出。');}catch{status('Token 儲存失敗，請檢查瀏覽器設定。');}
+  };
+}
