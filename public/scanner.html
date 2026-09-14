@@ -38,7 +38,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <button id="clearFinmindTokenBtn" type="button">清除 TOKEN</button>
 <span style="font-size:11px;opacity:.75">Token 會存此瀏覽器，並同步暫存 Worker 7 天；不寫入 GitHub。</span>
 </div>
-<p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。最終只保留 4 個排行：Setup、Opportunity、Entry、Hold。</p>
+<p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。提供 Setup、Opportunity、Entry、Hold、Action，以及 Hold／Action 相較前一交易日的變化排行。盤中分數使用最新取得行情與估計收盤量。</p>
 
 <div class="card grid">
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
@@ -52,22 +52,32 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <div class="card">
 <button id="scanBtn">開始兩階段掃描</button>
 <button id="stopBtn">停止</button>
+<button id="refreshLiveBtn">更新榜單盤中行情</button>
 <a class="linkbtn" href="/detail.html?from=scanner&amp;popup=1" target="_blank" rel="noopener">↗ 開啟個股查詢</a>
 <div id="status" class="muted" style="margin-top:10px">尚未開始</div>
 <progress id="prog" max="100" value="0"></progress>
 <div id="stats" class="small muted"></div>
 </div>
 <div class="card">
+<div class="grid" id="scanActionWeights">
+<label>Entry %<input id="scanW_entry" type="number" min="0" max="100" step="1"></label>
+<label>Setup %<input id="scanW_setup" type="number" min="0" max="100" step="1"></label>
+<label>Opportunity %<input id="scanW_opportunity" type="number" min="0" max="100" step="1"></label>
+<label>Hold %<input id="scanW_hold" type="number" min="0" max="100" step="1"></label>
+</div><p id="scanWeightStatus" class="small muted"></p>
 <div class="tabs" id="rankTabs">
 <button data-rank="setup" onclick="showRank('setup')">Setup｜型態品質</button>
 <button data-rank="opportunity" onclick="showRank('opportunity')">Opportunity｜行情機會</button>
 <button class="active" data-rank="entry" onclick="showRank('entry')">Entry｜現在能不能買</button>
 <button data-rank="hold" onclick="showRank('hold')">Hold｜已持有是否續抱</button>
+<button data-rank="action" onclick="showRank('action')">Action｜四項加權</button>
+<button data-rank="holdDelta" onclick="showRank('holdDelta')">Hold｜較前交易日增加</button>
+<button data-rank="actionDelta" onclick="showRank('actionDelta')">Action｜較前交易日增加</button>
 </div>
 <div style="overflow:auto"><table><thead><tr>
 <th>代號</th><th>名稱</th>
-<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th>
-<th>市場</th><th>資料日</th><th>期貨</th><th>收盤</th><th>資料完整度</th>
+<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th><th>Action</th><th>Δ Hold</th><th>Δ Action</th><th>比較基準日</th><th>行情時間</th><th>今日量（張）</th><th>估量比</th>
+<th>市場</th><th>資料日</th><th>期貨</th><th>現價／收盤</th><th>資料完整度</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
 </div>
@@ -91,6 +101,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <pre id="diagRaw" style="white-space:pre-wrap;max-height:520px;overflow:auto;background:#0a0f1d;padding:12px;border-radius:10px;font-size:12px"></pre>
 </div>
 <div class="card"><b>錯誤 / 略過</b><div id="errors" class="small muted">—</div></div>
+<script src="/action-score.js"></script>
 <script src="/v44-engine.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -192,7 +203,7 @@ function scoreOf(v){
  }
  return 0;
 }
-function formalScore(hist,chips={}){
+function scoreAt(hist,chips={}){
  try{
    const {R,E}=formalObjects(hist,chips);
    return {
@@ -209,6 +220,39 @@ function formalScore(hist,chips={}){
  }catch(e){
    throw new Error('V4.4 engine error: '+(e?.message||e));
  }
+}
+function formalScore(hist,chips={}){
+  const date=String(hist.at(-1)?.date||'');
+  const cutChips=d=>Object.fromEntries(['margin','inst','daytrade'].map(k=>[k,(chips[k]||[]).filter(x=>String(x.date)<=d)]));
+  const sc=scoreAt(hist,cutChips(date));
+  const prior=hist.filter(x=>String(x.date)<date);
+  const previousDate=prior.at(-1)?.date||null;
+  return {...sc,previousDate,previousScores:prior.length>=65?scoreAt(prior,cutChips(previousDate)):null};
+}
+let scanWeights=TWAction.read(),scanWeightsValid=true,scanBusy=false;
+function scanAction(r){return scanWeightsValid?TWAction.score(r,scanWeights):null}
+function scanDelta(r,key){
+  if(!r.previousScores)return null;
+  return key==='holdDelta'?r.hold-r.previousScores.hold:
+    (scanWeightsValid?TWAction.delta(r,r.previousScores,scanWeights):null);
+}
+function displayScore(v,delta=false){
+  return v==null||!Number.isFinite(v)?'—':(delta&&v>0?'+':'')+v;
+}
+function initScanWeights(){
+  const sync=()=>{for(const k of TWAction.keys)$('scanW_'+k).value=scanWeights[k]};
+  const refresh=()=>{
+    const w=Object.fromEntries(TWAction.keys.map(k=>[k,$('scanW_'+k).value.trim()===''?NaN:Number($('scanW_'+k).value)]));
+    scanWeightsValid=TWAction.valid(w);
+    $('scanWeightStatus').textContent=scanWeightsValid
+      ?'總和 100%｜權重與個股頁同步。Δ = 本次分數 − 前一交易日收盤分數；兩日使用同一組權重。'
+      :'權重總和必須等於 100%，每項介於 0～100；Action 暫不計分。';
+    if(scanWeightsValid){scanWeights=w;TWAction.save(w)}
+    showRank(currentRank);
+  };
+  sync();refresh();
+  for(const k of TWAction.keys)$('scanW_'+k).addEventListener('input',refresh);
+  window.addEventListener('storage',e=>{if(e.key===TWAction.key){scanWeights=TWAction.read();sync();refresh()}});
 }
 function priceDecision(hist){
  const a=hist.filter(x=>Number.isFinite(Number(x.close)));
@@ -234,6 +278,8 @@ function priceDecision(hist){
  };
 }
 function decisionScore(r,key){
+  if(key==='action') return scanAction(r)??-Infinity;
+  if(key==='holdDelta'||key==='actionDelta') return scanDelta(r,key)??-Infinity;
   if(key==='setup') return n(r.setup);
   if(key==='opportunity') return n(r.opportunity);
   if(key==='entry') return n(r.entry);
@@ -397,7 +443,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function renderRankOnly(key=currentRank){
-  currentRank=['setup','opportunity','entry','hold'].includes(key)?key:'entry';
+  currentRank=['setup','opportunity','entry','hold','action','holdDelta','actionDelta'].includes(key)?key:'entry';
   document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.rank===currentRank);
   });
@@ -406,6 +452,10 @@ function renderRankOnly(key=currentRank){
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
     <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.hold}</td>
+    <td>${displayScore(scanAction(r))}</td><td>${displayScore(scanDelta(r,'holdDelta'),true)}</td><td>${displayScore(scanDelta(r,'actionDelta'),true)}</td>
+    <td>${r.previousDate||'—'}</td><td>${r.liveError?'更新失敗':(r.liveTime||'未更新')}</td>
+    <td>${r.liveActualVolume==null?'—':Math.round(r.liveActualVolume/1000).toLocaleString()}</td>
+    <td>${r.liveVolumeRatio==null?'—':r.liveVolumeRatio.toFixed(2)+'×'}</td>
     <td>${r.market==='tpex'?'上櫃':'上市'}</td>
     <td>${r.dataDate||'—'}</td>
     <td>${r.hasFutures?'● 有':'—'}</td><td>${fmtPrice(r.close)}</td>
@@ -494,15 +544,15 @@ function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=Strin
 async function liveCurrentRecheckOne(r){
   const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`),b=j.bar||{},errs=scanQuoteErrors(j,b);
   if(j.quote_valid===false||errs.length)throw new Error(`盤中報價異常 ${errs.join('/')}`);
+  if(String(b.date)<String(r.dataDate||''))throw new Error('報價日期落後，保留既有資料');
   const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
-  if(base.length<65)base=(r._hist||[]).filter(x=>String(x.date)<=String(b.date)).slice(0,-1);
   if(base.length<65)throw new Error('盤中基準K不足');
   const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
   const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
   const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
-  r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
+  delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
 }
-async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
+async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(stopped||i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
 
 
 async function stage1CurrentHistory(code,market,start,end){
@@ -636,6 +686,7 @@ async function runPool(items,limit){
  await Promise.all(Array.from({length:limit},lane));
 }
 $('scanBtn').onclick=async()=>{
+ if(scanBusy)return;scanBusy=true;$('scanBtn').disabled=true;$('refreshLiveBtn').disabled=true;
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='確認本輪市場資料日…';
@@ -734,7 +785,28 @@ $('scanBtn').onclick=async()=>{
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
   $('status').textContent=`V1.17.0-R15 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
- }catch(e){$('status').innerHTML='<span class="bad">'+e.message+'</span>'}
+ }catch(e){$('status').textContent=e.message}
+ finally{scanBusy=false;$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
+};
+$('refreshLiveBtn').onclick=async()=>{
+  if(scanBusy)return;
+  if(!results.length){$('status').textContent='請先完成掃描';return}
+  scanBusy=true;stopped=false;$('scanBtn').disabled=true;$('refreshLiveBtn').disabled=true;
+  try{
+    for(const r of results){
+      if(stopped)break;
+      if(!r._hist?.length){
+        try{
+          const end=scanTaipeiNow().date,start=new Date(Date.now()-470*864e5).toISOString().slice(0,10);
+          const j=await getJSON('/api/history/auto?'+new URLSearchParams({code:r.code,market:r.market||'twse',start_date:start,end_date:end}));
+          r._hist=j.data||[];
+        }catch(e){r.liveError=e.message}
+      }
+    }
+    await runLiveCurrent(results,Math.max(1,Math.min(6,n($('concurrency').value,6))));
+    showRank(currentRank);
+    $('status').textContent=(stopped?'已停止更新':'行情更新完成')+'｜成功 '+results.filter(r=>!r.liveError).length+'/'+results.length;
+  }finally{scanBusy=false;$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};
 
@@ -784,6 +856,7 @@ setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*6
 
 // Restore previous Top100 automatically when returning from a stock detail page.
 restoreScan();
+initScanWeights();
 
 bindFinMindTokenPanel();
 checkFinMindTokenStatus();

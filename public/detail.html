@@ -166,6 +166,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="tiny" id="liveScoreMeta" style="margin-left:8px">以現價 + 預估收盤量 + 上一交易日籌碼試算</span>
     </div>
     <div class="live-score-grid">
+      <div class="live-score-item"><div class="label">盤中 Action｜四項加權</div><div class="v" id="liveAction">—</div><div class="s" id="liveActionSub">等待最新行情</div></div>
+      <div class="live-score-item"><div class="label">盤中 Setup</div><div class="v" id="liveSetup">—</div><div class="s">使用現價與估計收盤量</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Entry</div><div class="v" id="liveEntry">—</div><div class="s" id="liveEntrySub">—</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Hold</div><div class="v" id="liveHold">—</div><div class="s" id="liveHoldSub">—</div></div>
       <div class="live-score-item"><div class="label">盤中 Opportunity</div><div class="v" id="liveOpportunity">—</div><div class="s">以目前 K 型態與預估量試算</div></div>
@@ -313,6 +315,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
   </div>
 </div>
 
+<script src="/action-score.js"></script>
 <script>
 const MARKET=new URL(location.href).searchParams.get('market')||'twse';
 
@@ -339,51 +342,48 @@ const uniq=a=>[...new Set(a)];
 const signClass=x=>x>0?'green':x<0?'red':'yellow';
 
 
-const ACTION_WEIGHT_KEY='twq_action_weights_v1160r2';
-function getActionWeights(){
-  const fallback={entry:40,setup:30,opportunity:30};
-  try{
-    const x=JSON.parse(localStorage.getItem(ACTION_WEIGHT_KEY)||'null');
-    if(!x)return fallback;
-    const entry=Number(x.entry),setup=Number(x.setup),opportunity=Number(x.opportunity);
-    if(![entry,setup,opportunity].every(Number.isFinite))return fallback;
-    return {entry,setup,opportunity};
-  }catch(e){return fallback}
+const ACTION_WEIGHT_KEY=TWAction.key;
+const getActionWeights=()=>TWAction.read();
+function calcActionScore(setup,opportunity,entry,hold,w=getActionWeights()){
+  return TWAction.score({setup,opportunity,entry,hold},w);
 }
-function calcActionScore(setup,opportunity,entry,w=getActionWeights()){
-  const sum=Number(w.entry)+Number(w.setup)+Number(w.opportunity);
-  if(Math.abs(sum-100)>1e-9)return null;
-  return Math.round(
-    Number(entry||0)*(Number(w.entry)/100)+
-    Number(setup||0)*(Number(w.setup)/100)+
-    Number(opportunity||0)*(Number(w.opportunity)/100)
-  );
+let latestActionLive=null,detailActionWeights=null;
+function renderLiveAction(w=detailActionWeights||getActionWeights()){
+  const el=$('liveAction');if(!el)return;
+  const score=latestActionLive?TWAction.score(latestActionLive.current,w):null;
+  el.textContent=score==null?'—':score;
+  const delta=latestActionLive?TWAction.delta(latestActionLive.current,latestActionLive.previous,w):null;
+  const sub=$('liveActionSub');
+  if(sub)sub.textContent=latestActionLive?'較 '+latestActionLive.previousDate+' 收盤：'+(delta==null?'—':(delta>0?'+':'')+delta)+' 分':'等待最新行情';
 }
-function bindActionWeights(setup,opportunity,entry){
-  const e=$('actionWEntry'),s=$('actionWSetup'),o=$('actionWOpp');
+function bindActionWeights(setup,opportunity,entry,hold){
+  const inputs={entry:$('actionWEntry'),setup:$('actionWSetup'),opportunity:$('actionWOpp'),hold:$('actionWHold')};
   const sumEl=$('actionWeightSum'),scoreEl=$('actionScoreValue'),msg=$('actionWeightMsg');
-  if(!e||!s||!o||!sumEl||!scoreEl)return;
+  if(Object.values(inputs).some(x=>!x)||!sumEl||!scoreEl)return;
   const refresh=()=>{
-    const w={entry:Number(e.value),setup:Number(s.value),opportunity:Number(o.value)};
-    const sum=w.entry+w.setup+w.opportunity;
-    localStorage.setItem(ACTION_WEIGHT_KEY,JSON.stringify(w));
-    sumEl.textContent=`總和 ${Number.isFinite(sum)?sum.toFixed(sum%1?1:0):'—'}%`;
-    const valid=Number.isFinite(sum)&&Math.abs(sum-100)<1e-9&&[w.entry,w.setup,w.opportunity].every(v=>Number.isFinite(v)&&v>=0&&v<=100);
+    const w=Object.fromEntries(TWAction.keys.map(k=>[k,inputs[k].value.trim()===''?NaN:Number(inputs[k].value)]));
+    detailActionWeights=w;
+    const sum=TWAction.keys.reduce((s,k)=>s+w[k],0),valid=TWAction.valid(w);
+    sumEl.textContent='總和 '+(Number.isFinite(sum)?sum:'—')+'%';
     sumEl.className='action-weight-sum '+(valid?'action-weight-ok':'action-weight-bad');
-    if(!valid){
-      scoreEl.textContent='—';
-      scoreEl.className='big red';
-      if(msg)msg.textContent='權重總和必須等於 100%，每項需介於 0～100。';
-      return;
-    }
-    const score=calcActionScore(setup,opportunity,entry,w);
-    scoreEl.textContent=String(score);
-    scoreEl.className='big '+(scoreGrade(score)?.[1]||'');
-    if(msg)msg.textContent=`目前公式：Entry ${w.entry}% + Setup ${w.setup}% + Opportunity ${w.opportunity}%`;
+    if(valid)TWAction.save(w);
+    const score=calcActionScore(setup,opportunity,entry,hold,w);
+    scoreEl.textContent=score==null?'—':score;
+    scoreEl.className='big '+(score==null?'red':scoreGrade(score)[1]);
+    if(msg)msg.textContent=valid?'Entry '+w.entry+'% + Setup '+w.setup+'% + Opportunity '+w.opportunity+'% + Hold '+w.hold+'%':'權重總和必須等於 100%，每項介於 0～100。';
+    renderLiveAction(w);
   };
-  [e,s,o].forEach(x=>x.addEventListener('input',refresh));
-  refresh();
+  Object.values(inputs).forEach(x=>x.addEventListener('input',refresh));refresh();
 }
+window.addEventListener('storage',e=>{
+  if(e.key!==TWAction.key)return;
+  const w=getActionWeights();
+  for(const [k,id] of Object.entries({entry:'actionWEntry',setup:'actionWSetup',opportunity:'actionWOpp',hold:'actionWHold'})){
+    if($(id))$(id).value=w[k];
+  }
+  if($('actionWEntry'))$('actionWEntry').dispatchEvent(new Event('input'));
+  else renderLiveAction(w);
+});
 
 function setBanner(msg,type='ok'){
   const b=$('banner'); b.className=`banner ${type}`; b.innerHTML=msg; b.style.display='block';
@@ -1519,7 +1519,7 @@ function render(){
   const m=cut(STATE.margin,date),i=cut(STATE.inst,date),d=cut(STATE.daytrade,date);
   if(rows.length<65){setBanner('這個審計日之前的歷史資料不足 60 個交易日，請把游標往右移。','warn');return}
   clearBanner();
-  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionW=getActionWeights();const actionScore=calcActionScore(R.quality,E.opportunity,E.score,actionW);
+  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionW=getActionWeights();const actionScore=calcActionScore(R.quality,E.opportunity,E.score,E.hold,actionW);
   const a=R.market,o=R.optimal,cur=last(rows),grade=scoreGrade(a.score),qg=scoreGrade(R.quality),og=scoreGrade(o.score),eg=scoreGrade(E.score),hg=scoreGrade(E.hold);
   const kText=cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─';
   $('kColorPill').textContent=`K色：${kText}`;
@@ -1542,7 +1542,7 @@ function render(){
     <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
     <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
     <div class="card">
-      <div class="label">Action｜自訂綜合進場</div>
+      <div class="label">Action｜審計日四項加權</div>
       <div class="big ${actionScore==null?'red':scoreGrade(actionScore)[1]}" id="actionScoreValue">${actionScore==null?'—':actionScore}</div>
       <div class="sub" id="actionWeightMsg">權重總和必須等於 100%</div>
       <div class="action-weight-wrap">
@@ -1550,6 +1550,7 @@ function render(){
           <label>Entry %<br><input id="actionWEntry" type="number" min="0" max="100" step="1" value="${actionW.entry}"></label>
           <label>Setup %<br><input id="actionWSetup" type="number" min="0" max="100" step="1" value="${actionW.setup}"></label>
           <label>Opportunity %<br><input id="actionWOpp" type="number" min="0" max="100" step="1" value="${actionW.opportunity}"></label>
+          <label>Hold %<br><input id="actionWHold" type="number" min="0" max="100" step="1" value="${actionW.hold}"></label>
           <span id="actionWeightSum" class="action-weight-sum">總和 —%</span>
         </div>
       </div>
@@ -1559,7 +1560,7 @@ function render(){
       <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
       <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
     </div>`;
-  bindActionWeights(R.quality,E.opportunity,E.score);
+  bindActionWeights(R.quality,E.opportunity,E.score,E.hold);
   if(window.__scannerAuditSnapshot && String(window.__scannerAuditSnapshot.dataDate||'')===String(date)){
     const banner=$('banner');
     if(banner && !banner.textContent){
@@ -2124,8 +2125,8 @@ setTimeout(refreshFuturesBadge,700);
     if(!STATE?.prices?.length)return null;
     if(j?.quote_valid===false||quoteErrors(j,b).length)return null;
     const open=isMarketOpen(j,b);
-    let formalIdx=open?priorFormalIndex(b.date):STATE.prices.length-1;
-    if(formalIdx<64)formalIdx=Math.min(STATE.prices.length-1,Math.max(64,formalIdx));
+    const formalIdx=priorFormalIndex(b.date);
+    if(formalIdx<64)return null;
     const formalRows=STATE.prices.slice(0,formalIdx+1);
     const formalDate=formalRows.at(-1)?.date;
     if(!formalDate)return null;
@@ -2154,7 +2155,8 @@ setTimeout(refreshFuturesBadge,700);
     const m=cut(STATE.margin,formalDate),i=cut(STATE.inst,formalDate),dt=cut(STATE.daytrade,formalDate);
     const R=combineScores(sim,m,i,dt);
     const E=entryEngine(sim,R);
-    return {R,E,formalDate,pv,avg5,open,synthetic};
+    const previousR=combineScores(formalRows,m,i,dt),previousE=entryEngine(formalRows,previousR);
+    return {R,E,formalDate,pv,avg5,open,synthetic,previousR,previousE};
   }
   function paintScore(id,val){
     const el=byId(id); if(!el)return;
@@ -2164,6 +2166,8 @@ setTimeout(refreshFuturesBadge,700);
   }
 
   function showFormalPriceFallback(msg='等待最新現價'){
+    latestActionLive=null;renderLiveAction();
+    const card=byId('liveScoreCard');if(card)card.style.display='none';
     const p=byId('todayInfo'); if(!p)return;
     p.style.display='block';
     const row=STATE?.prices?.at(-1);
@@ -2200,6 +2204,9 @@ setTimeout(refreshFuturesBadge,700);
         return;
       }
       const b=j.bar,p=byId('todayInfo'); if(!p)return;
+      if(String(b.date)<String(STATE.prices?.at(-1)?.date||'')){
+        showFormalPriceFallback('報價日期落後，保留既有資料');return;
+      }
       p.style.display='block';
       const errs=quoteErrors(j,b),marketOpen=isMarketOpen(j,b);
       byId('todayTitle').textContent=b.date+(marketOpen?' 今日盤中資訊':' 今日最新資訊');
@@ -2253,6 +2260,13 @@ setTimeout(refreshFuturesBadge,700);
       if(live){
         const card=byId('liveScoreCard');
         if(card)card.style.display='block';
+        latestActionLive={
+          current:{setup:live.R.quality,opportunity:live.E.opportunity,entry:live.E.score,hold:live.E.hold},
+          previous:{setup:live.previousR.quality,opportunity:live.previousE.opportunity,entry:live.previousE.score,hold:live.previousE.hold},
+          previousDate:live.formalDate
+        };
+        renderLiveAction();
+        paintScore('liveSetup',live.R.quality);
         paintScore('liveEntry',live.E.score);
         paintScore('liveHold',live.E.hold);
         paintScore('liveOpportunity',live.E.opportunity);
