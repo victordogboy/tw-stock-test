@@ -106,3 +106,8 @@ test('chips-only preserves quota error without attempting backtest',async()=>{
  assert.doesNotMatch(h.elements.status.textContent,/自動以現有資料計算|缺少 0050/);
  assert.equal(h.records.has('last-report'),false);
 });
+test('five year research range accepted and longer range rejected',()=>{
+ const h=harness();h.elements.start.value='2020-07-01';h.elements.end.value='2025-07-01';
+ const o=vm.runInContext('options()',h.context);assert.equal(o.start,'2020-07-01');assert.ok(o.warmupStart<o.start);
+ h.elements.start.value='2019-07-01';assert.throws(()=>vm.runInContext('options()',h.context),/5年/);
+});

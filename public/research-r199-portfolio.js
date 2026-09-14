@@ -9,7 +9,7 @@ function config(p={}){
 function run(C,data,rows,p,range,cost,settings){
  const equal=settings?.mode==='equal',ids=settings?.ids||[],perStock=settings?.perStock||100000;
  if(equal&&!ids.length)throw Error('等額模式需要固定股票名單');
- const cfg=config(equal?{initial:perStock*ids.length,maxPositions:100,lotSize:1}:settings),wallet=new Map(ids.map(id=>[id,perStock])),first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=last-26;
+ const cfg=config(equal?{initial:perStock*ids.length,maxPositions:100,lotSize:1}:settings),wallet=new Map(ids.map(id=>[id,perStock])),first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=p.maxHold===0?last-1:last-26;
  if(first<0||last<first)throw Error('帳戶模擬期間無效');
  const signals=new Map();for(const r of rows)if(r.di>=first&&r.di<=last){if(!signals.has(r.di))signals.set(r.di,new Map());signals.get(r.di).set(C.key(r),r);}
  let cash=cfg.initial,peak=cfg.initial,maxDrawdown=0,maxDrawdownMoney=0,maxInvested=0,skippedFunds=0,skippedSlots=0,unfilled=0,staleMarks=0,liquidityBlocked=0;
@@ -36,7 +36,7 @@ function run(C,data,rows,p,range,cost,settings){
   }
   pendingBuys=[];
   for(const [id,pos] of held){
-   if(!pos.exit){const r=today.get(id),score=r?C.weightsScore(r,p.exit):null,timed=di-pos.di+1>=p.maxHold;
+   if(!pos.exit){const r=today.get(id),score=r?C.weightsScore(r,p.exit):null,timed=p.maxHold>0&&di-pos.di+1>=p.maxHold;
     if(timed||(score!==null&&score>=p.exitThreshold))pos.exit={date,reason:timed?'maxHold':'score'};
    }
   }

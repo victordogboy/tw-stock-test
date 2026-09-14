@@ -152,7 +152,7 @@ function candidates(count,seed,liquidity=false){
 }
 function liquidEntry(r,p){return [['volumeLots','minVolumeLots'],['avgVolumeLots20','minAvgVolumeLots20'],['avgValue20','minAvgValue20']].every(([field,param])=>!(p[param]>0)||(finite(r[field])&&r[field]>=p[param]));}
 function simulate(data,rows,p,range,cost){
-  const first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=last-26;
+  const first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=p.maxHold===0?last-1:last-26;
   const byId=new Map();for(const r of rows)if(r.di>=first&&r.di<=last){const id=key(r);if(!byId.has(id))byId.set(id,new Map());byId.get(id).set(r.di,r);}
   const trades=[];let unfilled=0,unresolved=0,liquidityBlocked=0;
   for(const [id,signals] of byId){
@@ -167,7 +167,7 @@ function simulate(data,rows,p,range,cost){
         pending=null; // Entry order valid for the next exchange session only.
       }
       if(pos){
-        if(!pending){const risk=r?weightsScore(r,p.exit):null;const timed=di-pos.di+1>=p.maxHold;
+        if(!pending){const risk=r?weightsScore(r,p.exit):null;const timed=p.maxHold>0&&di-pos.di+1>=p.maxHold;
           if(timed||(risk!==null&&risk>=p.exitThreshold))pending={side:'sell',signalDate:date,reason:timed?'maxHold':'score'};}
       }else if(di<=entryLast&&r?.rank){
         const sc=weightsScore(r,p.entry);if(sc!==null&&sc>=p.entryThreshold){if(liquidEntry(r,p))pending={side:'buy',signalDate:date};else liquidityBlocked++;}
@@ -187,7 +187,7 @@ function manualParameters(p){
     const den=p[k].reduce((s,x)=>s+Math.abs(x),0);out[k]=p[k].map(x=>x/den);
   }
   for(const k of ['entryThreshold','exitThreshold']){if(!finite(p[k])||p[k]<0||p[k]>100)throw Error('門檻須介於0至100');out[k]=p[k];}
-  if(!Number.isInteger(p.maxHold)||p.maxHold<1||p.maxHold>20)throw Error('持有上限須為1至20個交易日');out.maxHold=p.maxHold;
+  if(!Number.isInteger(p.maxHold)||p.maxHold<0||p.maxHold>20)throw Error('持有上限須為0（不限制）或1至20個交易日');out.maxHold=p.maxHold;
   for(const k of ['minVolumeLots','minAvgVolumeLots20','minAvgValue20']){const v=p[k]??0;if(!finite(v)||v<0||v>1e12)throw Error('量能門檻須為有限非負數');out[k]=v;}
   return out;
 }

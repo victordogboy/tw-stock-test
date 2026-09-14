@@ -971,7 +971,7 @@ function r1910Normalize(rows,start,end){
 }
 async function r1910BenchmarkRoute(request,url){
  const start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date');
- if(!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1100)return json({ok:false,error:'大盤歷史期間無效'},400);
+ if(!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>2010)return json({ok:false,error:'大盤歷史期間無效'},400);
  if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET查快取，POST補齊'},405);
  const key=new Request(`${url.origin}/__research-benchmark/r1910/${start}/${end}`),hit=await caches.default.match(key);if(hit)return hit;
  if(request.method==='GET')return json({ok:false,error:'大盤尚未下載'},404);

@@ -35,3 +35,13 @@ test('equal mode has no ten-stock or hundred-stock cap and costs reconcile',()=>
  assert.equal(r.n,2);assert.equal(r.initial,12200);
  assert.ok(Math.abs(r.netProfit-r.trades.reduce((s,t)=>s+t.pnl,0))<1e-8);
 });
+test('unlimited holding keeps positions until score exit and marks open positions',()=>{
+ const f=fixture();f.p.maxHold=0;
+ const r=run(f,{mode:'equal',perStock:100,ids:['twse:2330','twse:2317']});
+ assert.equal(r.n,0);assert.equal(r.unresolved,2);assert.equal(r.holdings.length,2);
+ const signals=C.simulate(f.data,f.rows,f.p,f.range,f.cost);
+ assert.equal(signals.n,0);assert.equal(signals.unresolved,2);
+ f.rows.push({date:f.data.dates[30],di:30,market:'twse',code:'2330',rank:1,hold:100});
+ const sold=run(f,{mode:'equal',perStock:100,ids:['twse:2330','twse:2317']});
+ assert.equal(sold.n,1);assert.equal(sold.trades[0].reason,'score');assert.equal(sold.trades[0].exitDate,f.data.dates[31]);
+});
