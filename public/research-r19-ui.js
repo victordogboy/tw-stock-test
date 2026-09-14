@@ -75,7 +75,7 @@ async function gather(mode){
     if(mode==='build'&&partial)mode='local';
     if(mode!=='local'){status('資料已就緒，現在可執行搜尋。',1);return;}
     status('分數重播與參數搜尋中；本次計算不呼叫上游。',0);report=null;clearReport();
-    worker=new Worker('/research-r19-worker.js?r1910');
+    worker=new Worker('/research-r19-worker.js?r20');
     await new Promise((resolve,reject)=>{
       worker.onmessage=async ({data:m})=>{
         if(m.type==='progress')status(m.text,m.value);
@@ -291,7 +291,7 @@ function renderSimple(r){
   if(el('winCard')){el('winCard').textContent=q?fmt(q.test.win,1)+'%':'—';el('profitCard').textContent=q?fmt(q.test.mean)+'%':'—';el('countCard').textContent=q?String(q.test.n):'0';}
   el('manualRun').disabled=!q;el('loadBest').disabled=!q;
   if(!q){el('simpleResult').textContent='目前没有設定通過最低交易數與完整平倉條件，不能提供最高勝率設定。可先補資料或擴大期間。';return;}
-  const title=r.options.manual?'你輸入的設定（探索重測）':r.options.goal==='winrate'?'本次候選中，通過訓練門檻後驗證期勝率最高的設定':'本次報酬與風險目標選出的設定';
+  const title=r.options.manual?'你輸入的設定（探索重測）':r.options.goal==='equal'?'本次候選中，驗證期每檔等額投資報酬最高的設定':r.options.goal==='winrate'?'本次候選中，通過訓練門檻後驗證期勝率最高的設定':'本次報酬與風險目標選出的設定';
   el('simpleResult').textContent=[title,`驗證期：勝率 ${fmt(q.validation.win,1)}%，${q.validation.n} 筆交易。`,`測試期：勝率 ${fmt(q.test.win,1)}%，${q.test.n} 筆交易；平均每筆扣成本 ${fmt(q.test.mean)}%。`,r.options.previousRun?`上次 → 這次：測試勝率 ${fmt(r.options.previousRun.win,1)}% → ${fmt(q.test.win,1)}%；平均淨報酬 ${fmt(r.options.previousRun.mean)}% → ${fmt(q.test.mean)}%。`:'',q.test.unresolved?`尚有 ${q.test.unresolved} 筆未平倉，不能用已平倉勝率代表完整結果。`:q.test.n<Math.max(10,Math.ceil(r.options.minTrades/2))?'測試交易筆數不足，勝率僅供描述。':q.test.mean>0?'測試平均淨報酬為正，仍要留意資料覆蓋率與樣本數。':'測試平均淨報酬未為正或無法判定；高勝率不代表賺錢。',`最低進場量：訊號日 ${q.parameters.minVolumeLots||0} 張；前20日均量 ${q.parameters.minAvgVolumeLots20||0} 張；前20日平均估算成交金額 ${fmt((q.parameters.minAvgValue20||0)/10000,0)} 萬元（0＝不限制）。賣出不受這些門檻限制。`,r.withoutLiquidity?`量能篩選比較（同一設定，僅移除量門檻）：無門檻胜率 ${fmt(r.withoutLiquidity.win,1)}%、${r.withoutLiquidity.n} 筆、每筆 ${fmt(r.withoutLiquidity.mean)}%；有門檻勝率 ${fmt(q.test.win,1)}%、${q.test.n} 筆、每筆 ${fmt(q.test.mean)}%。擋下 ${q.test.liquidityBlocked||0} 次進場訊號。`:'',`進場分數至少 ${q.parameters.entryThreshold}；出場分數至少 ${q.parameters.exitThreshold}；最多持有 ${q.parameters.maxHold} 個交易日。`,r.options.partial?'這是部分資料結果，不代表完整股票池。':'',r.options.manual?'反覆看同一測試期再調整，不能當成新的樣本外驗證。':'可按「帶入本次設定」，修改下方權重與門檻後重測。'].filter(Boolean).join('\n');
   if(!r.options.manual)fillManual(q.parameters);
 }
@@ -350,3 +350,18 @@ async function downloadChipsOnly(){
   finally{lock(false);}
 }
 if(el('chipsOnly'))el('chipsOnly').onclick=downloadChipsOnly;
+
+const oldRenderSimple=renderSimple;
+renderSimple=function(r){
+ oldRenderSimple(r);
+ if(el('primaryMetricLabel'))el('primaryMetricLabel').textContent=r.options.goal==='equal'?'測試期等額總報酬':'訊號交易勝率';
+ if(el('secondaryMetricLabel'))el('secondaryMetricLabel').textContent=r.options.goal==='equal'?'領先／落後大盤':'每筆平均淨報酬';
+ if(r.options.goal!=='equal')return;
+ const q=r.chosen;
+ if(el('winCard'))el('winCard').textContent=fmt(r.portfolio?.roi)+'%';
+ if(el('profitCard'))el('profitCard').textContent=r.benchmark?.ok?fmt(r.benchmark.excessReturn)+' 個百分點':'大盤資料待補';
+ if(el('countCard'))el('countCard').textContent=String(r.portfolio?.n||0);
+ el('simpleResult').textContent=(q?'等額投資：驗證期報酬 '+fmt(q.validation.equalReturn)+'%；測試期報酬 '+fmt(r.portfolio?.roi)+'%；測試回撤 '+fmt(r.portfolio?.maxDrawdown)+'%。\n':'')+
+ '每檔獨立10萬元，獲利留在原股票再投入；理論可分割股數，沒有整張限制。未交易股票保留現金。\n'+
+ (r.options.partial?'注意：資料不完整，缺資料股票暫列現金；此結果僅供探索，不能代表完整股票池策略。\n':'')+el('simpleResult').textContent;
+};

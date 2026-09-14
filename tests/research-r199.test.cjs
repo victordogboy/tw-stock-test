@@ -21,3 +21,17 @@ test('future changes do not affect earlier cash/equity path; liquidity restricts
  const first=run(f,{initial:1000,maxPositions:1,lotSize:1});f.data.daily.get(f.data.dates[2]).get('twse:2330').volume=1;const second=run(f,{initial:1000,maxPositions:1,lotSize:1});assert.equal(second.n,1);assert.deepEqual(first.curve.slice(0,2),second.curve.slice(0,2));f.rows[0].volumeLots=999;assert.equal(run(f,{initial:1000,maxPositions:1,lotSize:1}).n,0);
 });
 test('invalid capital settings reject rather than silently creating leverage',()=>{for(const p of [{initial:0},{initial:-1},{maxPositions:0},{maxPositions:1.5},{lotSize:10}])assert.throws(()=>P.config(p));});
+test('equal mode funds high price stocks independently and includes idle stocks in denominator',()=>{
+ const f=fixture();f.rows=f.rows.slice(0,1);
+ const r=run(f,{mode:'equal',perStock:10,ids:['twse:2330','twse:2317']});
+ assert.equal(r.n,1);assert.ok(Math.abs(r.trades[0].shares-.1)<1e-10);
+ assert.ok(Math.abs(r.roi-5)<1e-10);assert.equal(r.initial,20);
+ assert.equal(r.stockResults[1].finalEquity,10);assert.equal(r.skippedFunds,0);
+});
+test('equal mode has no ten-stock or hundred-stock cap and costs reconcile',()=>{
+ const f=fixture();f.cost={fee:.001,tax:.003,slippage:.001};
+ const ids=['twse:2330','twse:2317',...Array.from({length:120},(_,i)=>'twse:'+String(5000+i))];
+ const r=run(f,{mode:'equal',perStock:100,ids});
+ assert.equal(r.n,2);assert.equal(r.initial,12200);
+ assert.ok(Math.abs(r.netProfit-r.trades.reduce((s,t)=>s+t.pnl,0))<1e-8);
+});

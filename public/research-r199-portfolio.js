@@ -7,7 +7,9 @@ function config(p={}){
  return {initial,maxPositions,lotSize};
 }
 function run(C,data,rows,p,range,cost,settings){
- const cfg=config(settings),first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=last-26;
+ const equal=settings?.mode==='equal',ids=settings?.ids||[],perStock=settings?.perStock||100000;
+ if(equal&&!ids.length)throw Error('等額模式需要固定股票名單');
+ const cfg=config(equal?{initial:perStock*ids.length,maxPositions:100,lotSize:1}:settings),wallet=new Map(ids.map(id=>[id,perStock])),first=data.dates.indexOf(range[0]),last=data.dates.indexOf(range[1]),entryLast=last-26;
  if(first<0||last<first)throw Error('帳戶模擬期間無效');
  const signals=new Map();for(const r of rows)if(r.di>=first&&r.di<=last){if(!signals.has(r.di))signals.set(r.di,new Map());signals.get(r.di).set(C.key(r),r);}
  let cash=cfg.initial,peak=cfg.initial,maxDrawdown=0,maxDrawdownMoney=0,maxInvested=0,skippedFunds=0,skippedSlots=0,unfilled=0,staleMarks=0,liquidityBlocked=0;
@@ -19,17 +21,17 @@ function run(C,data,rows,p,range,cost,settings){
   for(const [id,pos] of [...held].sort((a,b)=>a[0].localeCompare(b[0]))){
    if(!pos.exit)continue;const bar=bars.get(id);if(!C.executable(bar)){unfilled++;continue;}
    const price=bar.open*(1-cost.slippage),proceeds=pos.shares*price*(1-cost.fee-cost.tax),pnl=proceeds-pos.outlay;
-   cash+=proceeds;trades.push({id,signalDate:pos.signalDate,entryDate:pos.entryDate,exitSignalDate:pos.exit.date,exitDate:date,shares:pos.shares,buyPrice:pos.buyPrice,sellPrice:price,buyOutlay:pos.outlay,sellProceeds:proceeds,pnl,net:pnl/pos.outlay*100,holdingDays:di-pos.di,reason:pos.exit.reason});held.delete(id);
+   cash+=proceeds;if(equal)wallet.set(id,wallet.get(id)+proceeds);trades.push({id,signalDate:pos.signalDate,entryDate:pos.entryDate,exitSignalDate:pos.exit.date,exitDate:date,shares:pos.shares,buyPrice:pos.buyPrice,sellPrice:price,buyOutlay:pos.outlay,sellProceeds:proceeds,pnl,net:pnl/pos.outlay*100,holdingDays:di-pos.di,reason:pos.exit.reason});held.delete(id);
   }
   pendingBuys.sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
   for(const order of pendingBuys){
    if(held.has(order.id))continue;
-   if(held.size>=cfg.maxPositions){skippedSlots++;continue;}
+   if(!equal&&held.size>=cfg.maxPositions){skippedSlots++;continue;}
    const bar=bars.get(order.id);if(!C.executable(bar)){unfilled++;continue;}
-   const price=bar.open*(1+cost.slippage),perShare=price*(1+cost.fee),budget=Math.min(cfg.initial/cfg.maxPositions,cash);
-   const shares=Math.floor(budget/perShare/cfg.lotSize)*cfg.lotSize;
-   if(shares<cfg.lotSize){skippedFunds++;continue;}
-   const outlay=shares*perShare;cash-=outlay;
+   const price=bar.open*(1+cost.slippage),perShare=price*(1+cost.fee),budget=equal?(wallet.get(order.id)||0):Math.min(cfg.initial/cfg.maxPositions,cash);
+   const shares=equal?budget/perShare:Math.floor(budget/perShare/cfg.lotSize)*cfg.lotSize;
+   if(equal?shares<=0:shares<cfg.lotSize){skippedFunds++;continue;}
+   const outlay=shares*perShare;cash-=outlay;if(equal)wallet.set(order.id,Math.max(0,wallet.get(order.id)-outlay));
    held.set(order.id,{shares,outlay,buyPrice:price,entryDate:date,signalDate:order.date,di,lastClose:bar.open,exit:null});maxInvested=Math.max(maxInvested,invested());
   }
   pendingBuys=[];
@@ -47,7 +49,7 @@ function run(C,data,rows,p,range,cost,settings){
  const avgWin=avg(positive),avgLoss=avg(negative),finalEquity=curve.at(-1).equity,monthly=[];
  let previous=cfg.initial;const months=new Map();for(const r of curve)months.set(r.date.slice(0,7),r);
  for(const [month,row] of months){monthly.push({month,returnPct:(row.equity/previous-1)*100,pnl:row.equity-previous,endEquity:row.equity});previous=row.equity;}
- return {model:'cash-account-daily-close-r19.9',settings:cfg,range,initial:cfg.initial,finalEquity,netProfit:finalEquity-cfg.initial,roi:(finalEquity/cfg.initial-1)*100,maxDrawdown,maxDrawdownMoney,maxInvested,win:trades.length?positive.length/trades.length*100:null,n:trades.length,wins:positive.length,losses:negative.length,breakeven:trades.length-positive.length-negative.length,avgWin,avgLoss,payoffRatio:avgLoss<0?avgWin/Math.abs(avgLoss):null,skippedFunds,skippedSlots,unfilled,liquidityBlocked,unresolved:held.size,staleMarks,holdings:[...held].map(([id,x])=>({id,shares:x.shares,entryDate:x.entryDate,outlay:x.outlay,lastClose:x.lastClose,marketValue:x.shares*x.lastClose})),curve,monthly,trades};
+ return {model:equal?'equal-stock-fractional-r20':'cash-account-daily-close-r19.9',stockResults:equal?ids.map(id=>({id,initial:perStock,finalEquity:wallet.get(id)+(held.has(id)?held.get(id).shares*held.get(id).lastClose:0),trades:trades.filter(t=>t.id===id).length})):undefined,settings:cfg,range,initial:cfg.initial,finalEquity,netProfit:finalEquity-cfg.initial,roi:(finalEquity/cfg.initial-1)*100,maxDrawdown,maxDrawdownMoney,maxInvested,win:trades.length?positive.length/trades.length*100:null,n:trades.length,wins:positive.length,losses:negative.length,breakeven:trades.length-positive.length-negative.length,avgWin,avgLoss,payoffRatio:avgLoss<0?avgWin/Math.abs(avgLoss):null,skippedFunds,skippedSlots,unfilled,liquidityBlocked,unresolved:held.size,staleMarks,holdings:[...held].map(([id,x])=>({id,shares:x.shares,entryDate:x.entryDate,outlay:x.outlay,lastClose:x.lastClose,marketValue:x.shares*x.lastClose})),curve,monthly,trades};
 }
 function benchmark(portfolio,rows,baseDate){
  if(!portfolio)return {ok:false,error:'尚無帳戶模擬結果'};
