@@ -49,5 +49,16 @@ function run(C,data,rows,p,range,cost,settings){
  for(const [month,row] of months){monthly.push({month,returnPct:(row.equity/previous-1)*100,pnl:row.equity-previous,endEquity:row.equity});previous=row.equity;}
  return {model:'cash-account-daily-close-r19.9',settings:cfg,range,initial:cfg.initial,finalEquity,netProfit:finalEquity-cfg.initial,roi:(finalEquity/cfg.initial-1)*100,maxDrawdown,maxDrawdownMoney,maxInvested,win:trades.length?positive.length/trades.length*100:null,n:trades.length,wins:positive.length,losses:negative.length,breakeven:trades.length-positive.length-negative.length,avgWin,avgLoss,payoffRatio:avgLoss<0?avgWin/Math.abs(avgLoss):null,skippedFunds,skippedSlots,unfilled,liquidityBlocked,unresolved:held.size,staleMarks,holdings:[...held].map(([id,x])=>({id,shares:x.shares,entryDate:x.entryDate,outlay:x.outlay,lastClose:x.lastClose,marketValue:x.shares*x.lastClose})),curve,monthly,trades};
 }
-const api={config,run};if(typeof module!=='undefined')module.exports=api;root.ResearchPortfolio=api;
+function benchmark(portfolio,rows,baseDate){
+ if(!portfolio)return {ok:false,error:'尚無帳戶模擬結果'};
+ const map=new Map();for(const r of rows||[]){if(map.has(r.date)||!/^\d{4}-\d{2}-\d{2}$/.test(r.date)||!Number.isFinite(r.close)||r.close<=0)return {ok:false,error:'大盤資料含重複日期或無效數值'};map.set(r.date,r.close);}
+ if(!map.has(baseDate))return {ok:false,error:'缺少測試開始前一交易日大盤收盤值，無法比較'};
+ const missing=portfolio.curve.filter(r=>!map.has(r.date)).map(r=>r.date);if(missing.length)return {ok:false,error:`大盤缺 ${missing.length} 個比較日期；不補值或縮短比較期間`,missing};
+ const base=map.get(baseDate),curve=[];let peak=portfolio.initial,maxDrawdown=0;
+ for(const r of portfolio.curve){const equity=portfolio.initial*map.get(r.date)/base;peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,(peak-equity)/peak*100);curve.push({date:r.date,equity,roi:(equity/portfolio.initial-1)*100});}
+ const roi=curve.at(-1).roi;const monthly=[];let prior=portfolio.initial;const months=new Map();for(const r of curve)months.set(r.date.slice(0,7),r);
+ for(const [month,r] of months){monthly.push({month,returnPct:(r.equity/prior-1)*100});prior=r.equity;}
+ return {ok:true,baseDate,roi,maxDrawdown,netProfit:curve.at(-1).equity-portfolio.initial,excessReturn:portfolio.roi-roi,drawdownAdvantage:maxDrawdown-portfolio.maxDrawdown,curve,monthly,returnType:'TAIEX price index; no dividends or costs'};
+}
+const api={config,run,benchmark};if(typeof module!=='undefined')module.exports=api;root.ResearchPortfolio=api;
 })(typeof globalThis!=='undefined'?globalThis:this);

@@ -78,3 +78,31 @@ test('account report renderer displays monetary results separately from signal p
  h.context.accountFixture={options:{scoreMode:'price',partial:true},portfolio:{roi:10,netProfit:100,maxDrawdown:5,win:50,payoffRatio:2,n:2,range:['2024-01-01','2024-01-31'],initial:1000,finalEquity:1100,maxInvested:1000,wins:1,losses:1,breakeven:0,maxDrawdownMoney:50,skippedSlots:1,skippedFunds:0,unresolved:0,staleMarks:0,curve:[{roi:0},{roi:10}],monthly:[{month:'2024-01',returnPct:10,pnl:100,endEquity:1100}],trades:[]}};
  vm.runInContext('renderPortfolio(accountFixture)',h.context);assert.equal(h.elements.accountROI.textContent,'10.00%');assert.equal(h.elements.accountProfit.textContent,'NT$ 100');assert.equal(h.elements.accountDD.textContent,'-5.00%');assert.match(h.elements.portfolioSummary.textContent,/純價量/);assert.match(h.elements.equityChart.innerHTML,/polyline/);assert.equal(h.calls,0);
 });
+
+test('chips-only skips prices and calendar and resumes from cache',async()=>{
+ const h=harness();for(const [id,value] of Object.entries({universe:'fixed',scoreMode:'full',fixedStocks:'twse:2330',poolDate:'2025-07-01'}))h.elements[id]=new Element(value);
+ const calls=[];
+ h.context.fetch=async(path,opts)=>{
+  calls.push([path,opts.method]);assert.ok(path.startsWith('/api/research/chip-piece?'));
+  if(opts.method==='GET')return new Response(JSON.stringify({ok:false}),{status:404});
+  return new Response(JSON.stringify({ok:true,data:[{date:'2025-06-01'}]}));
+ };
+ await vm.runInContext('downloadChipsOnly()',h.context);
+ assert.match(h.elements.status.textContent,/籌碼下載完成/);
+ assert.equal(calls.filter(x=>x[1]==='POST').length,3);
+ calls.length=0;await vm.runInContext('downloadChipsOnly()',h.context);
+ assert.equal(calls.length,0);assert.equal(h.elements.build.disabled,false);
+});
+test('chips-only preserves quota error without attempting backtest',async()=>{
+ const h=harness();for(const [id,value] of Object.entries({universe:'fixed',scoreMode:'full',fixedStocks:'twse:2330',poolDate:'2025-07-01'}))h.elements[id]=new Element(value);
+ let posts=0;
+ h.context.fetch=async(path,opts)=>{
+  assert.ok(path.startsWith('/api/research/chip-piece?'));
+  if(opts.method==='GET')return new Response(JSON.stringify({ok:false}),{status:404});
+  posts++;return new Response(JSON.stringify({ok:false,reason:'quota',error:'quota'}),{status:429});
+ };
+ await vm.runInContext('downloadChipsOnly()',h.context);
+ assert.equal(posts,1);assert.match(h.elements.status.textContent,/配額/);
+ assert.doesNotMatch(h.elements.status.textContent,/自動以現有資料計算|缺少 0050/);
+ assert.equal(h.records.has('last-report'),false);
+});

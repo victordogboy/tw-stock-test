@@ -962,7 +962,40 @@ async function r196ChipRoute(request,env,url){
   }catch(e){return json({ok:false,error:/欄位|驗證/.test(e.message)?e.message:'來源連線失敗或逾時',reason:/欄位|驗證/.test(e.message)?'invalid_data':'source_error'},502);}
 }
 
+// TAIEX price index benchmark: Yahoo with dated TWSE monthly fallback. No FinMind calls.
+function r1910Normalize(rows,start,end){
+ const seen=new Set();const data=rows.filter(r=>r.date>=start&&r.date<=end);
+ if(!data.length)throw Error('大盤來源沒有指定期間資料');
+ for(const r of data){if(r19Date(r.date)!==r.date||seen.has(r.date)||!Number.isFinite(r.close)||r.close<=0)throw Error('大盤日期或收盤值驗證失敗');seen.add(r.date);}
+ return data.sort((a,b)=>a.date.localeCompare(b.date));
+}
+async function r1910BenchmarkRoute(request,url){
+ const start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date');
+ if(!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1100)return json({ok:false,error:'大盤歷史期間無效'},400);
+ if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET查快取，POST補齊'},405);
+ const key=new Request(`${url.origin}/__research-benchmark/r1910/${start}/${end}`),hit=await caches.default.match(key);if(hit)return hit;
+ if(request.method==='GET')return json({ok:false,error:'大盤尚未下載'},404);
+ const p1=unixSec(start),p2=unixSec(addDaysISO(end,1));let data,source;
+ for(const host of ['query1.finance.yahoo.com','query2.finance.yahoo.com']){
+  try{const r=await fetch(`https://${host}/v8/finance/chart/%5ETWII?period1=${p1}&period2=${p2}&interval=1d`,{headers:{accept:'application/json'},signal:AbortSignal.timeout(10000)});if(!r.ok)continue;const j=await r.json(),v=j.chart?.result?.[0];if(v?.meta?.symbol!=='^TWII')continue;
+   data=r1910Normalize((v.timestamp||[]).map((t,i)=>({date:new Date(t*1000).toISOString().slice(0,10),close:v.indicators?.quote?.[0]?.close?.[i]})).filter(r=>Number.isFinite(r.close)&&r.close>0),start,end);source='Yahoo ^TWII';break;
+  }catch{}
+ }
+ if(!data){
+  const rows=[];let month=start.slice(0,7)+'-01';
+  try{while(month<=end){
+   const r=await fetch('https://www.twse.com.tw/exchangeReport/FMTQIK?response=json&date='+month.replaceAll('-',''),{headers:{accept:'application/json'},signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('來源不可用');const j=await r.json();
+   if(r19Date(j.date)?.slice(0,7)!==month.slice(0,7)||!Array.isArray(j.fields)||!Array.isArray(j.data))throw Error('月份無法驗證');
+   const idx=j.fields.findIndex(f=>String(f).replace(/\s/g,'')==='發行量加權股價指數');if(idx<0)throw Error('指數欄位無法辨識');
+   for(const row of j.data){const date=r19Date(row[0]);if(!date||date.slice(0,7)!==month.slice(0,7))throw Error('日期無法驗證');rows.push({date,close:Number(String(row[idx]).replaceAll(',',''))});}
+   const d=new Date(month+'T00:00:00Z');d.setUTCMonth(d.getUTCMonth()+1);month=d.toISOString().slice(0,10);
+  }data=r1910Normalize(rows,start,end);source='TWSE FMTQIK';}catch{return json({ok:false,error:'大盤來源無法取得或驗證歷史資料；策略結果保留，稍後可只補大盤，不會使用FinMind配額'},502);}
+ }
+ const response=json({ok:true,data,source,symbol:'TAIEX',returnType:'price',start_date:start,end_date:end,cached_at:new Date().toISOString()},200,{'cache-control':'public,max-age=31536000'});await caches.default.put(key,response.clone());return response;
+}
+
 async function routeApi(request, env, url) {
+  if(url.pathname === "/api/research/benchmark")return r1910BenchmarkRoute(request,url);
   if(url.pathname === "/api/research/chip-piece") return r196ChipRoute(request,env,url);
   if(url.pathname === "/api/research/stock-history") return r193History(request,env,url);
   if(url.pathname === "/api/research/market-day") return r19MarketRoute(request,url,env);
