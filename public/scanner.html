@@ -33,10 +33,12 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <h1>台股 V1.17.0-R15｜基底 V1.14.2-R3 · Top100 最新日K＋官方籌碼重評</h1>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
-<input id="finmindTokenInput" type="password" autocomplete="off" placeholder="輸入 FinMind API Token" style="min-width:320px;max-width:560px;flex:1">
-<button id="saveFinmindTokenBtn" type="button">套用 TOKEN</button>
-<button id="clearFinmindTokenBtn" type="button">清除 TOKEN</button>
-<span style="font-size:11px;opacity:.75">Token 會存此瀏覽器，並同步暫存 Worker 7 天；不寫入 GitHub。</span>
+<input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
+<input id="finmindTokenInput2" type="password" autocomplete="off" placeholder="FinMind Token 2（朋友的）" style="min-width:230px;max-width:380px;flex:1">
+<select id="finmindTokenActive" style="width:auto"><option value="0">使用 Token 1</option><option value="1">使用 Token 2</option></select>
+<button id="saveFinmindTokensBtn" type="button">儲存兩組 TOKEN</button>
+<button id="clearFinmindTokensBtn" type="button">清除兩組</button>
+<span style="font-size:11px;opacity:.75">兩組只存此瀏覽器，掃描、個股與回測頁共用；不寫入 Worker 或 GitHub。</span>
 </div>
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。提供 Setup、Opportunity、Entry、Hold、Action，以及 Hold／Action 相較前一交易日的變化排行。盤中分數使用最新取得行情與估計收盤量。</p>
 
@@ -110,6 +112,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <pre id="diagRaw" style="white-space:pre-wrap;max-height:520px;overflow:auto;background:#0a0f1d;padding:12px;border-radius:10px;font-size:12px"></pre>
 </div>
 <div class="card"><b>錯誤 / 略過</b><div id="errors" class="small muted">—</div></div>
+<script src="/finmind-token-manager.js"></script>
 <script src="/action-score.js"></script>
 <script src="/v44-engine.js"></script>
 <script>
@@ -144,34 +147,10 @@ function initScanType(){
   });
 }
 let SCAN_FILTERS={minClose:10,maxClose:300,minLots:3000};
-const FINMIND_TOKEN_STORAGE_KEY='twq_finmind_token_v1';
-function getBrowserFinMindToken(){return String(localStorage.getItem(FINMIND_TOKEN_STORAGE_KEY)||'').trim()}
-function finmindAuthHeaders(extra={}){
-  const token=getBrowserFinMindToken();
-  return token?{...extra,Authorization:`Bearer ${token}`}:{...extra};
-}
+function getBrowserFinMindToken(){return TWFinMindTokens.activeToken()}
+function finmindAuthHeaders(extra={}){return TWFinMindTokens.headers(extra)}
 function bindFinMindTokenPanel(){
-  const input=document.getElementById('finmindTokenInput'),save=document.getElementById('saveFinmindTokenBtn'),clear=document.getElementById('clearFinmindTokenBtn');
-  if(!input||!save||!clear)return;
-  input.value=getBrowserFinMindToken();
-  save.onclick=async()=>{
-    const v=input.value.trim();
-    if(!v){alert('請先輸入 FinMind API Token');return}
-    localStorage.setItem(FINMIND_TOKEN_STORAGE_KEY,v);
-    try{
-      const r=await fetch('/api/finmind/token-store',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token:v})});
-      const j=await r.json();
-      if(!r.ok||!j.ok) throw new Error(j.error||('HTTP '+r.status));
-    }catch(e){
-      alert('Token 已存此瀏覽器，但伺服器 7 天暫存失敗：'+(e.message||e));
-    }
-    await checkFinMindTokenStatus();
-  };
-  clear.onclick=async()=>{
-    localStorage.removeItem(FINMIND_TOKEN_STORAGE_KEY);input.value='';
-    try{await fetch('/api/finmind/token-store',{method:'DELETE'})}catch(e){}
-    await checkFinMindTokenStatus();
-  };
+  TWFinMindTokens.bind({onChange:checkFinMindTokenStatus});
 }
 
 async function checkFinMindTokenStatus(){
@@ -181,7 +160,7 @@ async function checkFinMindTokenStatus(){
     const r=await fetch('/api/finmind/status?_='+Date.now(),{cache:'no-store',headers:finmindAuthHeaders()});
     const j=await r.json();
     el.innerHTML=j.configured
-      ?`<span class="good">✓ FinMind TOKEN 已啟用</span>｜${j.source==='server-saved'?'伺服器已暫存 7 天':(j.source==='browser'?'此瀏覽器 Token':'Worker Secret')}${j.expires_at?'｜到期 '+j.expires_at.slice(0,10):''}`
+      ?`<span class="good">✓ FinMind TOKEN 已啟用</span>｜目前使用 Token ${TWFinMindTokens.read().active+1}（${TWFinMindTokens.masked(getBrowserFinMindToken())}）｜${j.source==='server-saved'?'伺服器已暫存 7 天':(j.source==='browser'?'此瀏覽器 Token':'Worker Secret')}${j.expires_at?'｜到期 '+j.expires_at.slice(0,10):''}`
       :'<span class="bad">✗ FinMind TOKEN 未設定</span>｜目前仍使用匿名額度';
   }catch(e){
     el.textContent='FinMind TOKEN：狀態確認失敗（Worker 回應異常）';
