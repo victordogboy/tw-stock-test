@@ -43,4 +43,49 @@
     };
   }
   global.TWFinMindTokens={read,write,activeToken,headers,masked,bind,STORE_KEY};
+
+  // R20.4: R20.3 expanded the backend to five years but the research UI still
+  // initialized start to only 540 days ago. Keep the editable fields, but make
+  // the default a real five-calendar-year signal window.
+  const DAY=86400000;
+  const iso=d=>d.toISOString().slice(0,10);
+  function fiveYearStart(end){
+    const e=new Date(end+'T12:00:00Z'),d=new Date(e);d.setUTCFullYear(d.getUTCFullYear()-5);
+    const clamp=new Date(e.getTime()-1827*DAY);
+    return iso(d<clamp?clamp:d);
+  }
+  function fixResearchDates(){
+    if(!/strategy-regression-lab\.html$/.test(location.pathname))return;
+    const start=document.getElementById('start'),end=document.getElementById('end');
+    if(start&&end&&end.value){start.value=fiveYearStart(end.value);start.min='2010-07-01';start.max=end.value;}
+  }
+
+  // R20.4: old persisted scan/watch records can contain name=code. Rehydrate
+  // names from the current official universe, update live results, and persist
+  // the repaired records so the bug does not return after reload.
+  const validName=(name,code)=>{const s=clean(name);return !!s&&s!==String(code)&&!/^\d{4}$/.test(s)};
+  function repairNames(obj,names){
+    let changed=false;if(!obj||typeof obj!=='object')return false;
+    if(Array.isArray(obj)){for(const x of obj)changed=repairNames(x,names)||changed;return changed;}
+    const code=clean(obj.code||obj.stock_id);
+    if(/^\d{4}$/.test(code)&&names.has(code)&&!validName(obj.name,code)){obj.name=names.get(code);changed=true;}
+    for(const v of Object.values(obj))if(v&&typeof v==='object')changed=repairNames(v,names)||changed;
+    return changed;
+  }
+  function repairStore(storage,key,names){try{const raw=storage.getItem(key);if(!raw)return;const x=JSON.parse(raw);if(repairNames(x,names))storage.setItem(key,JSON.stringify(x));}catch{}}
+  async function fixScannerNames(){
+    if(!/scanner\.html$/.test(location.pathname))return;
+    try{
+      const r=await fetch('/api/market/universe?_r204='+Date.now(),{cache:'no-store'}),j=await r.json();
+      if(!r.ok||!j.ok||!Array.isArray(j.data))return;
+      const names=new Map(j.data.map(x=>[clean(x.code),clean(x.name)]).filter(([c,n])=>/^\d{4}$/.test(c)&&validName(n,c)));
+      if(!names.size)return;
+      repairStore(localStorage,'twq_scan_state_v1100',names);repairStore(sessionStorage,'twq_scan_state_v1100',names);repairStore(localStorage,'twq_watchsnap_v16',names);
+      try{if(typeof results!=='undefined'&&Array.isArray(results)){repairNames(results,names);if(typeof persistScan==='function')persistScan();if(typeof renderRankOnly==='function')renderRankOnly(typeof currentRank==='string'?currentRank:'entry');}}catch{}
+      try{if(typeof renderWatchlist==='function')renderWatchlist();}catch{}
+    }catch(e){console.warn('R20.4 name repair skipped',e);}
+  }
+  function r204Boot(){fixResearchDates();fixScannerNames();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',r204Boot,{once:true});else setTimeout(r204Boot,0);
+  global.TWR204={fiveYearStart,validName,repairNames};
 })(window);
