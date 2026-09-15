@@ -896,7 +896,8 @@ function r193Bars(raw,code,start,end){
 }
 async function r193History(request,env,url){
   const code=url.searchParams.get('code'),market=url.searchParams.get('market'),start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date'),provider=url.searchParams.get('source')||'auto';
-  if(!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1280||!['auto','finmind'].includes(provider))return json({ok:false,error:'無效個股、歷史期間或來源'},400);
+  // Five signal years plus the UI's 180-day indicator warm-up allowance.
+  if(!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>2010||!['auto','finmind'].includes(provider))return json({ok:false,error:'無效個股、歷史期間或來源（最多 5 年訊號期＋180 日暖機）'},400);
   if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET 查快取，POST 補齊'},405);
   const key=new Request(`${url.origin}/__research-history/r193/${provider}/${market}/${code}/${start}/${end}`);
   const cached=await caches.default.match(key);if(cached)return json({...await cached.json(),cache_hit:true});
@@ -942,7 +943,7 @@ function r196Validate(rows,kind,code,start,end){
 }
 async function r196ChipRoute(request,env,url){
   const code=url.searchParams.get('code'),market=url.searchParams.get('market'),start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date'),kind=url.searchParams.get('kind');
-  if(!r196Datasets[kind]||!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>1280)return json({ok:false,error:'無效籌碼參數'},400);
+  if(!r196Datasets[kind]||!/^\d{4}$/.test(code||'')||!['twse','tpex'].includes(market)||!start||!end||r19Date(start)!==start||r19Date(end)!==end||start>=end||end>=isoDateTaipei()||(Date.parse(end)-Date.parse(start))/86400000>2010)return json({ok:false,error:'無效籌碼參數（最多 5 年訊號期＋180 日暖機）'},400);
   if(!['GET','POST'].includes(request.method))return json({ok:false,error:'GET 查快取，POST 補齊'},405);
   const key=new Request(`${url.origin}/__research-chip/r196/${kind}/${market}/${code}/${start}/${end}`),cache=caches.default,hit=await cache.match(key);
   if(hit)return json({...await hit.json(),cache_hit:true});

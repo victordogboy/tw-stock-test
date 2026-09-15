@@ -26,9 +26,11 @@ function options(){
 function expected(o){const out=[];for(let d=o.warmupStart;d<=o.end;d=day(d,1)){const w=new Date(d+'T00:00:00Z').getUTCDay();if(w!==0&&w!==6)for(const market of o.markets)out.push({date:d,market});}return out;}
 function status(s,value){el('status').textContent=s;if(value!==undefined)el('progress').value=value;}
 function checkStop(){if(stopped)throw Error('已停止。已完成的資料仍可續接；未產生部分樣本的研究結論。');}
-function lock(on){busy=on;for(const id of ['check','build','chipsOnly','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource','researchToken','saveResearchToken','runPartial','goal','manualRun','loadBest','manualEntryThreshold','manualExitThreshold','manualMaxHold','manualMinVolume','manualMinAvgVolume','manualMinAvgValue','initialCapital','maxPositions','lotSize','loadBenchmark',...C.FEATURES.flatMap(f=>['manualEntry_'+f,'manualExit_'+f])]){if(el(id))el(id).disabled=on;};}
+function lock(on){busy=on;for(const id of ['check','build','chipsOnly','run','restore','backup','start','end','market','candidates','seed','minTrades','fee','tax','slippage','source','marketImport','universe','scoreMode','fixedStocks','poolDate','loadFutures','fixedSource','researchToken1','researchToken2','researchTokenActive','saveResearchTokens','runPartial','goal','manualRun','loadBest','manualEntryThreshold','manualExitThreshold','manualMaxHold','manualMinVolume','manualMinAvgVolume','manualMinAvgValue','initialCapital','maxPositions','lotSize','loadBenchmark',...C.FEATURES.flatMap(f=>['manualEntry_'+f,'manualExit_'+f])]){if(el(id))el(id).disabled=on;};}
 async function api(path,method='GET',body){
-  const token=localStorage.getItem('twq_finmind_token_v1')||'',headers={};if(token)headers.Authorization='Bearer '+token;if(body)headers['content-type']='application/json';
+  const headers=typeof TWFinMindTokens!=='undefined'?TWFinMindTokens.headers():{};
+  if(!headers.Authorization){const legacy=localStorage.getItem('twq_finmind_token_v1')||'';if(legacy)headers.Authorization='Bearer '+legacy}
+  if(body)headers['content-type']='application/json';
   const res=await fetch(path,{method,headers,body:body?JSON.stringify(body):undefined,cache:'no-store',signal:requestAbort?AbortSignal.any([requestAbort.signal,AbortSignal.timeout(90000)]):AbortSignal.timeout(90000)});
   let j;try{j=await res.json();}catch{throw Error('伺服器未回傳 JSON：'+res.status);}
   if(!res.ok||!j.ok){const message=j.error||'HTTP '+res.status;const e=Error((j.market&&j.date?`${j.market.toUpperCase()} ${j.date}：`:'')+message);e.status=res.status;e.code=j.code;e.reason=j.reason;throw e;}return j;
@@ -228,14 +230,7 @@ try{const saved=JSON.parse(localStorage.getItem('twq_research192_pool')||'null')
 function savePool(){try{localStorage.setItem('twq_research192_pool',JSON.stringify(Object.fromEntries(poolFields.map(k=>[k,el(k)?.value||'']))));}catch{status('名單設定儲存失敗，請另存名單。');}}
 for(const k of poolFields)if(el(k))el(k).onchange=savePool;
 
-if(el('researchToken')){
-  el('researchToken').value=localStorage.getItem('twq_finmind_token_v1')||'';
-  el('saveResearchToken').onclick=()=>{
-    const token=el('researchToken').value.trim();
-    if(!token){status('請輸入 FinMind API Token，不是帳號或密碼。');return;}
-    try{localStorage.setItem('twq_finmind_token_v1',token);status('Token 已儲存在此瀏覽器，研究請求將使用此 Token。未驗證帳戶額度；Token 不會包含在資料備份或結果匯出。');}catch{status('Token 儲存失敗，請檢查瀏覽器設定。');}
-  };
-}
+if(el('researchToken1')&&typeof TWFinMindTokens!=='undefined')TWFinMindTokens.bind({one:'researchToken1',two:'researchToken2',active:'researchTokenActive',save:'saveResearchTokens',clear:'unusedResearchTokenClear',onChange:async()=>status('兩組 Token 已儲存在此瀏覽器；研究請求將使用目前選定的一組。Token 不會包含在資料備份或結果匯出。')});
 
 async function chipState(data,o,mode){
   const stocks=o.chipsOnly?o.fixedStocks.map(id=>({id,market:id.split(':')[0],code:id.split(':')[1]})):requiredStocks(data,o),chips={},missing=[],diagnostics=[];
