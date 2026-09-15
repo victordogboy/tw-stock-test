@@ -311,6 +311,21 @@ function saveWatchlist(a){localStorage.setItem(WATCH_KEY,JSON.stringify([...new 
 function getSnaps(){try{return JSON.parse(localStorage.getItem(SNAP_KEY)||'{}')}catch(e){return {}}}
 function saveSnaps(x){localStorage.setItem(SNAP_KEY,JSON.stringify(x))}
 function isWatched(code){return getWatchlist().includes(String(code))}
+function validStockName(name,code){
+ const s=String(name||'').trim(),c=String(code||'').trim();
+ return !!s&&s!==c&&!/^\d{4}$/.test(s);
+}
+async function getWatchNameMap(){
+ try{
+   const j=await getJSON('/api/market/universe');
+   return new Map((j.data||[])
+     .map(x=>[String(x.code||'').trim(),String(x.name||'').trim()])
+     .filter(([code,name])=>/^\d{4}$/.test(code)&&validStockName(name,code)));
+ }catch(e){
+   console.warn('watch name lookup failed',e);
+   return new Map();
+ }
+}
 function toggleWatch(code){
  let a=getWatchlist(),c=String(code);
  a=a.includes(c)?a.filter(x=>x!==c):[...a,c];
@@ -359,6 +374,7 @@ async function updateWatchlist(){
  const list=getWatchlist(),body=$('watchRows'),status=$('watchStatus');
  if(!list.length){body.innerHTML='<tr><td colspan="11">尚未加入股票。可在排行榜按 ☆ 或進個股頁加入。</td></tr>';status.textContent='追蹤清單為空';return}
  status.textContent=`更新中 0/${list.length}…`;
+ const nameMap=await getWatchNameMap();
  const snaps=getSnaps(); let done=0, rows=[];
  for(const code of list){
    try{
@@ -368,7 +384,11 @@ async function updateWatchlist(){
      if((j.data||[]).length<180)throw new Error('歷史K不足');
      const sc=formalScore(j.data),lastbar=j.data.at(-1);
      const info=results.find(x=>String(x.code)===String(code))||{};
-     const cur={date:lastbar.date,close:lastbar.close,...sc,name:info.name||code};
+     const savedName=snaps[code]?.current?.name;
+     const name=nameMap.get(String(code))||
+       (validStockName(info.name,code)?String(info.name).trim():'')||
+       (validStockName(savedName,code)?String(savedName).trim():'')||code;
+     const cur={date:lastbar.date,close:lastbar.close,...sc,name};
      const old=snaps[code]?.current||null;
      if(!snaps[code] || snaps[code]?.current?.date!==cur.date){
        snaps[code]={previous:old,current:cur};
