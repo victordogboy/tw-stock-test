@@ -5,10 +5,10 @@
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-button,input{padding:10px;border-radius:9px;border:1px solid #394969}button{font-weight:800;cursor:pointer}
+button,input,select{padding:10px;border-radius:9px;border:1px solid #394969}button{font-weight:800;cursor:pointer}
 a.linkbtn{display:inline-block;padding:10px 13px;border-radius:9px;border:1px solid #4a6089;background:#203253;color:#eaf0ff;text-decoration:none;font-weight:900;margin-left:6px}
 a.linkbtn:hover{background:#2a426d}
-input{background:#0d1425;color:white;width:100%;box-sizing:border-box}.muted{color:#9eb0d1}.good{color:#65d99a}.bad{color:#ff7777}
+input,select{background:#0d1425;color:white;width:100%;box-sizing:border-box}.muted{color:#9eb0d1}.good{color:#65d99a}.bad{color:#ff7777}
 progress{width:100%;height:18px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px;border-bottom:1px solid #273451;text-align:right}
 th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}.pill{padding:3px 7px;border-radius:999px;background:#253454}
 .tabs button{width:auto;margin-right:6px}.small{font-size:12px}.warn{color:#ffd166}
@@ -41,6 +41,15 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。提供 Setup、Opportunity、Entry、Hold、Action，以及 Hold／Action 相較前一交易日的變化排行。盤中分數使用最新取得行情與估計收盤量。</p>
 
 <div class="card grid">
+<div><label for="scanType">掃描篩選依據</label><select id="scanType">
+<option value="setup">Setup｜型態品質</option>
+<option value="opportunity">Opportunity｜行情機會</option>
+<option value="entry" selected>Entry｜進場分數</option>
+<option value="hold">Hold｜續抱分數</option>
+<option value="action">Action｜四項加權</option>
+<option value="holdDelta">Hold 變化｜較前交易日</option>
+<option value="actionDelta">Action 變化｜較前交易日</option>
+</select><div class="small muted">依選定指標由高到低保留、重評；變化以分數差排序。切換依據後請重新掃描。</div></div>
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
 <div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
 <div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
@@ -106,6 +115,34 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <script>
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='entry';
+const SCAN_TYPES={setup:'Setup',opportunity:'Opportunity',entry:'Entry',hold:'Hold',action:'Action',holdDelta:'Hold 變化',actionDelta:'Action 變化'};
+const SCAN_TYPE_KEY='twq_scan_type_v1';
+let scanSelection='entry',scanSelectionWeights=null;
+function selectionScore(r){
+  if(scanSelection==='action')return TWAction.score(r,scanSelectionWeights);
+  if(scanSelection==='actionDelta')return TWAction.delta(r,r.previousScores,scanSelectionWeights);
+  if(scanSelection==='holdDelta'){
+    return Number.isFinite(r.hold)&&Number.isFinite(r.previousScores?.hold)?r.hold-r.previousScores.hold:null;
+  }
+  return Number.isFinite(r[scanSelection])?r[scanSelection]:null;
+}
+function selectCandidates(list,limit=Infinity){
+  return list.filter(r=>Number.isFinite(selectionScore(r)))
+    .sort((a,b)=>selectionScore(b)-selectionScore(a)||String(a.code).localeCompare(String(b.code)))
+    .slice(0,limit);
+}
+function setScanControlsBusy(busy){
+  $('scanType').disabled=busy;
+  for(const k of TWAction.keys)$('scanW_'+k).disabled=busy;
+}
+function initScanType(){
+  let saved;try{saved=localStorage.getItem(SCAN_TYPE_KEY)}catch(e){}
+  if(Object.hasOwn(SCAN_TYPES,saved))$('scanType').value=saved;
+  $('scanType').addEventListener('change',()=>{
+    try{localStorage.setItem(SCAN_TYPE_KEY,$('scanType').value)}catch(e){}
+    $('status').textContent='下次掃描將依 '+SCAN_TYPES[$('scanType').value]+' 篩選，請按「開始兩階段掃描」。';
+  });
+}
 let SCAN_FILTERS={minClose:10,maxClose:300,minLots:3000};
 const FINMIND_TOKEN_STORAGE_KEY='twq_finmind_token_v1';
 function getBrowserFinMindToken(){return String(localStorage.getItem(FINMIND_TOKEN_STORAGE_KEY)||'').trim()}
@@ -399,6 +436,7 @@ function buildPersistPayload(){
     version:'1.14.2',
     savedAt:Date.now(),
     currentRank,
+    scanSelection,scanSelectionWeights,
     results:slim,
     status:$('status')?.textContent||'',
     stats:$('stats')?.textContent||'',
@@ -423,9 +461,11 @@ function restoreScan(){
     if(!Array.isArray(p.results) || p.results.length===0) return false;
 
     results=p.results;
+    scanSelection=Object.hasOwn(SCAN_TYPES,p.scanSelection)?p.scanSelection:'entry';
+    scanSelectionWeights=p.scanSelectionWeights||TWAction.read();
     currentRank=p.currentRank||'entry';
 
-    if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${results.length} 檔`;
+    if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${SCAN_TYPES[scanSelection]} 篩選 · ${results.length} 檔`;
     if($('stats')) $('stats').textContent=p.stats||'';
     if($('prog')) $('prog').value=100;
 
@@ -596,7 +636,7 @@ async function formalizeListedOne(r){
       r._hist=hist;
       Object.assign(r,formalScore(hist));
       const last=hist.at(-1); r.close=twPrice(last.close); r.dataDate=last.date; r.decision=priceDecision(hist);
-      r.prelimScore=decisionScore(r,'entry'); r.stage1Provisional=false; r.formalPrice=true;
+      r.prelimScore=selectionScore(r); r.stage1Provisional=false; r.formalPrice=true;
       SCAN_FORMALIZED_COUNT++;
     }
   }catch(e){ r.formalPriceError=e.message||String(e); }
@@ -665,7 +705,7 @@ async function worker(item){
     if(SCAN_TARGET_DATE && String(rr.dataDate)!==String(SCAN_TARGET_DATE)){
       throw new Error(`Stage1日期不一致 ${rr.dataDate||'—'}（Target ${SCAN_TARGET_DATE}）`);
     }
-    rr.prelimScore=decisionScore(rr,'entry');
+    rr.prelimScore=selectionScore(rr);
     results.push(rr);
   }catch(e){
     errors.push(`${code}: ${e.message||e}`);
@@ -686,7 +726,14 @@ async function runPool(items,limit){
  await Promise.all(Array.from({length:limit},lane));
 }
 $('scanBtn').onclick=async()=>{
- if(scanBusy)return;scanBusy=true;$('scanBtn').disabled=true;$('refreshLiveBtn').disabled=true;
+ if(scanBusy)return;
+ const chosen=$('scanType').value;
+ if(!Object.hasOwn(SCAN_TYPES,chosen))return;
+ if((chosen==='action'||chosen==='actionDelta')&&!scanWeightsValid){
+   $('status').textContent='請先把 Action 四項權重合計調整為 100%，再開始掃描。';return;
+ }
+ scanSelection=chosen;scanSelectionWeights={...scanWeights};currentRank=chosen;
+ scanBusy=true;setScanControlsBusy(true);$('scanBtn').disabled=true;$('refreshLiveBtn').disabled=true;
  stopped=false;results=[];errors=[];$('prog').value=0; localStorage.removeItem(SCAN_STATE_KEY); sessionStorage.removeItem(SCAN_STATE_KEY);
  try{
   $('status').textContent='確認本輪市場資料日…';
@@ -750,43 +797,43 @@ $('scanBtn').onclick=async()=>{
   const firstStageProcessed=cand.length;
   const staleStage1=results.filter(r=>SCAN_TARGET_DATE&&String(r.dataDate)!==String(SCAN_TARGET_DATE));
   if(staleStage1.length) throw new Error(`內部檢查失敗：${staleStage1.length} 檔舊日期進入 Stage1`);
-  const qualified=[...results].sort((a,b)=>b.prelimScore-a.prelimScore);
+  const qualified=selectCandidates(results);
   let retained=qualified.slice(0,keepN);
 
   // Only the retained candidates hit TWSE exact-date formal history.
   // This fixes the 9/10 Stage1 bias without repeating R1's 2271-stock TWSE overload.
   $('prog').value=0;
-  $('status').textContent=`第一階段完成｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE})｜保留 ${retained.length}，開始正式日K重評…`;
+  $('status').textContent=`第一階段完成｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE})｜依 ${SCAN_TYPES[scanSelection]} 保留 ${retained.length}，開始正式日K重評…`;
   await formalizeListedPool(retained,Math.min(3,n($('concurrency').value,3)));
-  retained.sort((a,b)=>decisionScore(b,'entry')-decisionScore(a,'entry'));
+  retained=selectCandidates(retained);
 
   const topN=Math.max(1,Math.min(100,n($('finTopN').value,100),retained.length));
-  const top=retained.slice(0,topN);
+  const top=selectCandidates(retained,topN);
 
   // Price-only list is useful immediately. From this point the visible result set
   // is exactly the FinMind TopN; each completed recheck updates these same objects.
   results=top;
-  showRank('entry');
+  showRank(scanSelection);
   persistScan();
 
   $('prog').value=0;
   $('status').textContent=`第一階段完成｜先顯示 Price-only Top ${top.length}；TWSE＋FinMind 輔助籌碼開始漸進回刷，可立即查看排名`;
   await runFinmindTop(top,Math.min(3,n($('concurrency').value,3)));
-  showRank('entry');
+  showRank(scanSelection);
   $('prog').value=0;
   $('status').textContent=`籌碼完成，開始以現價重算四大分數 ${top.length} 檔…`;
   await runLiveCurrent(results,Math.max(2,Math.min(6,n($('concurrency').value,6))));
-  showRank('entry');
+  showRank(scanSelection);
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
   const partial=results.filter(x=>x.finmindCompleteness>0&&x.finmindCompleteness<100).length;
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R15 完成 · 全市場 → Entry保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R15 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').textContent=e.message}
- finally{scanBusy=false;$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
+ finally{scanBusy=false;setScanControlsBusy(false);$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
 };
 $('refreshLiveBtn').onclick=async()=>{
   if(scanBusy)return;
@@ -857,6 +904,7 @@ setInterval(()=>{if(document.visibilityState==='visible')updateWatchlist()},60*6
 // Restore previous Top100 automatically when returning from a stock detail page.
 restoreScan();
 initScanWeights();
+initScanType();
 
 bindFinMindTokenPanel();
 checkFinMindTokenStatus();
