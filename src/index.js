@@ -392,6 +392,109 @@ function roundTwPrice(price){
   const v=Math.round(p/tick)*tick;
   return Number(v.toFixed(tick<0.1?2:tick<1?1:0));
 }
+
+function twseMisNumber(value,{allowZero=false}={}){
+  if(value===null||value===undefined||value===''||value==='-')return null;
+  const n=Number(String(value).replaceAll(',',''));
+  return Number.isFinite(n)&&(allowZero?n>=0:n>0)?n:null;
+}
+
+function intradayValidationErrors(bar){
+  const errors=[];
+  for(const key of ['open','high','low','close']){
+    const value=Number(bar?.[key]);
+    if(!Number.isFinite(value)||value<=0)errors.push(`${key} missing/invalid`);
+  }
+  const {open,high,low,close}=bar||{};
+  if(Number.isFinite(low)&&Number.isFinite(high)&&low>high)errors.push('low > high');
+  if(Number.isFinite(open)&&Number.isFinite(high)&&open>high*1.002)errors.push('open > high');
+  if(Number.isFinite(open)&&Number.isFinite(low)&&open<low*.998)errors.push('open < low');
+  if(Number.isFinite(close)&&Number.isFinite(high)&&close>high*1.002)errors.push('close > high');
+  if(Number.isFinite(close)&&Number.isFinite(low)&&close<low*.998)errors.push('close < low');
+  const prevClose=Number(bar?.prev_close);
+  if(Number.isFinite(prevClose)&&prevClose>0&&Number.isFinite(close)){
+    const ratio=close/prevClose;
+    if(ratio<0.2||ratio>5)errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
+  }
+  return errors;
+}
+
+async function fetchTwseMisIntraday(code,market,attempts){
+  const exchanges=market==='tpex'?['otc','tse']:market==='twse'?['tse','otc']:['tse','otc'];
+  for(const exchange of exchanges){
+    const channel=`${exchange}_${code}.tw`;
+    try{
+      const upstream=`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${encodeURIComponent(channel)}&json=1&delay=0&_=${Date.now()}`;
+      const response=await fetch(upstream,{
+        headers:{
+          accept:'application/json,text/plain,*/*',
+          referer:'https://mis.twse.com.tw/stock/index.jsp',
+          'user-agent':'Mozilla/5.0 (compatible; tw-stock-api/1.17)'
+        },
+        signal:AbortSignal.timeout(6000)
+      });
+      const attempt={source:'TWSE MIS',host:'mis.twse.com.tw',channel,status:response.status};
+      attempts.push(attempt);
+      if(!response.ok)continue;
+      const payload=await response.json();
+      const row=(Array.isArray(payload?.msgArray)?payload.msgArray:[])
+        .find(x=>String(x?.c||'').trim()===String(code));
+      if(!row){attempt.error='stock not found on channel';continue}
+
+      const closeRaw=twseMisNumber(row.z)??twseMisNumber(row.trade?.z)??twseMisNumber(row.pz);
+      if(closeRaw===null){attempt.error='latest trade price unavailable';continue}
+      const openRaw=twseMisNumber(row.o)??closeRaw;
+      const highRaw=Math.max(...[twseMisNumber(row.h),openRaw,closeRaw].filter(Number.isFinite));
+      const lowRaw=Math.min(...[twseMisNumber(row.l),openRaw,closeRaw].filter(Number.isFinite));
+      const dateRaw=String(row.d||row['^']||'').replace(/\D/g,'');
+      if(!/^\d{8}$/.test(dateRaw)){attempt.error='invalid quote date';continue}
+      const date=`${dateRaw.slice(0,4)}-${dateRaw.slice(4,6)}-${dateRaw.slice(6,8)}`;
+      const lastTime=String(row.t||row['%']||row.trade?.t||'').trim();
+      const time=/^\d{2}:\d{2}:\d{2}$/.test(lastTime)?lastTime:null;
+      const millis=twseMisNumber(row.tlong);
+      const lastTimestamp=millis!==null
+        ?Math.floor(millis/1000)
+        :(time?Math.floor(new Date(`${date}T${time}+08:00`).getTime()/1000):null);
+      const prevCloseRaw=twseMisNumber(row.y);
+      const close=roundTwPrice(closeRaw),prevClose=roundTwPrice(prevCloseRaw);
+      const lots=twseMisNumber(row.v,{allowZero:true})??0;
+      const bar={
+        date,
+        open:roundTwPrice(openRaw),
+        high:roundTwPrice(highRaw),
+        low:roundTwPrice(lowRaw),
+        close,
+        volume:Math.round(lots*1000),
+        last_time:time,
+        last_timestamp:lastTimestamp,
+        prev_close:prevClose,
+        change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,
+        change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,
+        symbol:`${code}.${exchange==='otc'?'TWO':'TW'}`
+      };
+      const validationErrors=intradayValidationErrors(bar);
+      if(validationErrors.length){attempt.validation_errors=validationErrors;continue}
+      const session=taipeiSessionState();
+      return {
+        ok:true,
+        quote_valid:true,
+        validation_errors:[],
+        source:'TWSE MIS official realtime fallback',
+        symbol:bar.symbol,
+        bar,
+        points:1,
+        attempts,
+        market_state:session.is_open?'REGULAR':'CLOSED',
+        session_open:session.is_open&&date===session.date,
+        session_date:session.date,
+        fallback_from:'Yahoo Finance 1m intraday'
+      };
+    }catch(e){
+      attempts.push({source:'TWSE MIS',host:'mis.twse.com.tw',channel,error:String(e?.message||e)});
+    }
+  }
+  return null;
+}
 async function fetchTwseMonthlyHistory(code,startDate,endDate){
   const attempts=[], rows=[];
   let cursor=new Date(startDate.slice(0,7)+"-01T12:00:00+08:00");
@@ -1177,8 +1280,10 @@ async function routeApi(request, env, url) {
   if (url.pathname === "/api/intraday") {
     const code=url.searchParams.get("code")||"2330";
     const market=url.searchParams.get("market")||"";
+    if(!/^\d{4}$/.test(String(code)))return json({ok:false,error:'invalid stock code'},400);
     const suffixes=market==="tpex"?[".TWO",".TW"]:market==="twse"?[".TW",".TWO"]:[".TW",".TWO"];
     const attempts=[];
+    let officialTried=false;
     const pos=v=>{
       if(v===null||v===undefined||v==='')return null;
       const n=Number(v);
@@ -1191,10 +1296,17 @@ async function routeApi(request, env, url) {
     };
     for(const suffix of suffixes){
       const symbol=String(code)+suffix;
-      for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
+      const hosts=["query1.finance.yahoo.com","query2.finance.yahoo.com"];
+      for(let hostIndex=0;hostIndex<hosts.length;hostIndex++){
+        if(hostIndex>0&&!officialTried){
+          officialTried=true;
+          const official=await fetchTwseMisIntraday(code,market,attempts);
+          if(official)return json(official,200,{"cache-control":"no-store"});
+        }
+        const host=hosts[hostIndex];
         try{
           const u=`https://${host}/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m&includePrePost=false`;
-          const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"}});
+          const r=await fetch(u,{headers:{"accept":"application/json,text/plain,*/*","user-agent":"Mozilla/5.0 Chrome/131"},signal:AbortSignal.timeout(5000)});
           attempts.push({host,symbol,status:r.status});
           if(!r.ok) continue;
           const j=await r.json(),z=j?.chart?.result?.[0],ts=z?.timestamp||[],q=z?.indicators?.quote?.[0]||{};
@@ -1215,27 +1327,27 @@ async function routeApi(request, env, url) {
           const highPool=[...highs,openRaw,closeRaw].filter(v=>v!==null),lowPool=[...lows,openRaw,closeRaw].filter(v=>v!==null);
           const highRaw=highPool.length?Math.max(...highPool):null,lowRaw=lowPool.length?Math.min(...lowPool):null;
           const open=openRaw===null?null:roundTwPrice(openRaw),high=highRaw===null?null:roundTwPrice(highRaw),low=lowRaw===null?null:roundTwPrice(lowRaw),close=roundTwPrice(closeRaw),prevClose=prev===null?null:roundTwPrice(prev);
-          const validation_errors=[];
-          for(const [k,v] of Object.entries({open,high,low,close}))if(!Number.isFinite(Number(v))||Number(v)<=0)validation_errors.push(`${k} missing/invalid`);
-          if(Number.isFinite(low)&&Number.isFinite(high)&&low>high)validation_errors.push('low > high');
-          if(Number.isFinite(open)&&Number.isFinite(high)&&open>high*1.002)validation_errors.push('open > high');
-          if(Number.isFinite(open)&&Number.isFinite(low)&&open<low*.998)validation_errors.push('open < low');
-          if(Number.isFinite(close)&&Number.isFinite(high)&&close>high*1.002)validation_errors.push('close > high');
-          if(Number.isFinite(close)&&Number.isFinite(low)&&close<low*.998)validation_errors.push('close < low');
-          if(Number.isFinite(prevClose)&&prevClose>0&&Number.isFinite(close)){
-            const ratio=close/prevClose;
-            if(ratio<0.2||ratio>5)validation_errors.push(`price scale anomaly ratio=${ratio.toFixed(3)}`);
-          }
           const bar={date:latestDay,open,high,low,close,volume:rows.reduce((s,x)=>s+x.volume,0),last_time:time(last.t),last_timestamp:last.t,prev_close:prevClose,change:Number.isFinite(prevClose)?roundTwPrice(close-prevClose):null,change_pct:Number.isFinite(prevClose)&&prevClose!==0?(close-prevClose)/prevClose*100:null,symbol};
+          const validation_errors=intradayValidationErrors(bar);
           const session=taipeiSessionState();
-          return json({
+          const quote={
             ok:true,quote_valid:validation_errors.length===0,validation_errors,
             source:'Yahoo Finance 1m intraday',symbol,bar,points:rows.length,attempts,
             market_state:meta.marketState||null,
             session_open:session.is_open && latestDay===session.date,
             session_date:session.date
-          },200,{"cache-control":"no-store"});
+          };
+          if(!validation_errors.length)return json(quote,200,{"cache-control":"no-store"});
+          attempts.push({host,symbol,error:'quote validation failed',validation_errors});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
+        // Yahoo is intermittently rate-limited around the Taiwan open. Try the
+        // exchange realtime service after the first Yahoo failure instead of
+        // waiting for every Yahoo host/suffix to fail and returning a blanket 502.
+        if(!officialTried){
+          officialTried=true;
+          const official=await fetchTwseMisIntraday(code,market,attempts);
+          if(official)return json(official,200,{"cache-control":"no-store"});
+        }
       }
     }
     return json({ok:false,error:'intraday unavailable',attempts},502,{"cache-control":"no-store"});
