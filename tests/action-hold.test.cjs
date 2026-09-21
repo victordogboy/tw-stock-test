@@ -45,6 +45,22 @@ ctx.fixture=changed;
 const updated=vm.runInContext('formalScore(fixture)',ctx);
 assert.equal(JSON.stringify(updated.previousScores),JSON.stringify(current.previousScores),
   'today price must not change prior-session baseline');
+
+// Hold must react to projected/current volume versus the previous trading day's actual volume.
+const normalVol=rows.map(x=>({...x}));
+ctx.fixture=normalVol;
+const normalHold=vm.runInContext('formalScore(fixture)',ctx);
+const surgeVol=normalVol.map(x=>({...x}));
+surgeVol.at(-1).volume=surgeVol.at(-2).volume*2.05;
+ctx.fixture=surgeVol;
+const surgeHold=vm.runInContext('formalScore(fixture)',ctx);
+assert.ok(surgeHold.hold>=normalHold.hold,
+  'projected volume surge should not reduce Hold');
+const engineDetail=vm.runInContext('entryEngine(formalObjects(fixture).rows, formalObjects(fixture).R)',ctx);
+assert.ok(engineDetail.holdVolumeRatio>=2,
+  'Hold volume ratio must compare today/projected volume with prior actual volume');
+assert.equal(engineDetail.holdVolumeBonus,10,
+  '>=2x projected-vs-prior volume should add the maximum Hold volume bonus');
 ctx.futureChips={inst:[{date:'2099-01-01',Foreign_Investor_buy:1e15}]};
 assert.equal(JSON.stringify(vm.runInContext('formalScore(fixture,futureChips)',ctx)),JSON.stringify(updated),
   'future chip rows must be excluded');
