@@ -801,19 +801,7 @@ function entryEngine(rows,R){
     state='事件型試單';position='5–10%';
   }
 
-  // Hold is independent: existing-position survivability plus same-day volume confirmation.
-  // Scanner intraday bars already carry projected close volume, so this compares projected
-  // today's volume with the previous trading day's ACTUAL volume without future lookahead.
-  const prevVolume=Number(prev.volume)||0;
-  const holdVolumeRatio=prevVolume>0 ? Number(cur.volume)/prevVolume : null;
-  let holdVolumeBonus=0;
-  if(Number.isFinite(holdVolumeRatio)){
-    if(holdVolumeRatio>=2.0) holdVolumeBonus=10;
-    else if(holdVolumeRatio>=1.5) holdVolumeBonus=7;
-    else if(holdVolumeRatio>=1.2) holdVolumeBonus=4;
-    else if(holdVolumeRatio<0.6) holdVolumeBonus=-4;
-  }
-
+  // V1.9.1 Hold is independent: existing-position survivability only.
   let hold=0;
   if(!a.hardBroken) hold+=25;
   if(close>=a.ma20) hold+=18;
@@ -824,13 +812,12 @@ function entryEngine(rows,R){
   if(ma5turn) hold+=6;
   if(hl) hold+=8;
   if(a.risk<=7) hold+=5;
-  hold+=holdVolumeBonus;
   if(a.bias>22) hold-=10;
   if(a.hardBroken) hold-=30;
   hold=clamp(Math.round(hold),0,100);
 
   return {
-    score,state,position,phase,hold,holdVolumeRatio,holdVolumeBonus,triggers,penalties,
+    score,state,position,phase,hold,triggers,penalties,
     opportunity,entryQuality,confirmation,effectiveConfirmation,persistence,eventAge,followBoost,followReasons,chasePenalty:chase,chaseReasons,
     route: opportunity>=entryQuality+8?'事件/機會型':'結構/價格型',
     // UI compatibility

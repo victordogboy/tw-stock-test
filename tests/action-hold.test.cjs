@@ -24,6 +24,7 @@ assert.equal(A.delta({hold:95},null,holdOnly),null);
 assert.equal(A.save(weights),true);
 assert.equal(A.read().hold,40);
 assert.equal(A.save({...weights,hold:41}),false);
+vm.runInContext(read('public/hold-change.js'),ctx);
 vm.runInContext(read('public/v44-engine.js'),ctx);
 const scanner = scripts(read('public/scanner.html')).at(-1);
 vm.runInContext(scanner.slice(0,scanner.indexOf('const WATCH_KEY=')),ctx);
@@ -46,7 +47,8 @@ const updated=vm.runInContext('formalScore(fixture)',ctx);
 assert.equal(JSON.stringify(updated.previousScores),JSON.stringify(current.previousScores),
   'today price must not change prior-session baseline');
 
-// Hold must react to projected/current volume versus the previous trading day's actual volume.
+// The original Hold and its delta remain unchanged when only volume changes.
+// Volume confirmation belongs exclusively to the new change metric.
 const normalVol=rows.map(x=>({...x}));
 ctx.fixture=normalVol;
 const normalHold=vm.runInContext('formalScore(fixture)',ctx);
@@ -54,15 +56,15 @@ const surgeVol=normalVol.map(x=>({...x}));
 surgeVol.at(-1).volume=surgeVol.at(-2).volume*2.05;
 ctx.fixture=surgeVol;
 const surgeHold=vm.runInContext('formalScore(fixture)',ctx);
-assert.ok(surgeHold.hold>=normalHold.hold,
-  'projected volume surge should not reduce Hold');
-const engineDetail=vm.runInContext('entryEngine(formalObjects(fixture).rows, formalObjects(fixture).R)',ctx);
-assert.ok(engineDetail.holdVolumeRatio>=2,
-  'Hold volume ratio must compare today/projected volume with prior actual volume');
-assert.equal(engineDetail.holdVolumeBonus,10,
-  '>=2x projected-vs-prior volume should add the maximum Hold volume bonus');
+assert.equal(surgeHold.hold,normalHold.hold,'volume must not change original Hold');
+assert.equal(surgeHold.holdDelta,normalHold.holdDelta,'volume must not change original ΔHold');
+assert.equal(surgeHold.holdVolumeBonus,10);
+assert.equal(surgeHold.holdVolumeDelta,surgeHold.holdDelta+10);
+assert.equal(surgeHold.holdVolumeRatio,2.05);
+assert.equal(JSON.stringify(surgeHold.previousScores),JSON.stringify(normalHold.previousScores),
+  'today volume must not change previous-session scores');
 ctx.futureChips={inst:[{date:'2099-01-01',Foreign_Investor_buy:1e15}]};
-assert.equal(JSON.stringify(vm.runInContext('formalScore(fixture,futureChips)',ctx)),JSON.stringify(updated),
+assert.equal(JSON.stringify(vm.runInContext('formalScore(fixture,futureChips)',ctx)),JSON.stringify(surgeHold),
   'future chip rows must be excluded');
 assert.equal(vm.runInContext("scanDelta({hold:99,previousScores:{hold:90}},'holdDelta')",ctx),9);
 for(const file of ['public/scanner.html','public/detail.html']){

@@ -1115,7 +1115,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.14.2",
+      version: "1.17.0-R21",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1943,12 +1943,12 @@ export default {
     if (env.ASSETS) {
       const asset = await env.ASSETS.fetch(request);
       const path = new URL(request.url).pathname;
-      if (path.endsWith(".html") || path === "/" || path === "/scanner.html" || path === "/detail.html") {
+      if (path.endsWith(".html") || path === "/" || path === "/scanner.html" || path === "/detail.html" || path === "/scanner" || path === "/detail") {
         const headers = new Headers(asset.headers);
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.14.2");
+        headers.set("X-App-Version","1.17.0-R21");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
