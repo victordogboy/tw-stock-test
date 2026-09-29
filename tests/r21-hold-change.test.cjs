@@ -6,7 +6,7 @@ const read=p=>fs.readFileSync(p,'utf8');
 const context=()=>{
   const ctx=vm.createContext({console:{warn(){}},document:{getElementById(){return null}},localStorage:{getItem(){return null}}});
   for(const file of ['public/action-score.js','public/hold-change.js','public/v44-engine.js'])vm.runInContext(read(file),ctx);
-  const scanner=[...read('public/scanner.html').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].at(-1)[1];
+  const scanner=[...read('public/scanner.html').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].filter(m=>m[1].trim()).at(-1)[1];
   vm.runInContext(scanner.slice(0,scanner.indexOf('const WATCH_KEY=')),ctx);
   return ctx;
 };

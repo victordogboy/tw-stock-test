@@ -1,0 +1,61 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const root=path.join(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const html=read('tests/fixtures/taifex-stockLists-2026-09-23.html');
+const snapshot=JSON.parse(read('data/stock-futures-2026-09-23.json'));
+const cached=new Map();
+const ctx=vm.createContext({console,Request,Response,Headers,URL,AbortController,setTimeout,clearTimeout,fetch:async()=>new Response(html),caches:{default:{match:async k=>cached.get(k.url)?.clone(),put:async(k,v)=>cached.set(k.url,v.clone())}}});
+vm.runInContext(read('src/index.js').replace('export default {','const exportedWorker = {'),ctx);
+ctx.html=html;
+const evaluate=s=>vm.runInContext(s,ctx);
+const plain=x=>JSON.parse(JSON.stringify(x));
+(async()=>{
+  assert.deepEqual(plain(evaluate('parseTaifexStockFuturesCodes(html)')),snapshot.codes);
+  assert.equal(snapshot.codes.length,249);
+  assert.ok(snapshot.codes.includes('2368'));
+  assert.equal(snapshot.contracts.filter(x=>x.code==='2368').length,2);
+  // Embedded tags/entities must not drop a stock; contract size must not become a code.
+  ctx.decorated=html.replace(/>2368<\/td>/g,'><a><span>&#50;368</span></a></td>');
+  assert.deepEqual(plain(evaluate('parseTaifexStockFuturesCodes(decorated)')),snapshot.codes);
+  const header='<tr><th>證券代號</th><th>是否為股票期貨標的</th><th>上市普通股標的證券</th><th>上櫃普通股標的證券</th><th>股數</th></tr>';
+  ctx.extra=html+`<table>${header}<tr><td>9999</td><td></td><td>◎</td><td></td><td>2000</td></tr><tr><td>8888</td><td>●</td><td></td><td></td><td>1000</td></tr></table>`;
+  assert.deepEqual(plain(evaluate('parseTaifexStockFuturesCodes(extra)')),snapshot.codes);
+  assert.throws(()=>evaluate("parseTaifexStockFuturesCodes('<table><tr><td>2368</td></tr></table>')"),/完整度異常/);
+  ctx.partial=html.slice(0,html.indexOf('>RK</td>'));
+  assert.throws(()=>evaluate('parseTaifexStockFuturesCodes(partial)'),/完整度異常/);
+  // Official updates may remove members: never blindly union an old snapshot.
+  ctx.removed=html.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi,row=>/>2368<\/td>/.test(row)?'':row);
+  assert.equal(evaluate('parseTaifexStockFuturesCodes(removed).includes("2368")'),false);
+  const request=()=>evaluate("routeApi(new Request('https://test/api/futures/stock-list'),{},new URL('https://test/api/futures/stock-list'))");
+  cached.set('https://test/__cache/taifex-stock-futures',new Response(JSON.stringify({codes:['9999']})));
+  let response=await request(),result=await response.json();
+  assert.equal(result.source,'TAIFEX official');assert.ok(result.codes.includes('2368'));
+  assert.equal(result.list_version,'r22');assert.equal(response.headers.get('cache-control'),'public,max-age=21600');
+  cached.delete('https://test/__cache/taifex-stock-futures-r22');
+  ctx.fetch=async()=>{throw new Error('offline')};
+  response=await request();result=await response.json();
+  assert.equal(result.source,'last known official');assert.equal(result.degraded,true);
+  assert.equal(response.headers.get('cache-control'),'public,max-age=300');assert.ok(result.codes.includes('2368'));
+  cached.clear();response=await request();result=await response.json();
+  assert.equal(result.source,'embedded official snapshot');assert.deepEqual(result.codes,snapshot.codes);
+  // Browser failure/old deployments use the same snapshot, never an empty list.
+  vm.runInContext(read('public/stock-futures.js'),ctx);
+  result=await evaluate('TWStockFutures.load()');assert.deepEqual(plain(result.codes),snapshot.codes);
+  ctx.fetch=async()=>new Response(JSON.stringify({ok:true,codes:snapshot.codes}));
+  result=await evaluate('TWStockFutures.load()');assert.equal(result.degraded,true);
+  ctx.fetch=async()=>new Response(JSON.stringify({ok:true,list_version:'r22',codes:snapshot.codes.filter(c=>c!=='2368'),source:'TAIFEX official',degraded:false}));
+  result=await evaluate('TWStockFutures.load()');assert.equal(result.codes.includes('2368'),false);
+  // Execute the real scanner worker: futures waive only the upper price filter.
+  const scan=read('public/scanner.html');
+  const worker=scan.slice(scan.indexOf('async function worker(item){'),scan.indexOf('async function runPool'));
+  vm.runInContext(worker,ctx);
+  Object.assign(ctx,{n:(x,d=0)=>Number.isFinite(Number(x))?Number(x):d,errors:[],results:[],SCAN_TARGET_DATE:'2026-09-23',selectionScore:()=>80,SCAN_FILTERS:{minClose:10,maxClose:300,minLots:3000},stage1CurrentHistory:async()=>({hist:[{date:'2026-09-23',close:1000,volume:4000000}],provisional:false}),formalScore:()=>({setup:80,opportunity:80,entry:80,hold:80}),twPrice:x=>x,priceDecision:()=>({})});
+  await evaluate("worker({code:'2368',hasFutures:true})");
+  assert.equal(ctx.results.length,1);assert.equal(ctx.results[0].code,'2368');
+  await evaluate("worker({code:'9999',hasFutures:false})");
+  assert.equal(ctx.results.length,1);assert.match(ctx.errors.at(-1),/超過最高股價/);
+  ctx.SCAN_FILTERS.minLots=5000;
+  await evaluate("worker({code:'2368',hasFutures:true})");
+  assert.equal(ctx.results.length,1);assert.match(ctx.errors.at(-1),/低於最低成交量/);
+  console.log('R22 passed: official 249-stock snapshot, parser, duplicates, exclusions, removals, cache migration, offline fallback, browser fallback, scanner price/volume gates');
+})().catch(e=>{console.error(e);process.exitCode=1});

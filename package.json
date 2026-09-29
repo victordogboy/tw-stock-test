@@ -3,9 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "devDependencies": {
-    "wrangler": "^4.102.0"
+    "wrangler": "^4.102.0",
+    "esbuild": "0.28.1",
+    "miniflare": "5.20260926.0-alpha",
+    "playwright": "1.62.1"
   },
   "scripts": {
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "build:scan": "node scripts/build-scan-runtime.cjs",
+    "test:scan": "node scripts/build-scan-runtime.cjs --check && node --test tests/background-scan.test.mjs tests/r21-hold-change.test.cjs tests/r21-page-integration.test.cjs tests/r22-futures.test.cjs tests/action-hold.test.cjs tests/intraday-official-fallback.test.cjs tests/r203-dual-token-five-year.test.cjs tests/scanner-watch-name.test.cjs",
+    "test:scan:browser": "node --test tests/background-browser.test.cjs"
   }
 }

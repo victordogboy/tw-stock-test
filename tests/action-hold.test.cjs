@@ -26,7 +26,7 @@ assert.equal(A.read().hold,40);
 assert.equal(A.save({...weights,hold:41}),false);
 vm.runInContext(read('public/hold-change.js'),ctx);
 vm.runInContext(read('public/v44-engine.js'),ctx);
-const scanner = scripts(read('public/scanner.html')).at(-1);
+const scanner = scripts(read('public/scanner.html')).filter(s=>s.trim()).at(-1);
 vm.runInContext(scanner.slice(0,scanner.indexOf('const WATCH_KEY=')),ctx);
 const rows = [];
 for(let i=0;rows.length<200;i++){

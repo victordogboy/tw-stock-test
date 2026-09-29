@@ -1,6 +1,6 @@
 {
   "name": "tw-stock-api",
-  "main": "src/index.js",
+  "main": "src/worker.mjs",
   "compatibility_date": "2026-09-10",
   "assets": {
     "directory": "./public",
@@ -11,5 +11,21 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SCAN_JOBS",
+        "class_name": "ScanJob"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "r23-scan-jobs-v1",
+      "new_sqlite_classes": [
+        "ScanJob"
+      ]
+    }
+  ]
 }
