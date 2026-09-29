@@ -18,7 +18,7 @@ const rows=Array.from({length:220},(_,i)=>{const c=30+i*.05+Math.sin(i/4);return
 rows.at(-1).volume=8000000;
 const date=rows.at(-1).date;
 const options={selection:'holdVolumeDelta',maxStocks:4,finTopN:3,minLots:3000};
-const request=(method='GET',id='12345678-1234-4321-1234-123456789012')=>new Request('https://test/api/scan/job',{method,headers:{'x-finmind-token':'private-test-token'},...(method==='POST'?{body:JSON.stringify({id,options})}:{})});
+const request=(method='GET',id='12345678-1234-4321-1234-123456789012')=>new Request('https://test/api/scan/job',{method,headers:{authorization:'Bearer private-test-token'},...(method==='POST'?{body:JSON.stringify({id,options})}:{})});
 function setup(){
  const storage=new Storage(),ctx={storage,blockConcurrencyWhile:fn=>fn()},calls=[];
  const api=async req=>{
