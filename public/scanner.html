@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 Scan｜V1.17.0-R23｜手機背景掃描</title>
+<title>台股 Scan｜V1.17.0-R23.1｜手機背景掃描</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -31,8 +31,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .release-note{padding:12px;border:1px solid #68a8ff;border-radius:10px;background:#152b49;color:#d9eaff;line-height:1.6}.hold-up{color:#ff8585}.hold-down{color:#65d99a}.hold-change-cell{min-width:175px}.hold-change-cell small{display:block;line-height:1.5;margin-top:4px}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 Scan｜V1.17.0-R23｜手機背景掃描</h1>
-<p class="release-note"><b>R23 更新｜2026-09-29｜手機背景掃描</b>　開始後由伺服器分批執行，可切換 App、鎖定螢幕或關閉分頁；回來自動讀取進度與結果。請等畫面顯示「伺服器已接收」再離開。結果保留 24 小時，開啟後另存此瀏覽器。</p>
+<h1>台股 Scan｜V1.17.0-R23.1｜手機背景掃描</h1>
+<p class="release-note"><b>R23.1 更新｜2026-09-29｜修復手機儲存額度</b>　開始後由伺服器分批執行，可切換 App、鎖定螢幕或關閉分頁；回來自動讀取進度與結果。請等畫面顯示「伺服器已接收」再離開。結果保留 24 小時；本機快取空間不足時，仍可繼續掃描並從伺服器取回結果。</p>
 <div id="futuresStatus" class="small muted">期貨名單：待載入</div>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
@@ -450,7 +450,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.17.0-R23',
+    version:'1.17.0-R23.1',
     savedAt:Date.now(),
     backgroundJobId:window.__backgroundScanJobId||null,
     backgroundJobComplete:!!window.__backgroundScanJobComplete,
@@ -462,14 +462,13 @@ function buildPersistPayload(){
     progress:Number($('prog')?.value||0)
   };
 }
-function persistScan(){
-  if(!Array.isArray(results) || results.length===0) return;
-  try{
-    const raw=JSON.stringify(buildPersistPayload());
-    localStorage.setItem(SCAN_STATE_KEY,raw);
-    sessionStorage.setItem(SCAN_STATE_KEY,raw);
-  }catch(e){
-    console.warn('persistScan failed',e);
+function persistScan(allowEmpty=false){
+  if(!Array.isArray(results)||(!results.length&&allowEmpty!==true))return;
+  let raw;try{raw=JSON.stringify(buildPersistPayload())}catch{return}
+  // Optional caches must never block submitting, polling, or displaying a server job.
+  // Treat the two independent quotas separately; do not clear user-owned settings.
+  for(const storageName of ['localStorage','sessionStorage']){
+    try{window[storageName].setItem(SCAN_STATE_KEY,raw)}catch{}
   }
 }
 function restoreScan(){
@@ -491,7 +490,7 @@ function restoreScan(){
     scanSelectionWeights=p.scanSelectionWeights||TWAction.read();
     currentRank=p.currentRank||'entry';
 
-    if(!['1.17.0-R22','1.17.0-R23'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
+    if(!['1.17.0-R22','1.17.0-R23','1.17.0-R23.1'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
     if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${SCAN_TYPES[scanSelection]} 篩選 · ${results.length} 檔${results.some(r=>r.holdNeedsRefresh)?'｜舊版 Hold 待重算，請按「更新榜單盤中行情」':''}`;
     if($('stats')) $('stats').textContent=p.stats||'';
     if($('prog')) $('prog').value=100;
@@ -954,4 +953,4 @@ initScanType();
 bindFinMindTokenPanel();
 checkFinMindTokenStatus();
 </script>
-<script src="/background-scan.js?r23"></script></main></body></html>
+<script src="/background-scan.js?r23-1"></script></main></body></html>

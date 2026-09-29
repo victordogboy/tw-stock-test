@@ -3,7 +3,7 @@ const {Miniflare,convertV4MiniflareOptions}=require('miniflare'),{build}=require
 const {chromium}=require('playwright');
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http');
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
-test('real Durable Object alarms complete after mobile tab closes; reopened page restores job and watchlist', {timeout:90000},async()=>{
+for(const scenario of ['normal','quota-existing-key','quota-new-key','quota-empty-result','quota-no-persistent-storage'])test('mobile background resume: '+scenario, {timeout:90000},async()=>{
  const bundle=await build({entryPoints:['tests/fixtures/background-worker.mjs'],bundle:true,format:'esm',platform:'browser',write:false});
  const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-09-10',durableObjects:{SCAN_JOBS:{className:'ScanJob',useSQLite:true}}}));
  const server=http.createServer(async(req,res)=>{
@@ -24,22 +24,51 @@ test('real Durable Object alarms complete after mobile tab closes; reopened page
   const context=await browser.newContext({viewport:{width:393,height:852},isMobile:true,deviceScaleFactor:1});
   let page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const url='http://127.0.0.1:'+server.address().port+'/scanner';await page.goto(url);
-  await page.evaluate(()=>localStorage.setItem('twq_watchlist_v16','["2368"]'));
+  await page.evaluate(()=>{
+   localStorage.setItem('twq_watchlist_v16','["2368"]');
+   localStorage.setItem('twq_finmind_tokens_v2',JSON.stringify({tokens:['test-token-one','test-token-two'],active:1}));
+  });
   await page.selectOption('#scanType','holdVolumeDelta');await page.fill('#maxStocks','4');await page.fill('#finTopN','3');
-  await page.click('#scanBtn');await page.waitForFunction(()=>document.getElementById('status').textContent.includes('伺服器已接收'));
-  const key=await page.evaluate(()=>localStorage.getItem('twq_background_scan_key_r23'));
+  if(scenario==='quota-empty-result')await page.fill('#minLots','999999');
+  if(scenario.startsWith('quota')){
+   await page.evaluate(scenario=>{
+    if(scenario==='quota-existing-key')localStorage.setItem('twq_background_scan_key_r23','a'.repeat(64));
+    for(const storage of [localStorage,sessionStorage]){
+     for(const size of [100000,10000,1000,100,10,1]){
+      for(let i=0;i<100;i++){try{storage.setItem('fixture-cache-'+size+'-'+i,'x'.repeat(size))}catch{break}}
+     }
+    }
+    if(scenario==='quota-no-persistent-storage')Object.defineProperty(window,'indexedDB',{value:undefined});
+    let threw=false;try{localStorage.setItem('twq_background_scan_pending_r23','12345678-1234-4321-1234-123456789012')}catch{threw=true}
+    if(!threw)throw Error('Quota fixture did not reproduce the reported pending-record failure');
+   },scenario);
+  }
+  let submittedKey=null;page.on('request',req=>{if(req.method()==='POST'&&req.url().includes('/api/scan/job'))submittedKey=req.headers()['x-scan-key']});
+  await page.click('#scanBtn');
+  if(scenario==='quota-no-persistent-storage'){
+   await page.waitForFunction(()=>document.getElementById('status').textContent.includes('尚未送出掃描'));
+   assert.equal(submittedKey,null);assert.equal(await page.locator('#scanBtn').isEnabled(),true);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('twq_watchlist_v16')),'["2368"]');
+   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_finmind_tokens_v2'))),{tokens:['test-token-one','test-token-two'],active:1});
+   assert.deepEqual(errors,[]);return;
+  }
+  await page.waitForFunction(()=>document.getElementById('status').textContent.includes('伺服器已接收'));
+  const key=submittedKey;assert.match(key,/^[a-f0-9]{64}$/);
+  if(scenario==='quota-existing-key')assert.equal(key,'a'.repeat(64));
+  if(scenario==='quota-new-key')assert.equal(await page.evaluate(()=>localStorage.getItem('twq_background_scan_key_r23')),null);
   // No page, polling, or network client drives these alarms.
   await page.close();await pause(8000);
   const check=await mf.dispatchFetch('http://127.0.0.1:'+server.address().port+'/api/scan/job',{headers:{'x-scan-key':key}});
-  const job=(await check.json()).job;assert.equal(job.phase,'completed');assert.equal(job.scanned,7);assert.equal(job.results.length,3);
+  const job=(await check.json()).job;assert.equal(job.phase,'completed');assert.equal(job.scanned,7);assert.equal(job.results.length,scenario==='quota-empty-result'?0:3);
   page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(url);
   await page.waitForFunction(()=>document.getElementById('status').textContent.includes('背景掃描完成'));
-  assert.equal(await page.locator('#rows tr').count(),3);
+  assert.equal(await page.locator('#rows tr').count(),scenario==='quota-empty-result'?0:3);
   assert.equal(await page.evaluate(()=>localStorage.getItem('twq_watchlist_v16')),'["2368"]');
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_finmind_tokens_v2'))),{tokens:['test-token-one','test-token-two'],active:1});
   assert.equal(await page.locator('#scanBtn').isEnabled(),true);
   assert.equal(await page.locator('#scanType').inputValue(),'holdVolumeDelta');
   assert.equal(await page.locator('#rankTabs button.active').getAttribute('data-rank'),'holdVolumeDelta');
   assert.deepEqual(errors,[]);
-  await page.screenshot({path:'/workspace/scratch/989fcec3388e/r23-mobile.png',fullPage:true});
+
  }finally{await browser?.close();await new Promise(r=>server.close(r));await mf.dispose()}
 });

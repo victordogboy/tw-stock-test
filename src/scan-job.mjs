@@ -54,7 +54,7 @@ export function createScanJobClass(api){return class ScanJob {
    let input,options;
    try{input=JSON.parse(body);options=validateOptions(input.options);if(!/^[a-f0-9-]{20,64}$/.test(input.id||''))throw Error('工作識別碼不正確')}catch(e){return reply({ok:false,error:e.message},400)}
    if(old&&(ACTIVE.has(old.phase)||old.id===input.id))return reply(await this.snapshot(old));
-   const token=request.headers.get('x-finmind-token')||'';
+   const token=request.headers.get('x-finmind-token')||((request.headers.get('authorization')||'').match(/^Bearer\s+(.+)$/i)?.[1]||'');
    if(token.length>4096||/[\r\n]/.test(token))return reply({ok:false,error:'Token 格式不正確'},400);
    await storage.deleteAll();
    const s={id:input.id,phase:'initializing',options,origin:new URL(request.url).origin,createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+TTL,ranked:[],errors:[],cursor:0,retries:0,message:'伺服器已接收，正在準備掃描'};
