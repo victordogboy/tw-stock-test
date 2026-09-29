@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R21｜Hold 變化比較</title>
+<title>台股個股分析｜V1.17.0-R22｜期貨名單修正</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -125,8 +125,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R21｜Hold 變化比較</h1>
-      <p class="release-note"><b>R21 更新｜2026-09-21</b>　原始 Hold 變化與「Hold 變化＋預估量變化」並列顯示。</p>
+      <h1>台股個股分析｜V1.17.0-R22｜期貨名單修正</h1>
+      <p class="release-note"><b>R22 更新｜2026-09-23</b>　修正股票期貨名單、官方解析與斷線備援；保留兩種 Hold 變化。更新後請重新執行全市場掃描。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -336,8 +336,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 
 <script src="/finmind-token-manager.js"></script>
 <script src="/action-score.js"></script>
+<script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
 <script>
+let DETAIL_FUTURES_LIST=TWStockFutures.fallback();
 const MARKET=new URL(location.href).searchParams.get('market')||'twse';
 
 'use strict';
@@ -1550,7 +1552,7 @@ function render(){
     status=R.bottom.stage; statusCls=R.bottom.cls;
   }
   $('summary').innerHTML=`
-    <div class="card"><div class="label">股票 / 審計日</div><div class="big">${STATE.stock.stock_id} ${STATE.stock.stock_name}<span id="detailFuturesBadge" class="detail-futures-badge" style="display:none">股票期貨標的</span></div><div class="sub">${date}｜收盤 ${fmt(cur.close)}｜${STATE.stock.type||'—'}</div>
+    <div class="card"><div class="label">股票 / 審計日</div><div class="big">${STATE.stock.stock_id} ${STATE.stock.stock_name}<span id="detailFuturesBadge" class="detail-futures-badge" style="display:${DETAIL_FUTURES_LIST.codes.includes(TWStockFutures.normalize(STATE.stock.stock_id))?'inline-block':'none'}">股票期貨標的</span></div><div class="sub">${date}｜收盤 ${fmt(cur.close)}｜${STATE.stock.type||'—'}</div>
       <span class="kbadge ${cur.close>cur.open?'k-up':cur.close<cur.open?'k-down':'k-flat'}">${cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─'}｜O ${fmt(cur.open)} / H ${fmt(cur.high)} / L ${fmt(cur.low)} / C ${fmt(cur.close)}</span>
     </div>
     <div class="card"><div class="label">Setup｜型態品質</div><div class="big ${qg[1]}">${R.quality}</div><div class="sub">底部 ${R.bottom.score}｜發動 ${R.ignition.score}｜趨勢 ${a.score}</div></div>
@@ -1969,7 +1971,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R21 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R22 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;
@@ -1988,16 +1990,12 @@ $('backScannerBtn').addEventListener('click',()=>{
 async function refreshFuturesBadge(){
   const code=String(STATE.stock?.stock_id||new URL(location.href).searchParams.get('code')||'');
   if(!code)return;
-  let has=new URL(location.href).searchParams.get('futures')==='1';
-  if(!has){
-    try{
-      const r=await fetch('/api/futures/stock-list',{cache:'force-cache'});
-      const j=await r.json();
-      has=Array.isArray(j.codes)&&j.codes.includes(code);
-    }catch{}
-  }
+  const j=await TWStockFutures.load();
+  DETAIL_FUTURES_LIST=j;
+  const currentCode=STATE.stock?.stock_id||new URL(location.href).searchParams.get('code')||'';
+  const has=j.codes.includes(TWStockFutures.normalize(currentCode));
   const b=$('detailFuturesBadge');
-  if(b) b.style.display=has?'inline-block':'none';
+  if(b){b.style.display=has?'inline-block':'none';b.title=TWStockFutures.describe(j)}
 }
 setTimeout(refreshFuturesBadge,700);
 

@@ -1,0 +1,1737 @@
+{
+  "verified_at": "2026-09-23",
+  "source_url": "https://www.taifex.com.tw/cht/2/stockLists",
+  "codes": [
+    "1101",
+    "1102",
+    "1210",
+    "1216",
+    "1301",
+    "1303",
+    "1312",
+    "1314",
+    "1319",
+    "1326",
+    "1402",
+    "1440",
+    "1476",
+    "1477",
+    "1503",
+    "1504",
+    "1513",
+    "1519",
+    "1536",
+    "1560",
+    "1565",
+    "1590",
+    "1605",
+    "1608",
+    "1609",
+    "1717",
+    "1718",
+    "1722",
+    "1795",
+    "1802",
+    "1904",
+    "1905",
+    "1907",
+    "1909",
+    "2002",
+    "2006",
+    "2027",
+    "2049",
+    "2059",
+    "2105",
+    "2201",
+    "2231",
+    "2301",
+    "2303",
+    "2308",
+    "2312",
+    "2313",
+    "2317",
+    "2323",
+    "2324",
+    "2327",
+    "2328",
+    "2329",
+    "2330",
+    "2331",
+    "2332",
+    "2337",
+    "2338",
+    "2340",
+    "2344",
+    "2345",
+    "2347",
+    "2352",
+    "2353",
+    "2354",
+    "2355",
+    "2356",
+    "2357",
+    "2360",
+    "2367",
+    "2368",
+    "2371",
+    "2376",
+    "2377",
+    "2379",
+    "2382",
+    "2383",
+    "2385",
+    "2388",
+    "2392",
+    "2393",
+    "2395",
+    "2401",
+    "2404",
+    "2408",
+    "2409",
+    "2412",
+    "2421",
+    "2439",
+    "2441",
+    "2449",
+    "2454",
+    "2455",
+    "2457",
+    "2458",
+    "2474",
+    "2481",
+    "2485",
+    "2486",
+    "2489",
+    "2492",
+    "2498",
+    "2515",
+    "2520",
+    "2542",
+    "2548",
+    "2603",
+    "2605",
+    "2606",
+    "2609",
+    "2610",
+    "2615",
+    "2618",
+    "2633",
+    "2634",
+    "2801",
+    "2834",
+    "2880",
+    "2881",
+    "2882",
+    "2883",
+    "2884",
+    "2885",
+    "2886",
+    "2887",
+    "2890",
+    "2891",
+    "2892",
+    "2913",
+    "2915",
+    "3005",
+    "3006",
+    "3008",
+    "3017",
+    "3019",
+    "3034",
+    "3035",
+    "3036",
+    "3037",
+    "3042",
+    "3044",
+    "3045",
+    "3078",
+    "3081",
+    "3105",
+    "3152",
+    "3189",
+    "3211",
+    "3227",
+    "3231",
+    "3260",
+    "3264",
+    "3293",
+    "3324",
+    "3374",
+    "3376",
+    "3380",
+    "3406",
+    "3443",
+    "3481",
+    "3529",
+    "3532",
+    "3533",
+    "3552",
+    "3653",
+    "3661",
+    "3665",
+    "3673",
+    "3680",
+    "3691",
+    "3702",
+    "3706",
+    "3711",
+    "3714",
+    "3718",
+    "4123",
+    "4128",
+    "4162",
+    "4736",
+    "4743",
+    "4904",
+    "4919",
+    "4938",
+    "4958",
+    "5009",
+    "5269",
+    "5274",
+    "5347",
+    "5388",
+    "5425",
+    "5457",
+    "5483",
+    "5534",
+    "5871",
+    "5876",
+    "5880",
+    "5904",
+    "6005",
+    "6116",
+    "6121",
+    "6139",
+    "6147",
+    "6153",
+    "6173",
+    "6176",
+    "6182",
+    "6188",
+    "6213",
+    "6223",
+    "6239",
+    "6245",
+    "6257",
+    "6269",
+    "6271",
+    "6274",
+    "6278",
+    "6279",
+    "6282",
+    "6285",
+    "6290",
+    "6414",
+    "6443",
+    "6472",
+    "6488",
+    "6505",
+    "6510",
+    "6526",
+    "6547",
+    "6669",
+    "6757",
+    "6770",
+    "8039",
+    "8044",
+    "8046",
+    "8069",
+    "8086",
+    "8112",
+    "8150",
+    "8163",
+    "8299",
+    "8358",
+    "8436",
+    "8932",
+    "9904",
+    "9914",
+    "9938",
+    "9939",
+    "9945",
+    "9958"
+  ],
+  "contracts": [
+    {
+      "contract": "CA",
+      "code": "1303",
+      "name": "南亞"
+    },
+    {
+      "contract": "CB",
+      "code": "2002",
+      "name": "中鋼"
+    },
+    {
+      "contract": "CC",
+      "code": "2303",
+      "name": "聯電"
+    },
+    {
+      "contract": "CD",
+      "code": "2330",
+      "name": "台積電"
+    },
+    {
+      "contract": "CE",
+      "code": "2881",
+      "name": "富邦金"
+    },
+    {
+      "contract": "CF",
+      "code": "1301",
+      "name": "台塑"
+    },
+    {
+      "contract": "CG",
+      "code": "2324",
+      "name": "仁寶"
+    },
+    {
+      "contract": "CH",
+      "code": "2409",
+      "name": "友達"
+    },
+    {
+      "contract": "CJ",
+      "code": "2880",
+      "name": "華南金"
+    },
+    {
+      "contract": "CK",
+      "code": "2882",
+      "name": "國泰金"
+    },
+    {
+      "contract": "CL",
+      "code": "2886",
+      "name": "兆豐金"
+    },
+    {
+      "contract": "CM",
+      "code": "2887",
+      "name": "台新新光金"
+    },
+    {
+      "contract": "CN",
+      "code": "2891",
+      "name": "中信金"
+    },
+    {
+      "contract": "CQ",
+      "code": "1216",
+      "name": "統一"
+    },
+    {
+      "contract": "CR",
+      "code": "1402",
+      "name": "遠東新"
+    },
+    {
+      "contract": "CS",
+      "code": "1605",
+      "name": "華新"
+    },
+    {
+      "contract": "CU",
+      "code": "2323",
+      "name": "中環"
+    },
+    {
+      "contract": "CW",
+      "code": "2352",
+      "name": "佳世達"
+    },
+    {
+      "contract": "CX",
+      "code": "2371",
+      "name": "大同"
+    },
+    {
+      "contract": "CY",
+      "code": "2408",
+      "name": "南亞科"
+    },
+    {
+      "contract": "CZ",
+      "code": "2603",
+      "name": "長榮"
+    },
+    {
+      "contract": "DA",
+      "code": "2609",
+      "name": "陽明"
+    },
+    {
+      "contract": "DB",
+      "code": "2610",
+      "name": "華航"
+    },
+    {
+      "contract": "DC",
+      "code": "2801",
+      "name": "彰銀"
+    },
+    {
+      "contract": "DE",
+      "code": "2890",
+      "name": "永豐金"
+    },
+    {
+      "contract": "DF",
+      "code": "1101",
+      "name": "台泥"
+    },
+    {
+      "contract": "DG",
+      "code": "1326",
+      "name": "台化"
+    },
+    {
+      "contract": "DH",
+      "code": "2317",
+      "name": "鴻海"
+    },
+    {
+      "contract": "DI",
+      "code": "2337",
+      "name": "旺宏"
+    },
+    {
+      "contract": "DJ",
+      "code": "2357",
+      "name": "華碩"
+    },
+    {
+      "contract": "DK",
+      "code": "2382",
+      "name": "廣達"
+    },
+    {
+      "contract": "DL",
+      "code": "2412",
+      "name": "中華電"
+    },
+    {
+      "contract": "DN",
+      "code": "2884",
+      "name": "玉山金"
+    },
+    {
+      "contract": "DO",
+      "code": "2885",
+      "name": "元大金"
+    },
+    {
+      "contract": "DP",
+      "code": "2892",
+      "name": "第一金"
+    },
+    {
+      "contract": "DQ",
+      "code": "3481",
+      "name": "群創"
+    },
+    {
+      "contract": "DS",
+      "code": "2353",
+      "name": "宏碁"
+    },
+    {
+      "contract": "DV",
+      "code": "2454",
+      "name": "聯發科"
+    },
+    {
+      "contract": "DW",
+      "code": "2915",
+      "name": "潤泰全"
+    },
+    {
+      "contract": "DX",
+      "code": "3231",
+      "name": "緯創"
+    },
+    {
+      "contract": "DY",
+      "code": "1102",
+      "name": "亞泥"
+    },
+    {
+      "contract": "DZ",
+      "code": "1210",
+      "name": "大成"
+    },
+    {
+      "contract": "EE",
+      "code": "1312",
+      "name": "國喬"
+    },
+    {
+      "contract": "EG",
+      "code": "1314",
+      "name": "中石化"
+    },
+    {
+      "contract": "EH",
+      "code": "1319",
+      "name": "東陽"
+    },
+    {
+      "contract": "EK",
+      "code": "1440",
+      "name": "南紡"
+    },
+    {
+      "contract": "EM",
+      "code": "1504",
+      "name": "東元"
+    },
+    {
+      "contract": "EO",
+      "code": "1560",
+      "name": "中砂"
+    },
+    {
+      "contract": "EP",
+      "code": "1590",
+      "name": "亞德客-KY"
+    },
+    {
+      "contract": "EY",
+      "code": "1718",
+      "name": "中纖"
+    },
+    {
+      "contract": "EZ",
+      "code": "1722",
+      "name": "台肥"
+    },
+    {
+      "contract": "FB",
+      "code": "2006",
+      "name": "東和鋼鐵"
+    },
+    {
+      "contract": "FE",
+      "code": "2027",
+      "name": "大成鋼"
+    },
+    {
+      "contract": "FF",
+      "code": "2049",
+      "name": "上銀"
+    },
+    {
+      "contract": "FG",
+      "code": "2059",
+      "name": "川湖"
+    },
+    {
+      "contract": "FK",
+      "code": "2105",
+      "name": "正新"
+    },
+    {
+      "contract": "FN",
+      "code": "2201",
+      "name": "裕隆"
+    },
+    {
+      "contract": "FQ",
+      "code": "2301",
+      "name": "光寶科"
+    },
+    {
+      "contract": "FR",
+      "code": "2308",
+      "name": "台達電"
+    },
+    {
+      "contract": "FS",
+      "code": "2312",
+      "name": "金寶"
+    },
+    {
+      "contract": "FT",
+      "code": "2313",
+      "name": "華通"
+    },
+    {
+      "contract": "FV",
+      "code": "2331",
+      "name": "精英"
+    },
+    {
+      "contract": "FW",
+      "code": "2332",
+      "name": "友訊"
+    },
+    {
+      "contract": "FY",
+      "code": "2340",
+      "name": "台亞"
+    },
+    {
+      "contract": "FZ",
+      "code": "2344",
+      "name": "華邦電"
+    },
+    {
+      "contract": "GA",
+      "code": "2347",
+      "name": "聯強"
+    },
+    {
+      "contract": "GC",
+      "code": "2354",
+      "name": "鴻準"
+    },
+    {
+      "contract": "GH",
+      "code": "2376",
+      "name": "技嘉"
+    },
+    {
+      "contract": "GI",
+      "code": "2377",
+      "name": "微星"
+    },
+    {
+      "contract": "GJ",
+      "code": "2379",
+      "name": "瑞昱"
+    },
+    {
+      "contract": "GK",
+      "code": "2385",
+      "name": "群光"
+    },
+    {
+      "contract": "GL",
+      "code": "2392",
+      "name": "正崴"
+    },
+    {
+      "contract": "GM",
+      "code": "2393",
+      "name": "億光"
+    },
+    {
+      "contract": "GN",
+      "code": "2401",
+      "name": "凌陽"
+    },
+    {
+      "contract": "GO",
+      "code": "2404",
+      "name": "漢唐"
+    },
+    {
+      "contract": "GR",
+      "code": "2449",
+      "name": "京元電子"
+    },
+    {
+      "contract": "GU",
+      "code": "2455",
+      "name": "全新"
+    },
+    {
+      "contract": "GV",
+      "code": "2457",
+      "name": "飛宏"
+    },
+    {
+      "contract": "GW",
+      "code": "2458",
+      "name": "義隆"
+    },
+    {
+      "contract": "GX",
+      "code": "2474",
+      "name": "可成"
+    },
+    {
+      "contract": "GY",
+      "code": "2481",
+      "name": "強茂"
+    },
+    {
+      "contract": "GZ",
+      "code": "2485",
+      "name": "兆赫"
+    },
+    {
+      "contract": "HA",
+      "code": "2489",
+      "name": "瑞軒"
+    },
+    {
+      "contract": "HB",
+      "code": "2492",
+      "name": "華新科"
+    },
+    {
+      "contract": "HC",
+      "code": "2498",
+      "name": "宏達電"
+    },
+    {
+      "contract": "HH",
+      "code": "2515",
+      "name": "中工"
+    },
+    {
+      "contract": "HI",
+      "code": "2520",
+      "name": "冠德"
+    },
+    {
+      "contract": "HL",
+      "code": "2542",
+      "name": "興富發"
+    },
+    {
+      "contract": "HO",
+      "code": "2548",
+      "name": "華固"
+    },
+    {
+      "contract": "HQ",
+      "code": "2605",
+      "name": "新興"
+    },
+    {
+      "contract": "HS",
+      "code": "2618",
+      "name": "長榮航"
+    },
+    {
+      "contract": "IA",
+      "code": "2834",
+      "name": "臺企銀"
+    },
+    {
+      "contract": "IH",
+      "code": "2913",
+      "name": "農林"
+    },
+    {
+      "contract": "II",
+      "code": "3006",
+      "name": "晶豪科"
+    },
+    {
+      "contract": "IJ",
+      "code": "3008",
+      "name": "大立光"
+    },
+    {
+      "contract": "IM",
+      "code": "3019",
+      "name": "亞光"
+    },
+    {
+      "contract": "IO",
+      "code": "3034",
+      "name": "聯詠"
+    },
+    {
+      "contract": "IP",
+      "code": "3035",
+      "name": "智原"
+    },
+    {
+      "contract": "IQ",
+      "code": "3036",
+      "name": "文曄"
+    },
+    {
+      "contract": "IR",
+      "code": "3037",
+      "name": "欣興"
+    },
+    {
+      "contract": "IT",
+      "code": "3042",
+      "name": "晶技"
+    },
+    {
+      "contract": "IX",
+      "code": "3189",
+      "name": "景碩"
+    },
+    {
+      "contract": "IY",
+      "code": "3376",
+      "name": "新日興"
+    },
+    {
+      "contract": "IZ",
+      "code": "3380",
+      "name": "明泰"
+    },
+    {
+      "contract": "JB",
+      "code": "3443",
+      "name": "創意"
+    },
+    {
+      "contract": "JF",
+      "code": "3533",
+      "name": "嘉澤"
+    },
+    {
+      "contract": "JM",
+      "code": "3653",
+      "name": "健策"
+    },
+    {
+      "contract": "JN",
+      "code": "3673",
+      "name": "TPK-KY"
+    },
+    {
+      "contract": "JP",
+      "code": "3702",
+      "name": "大聯大"
+    },
+    {
+      "contract": "JS",
+      "code": "4938",
+      "name": "和碩"
+    },
+    {
+      "contract": "JW",
+      "code": "5534",
+      "name": "長虹"
+    },
+    {
+      "contract": "JX",
+      "code": "6005",
+      "name": "群益證"
+    },
+    {
+      "contract": "JZ",
+      "code": "6153",
+      "name": "嘉聯益"
+    },
+    {
+      "contract": "KA",
+      "code": "6176",
+      "name": "瑞儀"
+    },
+    {
+      "contract": "KB",
+      "code": "6213",
+      "name": "聯茂"
+    },
+    {
+      "contract": "KC",
+      "code": "6239",
+      "name": "力成"
+    },
+    {
+      "contract": "KD",
+      "code": "6271",
+      "name": "同欣電"
+    },
+    {
+      "contract": "KE",
+      "code": "6278",
+      "name": "台表科"
+    },
+    {
+      "contract": "KF",
+      "code": "6282",
+      "name": "康舒"
+    },
+    {
+      "contract": "KG",
+      "code": "6285",
+      "name": "啟碁"
+    },
+    {
+      "contract": "KI",
+      "code": "8039",
+      "name": "台虹"
+    },
+    {
+      "contract": "KK",
+      "code": "8163",
+      "name": "達方"
+    },
+    {
+      "contract": "KL",
+      "code": "9904",
+      "name": "寶成"
+    },
+    {
+      "contract": "KO",
+      "code": "9939",
+      "name": "宏全"
+    },
+    {
+      "contract": "KP",
+      "code": "9945",
+      "name": "潤泰新"
+    },
+    {
+      "contract": "KS",
+      "code": "1477",
+      "name": "聚陽"
+    },
+    {
+      "contract": "KU",
+      "code": "1802",
+      "name": "台玻"
+    },
+    {
+      "contract": "KW",
+      "code": "2328",
+      "name": "廣宇"
+    },
+    {
+      "contract": "LB",
+      "code": "3044",
+      "name": "健鼎"
+    },
+    {
+      "contract": "LC",
+      "code": "3045",
+      "name": "台灣大"
+    },
+    {
+      "contract": "LE",
+      "code": "3406",
+      "name": "玉晶光"
+    },
+    {
+      "contract": "LI",
+      "code": "6269",
+      "name": "台郡"
+    },
+    {
+      "contract": "LM",
+      "code": "9914",
+      "name": "美利達"
+    },
+    {
+      "contract": "LO",
+      "code": "5880",
+      "name": "合庫金"
+    },
+    {
+      "contract": "LQ",
+      "code": "2356",
+      "name": "英業達"
+    },
+    {
+      "contract": "LR",
+      "code": "2883",
+      "name": "凱基金"
+    },
+    {
+      "contract": "LT",
+      "code": "4904",
+      "name": "遠傳"
+    },
+    {
+      "contract": "LU",
+      "code": "4958",
+      "name": "臻鼎-KY"
+    },
+    {
+      "contract": "LV",
+      "code": "5871",
+      "name": "中租-KY"
+    },
+    {
+      "contract": "LW",
+      "code": "1476",
+      "name": "儒鴻"
+    },
+    {
+      "contract": "LX",
+      "code": "2327",
+      "name": "國巨*"
+    },
+    {
+      "contract": "LY",
+      "code": "8046",
+      "name": "南電"
+    },
+    {
+      "contract": "MB",
+      "code": "2355",
+      "name": "敬鵬"
+    },
+    {
+      "contract": "MJ",
+      "code": "2360",
+      "name": "致茂"
+    },
+    {
+      "contract": "MK",
+      "code": "2439",
+      "name": "美律"
+    },
+    {
+      "contract": "MQ",
+      "code": "6257",
+      "name": "矽格"
+    },
+    {
+      "contract": "MV",
+      "code": "9938",
+      "name": "百和"
+    },
+    {
+      "contract": "MY",
+      "code": "1565",
+      "name": "精華"
+    },
+    {
+      "contract": "NA",
+      "code": "3105",
+      "name": "穩懋"
+    },
+    {
+      "contract": "NB",
+      "code": "3152",
+      "name": "璟德"
+    },
+    {
+      "contract": "NC",
+      "code": "3211",
+      "name": "順達"
+    },
+    {
+      "contract": "ND",
+      "code": "3260",
+      "name": "威剛"
+    },
+    {
+      "contract": "NE",
+      "code": "3264",
+      "name": "欣銓"
+    },
+    {
+      "contract": "NG",
+      "code": "3691",
+      "name": "碩禾"
+    },
+    {
+      "contract": "NI",
+      "code": "4123",
+      "name": "晟德"
+    },
+    {
+      "contract": "NJ",
+      "code": "5009",
+      "name": "榮剛"
+    },
+    {
+      "contract": "NL",
+      "code": "5347",
+      "name": "世界"
+    },
+    {
+      "contract": "NO",
+      "code": "5483",
+      "name": "中美晶"
+    },
+    {
+      "contract": "NQ",
+      "code": "6121",
+      "name": "新普"
+    },
+    {
+      "contract": "NS",
+      "code": "6147",
+      "name": "頎邦"
+    },
+    {
+      "contract": "NU",
+      "code": "8044",
+      "name": "網家"
+    },
+    {
+      "contract": "NV",
+      "code": "8069",
+      "name": "元太"
+    },
+    {
+      "contract": "NW",
+      "code": "8299",
+      "name": "群聯"
+    },
+    {
+      "contract": "OD",
+      "code": "2231",
+      "name": "為升"
+    },
+    {
+      "contract": "OE",
+      "code": "6116",
+      "name": "彩晶"
+    },
+    {
+      "contract": "OH",
+      "code": "6279",
+      "name": "胡連"
+    },
+    {
+      "contract": "OL",
+      "code": "3008",
+      "name": "大立光"
+    },
+    {
+      "contract": "OM",
+      "code": "1565",
+      "name": "精華"
+    },
+    {
+      "contract": "OP",
+      "code": "2345",
+      "name": "智邦"
+    },
+    {
+      "contract": "OQ",
+      "code": "6414",
+      "name": "樺漢"
+    },
+    {
+      "contract": "OR",
+      "code": "1536",
+      "name": "和大"
+    },
+    {
+      "contract": "OS",
+      "code": "1909",
+      "name": "榮成"
+    },
+    {
+      "contract": "OT",
+      "code": "3081",
+      "name": "聯亞"
+    },
+    {
+      "contract": "OU",
+      "code": "3552",
+      "name": "同致"
+    },
+    {
+      "contract": "OV",
+      "code": "6274",
+      "name": "台燿"
+    },
+    {
+      "contract": "OW",
+      "code": "6488",
+      "name": "環球晶"
+    },
+    {
+      "contract": "OX",
+      "code": "6510",
+      "name": "精測"
+    },
+    {
+      "contract": "OY",
+      "code": "6510",
+      "name": "精測"
+    },
+    {
+      "contract": "OZ",
+      "code": "3711",
+      "name": "日月光投控"
+    },
+    {
+      "contract": "PA",
+      "code": "3227",
+      "name": "原相"
+    },
+    {
+      "contract": "PB",
+      "code": "6488",
+      "name": "環球晶"
+    },
+    {
+      "contract": "PC",
+      "code": "4162",
+      "name": "智擎"
+    },
+    {
+      "contract": "PD",
+      "code": "4736",
+      "name": "泰博"
+    },
+    {
+      "contract": "PE",
+      "code": "5425",
+      "name": "台半"
+    },
+    {
+      "contract": "PG",
+      "code": "2633",
+      "name": "台灣高鐵"
+    },
+    {
+      "contract": "PH",
+      "code": "5269",
+      "name": "祥碩"
+    },
+    {
+      "contract": "PI",
+      "code": "3529",
+      "name": "力旺"
+    },
+    {
+      "contract": "PJ",
+      "code": "2383",
+      "name": "台光電"
+    },
+    {
+      "contract": "PK",
+      "code": "6173",
+      "name": "信昌電"
+    },
+    {
+      "contract": "PL",
+      "code": "6182",
+      "name": "合晶"
+    },
+    {
+      "contract": "PM",
+      "code": "8436",
+      "name": "大江"
+    },
+    {
+      "contract": "PN",
+      "code": "5269",
+      "name": "祥碩"
+    },
+    {
+      "contract": "PP",
+      "code": "5457",
+      "name": "宣德"
+    },
+    {
+      "contract": "PQ",
+      "code": "8358",
+      "name": "金居"
+    },
+    {
+      "contract": "PR",
+      "code": "8086",
+      "name": "宏捷科"
+    },
+    {
+      "contract": "PS",
+      "code": "3706",
+      "name": "神達"
+    },
+    {
+      "contract": "PT",
+      "code": "3324",
+      "name": "雙鴻"
+    },
+    {
+      "contract": "PU",
+      "code": "2454",
+      "name": "聯發科"
+    },
+    {
+      "contract": "PV",
+      "code": "6669",
+      "name": "緯穎"
+    },
+    {
+      "contract": "PW",
+      "code": "6669",
+      "name": "緯穎"
+    },
+    {
+      "contract": "PX",
+      "code": "3293",
+      "name": "鈊象"
+    },
+    {
+      "contract": "PY",
+      "code": "3293",
+      "name": "鈊象"
+    },
+    {
+      "contract": "PZ",
+      "code": "5274",
+      "name": "信驊"
+    },
+    {
+      "contract": "QA",
+      "code": "5274",
+      "name": "信驊"
+    },
+    {
+      "contract": "QB",
+      "code": "3714",
+      "name": "富采"
+    },
+    {
+      "contract": "QC",
+      "code": "2606",
+      "name": "裕民"
+    },
+    {
+      "contract": "QD",
+      "code": "3532",
+      "name": "台勝科"
+    },
+    {
+      "contract": "QE",
+      "code": "2327",
+      "name": "國巨*"
+    },
+    {
+      "contract": "QF",
+      "code": "2330",
+      "name": "台積電"
+    },
+    {
+      "contract": "QG",
+      "code": "2379",
+      "name": "瑞昱"
+    },
+    {
+      "contract": "QH",
+      "code": "3034",
+      "name": "聯詠"
+    },
+    {
+      "contract": "QI",
+      "code": "3105",
+      "name": "穩懋"
+    },
+    {
+      "contract": "QJ",
+      "code": "3406",
+      "name": "玉晶光"
+    },
+    {
+      "contract": "QK",
+      "code": "1907",
+      "name": "永豐餘"
+    },
+    {
+      "contract": "QL",
+      "code": "3374",
+      "name": "精材"
+    },
+    {
+      "contract": "QM",
+      "code": "2049",
+      "name": "上銀"
+    },
+    {
+      "contract": "QN",
+      "code": "8299",
+      "name": "群聯"
+    },
+    {
+      "contract": "QO",
+      "code": "1717",
+      "name": "長興"
+    },
+    {
+      "contract": "QP",
+      "code": "1904",
+      "name": "正隆"
+    },
+    {
+      "contract": "QQ",
+      "code": "3078",
+      "name": "僑威"
+    },
+    {
+      "contract": "QR",
+      "code": "2357",
+      "name": "華碩"
+    },
+    {
+      "contract": "QS",
+      "code": "8046",
+      "name": "南電"
+    },
+    {
+      "contract": "QT",
+      "code": "2441",
+      "name": "超豐"
+    },
+    {
+      "contract": "QU",
+      "code": "8150",
+      "name": "南茂"
+    },
+    {
+      "contract": "QV",
+      "code": "2338",
+      "name": "光罩"
+    },
+    {
+      "contract": "QW",
+      "code": "2388",
+      "name": "威盛"
+    },
+    {
+      "contract": "QX",
+      "code": "2615",
+      "name": "萬海"
+    },
+    {
+      "contract": "QY",
+      "code": "6547",
+      "name": "高端疫苗"
+    },
+    {
+      "contract": "QZ",
+      "code": "6770",
+      "name": "力積電"
+    },
+    {
+      "contract": "RA",
+      "code": "3017",
+      "name": "奇鋐"
+    },
+    {
+      "contract": "RB",
+      "code": "5388",
+      "name": "中磊"
+    },
+    {
+      "contract": "RC",
+      "code": "2634",
+      "name": "漢翔"
+    },
+    {
+      "contract": "RD",
+      "code": "4128",
+      "name": "中天"
+    },
+    {
+      "contract": "RE",
+      "code": "4919",
+      "name": "新唐"
+    },
+    {
+      "contract": "RF",
+      "code": "3533",
+      "name": "嘉澤"
+    },
+    {
+      "contract": "RG",
+      "code": "3653",
+      "name": "健策"
+    },
+    {
+      "contract": "RJ",
+      "code": "1609",
+      "name": "大亞"
+    },
+    {
+      "contract": "RK",
+      "code": "2368",
+      "name": "金像電"
+    },
+    {
+      "contract": "RL",
+      "code": "6443",
+      "name": "元晶"
+    },
+    {
+      "contract": "RN",
+      "code": "4743",
+      "name": "合一"
+    },
+    {
+      "contract": "RO",
+      "code": "6245",
+      "name": "立端"
+    },
+    {
+      "contract": "RP",
+      "code": "5904",
+      "name": "寶雅*"
+    },
+    {
+      "contract": "RR",
+      "code": "5904",
+      "name": "寶雅*"
+    },
+    {
+      "contract": "RS",
+      "code": "3529",
+      "name": "力旺"
+    },
+    {
+      "contract": "RU",
+      "code": "9958",
+      "name": "世紀鋼"
+    },
+    {
+      "contract": "RV",
+      "code": "2308",
+      "name": "台達電"
+    },
+    {
+      "contract": "RW",
+      "code": "3443",
+      "name": "創意"
+    },
+    {
+      "contract": "SA",
+      "code": "1795",
+      "name": "美時"
+    },
+    {
+      "contract": "SB",
+      "code": "1905",
+      "name": "華紙"
+    },
+    {
+      "contract": "SC",
+      "code": "1477",
+      "name": "聚陽"
+    },
+    {
+      "contract": "SD",
+      "code": "1513",
+      "name": "中興電"
+    },
+    {
+      "contract": "SE",
+      "code": "2345",
+      "name": "智邦"
+    },
+    {
+      "contract": "SF",
+      "code": "2383",
+      "name": "台光電"
+    },
+    {
+      "contract": "SJ",
+      "code": "3005",
+      "name": "神基"
+    },
+    {
+      "contract": "SK",
+      "code": "8112",
+      "name": "至上"
+    },
+    {
+      "contract": "SL",
+      "code": "2376",
+      "name": "技嘉"
+    },
+    {
+      "contract": "SV",
+      "code": "2059",
+      "name": "川湖"
+    },
+    {
+      "contract": "SW",
+      "code": "9958",
+      "name": "世紀鋼"
+    },
+    {
+      "contract": "SY",
+      "code": "3680",
+      "name": "家登"
+    },
+    {
+      "contract": "SZ",
+      "code": "3680",
+      "name": "家登"
+    },
+    {
+      "contract": "UA",
+      "code": "1503",
+      "name": "士電"
+    },
+    {
+      "contract": "UB",
+      "code": "6139",
+      "name": "亞翔"
+    },
+    {
+      "contract": "UC",
+      "code": "6188",
+      "name": "廣明"
+    },
+    {
+      "contract": "UE",
+      "code": "5876",
+      "name": "上海商銀"
+    },
+    {
+      "contract": "UF",
+      "code": "6505",
+      "name": "台塑化"
+    },
+    {
+      "contract": "UG",
+      "code": "6526",
+      "name": "達發"
+    },
+    {
+      "contract": "UH",
+      "code": "3017",
+      "name": "奇鋐"
+    },
+    {
+      "contract": "UI",
+      "code": "6526",
+      "name": "達發"
+    },
+    {
+      "contract": "UL",
+      "code": "3324",
+      "name": "雙鴻"
+    },
+    {
+      "contract": "UM",
+      "code": "3661",
+      "name": "世芯-KY"
+    },
+    {
+      "contract": "UO",
+      "code": "3661",
+      "name": "世芯-KY"
+    },
+    {
+      "contract": "UP",
+      "code": "6472",
+      "name": "保瑞"
+    },
+    {
+      "contract": "UQ",
+      "code": "6472",
+      "name": "保瑞"
+    },
+    {
+      "contract": "UT",
+      "code": "2486",
+      "name": "一詮"
+    },
+    {
+      "contract": "UU",
+      "code": "6757",
+      "name": "台灣虎航"
+    },
+    {
+      "contract": "UV",
+      "code": "6223",
+      "name": "旺矽"
+    },
+    {
+      "contract": "UW",
+      "code": "6223",
+      "name": "旺矽"
+    },
+    {
+      "contract": "UX",
+      "code": "2329",
+      "name": "華泰"
+    },
+    {
+      "contract": "UY",
+      "code": "6290",
+      "name": "良維"
+    },
+    {
+      "contract": "UZ",
+      "code": "2404",
+      "name": "漢唐"
+    },
+    {
+      "contract": "VA",
+      "code": "1608",
+      "name": "華榮"
+    },
+    {
+      "contract": "VB",
+      "code": "2367",
+      "name": "燿華"
+    },
+    {
+      "contract": "VC",
+      "code": "2421",
+      "name": "建準"
+    },
+    {
+      "contract": "VD",
+      "code": "2360",
+      "name": "致茂"
+    },
+    {
+      "contract": "VE",
+      "code": "3665",
+      "name": "貿聯-KY"
+    },
+    {
+      "contract": "VF",
+      "code": "3665",
+      "name": "貿聯-KY"
+    },
+    {
+      "contract": "VG",
+      "code": "2368",
+      "name": "金像電"
+    },
+    {
+      "contract": "VI",
+      "code": "2395",
+      "name": "研華"
+    },
+    {
+      "contract": "VJ",
+      "code": "3211",
+      "name": "順達"
+    },
+    {
+      "contract": "VK",
+      "code": "6139",
+      "name": "亞翔"
+    },
+    {
+      "contract": "VL",
+      "code": "8932",
+      "name": "智通*"
+    },
+    {
+      "contract": "VM",
+      "code": "1519",
+      "name": "華城"
+    },
+    {
+      "contract": "VN",
+      "code": "1519",
+      "name": "華城"
+    },
+    {
+      "contract": "VO",
+      "code": "2449",
+      "name": "京元電子"
+    },
+    {
+      "contract": "VP",
+      "code": "3711",
+      "name": "日月光投控"
+    },
+    {
+      "contract": "VQ",
+      "code": "3718",
+      "name": "中光電投控"
+    }
+  ]
+}

@@ -729,62 +729,62 @@ async function chipForDate(code,iso){
 }
 
 
-const FUTURES_FALLBACK_CODES = [
-  "1101","1102","1210","1216","1301","1303","1304","1305","1307","1308","1309","1312","1314","1319",
-  "1402","1434","1476","1504","1513","1514","1519","1522","1536","1560","1590","1605","1707","1717","1722","1723",
-  "1789","1795","1802","1904","2002","2014","2027","2049","2105","2201","2204","2206","2301","2303","2308","2312",
-  "2313","2317","2324","2327","2330","2344","2345","2347","2352","2353","2354","2356","2357","2360","2368","2371",
-  "2376","2377","2379","2382","2383","2385","2392","2404","2408","2409","2412","2421","2449","2454","2474","2492",
-  "2498","2603","2609","2610","2615","2618","2634","2637","2707","2801","2880","2881","2882","2883","2884","2885",
-  "2886","2887","2890","2891","2892","2912","3005","3017","3034","3035","3044","3059","3189","3231","3293","3374",
-  "3443","3481","3532","3533","3653","3702","3711","4763","4904","4938","4958","5269","5347","5483","5871","5876",
-  "5880","6176","6239","6257","6271","6285","6415","6446","6488","6505","6669","6770","6781","6805","8046","8069",
-  "8150","8210","8299","8454","8464","9910","9921"
-];
+// R22: verified ordinary-stock futures snapshot; ETF/options-only rows excluded.
+const FUTURES_LIST_VERSION = 'r22';
+const FUTURES_SNAPSHOT_DATE = '2026-09-23';
+const FUTURES_FALLBACK_CODES = ["1101","1102","1210","1216","1301","1303","1312","1314","1319","1326","1402","1440","1476","1477","1503","1504","1513","1519","1536","1560","1565","1590","1605","1608","1609","1717","1718","1722","1795","1802","1904","1905","1907","1909","2002","2006","2027","2049","2059","2105","2201","2231","2301","2303","2308","2312","2313","2317","2323","2324","2327","2328","2329","2330","2331","2332","2337","2338","2340","2344","2345","2347","2352","2353","2354","2355","2356","2357","2360","2367","2368","2371","2376","2377","2379","2382","2383","2385","2388","2392","2393","2395","2401","2404","2408","2409","2412","2421","2439","2441","2449","2454","2455","2457","2458","2474","2481","2485","2486","2489","2492","2498","2515","2520","2542","2548","2603","2605","2606","2609","2610","2615","2618","2633","2634","2801","2834","2880","2881","2882","2883","2884","2885","2886","2887","2890","2891","2892","2913","2915","3005","3006","3008","3017","3019","3034","3035","3036","3037","3042","3044","3045","3078","3081","3105","3152","3189","3211","3227","3231","3260","3264","3293","3324","3374","3376","3380","3406","3443","3481","3529","3532","3533","3552","3653","3661","3665","3673","3680","3691","3702","3706","3711","3714","3718","4123","4128","4162","4736","4743","4904","4919","4938","4958","5009","5269","5274","5347","5388","5425","5457","5483","5534","5871","5876","5880","5904","6005","6116","6121","6139","6147","6153","6173","6176","6182","6188","6213","6223","6239","6245","6257","6269","6271","6274","6278","6279","6282","6285","6290","6414","6443","6472","6488","6505","6510","6526","6547","6669","6757","6770","8039","8044","8046","8069","8086","8112","8150","8163","8299","8358","8436","8932","9904","9914","9938","9939","9945","9958"];
 
-async function fetchTaifexStockFuturesCodes(){
-  const urls=[
-    "https://www.taifex.com.tw/cht/2/stockLists",
-    "https://www.taifex.com.tw/cht/5/stockMarginingDetail",
-    "https://www.taifex.com.tw/cht/2/sTF"
-  ];
-  const attempts=[];
-  for(const u of urls){
-    try{
-      const r=await fetch(u,{
-        headers:{
-          "accept":"text/html,application/xhtml+xml",
-          "user-agent":"Mozilla/5.0 (compatible; tw-stock-api/1.14.2)"
-        }
-      });
-      const text=await r.text();
-      attempts.push({url:u,status:r.status,bytes:text.length});
-      if(!r.ok || text.length<1000) continue;
-
-      const codes=new Set();
-      // Official TAIFEX tables contain the underlying security code in a TD.
-      // Restrict to four-digit ordinary-stock style values and exclude ETF 00xx.
-      for(const m of text.matchAll(/<td[^>]*>\s*(\d{4})\s*<\/td>/gi)){
-        const c=m[1];
-        if(!c.startsWith("00")) codes.add(c);
+function taifexCellText(value){
+  return String(value).replace(/<!--[\s\S]*?-->/g,'').replace(/<[^>]*>/g,'')
+    .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)))
+    .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)))
+    .replace(/&nbsp;|&ensp;|&emsp;/gi,' ').replace(/&amp;/gi,'&').replace(/\s+/g,'').trim();
+}
+function parseTaifexStockFuturesCodes(html){
+  const codes=new Set();
+  let foundTable=false,invalidRows=0;
+  for(const table of String(html).matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
+    let columns=null;
+    for(const row of table[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
+      const headers=[...row[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(m=>taifexCellText(m[1]));
+      if(headers.length){
+        const c={code:headers.findIndex(x=>x==='證券代號'),future:headers.findIndex(x=>x.includes('是否為股票期貨標的')),listed:headers.findIndex(x=>x.includes('上市普通股')),otc:headers.findIndex(x=>x.includes('上櫃普通股'))};
+        if(Object.values(c).every(i=>i>=0)){columns=c;foundTable=true}
+        continue;
       }
-      // Some versions put table content inside spans/links; catch nearby 4-digit values too.
-      if(codes.size<30){
-        for(const m of text.matchAll(/(?:標的|證券|stock)[\s\S]{0,120}?(\d{4})/gi)){
-          const c=m[1];
-          if(!c.startsWith("00")) codes.add(c);
-        }
-      }
-      if(codes.size>=30){
-        return {ok:true,codes:[...codes].sort(),source:"TAIFEX official",attempts};
-      }
-    }catch(e){
-      attempts.push({url:u,error:String(e?.message||e)});
+      if(!columns)continue;
+      const cells=[...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)].map(m=>taifexCellText(m[1]));
+      if(!cells.length)continue;
+      if(cells.length<=Math.max(...Object.values(columns))){invalidRows++;continue}
+      const yes=x=>/[●◎]/.test(x)||/^是/.test(x);
+      if(!yes(cells[columns.future])||!(yes(cells[columns.listed])||yes(cells[columns.otc])))continue;
+      const code=cells[columns.code];
+      if(!/^[1-9]\d{3}$/.test(code)){invalidRows++;continue}
+      codes.add(code);
     }
   }
-  return {ok:true,codes:[...new Set(FUTURES_FALLBACK_CODES)].sort(),source:"embedded fallback",attempts};
+  // A partial page must not silently replace a full official list.
+  if(!foundTable||invalidRows||codes.size<Math.floor(FUTURES_FALLBACK_CODES.length*0.8)){
+    throw new Error(`期貨名單結構或完整度異常：${codes.size} 檔，異常列 ${invalidRows}`);
+  }
+  return [...codes].sort();
 }
-
+async function fetchTaifexStockFuturesCodes(){
+  const url='https://www.taifex.com.tw/cht/2/stockLists';
+  const attempts=[];
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),10000);
+  try{
+    const r=await fetch(url,{signal:controller.signal,headers:{accept:'text/html,application/xhtml+xml','user-agent':'Mozilla/5.0 (compatible; tw-stock-api/1.17.0)'}});
+    const html=await r.text();
+    attempts.push({url,status:r.status,bytes:html.length});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    return {ok:true,codes:parseTaifexStockFuturesCodes(html),source:'TAIFEX official',degraded:false,verified_at:new Date().toISOString(),list_version:FUTURES_LIST_VERSION,attempts};
+  }catch(e){
+    attempts.push({url,error:String(e?.message||e)});
+    return {ok:true,codes:[...FUTURES_FALLBACK_CODES],source:'embedded official snapshot',degraded:true,verified_at:FUTURES_SNAPSHOT_DATE,list_version:FUTURES_LIST_VERSION,attempts};
+  }finally{clearTimeout(timer)}
+}
 
 /* ===== R17 Strategy Research Cache =====
    Isolated from Scanner/Detail/V4.4 production logic.
@@ -1115,7 +1115,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.17.0-R21",
+      version: "1.17.0-R23",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1123,19 +1123,26 @@ async function routeApi(request, env, url) {
 
 
   if (url.pathname === "/api/futures/stock-list") {
-    const cacheKey=new Request(`${url.origin}/__cache/taifex-stock-futures`);
+    const cacheKey=new Request(`${url.origin}/__cache/taifex-stock-futures-${FUTURES_LIST_VERSION}`);
+    const goodKey=new Request(`${url.origin}/__cache/taifex-stock-futures-${FUTURES_LIST_VERSION}-last-good`);
     const cache=caches.default;
     const cached=await cache.match(cacheKey);
-    if(cached) return cached;
-
-    const r=await fetchTaifexStockFuturesCodes();
-    const resp=json({
-      ok:r.ok,
-      source:r.source,
-      count:r.codes.length,
-      codes:r.codes,
-      attempts:r.attempts
-    },200,{"cache-control":"public,max-age=21600"});
+    if(cached)return cached;
+    let r=await fetchTaifexStockFuturesCodes();
+    if(r.degraded){
+      const previous=await cache.match(goodKey);
+      if(previous){
+        try{
+          const good=await previous.json();
+          if(good.list_version===FUTURES_LIST_VERSION&&Array.isArray(good.codes)&&good.codes.length>=Math.floor(FUTURES_FALLBACK_CODES.length*0.8)){
+            r={...good,source:'last known official',degraded:true,attempts:r.attempts};
+          }
+        }catch{}
+      }
+    }
+    const payload={...r,count:r.codes.length};
+    if(!r.degraded)await cache.put(goodKey,json(payload,200,{'cache-control':'public,max-age=604800'}));
+    const resp=json(payload,200,{'cache-control':`public,max-age=${r.degraded?300:21600}`});
     await cache.put(cacheKey,resp.clone());
     return resp;
   }
@@ -1948,7 +1955,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.17.0-R21");
+        headers.set("X-App-Version","1.17.0-R23");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;
