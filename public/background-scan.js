@@ -64,6 +64,8 @@
   lastJob=job.id;
   window.__backgroundScanJobId=job.id;window.__backgroundScanJobComplete=!job.active;
   scanSelection=job.options.selection;scanSelectionWeights=job.options.weights;
+  scanSelectionDualWeights=job.options.dualWeights||TWDualAction.defaults;
+  if(job.active&&job.options.dualWeights)dualControls?.set(job.options.dualWeights);
   $('scanType').value=scanSelection;
   for(const k of filters)$(k).value=job.options[k];
   SCAN_FILTERS={minClose:job.options.minClose,maxClose:job.options.maxClose,minLots:job.options.minLots};
@@ -91,11 +93,11 @@
  }
  $('scanBtn').onclick=async()=>{
   if(scanBusy||submitting)return;
-  if(!scanWeightsValid){$('status').textContent='請先把四項權重合計調整為 100%。';return}
+  if(!scanWeightsValid||!dualWeightsValid){$('status').textContent='請確認原 Action 及進場／續抱兩組權重各合計 100%。';return}
   submitting=true;busy(true);clearTimeout(timer);
   try{
    await key(true);
-   const id=crypto.randomUUID(),options={selection:$('scanType').value,weights:{...scanWeights}};
+   const id=crypto.randomUUID(),options={selection:$('scanType').value,weights:{...scanWeights},dualWeights:JSON.parse(JSON.stringify(dualWeights))};
    for(const k of filters)options[k]=Number($(k).value);
    currentRank=options.selection;
    $('status').textContent='正在提交背景工作，請等候伺服器確認…';

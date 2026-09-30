@@ -4,7 +4,7 @@ const root=require('node:path').join(__dirname,'..','public')+'/';
 function page(name){
   const html=fs.readFileSync(root+name,'utf8'),nodes=new Map(),storage=new Map(),events=[];
   const parse=s=>{for(const m of s.matchAll(/id="([^"]+)"[^>]*>/g)){if(!nodes.has(m[1]))nodes.set(m[1],node(m[1]));const v=m[0].match(/value="([^"]*)"/);if(v)nodes.get(m[1]).value=v[1]}};
-  function node(id){return {get parentElement(){return node('parent')},get parentNode(){return node('parent')},querySelector:s=>nodes.get(s.replace('#',''))||null,after(){},insertBefore(){},appendChild(){},remove(){},id,_value:'',get value(){return this._value},set value(v){this._value=String(v)},style:{},dataset:{},textContent:'',disabled:false,clientWidth:800,clientHeight:450,offsetWidth:800,offsetHeight:450,classList:{toggle(){},add(){},remove(){}},addEventListener(name,fn){events.push([id,name,fn])},getBoundingClientRect(){return {width:800,height:450}},getContext(){return new Proxy({measureText:()=>({width:50}),createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})})},set innerHTML(s){this._html=s;parse(s)},get innerHTML(){return this._html||''}}}
+  function node(id){return {get parentElement(){return node('parent')},get parentNode(){return node('parent')},querySelector(s){if(s.startsWith('[data-')){this._queries??={};return this._queries[s]??=node(s)}return nodes.get(s.replace('#',''))||null},querySelectorAll(s){if(s!=='input')return [];return this._inputs||[]},replaceChildren(){this.children=[]},append(...items){this.children??=[];this.children.push(...items)},after(){},insertBefore(){},appendChild(){},remove(){},id,_value:'',get value(){return this._value},set value(v){this._value=String(v)},style:{},dataset:{},textContent:'',disabled:false,clientWidth:800,clientHeight:450,offsetWidth:800,offsetHeight:450,classList:{toggle(){},add(){},remove(){}},addEventListener(name,fn){events.push([id,name,fn])},getBoundingClientRect(){return {width:800,height:450}},getContext(){return new Proxy({measureText:()=>({width:50}),createLinearGradient:()=>({addColorStop(){}})},{get:(o,k)=>o[k]||(()=>{})})},set innerHTML(s){this._html=s;parse(s);this._inputs=[...s.matchAll(/<input[^>]*data-group="([^"]+)"[^>]*data-key="([^"]+)"[^>]*value="([^"]+)"/g)].map(m=>{const n=node('input');n.dataset={group:m[1],key:m[2]};n.value=m[3];return n})},get innerHTML(){return this._html||''}}}
   parse(html);
   const localStorage={getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)};
   const ctx=vm.createContext({console:{log:console.log,warn(){}},URL,URLSearchParams,AbortController,clearTimeout,Intl,Date,Math,JSON,Promise,Request,Response,Headers,Map,Set,location:{href:'http://test/'+name,origin:'http://test/'},document:{getElementById:k=>nodes.get(k)||null,querySelectorAll:()=>[],addEventListener(){},visibilityState:'visible',createElement:()=>node('')},localStorage,sessionStorage:localStorage,setTimeout(){},setInterval(){},requestAnimationFrame:fn=>fn(),devicePixelRatio:1,addEventListener(){},fetch:async()=>new Response(JSON.stringify({ok:true,configured:false,data:[],futures:[]})),navigator:{},getComputedStyle:()=>({getPropertyValue:()=>''})});
@@ -24,6 +24,8 @@ assert.match(scan.nodes.get('rows').innerHTML,/量能 \+10 分/);
 const expected=vm.runInContext('results[0].holdVolumeDelta',scan.ctx);
 vm.runInContext("STATE.prices=fixture;STATE.auditIndex=fixture.length-1;STATE.stock={stock_id:'2330',stock_name:'台積電'};render()",detail.ctx);
 assert.equal(Number(detail.nodes.get('chartHoldVolumeDelta').textContent),expected);
+assert.equal(JSON.stringify(vm.runInContext('TWDualAction.metrics(dualAuditRow)',detail.ctx)),JSON.stringify(vm.runInContext('TWDualAction.metrics(results[0])',scan.ctx)));
+assert.equal(JSON.stringify(vm.runInContext('dualAuditRow.absorption',detail.ctx)),JSON.stringify(vm.runInContext('results[0].absorption',scan.ctx)));
 assert.match(detail.nodes.get('chartHoldVolumeDeltaSub').textContent,/成交量較前交易日 \+100.0%/);
 // An earlier cursor only uses earlier prices and volumes.
 vm.runInContext('STATE.auditIndex=80;render()',detail.ctx);
@@ -49,6 +51,8 @@ detail.ctx.fetch=async()=>new Response(JSON.stringify(detail.ctx.quote));
 vm.runInContext("STATE.prices=fixture.slice(0,-1);STATE.auditIndex=STATE.prices.length-1;document.getElementById('stockInput').value='2330'",detail.ctx);
 await vm.runInContext('window.__refreshTodayDetail()',detail.ctx);
 assert.equal(Number(detail.nodes.get('liveHoldVolumeDelta').textContent),liveExpected);
+assert.equal(JSON.stringify(vm.runInContext('TWDualAction.metrics(dualLiveRow)',detail.ctx)),JSON.stringify(vm.runInContext('TWDualAction.metrics(results[0])',scan.ctx)));
+assert.equal(JSON.stringify(vm.runInContext('dualLiveRow.absorption',detail.ctx)),JSON.stringify(vm.runInContext('results[0].absorption',scan.ctx)));
 assert.match(detail.nodes.get('liveHoldVolumeDeltaSub').textContent,/預估量/);
 assert.equal(detail.nodes.get('liveScoreCard').style.display,'block');
 // New scanner selection must project volume before candidate selection and preserve it in recheck.

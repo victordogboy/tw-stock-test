@@ -11,6 +11,7 @@ const ctx = vm.createContext({
   localStorage: {getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)}
 });
 vm.runInContext(read('public/action-score.js'), ctx);
+vm.runInContext(read('public/dual-action.js'), ctx);
 const A = ctx.TWAction;
 storage.set(A.key, JSON.stringify({entry:40,setup:30,opportunity:30}));
 assert.equal(A.read().hold, 0, 'migrate existing three-factor weights');
