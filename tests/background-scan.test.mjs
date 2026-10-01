@@ -36,7 +36,7 @@ function setup(){
 }
 test('background score and original browser score match exactly',()=>{
  const ctx=vm.createContext({console:{warn(){}},document:{getElementById:()=>null},localStorage:{getItem:()=>null}});
- for(const p of ['action-score.js','hold-change.js','v44-engine.js'])vm.runInContext(readFileSync('public/'+p,'utf8'),ctx);
+ for(const p of ['action-score.js','dual-action.js','hold-change.js','v44-engine.js'])vm.runInContext(readFileSync('public/'+p,'utf8'),ctx);
  const script=[...readFileSync('public/scanner.html','utf8').matchAll(/<script[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]).find(x=>x.includes('function formalScore'));
  vm.runInContext(script.slice(0,script.indexOf('const WATCH_KEY=')),ctx);ctx.rows=rows;
  const runtime=createScanRuntime({options:validateOptions(options),targetDate:date},()=>{});

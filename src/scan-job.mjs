@@ -1,15 +1,17 @@
 import {createScanRuntime} from './scan-runtime.mjs';
 const ACTIVE=new Set(['initializing','scanning','formalizing','chips','live']);
-const rankRow=r=>({code:r.code,setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold,holdVolumeDelta:r.holdVolumeDelta,previousScores:r.previousScores?Object.fromEntries(['entry','setup','opportunity','hold'].map(k=>[k,r.previousScores[k]])):null});
+const rankRow=(r,runtime)=>({code:r.code,dualSelectionValue:runtime.selectionScore(r),setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold,holdVolumeDelta:r.holdVolumeDelta,previousScores:r.previousScores?Object.fromEntries(['entry','setup','opportunity','hold'].map(k=>[k,r.previousScores[k]])):null});
 const TTL=24*3600*1000, MAX_RUN=4*3600*1000;
 export const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export function validateOptions(raw={}){
  const selection=raw.selection||'entry';
- if(!['setup','opportunity','entry','hold','action','holdDelta','holdVolumeDelta','actionDelta'].includes(selection))throw Error('掃描依據不正確');
+ if(!['setup','opportunity','entry','hold','action','holdDelta','holdVolumeDelta','actionDelta','buyAction','buyActionDelta','stayAction','stayActionDelta','stayDrawdown'].includes(selection))throw Error('掃描依據不正確');
  const bounded=(key,def,min,max)=>{const n=raw[key]===undefined?def:Number(raw[key]);if(!Number.isFinite(n)||n<min||n>max)throw Error('掃描設定不正確：'+key);return n};
  const weights=raw.weights||{entry:40,setup:30,opportunity:30,hold:0};
  if(!['entry','setup','opportunity','hold'].every(k=>Number.isFinite(weights[k])&&weights[k]>=0&&weights[k]<=100)||Math.abs(Object.values(weights).reduce((a,b)=>a+b,0)-100)>1e-9)throw Error('四項權重總和必須為 100%');
- return {selection,weights,minClose:bounded('minClose',10,0,100000),maxClose:bounded('maxClose',300,0,100000),minLots:bounded('minLots',3000,0,10000000),maxStocks:Math.floor(bounded('maxStocks',200,1,500)),finTopN:Math.floor(bounded('finTopN',100,1,100)),concurrency:Math.floor(bounded('concurrency',6,1,8))};
+ const dualWeights=raw.dualWeights||{buy:{setup:0,opportunity:20,entry:25,hold:55},stay:{setup:20,opportunity:0,entry:0,hold:80}};
+ for(const group of ['buy','stay']){const w=dualWeights[group];if(!w||!['entry','setup','opportunity','hold'].every(k=>Number.isFinite(w[k])&&w[k]>=0&&w[k]<=100)||Math.abs(['entry','setup','opportunity','hold'].reduce((a,k)=>a+w[k],0)-100)>1e-9)throw Error('進場／續抱兩組權重各須合計100%')}
+ return {selection,weights,dualWeights,minClose:bounded('minClose',10,0,100000),maxClose:bounded('maxClose',300,0,100000),minLots:bounded('minLots',3000,0,10000000),maxStocks:Math.floor(bounded('maxStocks',200,1,500)),finTopN:Math.floor(bounded('finTopN',100,1,100)),concurrency:Math.floor(bounded('concurrency',6,1,8))};
 }
 // Opaque browser capability in a header. No credentials in URLs, logs, or public cache.
 export async function scanRoute(request,env){
@@ -126,7 +128,7 @@ export function createScanJobClass(api){return class ScanJob {
      if(error){s.skipped++;s.errors.push(error)}
      if(row){
       const ranked=runtime.selectCandidates([row]);
-      if(ranked.length){s.qualified++;const before=s.ranked;s.ranked=runtime.selectCandidates([...s.ranked,row],s.options.maxStocks).map(rankRow);
+      if(ranked.length){s.qualified++;const before=s.ranked;s.ranked=runtime.selectCandidates([...s.ranked,row],s.options.maxStocks).map(r=>rankRow(r,runtime));
        if(s.ranked.some(x=>x.code===row.code))rows.push(row);
        remove.push(...before.filter(x=>!s.ranked.some(y=>y.code===x.code)).map(x=>x.code));
       }
@@ -145,7 +147,7 @@ export function createScanJobClass(api){return class ScanJob {
      }catch(e){
       const field=s.phase==='chips'?'chipError':s.phase==='live'?'liveError':'formalPriceError';row[field]=String(e.message||e).slice(0,500);s.errors.push(code+': '+row[field]);
      }
-     rows.push(row);s.ranked=s.ranked.map(r=>r.code===code?rankRow(row):r);s.cursor++;
+     rows.push(row);s.ranked=s.ranked.map(r=>r.code===code?rankRow(row,runtime):r);s.cursor++;
     }
     s.message=({formalizing:'正式日K重評',chips:'籌碼重評',live:'盤中行情重算'})[s.phase]+` ${s.cursor}/${s.work.length}`;
     if(s.cursor>=s.work.length){
@@ -153,7 +155,7 @@ export function createScanJobClass(api){return class ScanJob {
      if(s.phase==='formalizing'){
       const old=s.ranked;s.ranked=s.ranked.slice(0,s.options.finTopN);remove.push(...old.slice(s.options.finTopN).map(r=>r.code));s.phase='chips';
      }else if(s.phase==='chips')s.phase='live';
-     else{s.phase='completed';s.message=`R23 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
+     else{s.phase='completed';s.message=`R24 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
      s.work=s.ranked.map(r=>r.code);s.cursor=0;
     }
    }
