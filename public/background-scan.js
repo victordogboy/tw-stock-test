@@ -66,7 +66,7 @@
   scanSelection=job.options.selection;scanSelectionWeights=job.options.weights;
   scanSelectionDualWeights=job.options.dualWeights||TWDualAction.defaults;
   if(job.active&&job.options.dualWeights)dualControls?.set(job.options.dualWeights);
-  $('scanType').value=scanSelection;
+  $('scanType').value=visibleRank(scanSelection);
   for(const k of filters)$(k).value=job.options[k];
   SCAN_FILTERS={minClose:job.options.minClose,maxClose:job.options.maxClose,minLots:job.options.minLots};
   SCAN_TARGET_DATE=job.targetDate;SCAN_TARGET_SOURCE=job.targetSource||'';
@@ -93,7 +93,7 @@
  }
  $('scanBtn').onclick=async()=>{
   if(scanBusy||submitting)return;
-  if(!scanWeightsValid||!dualWeightsValid){$('status').textContent='請確認原 Action 及進場／續抱兩組權重各合計 100%。';return}
+  if(!dualWeightsValid){$('status').textContent='請確認進場／續抱兩組權重各合計 100%。';return}
   submitting=true;busy(true);clearTimeout(timer);
   try{
    await key(true);

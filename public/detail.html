@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R24｜雙 Action・法人承接</title>
+<title>台股個股分析｜V1.17.0-R25｜雙 Action 精簡版</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -28,7 +28,7 @@ button:disabled{opacity:.55;cursor:wait}
 .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}.purple{color:var(--purple)}
 .section{margin-top:13px}.section h2{font-size:17px;margin:0 0 10px}
 .chartwrap{padding:12px}.chart{height:470px;background:#091322;border-radius:10px;overflow:hidden;position:relative}.chart canvas{display:block;width:100%;height:100%}
-.chart-score-strip{display:grid;grid-template-columns:repeat(5,minmax(76px,1fr));gap:6px;margin:0 0 8px}.chart-score-cell{background:#081321;border:1px solid var(--line);border-radius:9px;padding:7px 9px;text-align:center}.chart-score-cell span{display:block;font-size:10px;color:var(--muted)}.chart-score-cell b{display:block;font-size:19px;line-height:1.15;margin-top:2px}
+.chart-score-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 8px}.chart-score-cell{background:#081321;border:1px solid var(--line);border-radius:9px;padding:7px 9px;text-align:center}.chart-score-cell span{display:block;font-size:10px;color:var(--muted)}.chart-score-cell b{display:block;font-size:19px;line-height:1.15;margin-top:2px}
 .chipchart{height:260px;background:#091322;border-radius:10px;overflow:hidden}.chipchart canvas{display:block;width:100%;height:100%}
 .toolbar{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px;align-items:center}.pill{background:#192943;border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px;color:#dce6f9}
 .cursorbar{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:9px}.cursorbar input{width:100%}
@@ -42,7 +42,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .loading{display:inline-block;width:13px;height:13px;border:2px solid #ffffff50;border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:6px}@keyframes spin{to{transform:rotate(360deg)}}
 .footer{margin:18px 0 3px;color:#6f819f;font-size:11px;line-height:1.6}
 @media(max-width:1080px){.grid{grid-template-columns:repeat(2,1fr)}.cols,.cols5050,.engines{grid-template-columns:1fr}.pricegrid,.kpis{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:600px){.container{padding:12px}.top{flex-direction:column;align-items:stretch}.controls{justify-content:stretch}.search{min-width:0;width:100%}.token{width:100%}.grid{grid-template-columns:1fr 1fr}.big{font-size:22px}.audit{grid-template-columns:1fr}.chart{height:390px}.chart-score-strip{grid-template-columns:repeat(5,minmax(58px,1fr));gap:4px;overflow-x:auto}.chart-score-cell{padding:6px 4px}.chart-score-cell b{font-size:17px}}
+@media(max-width:600px){.container{padding:12px}.top{flex-direction:column;align-items:stretch}.controls{justify-content:stretch}.search{min-width:0;width:100%}.token{width:100%}.grid{grid-template-columns:1fr 1fr}.big{font-size:22px}.audit{grid-template-columns:1fr}.chart{height:390px}.chart-score-strip{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;overflow-x:auto}.chart-score-cell{padding:6px 4px}.chart-score-cell b{font-size:17px}}
 
 .kbadge{display:inline-block;margin-top:7px;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:900}
 .k-up{background:#4a151d;color:#ff8b8b;border:1px solid #8d3340}
@@ -111,22 +111,16 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .live-refresh-btn:disabled{opacity:.55;cursor:wait}
 .live-refresh-status{font-size:11px;color:#9fb0ca}
 
-.action-weight-wrap{margin-top:8px;padding-top:8px;border-top:1px solid #263b5e}
-.action-weight-row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
-.action-weight-row label{font-size:11px;color:#9fb0ca}
-.action-weight-row input{width:72px;padding:6px 7px;border-radius:7px;border:1px solid #38537b;background:#081425;color:#edf3ff}
-.action-weight-sum{font-size:12px;font-weight:800}
-.action-weight-ok{color:#37d69b}
-.action-weight-bad{color:#ff6d7b}
 .release-note{padding:10px;border:1px solid #68a8ff;border-radius:10px;background:#152b49;color:#d9eaff;line-height:1.6;font-size:13px}.hold-change-strip{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.hold-change-strip .label{line-height:1.5}.hold-change-strip .big{font-size:23px}.hold-change-strip .sub{font-size:11px;line-height:1.5}
+.chart-score-cell.dual-cell{grid-column:span 2;text-align:left;padding:10px 12px}.dual-cell small{display:block;font-size:12px;margin-top:5px}.dual-cell b{font-size:24px}.dual-note{font-size:12px;color:var(--muted);line-height:1.5;margin:6px 0}.dual-observation{margin-top:8px}.dual-observation summary{cursor:pointer;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R24｜雙 Action・法人承接</h1>
-      <p class="release-note"><b>R24 更新｜2026-09-30</b>　雙組 Action、日變化、前5日高點回落、法人承接觀察（不計分）。原始 Hold 與舊 Action 保留。退版點 R23.1／6612c5c。</p>
+      <h1>台股個股分析｜V1.17.0-R25｜雙 Action 精簡版</h1>
+      <p class="release-note"><b>R25｜雙 Action 精簡版</b>　盤中雙分數搭配預估量；審計日分數整合於 K 線上方，權重設定移至下方。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -171,7 +165,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="tiny" id="liveScoreMeta" style="margin-left:8px">以現價 + 預估收盤量 + 上一交易日籌碼試算</span>
     </div>
     <div class="live-score-grid">
-      <div class="live-score-item"><div class="label">盤中 Action｜四項加權</div><div class="v" id="liveAction">—</div><div class="s" id="liveActionSub">等待最新行情</div></div>
+      <div class="live-score-item"><div class="label">盤中進場 Action</div><div class="v" id="liveBuyAction">—</div><div class="s" id="liveBuyDelta">日變化 —</div><div class="s" id="liveBuyVolume">預估量較前日 —</div></div>
+      <div class="live-score-item"><div class="label">盤中續抱 Action（出場觀察）</div><div class="v" id="liveStayAction">—</div><div class="s" id="liveStayDelta">日變化 —</div><div class="s" id="liveStayVolume">預估量較前日 —</div></div>
       <div class="live-score-item"><div class="label">盤中 Setup</div><div class="v" id="liveSetup">—</div><div class="s">使用現價與估計收盤量</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Entry</div><div class="v" id="liveEntry">—</div><div class="s" id="liveEntrySub">—</div></div>
       <div class="live-score-item"><div class="label">盤中預估 Hold</div><div class="v" id="liveHold">—</div><div class="s" id="liveHoldSub">—</div></div>
@@ -181,42 +176,12 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <div class="live-score-item"><div class="label">預估收盤量</div><div class="v blue" id="liveProjectedVol">—</div><div class="s" id="liveProjectedVolSub">—</div></div>
       <div class="live-score-item"><div class="label">預估量比 / 狀態</div><div class="v" id="liveVolRatio">—</div><div class="s" id="liveState">—</div></div>
     </div>
+    <div class="dual-note" id="liveActionVolume">預估收盤量較前日 —</div>
+    <details class="dual-observation"><summary>盤中法人承接與價格防守</summary><div class="note" id="liveDualObservation"></div></details>
     <div class="note" id="liveScoreNote" style="margin-top:9px">—</div>
   </div>
-  <div class="section card" id="entryStressCard">
-    <h2>明日最佳進場情境壓力測試 <span class="pill">以上一交易日盤後推演</span></h2>
-    <div class="note" id="stressHeadline">等待分析…</div>
-    <div class="guardgrid" id="stressGuards"></div>
-    <div class="stressgrid" id="stressCases"></div>
-    <div class="note" id="stressNote" style="margin-top:9px"></div>
-  </div>
-
-
-  <div class="section card" id="priceLadderCard">
-    <h2 id="priceLadderTitle">— 盤後價格階梯</h2>
-    <div class="pricegrid" id="prices"></div>
-    <div class="note" id="targetNote" style="margin-top:8px"></div>
-  </div>
-
-  <div class="layer-title" id="formalLayerTitle">— 盤後價格階梯
-    <span class="tiny">以下全部是已完成交易日資料，不含今日盤中預估。</span>
-  </div>
-
-  <div class="grid" id="summary">
-    <div class="card"><div class="label">等待分析</div><div class="big">—</div></div>
-    <div class="card"><div class="label">股票品質</div><div class="big">—</div></div>
-    <div class="card"><div class="label">盤後 Entry</div><div class="big">—</div></div>
-    <div class="card"><div class="label">盤後最佳進場</div><div class="big">—</div></div>
-    <div class="card"><div class="label">交易狀態</div><div class="big">—</div></div>
-  </div>
-
-
-
-
-  <div class="section card" id="dualDetailControls"></div>
-  <div class="section card" id="dualLivePanel" hidden></div>
   <div class="section card chartwrap">
-    <div id="dualAuditPanel" style="margin-bottom:12px"></div>
+    <div class="dual-note"><span id="chartStockTitle">等待分析</span><span id="detailFuturesBadge" class="detail-futures-badge" style="display:none">股票期貨標的</span></div>
     <div class="hold-change-strip" id="chartHoldChangeStrip">
       <div class="live-score-item"><div class="label">Hold 變化｜原始</div><div class="big" id="chartHoldDelta">—</div><div class="sub" id="chartHoldDeltaSub">較前一交易日</div></div>
       <div class="live-score-item"><div class="label">Hold 變化＋預估量變化</div><div class="big" id="chartHoldVolumeDelta">—</div><div class="sub" id="chartHoldVolumeDeltaSub">—</div></div>
@@ -227,8 +192,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <div class="chart-score-cell"><span>Opportunity</span><b id="chartScoreOpportunity">—</b></div>
       <div class="chart-score-cell"><span>Entry</span><b id="chartScoreEntry">—</b></div>
       <div class="chart-score-cell"><span>Hold</span><b id="chartScoreHold">—</b></div>
-      <div class="chart-score-cell"><span>Action</span><b id="chartScoreAction">—</b></div>
+      <div class="chart-score-cell dual-cell"><span>進場 Action</span><b id="chartBuyAction">—</b><small id="chartBuyDelta">日變化 —</small></div>
+      <div class="chart-score-cell dual-cell"><span>續抱 Action（出場觀察）</span><b id="chartStayAction">—</b><small id="chartStayDelta">日變化 —</small></div>
     </div>
+    <div class="dual-note" id="chartDualMeta">所選審計日 —</div>
     <div class="toolbar">
       <span class="pill">日K</span>
       <span class="pill ma5pill">MA5 ●</span>
@@ -251,6 +218,17 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
     </div>
     <div class="note" style="margin-top:7px">游標移到歷史日期時，右側未來 K 線不繪製、不進入評分；所有籌碼資料也會依審計日截斷。</div>
   </div>
+
+  <div class="section card" id="dualDetailControls"></div>
+  <details class="section card dual-observation"><summary>所選審計日：法人承接與價格防守</summary><div class="note" id="chartDualObservation"></div></details>
+
+  <details class="section card" id="entryStressCard"><summary>進場情境壓力測試</summary>
+    <h2>明日最佳進場情境壓力測試 <span class="pill">以上一交易日盤後推演</span></h2>
+    <div class="note" id="stressHeadline">等待分析…</div>
+    <div class="guardgrid" id="stressGuards"></div>
+    <div class="stressgrid" id="stressCases"></div>
+    <div class="note" id="stressNote" style="margin-top:9px"></div>
+  </details>
 
   <div class="section cols5050">
     <div class="card">
@@ -338,9 +316,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 </div>
 
 <script src="/finmind-token-manager.js"></script>
-<script src="/action-score.js"></script>
 <script src="/dual-action.js?r24"></script>
-<script src="/dual-action-ui.js?r24"></script>
+<script src="/dual-action-ui.js?r25"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
 <script>
@@ -369,49 +346,6 @@ const last=a=>a[a.length-1];
 const uniq=a=>[...new Set(a)];
 const signClass=x=>x>0?'green':x<0?'red':'yellow';
 
-
-const ACTION_WEIGHT_KEY=TWAction.key;
-const getActionWeights=()=>TWAction.read();
-function calcActionScore(setup,opportunity,entry,hold,w=getActionWeights()){
-  return TWAction.score({setup,opportunity,entry,hold},w);
-}
-let latestActionLive=null,detailActionWeights=null;
-function renderLiveAction(w=detailActionWeights||getActionWeights()){
-  const el=$('liveAction');if(!el)return;
-  const score=latestActionLive?TWAction.score(latestActionLive.current,w):null;
-  el.textContent=score==null?'—':score;
-  const delta=latestActionLive?TWAction.delta(latestActionLive.current,latestActionLive.previous,w):null;
-  const sub=$('liveActionSub');
-  if(sub)sub.textContent=latestActionLive?'較 '+latestActionLive.previousDate+' 收盤：'+(delta==null?'—':(delta>0?'+':'')+delta)+' 分':'等待最新行情';
-}
-function bindActionWeights(setup,opportunity,entry,hold){
-  const inputs={entry:$('actionWEntry'),setup:$('actionWSetup'),opportunity:$('actionWOpp'),hold:$('actionWHold')};
-  const sumEl=$('actionWeightSum'),scoreEl=$('actionScoreValue'),msg=$('actionWeightMsg');
-  if(Object.values(inputs).some(x=>!x)||!sumEl||!scoreEl)return;
-  const refresh=()=>{
-    const w=Object.fromEntries(TWAction.keys.map(k=>[k,inputs[k].value.trim()===''?NaN:Number(inputs[k].value)]));
-    detailActionWeights=w;
-    const sum=TWAction.keys.reduce((s,k)=>s+w[k],0),valid=TWAction.valid(w);
-    sumEl.textContent='總和 '+(Number.isFinite(sum)?sum:'—')+'%';
-    sumEl.className='action-weight-sum '+(valid?'action-weight-ok':'action-weight-bad');
-    if(valid)TWAction.save(w);
-    const score=calcActionScore(setup,opportunity,entry,hold,w);
-    scoreEl.textContent=score==null?'—':score;
-    scoreEl.className='big '+(score==null?'red':scoreGrade(score)[1]);
-    if(msg)msg.textContent=valid?'Entry '+w.entry+'% + Setup '+w.setup+'% + Opportunity '+w.opportunity+'% + Hold '+w.hold+'%':'權重總和必須等於 100%，每項介於 0～100。';
-    renderLiveAction(w);
-  };
-  Object.values(inputs).forEach(x=>x.addEventListener('input',refresh));refresh();
-}
-window.addEventListener('storage',e=>{
-  if(e.key!==TWAction.key)return;
-  const w=getActionWeights();
-  for(const [k,id] of Object.entries({entry:'actionWEntry',setup:'actionWSetup',opportunity:'actionWOpp',hold:'actionWHold'})){
-    if($(id))$(id).value=w[k];
-  }
-  if($('actionWEntry'))$('actionWEntry').dispatchEvent(new Event('input'));
-  else renderLiveAction(w);
-});
 
 function setBanner(msg,type='ok'){
   const b=$('banner'); b.className=`banner ${type}`; b.innerHTML=msg; b.style.display='block';
@@ -1522,12 +1456,23 @@ let dualDetailWeights=TWDualAction.read(),dualAuditRow=null,dualLiveRow=null;
 function detailDualRow(rows,chips){
   const at=a=>{const date=a.at(-1).date,c=k=>(chips[k]||[]).filter(x=>x.date<=date),R=combineScores(a,c('margin'),c('inst'),c('daytrade')),E=entryEngine(a,R);return {setup:R.quality,opportunity:E.opportunity,entry:E.score,hold:E.hold,priceGuard:{broken:!!R.market.hardBroken,stop:R.market.stop,risk:R.market.risk}}};
   const prior=rows.slice(0,-1);
-  return {...at(rows),dataDate:rows.at(-1).date,previousDate:prior.at(-1)?.date,previousScores:prior.length>=65?at(prior):null,actionTrail:TWDualAction.history(rows,at),absorption:TWDualAction.absorption(rows,chips.inst||[])};
+  return {...at(rows),dataDate:rows.at(-1).date,previousDate:prior.at(-1)?.date,previousScores:prior.length>=65?at(prior):null,volume:rows.at(-1).volume,previousVolume:prior.at(-1)?.volume,projected:!!rows.at(-1).intradayProjected,actionTrail:TWDualAction.history(rows,at),absorption:TWDualAction.absorption(rows,chips.inst||[])};
 }
 function paintDetailDual(){
- TWDualUI.paint($('dualAuditPanel'),dualAuditRow,dualDetailWeights,'雙 Action｜所選審計日');
- $('dualLivePanel').hidden=!dualLiveRow;
- if(dualLiveRow)TWDualUI.paint($('dualLivePanel'),dualLiveRow,dualDetailWeights,'雙 Action｜盤中暫定（法人沿用已公布資料）');
+ for(const [prefix,row] of [['chart',dualAuditRow],['live',dualLiveRow]]){
+  const m=TWDualAction.metrics(row,dualDetailWeights);
+  for(const [key,value,delta] of [['Buy',m.buy,m.buyDelta],['Stay',m.stay,m.stayDelta]]){
+   $(prefix+key+'Action').textContent=value??'—';
+   if(prefix==='live')$(prefix+key+'Volume').textContent=TWDualUI.volumeContext(row);
+   const el=$(prefix+key+'Delta');el.textContent='日變化 '+TWDualAction.signed(delta);
+   el.style.color=delta>0?'#ff8585':delta<0?'#65d99a':'';
+  }
+  const meta=row?`${row.dataDate}｜較 ${row.previousDate||'—'}｜續抱距前5日高點回落 ${m.stayDrop??'—'} 分`:'等待行情';
+  if(prefix==='chart')$('chartDualMeta').textContent='所選審計日 '+meta;
+  else $('liveActionVolume').textContent=meta;
+  $(prefix==='chart'?'chartDualObservation':'liveDualObservation').textContent=
+   (row?.priceGuard?.broken?'價格結構破位。':'')+TWDualAction.note(row?.absorption);
+ }
 }
 TWDualUI.controls($('dualDetailControls'),(w,valid)=>{dualDetailWeights=valid?w:null;paintDetailDual()});
 function detailHoldChange(rows,E){
@@ -1549,11 +1494,11 @@ function render(){
   const m=cut(STATE.margin,date),i=cut(STATE.inst,date),d=cut(STATE.daytrade,date);
   if(rows.length<65){setBanner('這個審計日之前的歷史資料不足 60 個交易日，請把游標往右移。','warn');return}
   clearBanner();
-  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;const actionW=getActionWeights();const actionScore=calcActionScore(R.quality,E.opportunity,E.score,E.hold,actionW);
+  const R=combineScores(rows,m,i,d);const E=entryEngine(rows,R);R.entry=E;STATE.lastAnalysis=R;
   paintHoldChanges('chart',detailHoldChange(rows,E),date,!!rows.at(-1)?.intradayProjected);
   dualAuditRow=detailDualRow(rows,{margin:m,inst:i,daytrade:d});paintDetailDual();
   const a=R.market,o=R.optimal,cur=last(rows),grade=scoreGrade(a.score),qg=scoreGrade(R.quality),og=scoreGrade(o.score),eg=scoreGrade(E.score),hg=scoreGrade(E.hold);
-  for(const [id,value] of Object.entries({chartScoreSetup:R.quality,chartScoreOpportunity:E.opportunity,chartScoreEntry:E.score,chartScoreHold:E.hold,chartScoreAction:actionScore})){
+  for(const [id,value] of Object.entries({chartScoreSetup:R.quality,chartScoreOpportunity:E.opportunity,chartScoreEntry:E.score,chartScoreHold:E.hold})){
     const node=$(id);if(node){node.textContent=Number.isFinite(value)?value:'—';node.className=Number.isFinite(value)?scoreGrade(value)[1]:'red'}
   }
   const kText=cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─';
@@ -1569,33 +1514,8 @@ function render(){
   if((R.bottom.stage==='底部反轉買進'||R.bottom.stage==='底部試單') && !['突破買進','回測買進','反轉發動買進'].includes(status)){
     status=R.bottom.stage; statusCls=R.bottom.cls;
   }
-  $('summary').innerHTML=`
-    <div class="card"><div class="label">股票 / 審計日</div><div class="big">${STATE.stock.stock_id} ${STATE.stock.stock_name}<span id="detailFuturesBadge" class="detail-futures-badge" style="display:${DETAIL_FUTURES_LIST.codes.includes(TWStockFutures.normalize(STATE.stock.stock_id))?'inline-block':'none'}">股票期貨標的</span></div><div class="sub">${date}｜收盤 ${fmt(cur.close)}｜${STATE.stock.type||'—'}</div>
-      <span class="kbadge ${cur.close>cur.open?'k-up':cur.close<cur.open?'k-down':'k-flat'}">${cur.close>cur.open?'紅K ▲':cur.close<cur.open?'綠K ▼':'十字K ─'}｜O ${fmt(cur.open)} / H ${fmt(cur.high)} / L ${fmt(cur.low)} / C ${fmt(cur.close)}</span>
-    </div>
-    <div class="card"><div class="label">Setup｜型態品質</div><div class="big ${qg[1]}">${R.quality}</div><div class="sub">底部 ${R.bottom.score}｜發動 ${R.ignition.score}｜趨勢 ${a.score}</div></div>
-    <div class="card"><div class="label">Opportunity｜行情機會</div><div class="big ${scoreGrade(E.opportunity)[1]}">${E.opportunity}</div><div class="sub">事件/發動潛力｜單日確認 ${E.confirmation}｜延續 ${E.persistence}</div></div>
-    <div class="card"><div class="label">Entry｜該審計日盤後</div><div class="big ${eg[1]}">${E.score}</div><div class="sub">${E.phase}｜${E.state}｜價格品質 ${E.entryQuality}｜${E.position}</div></div>
-    <div class="card">
-      <div class="label">Action｜審計日四項加權</div>
-      <div class="big ${actionScore==null?'red':scoreGrade(actionScore)[1]}" id="actionScoreValue">${actionScore==null?'—':actionScore}</div>
-      <div class="sub" id="actionWeightMsg">權重總和必須等於 100%</div>
-      <div class="action-weight-wrap">
-        <div class="action-weight-row">
-          <label>Entry %<br><input id="actionWEntry" type="number" min="0" max="100" step="1" value="${actionW.entry}"></label>
-          <label>Setup %<br><input id="actionWSetup" type="number" min="0" max="100" step="1" value="${actionW.setup}"></label>
-          <label>Opportunity %<br><input id="actionWOpp" type="number" min="0" max="100" step="1" value="${actionW.opportunity}"></label>
-          <label>Hold %<br><input id="actionWHold" type="number" min="0" max="100" step="1" value="${actionW.hold}"></label>
-          <span id="actionWeightSum" class="action-weight-sum">總和 —%</span>
-        </div>
-      </div>
-    </div>
-    <div class="card"><div class="label">Hold｜該審計日盤後</div><div class="big ${hg[1]}">${E.hold}</div><div class="sub">Entry 與 Hold 分開，不因強趨勢自動追價</div></div>
-    <div class="card"><div class="label">當日交易量｜隨回測日期更新</div>
-      <div class="big blue volnum">${Math.round(Number(cur.volume||0)/1000).toLocaleString('zh-TW')} 張</div>
-      <div class="sub">${Number(cur.volume||0).toLocaleString('zh-TW')} 股｜5日均量 ${Math.round((Number(avg(rows.slice(-5).map(x=>x.volume)))||0)/1000).toLocaleString('zh-TW')} 張</div>
-    </div>`;
-  bindActionWeights(R.quality,E.opportunity,E.score,E.hold);
+  $('chartStockTitle').textContent=`${STATE.stock.stock_id} ${STATE.stock.stock_name}｜${date} 收盤 ${fmt(cur.close)}`;
+  $('detailFuturesBadge').style.display=DETAIL_FUTURES_LIST.codes.includes(TWStockFutures.normalize(STATE.stock.stock_id))?'inline-block':'none';
   if(window.__scannerAuditSnapshot && String(window.__scannerAuditSnapshot.dataDate||'')===String(date)){
     const banner=$('banner');
     if(banner && !banner.textContent){
@@ -1603,11 +1523,6 @@ function render(){
       banner.textContent=`已使用 Scanner 同一份歷史/籌碼快照：${date}。個股頁正式四分數應與你點入時的 Scanner 結果一致。`;
     }
   }
-  const priceLadderTitle=$('priceLadderTitle');
-  if(priceLadderTitle) priceLadderTitle.textContent=`${date} 盤後價格階梯`;
-  const formalLayerTitle=$('formalLayerTitle');
-  if(formalLayerTitle) formalLayerTitle.innerHTML=`${date} 盤後價格階梯 <span class="tiny">以下全部是 ${date} 已完成交易日資料，不含今日盤中預估。</span>`;
-
   $('auditPill').textContent=`審計日：${date}`;
   $('marketPill').textContent=`市場：${STATE.stock.type||'unknown'}`;
   $('sliderDate').textContent=date;
@@ -1682,12 +1597,6 @@ function render(){
     <td>T1 ${fmt(a.t1)} = ${fmt(a.rr1,2)}R<br>T2 ${fmt(a.t2)} = ${fmt(a.rr2,2)}R<br>融資 Pctl ${fmt(a.marginPct,0)}% / 法人 Pctl ${fmt(a.instPct,0)}%</td>
   </tr>`;
 
-  const levels=[
-    ['現價',cur.close,a.score>=80?'green':'yellow'],['最高分買點',o.entry,'green'],['MA10',a.ma10,'blue'],['MA20',a.ma20,'purple'],
-    ['第1減碼',reduce,'yellow'],['硬停損',a.stop,'red'],['Target 1',a.t1,'green'],['Target 2',a.t2,'green']
-  ];
-  $('prices').innerHTML=levels.map(x=>`<div class="price"><div class="label">${x[0]}</div><strong class="${x[2]}">${fmt(x[1])}</strong></div>`).join('');
-  $('targetNote').textContent=a.items.find(x=>x.name.startsWith('12.'))?.text||'';
   renderStructuralStress(rows,R,m,i,d);
 
   $('audit').innerHTML=`
@@ -2199,7 +2108,7 @@ setTimeout(refreshFuturesBadge,700);
   }
 
   function showFormalPriceFallback(msg='等待最新現價'){
-    latestActionLive=null;renderLiveAction();dualLiveRow=null;paintDetailDual();
+    dualLiveRow=null;paintDetailDual();
     const card=byId('liveScoreCard');if(card)card.style.display='none';
     const p=byId('todayInfo'); if(!p)return;
     p.style.display='block';
@@ -2295,12 +2204,6 @@ setTimeout(refreshFuturesBadge,700);
         dualLiveRow=live.dualRow;paintDetailDual();
         const card=byId('liveScoreCard');
         if(card)card.style.display='block';
-        latestActionLive={
-          current:{setup:live.R.quality,opportunity:live.E.opportunity,entry:live.E.score,hold:live.E.hold},
-          previous:{setup:live.previousR.quality,opportunity:live.previousE.opportunity,entry:live.previousE.score,hold:live.previousE.hold},
-          previousDate:live.formalDate
-        };
-        renderLiveAction();
         paintScore('liveSetup',live.R.quality);
         paintScore('liveEntry',live.E.score);
         paintScore('liveHold',live.E.hold);
@@ -2318,11 +2221,6 @@ setTimeout(refreshFuturesBadge,700);
         byId('liveState').textContent=`${live.E.phase}｜${live.E.position}`;
         byId('liveScoreMeta').textContent=`基準 ${live.formalDate} 盤後｜今日假設收盤=現價 ${b.close}｜今日量=預估 ${projLots.toLocaleString('zh-TW')} 張`;
         byId('liveScoreNote').innerHTML=`<b>盤中估算邏輯：</b>今日 O/H/L 使用已發生資料，Close 暫用現價，成交量依目前進度與近5日均量估計收盤量；融資/法人/當沖只沿用 ${live.formalDate} 以前已取得資料，<b>不猜今日籌碼</b>。因此 Entry / Hold 是「現在若以這個價位與預估量收盤」的即時預估，不是正式收盤分數。`;
-
-        const ft=byId('formalLayerTitle');
-        if(ft){
-          ft.innerHTML=`上一交易日正式盤後審計 <span class="tiny">基準日 ${live.formalDate}；以下不含今日盤中預估。</span>`;
-        }
 
         // Stress card predicts today's possible close from the same prior-day formal baseline.
         try{
