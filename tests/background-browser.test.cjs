@@ -82,15 +82,19 @@ for(const scenario of ['normal','quota-existing-key','quota-new-key','quota-empt
    const shown=await page.evaluate(()=>results.map(r=>TWDualAction.metrics(r,dualWeights)));
    assert.ok(shown.every(r=>Number.isFinite(r.buyDelta)&&Number.isFinite(r.stayDrop)));
    // Verify both new page panels are visible on a real mobile layout, with same model outputs.
-   await page.locator('#dualScanControls').screenshot({path:'/workspace/scratch/5fec3565cb8d/r24-scan-controls.png'});
+   await page.locator('#dualScanControls').screenshot({path:path.join(require('node:os').tmpdir(),'r25-scan-controls.png')});
    const row=job.results[0],detail=await context.newPage();detail.on('pageerror',e=>errors.push(e.message));
    await detail.goto('http://127.0.0.1:'+server.address().port+'/detail.html');
    const fixtureRows=await (await mf.dispatchFetch('http://test/api/history/auto')).json();
    await detail.evaluate(data=>{STATE.prices=data;STATE.auditIndex=data.length-1;STATE.stock={stock_id:'1111',stock_name:'測試股票'};render()},fixtureRows.data);
    const metrics=await detail.evaluate(()=>TWDualAction.metrics(dualAuditRow,dualDetailWeights));
    assert.deepEqual(metrics,shown[0]);
-   assert.match(await detail.locator('#dualAuditPanel').innerText(),/資料不足/);
-   await detail.locator('#dualAuditPanel').screenshot({path:'/workspace/scratch/5fec3565cb8d/r24-detail-panel.png'});
+   assert.match(await detail.locator('#chartDualObservation').textContent(),/資料不足/);
+   assert.equal(await detail.locator('#chartBuyAction').innerText(),String(metrics.buy));
+   assert.equal(await detail.locator('#chartStayDelta').innerText(),'日變化 '+(metrics.stayDelta>0?'+':'')+metrics.stayDelta);
+   assert.equal(await detail.locator('#chartScoreAction, #dualAuditPanel, #dualLivePanel, #summary, #priceLadderCard').count(),0);
+   assert.ok((await detail.locator('#dualDetailControls').boundingBox()).y>(await detail.locator('#chart').boundingBox()).y);
+   await detail.locator('.chartwrap').screenshot({path:path.join(require('node:os').tmpdir(),'r25-detail-panel.png')});
    assert.deepEqual(errors,[]);await detail.close();
   }
 

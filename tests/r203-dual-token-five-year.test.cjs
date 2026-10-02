@@ -20,7 +20,7 @@ test('scanner, detail and research share dual token storage and chart shows comp
   const detail=fs.readFileSync('public/detail.html','utf8');
   const research=fs.readFileSync('public/strategy-regression-lab.html','utf8');
   for(const source of [scanner,detail,research])assert.match(source,/finmind-token-manager\.js/);
-  for(const id of ['chartScoreSetup','chartScoreOpportunity','chartScoreEntry','chartScoreHold','chartScoreAction'])assert.match(detail,new RegExp(id));
+  for(const id of ['chartScoreSetup','chartScoreOpportunity','chartScoreEntry','chartScoreHold','chartBuyAction','chartStayAction','chartBuyDelta','chartStayDelta'])assert.match(detail,new RegExp(id));
 });
 
 test('worker accepts five signal years plus 180 warm-up days for price and chips',()=>{

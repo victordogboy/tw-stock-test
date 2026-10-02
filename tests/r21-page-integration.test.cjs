@@ -54,6 +54,20 @@ assert.equal(Number(detail.nodes.get('liveHoldVolumeDelta').textContent),liveExp
 assert.equal(JSON.stringify(vm.runInContext('TWDualAction.metrics(dualLiveRow)',detail.ctx)),JSON.stringify(vm.runInContext('TWDualAction.metrics(results[0])',scan.ctx)));
 assert.equal(JSON.stringify(vm.runInContext('dualLiveRow.absorption',detail.ctx)),JSON.stringify(vm.runInContext('results[0].absorption',scan.ctx)));
 assert.match(detail.nodes.get('liveHoldVolumeDeltaSub').textContent,/預估量/);
+const dm=vm.runInContext('TWDualAction.metrics(dualLiveRow,dualDetailWeights)',detail.ctx);
+assert.equal(detail.nodes.get('liveBuyAction').textContent,dm.buy);
+assert.equal(detail.nodes.get('liveStayAction').textContent,dm.stay);
+const projected=vm.runInContext('dualLiveRow.volume',detail.ctx);
+assert.ok(projected>current.volume,'Action uses projected close volume, not accumulated volume');
+assert.equal(vm.runInContext('dualLiveRow.previousVolume',detail.ctx),rows.at(-2).volume);
+assert.match(detail.nodes.get('liveBuyVolume').textContent,/預估收盤量.*較前日/);
+assert.equal(detail.nodes.get('liveBuyVolume').textContent,detail.nodes.get('liveStayVolume').textContent);
+const liveBefore=JSON.stringify(dm);
+vm.runInContext('STATE.auditIndex=80;render()',detail.ctx);
+assert.equal(vm.runInContext('dualAuditRow.dataDate',detail.ctx),rows[80].date);
+assert.equal(detail.nodes.get('chartBuyAction').textContent,vm.runInContext('TWDualAction.metrics(dualAuditRow,dualDetailWeights).buy',detail.ctx));
+assert.equal(JSON.stringify(vm.runInContext('TWDualAction.metrics(dualLiveRow,dualDetailWeights)',detail.ctx)),liveBefore);
+
 assert.equal(detail.nodes.get('liveScoreCard').style.display,'block');
 // New scanner selection must project volume before candidate selection and preserve it in recheck.
 vm.runInContext("SCAN_TARGET_DATE='2026-09-21';scanSelection='holdVolumeDelta';getJSON=async url=>url.startsWith('/api/intraday')?quote:{data:fixture.slice(0,-1)}",scan.ctx);

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 Scan｜V1.17.0-R24｜雙 Action・法人承接</title>
+<title>台股 Scan｜V1.17.0-R25｜雙 Action 精簡版</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -31,8 +31,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .release-note{padding:12px;border:1px solid #68a8ff;border-radius:10px;background:#152b49;color:#d9eaff;line-height:1.6}.hold-up{color:#ff8585}.hold-down{color:#65d99a}.hold-change-cell{min-width:175px}.hold-change-cell small{display:block;line-height:1.5;margin-top:4px}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 Scan｜V1.17.0-R24｜雙 Action・法人承接</h1>
-<p class="release-note"><b>R24 更新｜2026-09-30</b>　新增進場／續抱兩組 Action、日變化與五日高點回落；法人承接提示獨立顯示、不計分。保留 R23.1 手機背景掃描與儲存額度修復。退版點：R23.1（6612c5c）。</p>
+<h1>台股 Scan｜V1.17.0-R25｜雙 Action 精簡版</h1>
+<p class="release-note"><b>R25｜雙 Action 精簡版</b>　移除舊單組 Action；保留進場／續抱分數與日變化。</p>
 <div id="futuresStatus" class="small muted">期貨名單：待載入</div>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
@@ -43,7 +43,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <button id="clearFinmindTokensBtn" type="button">清除兩組</button>
 <span style="font-size:11px;opacity:.75">兩組保存在此瀏覽器；背景掃描只將目前選用的 Token 暫存到伺服器，完成、停止或失敗即刪除（最長 24 小時），不寫入 GitHub。</span>
 </div>
-<p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。提供 Setup、Opportunity、Entry、Hold、Action，以及 Hold／Action 相較前一交易日的變化排行。盤中分數使用最新取得行情與估計收盤量。</p>
+<p class="muted">第一階段把落後的 Daily K 以 Yahoo 1m 補成最新資料日後再排名；第二階段上市股用 TWSE 正式日K與官方籌碼重評，上櫃以可驗證來源補強。提供 Setup、Opportunity、Entry、Hold、進場／續抱 Action，以及 Hold／雙 Action 相較前一交易日的變化排行。盤中分數使用最新取得行情與估計收盤量。</p>
 
 <div class="card grid">
 <div><label for="scanType">掃描篩選依據</label><select id="scanType">
@@ -51,10 +51,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <option value="opportunity">Opportunity｜行情機會</option>
 <option value="entry" selected>Entry｜進場分數</option>
 <option value="hold">Hold｜續抱分數</option>
-<option value="action">Action｜四項加權</option>
 <option value="holdDelta">Hold 變化｜較前交易日</option>
 <option value="holdVolumeDelta">Hold 變化＋預估量變化</option>
-<option value="actionDelta">Action 變化｜較前交易日</option>
 <option value="buyAction">進場 Action</option><option value="buyActionDelta">進場 Action 日變化</option><option value="stayAction">續抱 Action</option><option value="stayActionDelta">續抱 Action 日變化｜下降優先</option><option value="stayDrawdown">續抱 Action 前5日高點回落</option></select><div class="small muted">雙組續抱日變化以降幅優先，其餘依選定指標由高到低保留、重評；變化以分數差排序。切換依據後請重新掃描。</div></div>
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
 <div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
@@ -75,26 +73,19 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <div id="stats" class="small muted"></div>
 </div>
 <div class="card">
-<div id="dualScanControls"></div><details><summary>原單組 Action（保留舊設定）</summary><div class="grid" id="scanActionWeights">
-<label>Entry %<input id="scanW_entry" type="number" min="0" max="100" step="1"></label>
-<label>Setup %<input id="scanW_setup" type="number" min="0" max="100" step="1"></label>
-<label>Opportunity %<input id="scanW_opportunity" type="number" min="0" max="100" step="1"></label>
-<label>Hold %<input id="scanW_hold" type="number" min="0" max="100" step="1"></label>
-</div><p id="scanWeightStatus" class="small muted"></p></details>
+<div id="dualScanControls"></div>
 <div class="tabs" id="rankTabs"><button data-rank="buyAction" onclick="showRank('buyAction')">進場 Action</button><button data-rank="buyActionDelta" onclick="showRank('buyActionDelta')">進場 Action 日變化</button><button data-rank="stayAction" onclick="showRank('stayAction')">續抱 Action</button><button data-rank="stayActionDelta" onclick="showRank('stayActionDelta')">續抱 Action 日變化｜下降優先</button><button data-rank="stayDrawdown" onclick="showRank('stayDrawdown')">續抱 Action 前5日高點回落</button>
 <button data-rank="setup" onclick="showRank('setup')">Setup｜型態品質</button>
 <button data-rank="opportunity" onclick="showRank('opportunity')">Opportunity｜行情機會</button>
 <button class="active" data-rank="entry" onclick="showRank('entry')">Entry｜現在能不能買</button>
 <button data-rank="hold" onclick="showRank('hold')">Hold｜已持有是否續抱</button>
-<button data-rank="action" onclick="showRank('action')">Action｜四項加權</button>
 <button data-rank="holdDelta" onclick="showRank('holdDelta')">Hold 變化｜原始</button>
 <button data-rank="holdVolumeDelta" onclick="showRank('holdVolumeDelta')">Hold 變化＋預估量變化</button>
-<button data-rank="actionDelta" onclick="showRank('actionDelta')">Action｜較前交易日增加</button>
 </div>
 <p class="small muted">原始 Hold 變化＝本次 Hold − 前一交易日 Hold。新欄位＝原始變化＋量能加減分，百分比另列；盤中用預估收盤量，盤後用實際量，皆與前一交易日實際量比較。量比 ≥2× 加10分、≥1.5× 加7分、≥1.2× 加4分、&lt;0.6× 減4分，其餘0分。新欄位為分數變化，不限制在0～100；Action 仍使用原始 Hold。</p>
 <div style="overflow:auto"><table><thead><tr>
 <th>代號</th><th>名稱</th>
-<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th><th>Action</th><th>Hold 變化</th><th>Hold 變化＋預估量變化</th><th>Δ Action</th><th>進場 Action</th><th>進場 Δ</th><th>續抱 Action</th><th>續抱 Δ</th><th>前5日高點回落</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>今日量（張）</th><th>估量比</th>
+<th>Setup</th><th>Opportunity</th><th>Entry</th><th>Hold</th><th>Hold 變化</th><th>Hold 變化＋預估量變化</th><th>進場 Action</th><th>進場 Δ</th><th>續抱 Action</th><th>續抱 Δ</th><th>前5日高點回落</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>今日量（張）</th><th>估量比</th>
 <th>市場</th><th>資料日</th><th>期貨</th><th>現價／收盤</th><th>資料完整度</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
@@ -123,7 +114,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <script src="/finmind-token-manager.js"></script>
 <script src="/action-score.js"></script>
 <script src="/dual-action.js?r24"></script>
-<script src="/dual-action-ui.js?r24"></script>
+<script src="/dual-action-ui.js?r25"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
 <script src="/v44-engine.js?r21"></script>
@@ -131,6 +122,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='entry';
 const SCAN_TYPES={buyAction:'進場 Action',buyActionDelta:'進場 Action 日變化',stayAction:'續抱 Action',stayActionDelta:'續抱 Action 日變化｜下降優先',stayDrawdown:'續抱 Action 前5日高點回落',setup:'Setup',opportunity:'Opportunity',entry:'Entry',hold:'Hold',action:'Action',holdDelta:'Hold 變化',holdVolumeDelta:'Hold 變化＋預估量變化',actionDelta:'Action 變化'};
+const visibleRank=k=>k==='action'?'buyAction':k==='actionDelta'?'buyActionDelta':k;
 const SCAN_TYPE_KEY='twq_scan_type_v1';
 let scanSelection='entry',scanSelectionWeights=null;
 let dualWeights=TWDualAction.read(),dualWeightsValid=true,scanSelectionDualWeights=dualWeights,dualControls=null;
@@ -155,10 +147,10 @@ function selectCandidates(list,limit=Infinity){
 function setScanControlsBusy(busy){
   $('scanType').disabled=busy;
   dualControls?.busy(busy);
-  for(const k of TWAction.keys)$('scanW_'+k).disabled=busy;
+
 }
 function initScanType(){
-  let saved;try{saved=localStorage.getItem(SCAN_TYPE_KEY)}catch(e){}
+  let saved;try{saved=visibleRank(localStorage.getItem(SCAN_TYPE_KEY))}catch(e){}
   if(Object.hasOwn(SCAN_TYPES,saved))$('scanType').value=saved;
   $('scanType').addEventListener('change',()=>{
     try{localStorage.setItem(SCAN_TYPE_KEY,$('scanType').value)}catch(e){}
@@ -278,21 +270,6 @@ function scanDelta(r,key){
 }
 function displayScore(v,delta=false){
   return v==null||!Number.isFinite(v)?'—':(delta&&v>0?'+':'')+v;
-}
-function initScanWeights(){
-  const sync=()=>{for(const k of TWAction.keys)$('scanW_'+k).value=scanWeights[k]};
-  const refresh=()=>{
-    const w=Object.fromEntries(TWAction.keys.map(k=>[k,$('scanW_'+k).value.trim()===''?NaN:Number($('scanW_'+k).value)]));
-    scanWeightsValid=TWAction.valid(w);
-    $('scanWeightStatus').textContent=scanWeightsValid
-      ?'總和 100%｜權重與個股頁同步。Δ = 本次分數 − 前一交易日收盤分數；兩日使用同一組權重。'
-      :'權重總和必須等於 100%，每項介於 0～100；Action 暫不計分。';
-    if(scanWeightsValid){scanWeights=w;TWAction.save(w)}
-    showRank(currentRank);
-  };
-  sync();refresh();
-  for(const k of TWAction.keys)$('scanW_'+k).addEventListener('input',refresh);
-  window.addEventListener('storage',e=>{if(e.key===TWAction.key){scanWeights=TWAction.read();sync();refresh()}});
 }
 function priceDecision(hist){
  const a=hist.filter(x=>Number.isFinite(Number(x.close)));
@@ -460,7 +437,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.17.0-R24',
+    version:'1.17.0-R25',
     savedAt:Date.now(),
     backgroundJobId:window.__backgroundScanJobId||null,
     backgroundJobComplete:!!window.__backgroundScanJobComplete,
@@ -496,12 +473,12 @@ function restoreScan(){
       // Keep stock identities, chips, watchlists and other scores for a normal refresh.
       return {...r,holdNeedsRefresh:true,holdDelta:null,holdVolumeDelta:null,holdVolumeRatio:null,holdVolumeBonus:null,holdVolumeChangePct:null};
     });
-    scanSelection=Object.hasOwn(SCAN_TYPES,p.scanSelection)?p.scanSelection:'entry';
+    scanSelection=Object.hasOwn(SCAN_TYPES,visibleRank(p.scanSelection))?visibleRank(p.scanSelection):'entry';
     scanSelectionWeights=p.scanSelectionWeights||TWAction.read();
     scanSelectionDualWeights=p.scanSelectionDualWeights||dualWeights;
-    currentRank=p.currentRank||'entry';
+    currentRank=visibleRank(p.currentRank)||'entry';
 
-    if(!['1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
+    if(!['1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24','1.17.0-R25'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
     if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${SCAN_TYPES[scanSelection]} 篩選 · ${results.length} 檔${results.some(r=>r.holdNeedsRefresh)?'｜舊版 Hold 待重算，請按「更新榜單盤中行情」':''}`;
     if($('stats')) $('stats').textContent=p.stats||'';
     if($('prog')) $('prog').value=100;
@@ -520,7 +497,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 
 function renderRankOnly(key=currentRank){
-  currentRank=Object.hasOwn(SCAN_TYPES,key)?key:'entry';
+  key=visibleRank(key);currentRank=Object.hasOwn(SCAN_TYPES,key)?key:'entry';
   document.querySelectorAll('#rankTabs button[data-rank]').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.rank===currentRank);
   });
@@ -529,8 +506,8 @@ function renderRankOnly(key=currentRank){
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
     <td>${r.setup}</td><td>${r.opportunity}</td><td><b>${r.entry}</b></td><td>${r.holdNeedsRefresh?'待更新':displayScore(r.hold)}</td>
-    <td>${displayScore(scanAction(r))}</td><td>${displayScore(scanDelta(r,'holdDelta'),true)}</td>
-    <td class="hold-change-cell"><b class="${r.holdVolumeDelta>0?'hold-up':r.holdVolumeDelta<0?'hold-down':''}">${displayScore(scanDelta(r,'holdVolumeDelta'),true)}</b><small class="muted">${r.holdNeedsRefresh?'請更新榜單盤中行情':TWHoldChange.volumeText(r,r.holdVolumeProjected)}</small></td><td>${displayScore(scanDelta(r,'actionDelta'),true)}</td>
+    <td>${displayScore(scanDelta(r,'holdDelta'),true)}</td>
+    <td class="hold-change-cell"><b class="${r.holdVolumeDelta>0?'hold-up':r.holdVolumeDelta<0?'hold-down':''}">${displayScore(scanDelta(r,'holdVolumeDelta'),true)}</b><small class="muted">${r.holdNeedsRefresh?'請更新榜單盤中行情':TWHoldChange.volumeText(r,r.holdVolumeProjected)}</small></td>
     ${dualCell(r)}<td style="min-width:220px;text-align:left">${safeText(TWDualAction.note(r.absorption))}${r.absorption?.ratio!=null?'<br>5日淨額占量 '+r.absorption.ratio.toFixed(2)+'%':''}</td><td>${r.priceGuard?.broken?'結構破位':r.priceGuard?'結構未破':'待更新'}</td><td>${r.previousDate||'—'}</td><td>${r.liveError?'更新失敗':(r.liveTime||'未更新')}</td>
     <td>${r.liveActualVolume==null?'—':Math.round(r.liveActualVolume/1000).toLocaleString()}</td>
     <td>${r.liveVolumeRatio==null?'—':r.liveVolumeRatio.toFixed(2)+'×'}</td>
@@ -877,7 +854,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R24 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R25 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').textContent=e.message}
  finally{scanBusy=false;setScanControlsBusy(false);$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
@@ -958,11 +935,11 @@ TWStockFutures.load().then(j=>{
   $('futuresStatus').textContent=TWStockFutures.describe(j)+'｜舊榜單請重新全市場掃描';
   renderRankOnly(currentRank);
 });
-initScanWeights();
+
 initScanType();
 dualControls=TWDualUI.controls($('dualScanControls'),(w,valid)=>{dualWeights=w;dualWeightsValid=valid;showRank(currentRank)});
 
 bindFinMindTokenPanel();
 checkFinMindTokenStatus();
 </script>
-<script src="/background-scan.js?r24"></script></main></body></html>
+<script src="/background-scan.js?r25"></script></main></body></html>
