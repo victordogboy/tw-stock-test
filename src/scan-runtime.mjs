@@ -51,7 +51,7 @@ const TWHoldChange=(()=>{const root={};
 return root.TWHoldChange;})();
 const TWDualAction=(()=>{const root={};
   'use strict';
-  const key='twq_dual_action_r24',schema='dual-action-r24';
+  const key='twq_dual_action_r24',schema='dual-action-r26';
   const keys=['setup','opportunity','entry','hold'];
   const defaults={buy:{setup:0,opportunity:20,entry:25,hold:55},stay:{setup:20,opportunity:0,entry:0,hold:80}};
   const copy=x=>JSON.parse(JSON.stringify(x));
@@ -60,13 +60,23 @@ const TWDualAction=(()=>{const root={};
   function read(){try{const w=JSON.parse(root.localStorage.getItem(key));return valid(w)?w:copy(defaults)}catch{return copy(defaults)}}
   function save(w){if(!valid(w))return false;try{root.localStorage.setItem(key,JSON.stringify(w));return true}catch{return false}}
   function score(s,w){if(!s||!validWeight(w)||!keys.every(k=>w[k]===0||Number.isFinite(s[k])))return null;return Math.round(keys.reduce((a,k)=>a+(w[k]?s[k]*w[k]/100:0),0))}
+  // Use the same volume confirmation bands as Hold + volume. Never invent a
+  // zero bonus when the previous completed session's volume is unavailable.
+  function volumeBonus(r){
+    const ratio=Number.isFinite(r?.holdVolumeRatio)?r.holdVolumeRatio:
+      Number.isFinite(r?.volume)&&r.volume>=0&&Number.isFinite(r?.previousVolume)&&r.previousVolume>0?r.volume/r.previousVolume:null;
+    return ratio===null?null:ratio>=2?10:ratio>=1.5?7:ratio>=1.2?4:ratio<0.6?-4:0;
+  }
   function metrics(r,w=read()){
-    const empty={buy:null,buyDelta:null,stay:null,stayDelta:null,stayDrop:null};
+    const empty={buy:null,buyDelta:null,stay:null,stayDelta:null,stayDrop:null,buyScoreDelta:null,stayScoreDelta:null,volumeBonus:null};
     if(!valid(w)||r?.holdNeedsRefresh)return empty;
     const buy=score(r,w.buy),stay=score(r,w.stay),pb=score(r?.previousScores,w.buy),ps=score(r?.previousScores,w.stay);
     const trail=r?.actionTrail||[],values=trail.map(x=>score(Object.fromEntries(keys.map((k,i)=>[k,x[i]])),w.stay));
     const stayDrop=stay!==null&&values.length===5&&values.every(Number.isFinite)?Math.max(0,Math.max(...values)-stay):null;
-    return {buy,stay,buyDelta:buy!==null&&pb!==null?buy-pb:null,stayDelta:stay!==null&&ps!==null?stay-ps:null,stayDrop};
+    const bonus=volumeBonus(r),buyScoreDelta=buy!==null&&pb!==null?buy-pb:null,stayScoreDelta=stay!==null&&ps!==null?stay-ps:null;
+    return {buy,stay,buyScoreDelta,stayScoreDelta,volumeBonus:bonus,
+      buyDelta:buyScoreDelta!==null&&bonus!==null?buyScoreDelta+bonus:null,
+      stayDelta:stayScoreDelta!==null&&bonus!==null?stayScoreDelta+bonus:null,stayDrop};
   }
   const selections={buyAction:'buy',buyActionDelta:'buyDelta',stayAction:'stay',stayActionDelta:'stayDelta',stayDrawdown:'stayDrop'};
   function rank(r,k,w){const v=metrics(r,w)[selections[k]];return k==='stayActionDelta'&&v!==null?-v:v}
@@ -111,7 +121,7 @@ const TWDualAction=(()=>{const root={};
   }
   const signed=v=>Number.isFinite(v)?(v>0?'+':'')+v:'—';
   function note(a){if(!a)return '待更新｜重新掃描或更新盤中行情';return `${a.state}｜法人截至 ${a.chipDate||'—'}${a.lag?'（落後 '+a.lag+' 個交易日）':''}｜${a.detail}。外資＋投信，排除自營商；尚未計入加減分。`}
-  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,metrics,selections,rank,history,absorption,signed,note};
+  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,volumeBonus,metrics,selections,rank,history,absorption,signed,note};
 
 return root.TWDualAction;})();
 const num=x=>Number(String(x??0).replace(/,/g,''))||0;
@@ -1046,7 +1056,11 @@ function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>
 function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
 function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}
 async function liveCurrentRecheckOne(r){
-  const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`),b=j.bar||{},errs=scanQuoteErrors(j,b);
+  const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`);
+  let b=j.bar||{};
+  const completed=(r._hist||[]).find(x=>x.date===b.date&&!x.intradayProjected);
+  if(!scanMarketOpen(j,b)&&r.formalPrice&&completed)b={...b,...completed};
+  const errs=scanQuoteErrors(j,b);
   if(j.quote_valid===false||errs.length)throw new Error(`盤中報價異常 ${errs.join('/')}`);
   if(String(b.date)<String(r.dataDate||''))throw new Error('報價日期落後，保留既有資料');
   const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
@@ -1069,8 +1083,11 @@ async function stage1CurrentHistory(code,market,start,end){
   const lastFormalDate=completed?.date||null;
   const lastFormalVolume=Math.max(0,n(completed?.volume,0));
   let provisional=false,liveSource=null;
+  if(SCAN_TARGET_DATE && String(last?.date||'')<String(SCAN_TARGET_DATE) && lastFormalVolume/1000<SCAN_FILTERS.minLots){
+    throw new Error(`低於最低成交量 ${(lastFormalVolume/1000).toFixed(0)}張（前一正式日）`);
+  }
 
-  if(SCAN_TARGET_DATE && (String(last?.date||'')<String(SCAN_TARGET_DATE)||(scanSelection==='holdVolumeDelta'&&SCAN_TARGET_DATE===scanTaipeiNow().date))){
+  if(SCAN_TARGET_DATE && (String(last?.date||'')<String(SCAN_TARGET_DATE)||(SCAN_TARGET_DATE===scanTaipeiNow().date&&scanMarketOpen({}, {date:SCAN_TARGET_DATE})))){
     const iq=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
     const b=iq.bar||{},errs=scanQuoteErrors(iq,b);
     if(iq.quote_valid===false||errs.length||String(b.date)!==String(SCAN_TARGET_DATE)){

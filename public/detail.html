@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R25｜雙 Action 精簡版</title>
+<title>台股個股分析｜V1.17.0-R26｜雙 Action 量能版</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -119,8 +119,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R25｜雙 Action 精簡版</h1>
-      <p class="release-note"><b>R25｜雙 Action 精簡版</b>　盤中雙分數搭配預估量；審計日分數整合於 K 線上方，權重設定移至下方。</p>
+      <h1>台股個股分析｜V1.17.0-R26｜雙 Action 量能版</h1>
+      <p class="release-note"><b>R26｜雙 Action 量能版</b>　雙 Action 日變化加入量能加減分：盤中預估收盤量、盤後實際成交量；分數差與量能分分開列出。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -316,8 +316,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 </div>
 
 <script src="/finmind-token-manager.js"></script>
-<script src="/dual-action.js?r24"></script>
-<script src="/dual-action-ui.js?r25"></script>
+<script src="/dual-action.js?r26"></script>
+<script src="/dual-action-ui.js?r26"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
 <script>
@@ -1464,7 +1464,7 @@ function paintDetailDual(){
   for(const [key,value,delta] of [['Buy',m.buy,m.buyDelta],['Stay',m.stay,m.stayDelta]]){
    $(prefix+key+'Action').textContent=value??'—';
    if(prefix==='live')$(prefix+key+'Volume').textContent=TWDualUI.volumeContext(row);
-   const el=$(prefix+key+'Delta');el.textContent='日變化 '+TWDualAction.signed(delta);
+   const el=$(prefix+key+'Delta');el.textContent='日變化 '+TWDualAction.signed(delta)+'（分數差 '+TWDualAction.signed(key==='Buy'?m.buyScoreDelta:m.stayScoreDelta)+'＋量能 '+TWDualAction.signed(m.volumeBonus)+'）';
    el.style.color=delta>0?'#ff8585':delta<0?'#65d99a':'';
   }
   const meta=row?`${row.dataDate}｜較 ${row.previousDate||'—'}｜續抱距前5日高點回落 ${m.stayDrop??'—'} 分`:'等待行情';
@@ -1899,7 +1899,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R22 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R26 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;
@@ -2088,15 +2088,17 @@ setTimeout(refreshFuturesBadge,700);
     const synthetic={
       date:b.date,
       open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
-      volume:Number(pv.volume||0),money:0,intradayProjected:true
+      volume:Number(pv.volume||0),money:0,intradayProjected:open
     };
     const sim=formalRows.concat([synthetic]);
 
-    // Today's chips are not guessed. Use only chip data known at the previous completed session.
-    const m=cut(STATE.margin,formalDate),i=cut(STATE.inst,formalDate),dt=cut(STATE.daytrade,formalDate);
+    // Intraday chips stop at the previous session; completed quotes can use
+    // published same-day chips, matching the scanner.
+    const chipDate=open?formalDate:b.date;
+    const m=cut(STATE.margin,chipDate),i=cut(STATE.inst,chipDate),dt=cut(STATE.daytrade,chipDate);
     const R=combineScores(sim,m,i,dt);
     const E=entryEngine(sim,R);
-    const previousR=combineScores(formalRows,m,i,dt),previousE=entryEngine(formalRows,previousR);
+    const previousR=combineScores(formalRows,cut(STATE.margin,formalDate),cut(STATE.inst,formalDate),cut(STATE.daytrade,formalDate)),previousE=entryEngine(formalRows,previousR);
     const holdChange={...TWHoldChange.calculate(E,previousE,pv.volume,formalRows.at(-1)?.volume),previousDate:formalDate};
     return {R,E,formalDate,pv,avg5,open,synthetic,previousR,previousE,holdChange,dualRow:detailDualRow(sim,{margin:m,inst:i,daytrade:dt})};
   }

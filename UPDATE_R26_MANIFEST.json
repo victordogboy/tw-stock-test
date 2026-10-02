@@ -1,0 +1,71 @@
+{
+  "version": "1.17.0-R26",
+  "baseline": "update_v1.17.0-r25_dual_action_clean.zip",
+  "deployment": "not deployed",
+  "changed_files": [
+    {
+      "path": "UPDATE_R26_NOTES.md",
+      "sha256": "e30541945426bd6d2052b4ac8820a94affbf4da2e3e9dd7b08e4cc8bd03ca40c"
+    },
+    {
+      "path": "package.json",
+      "sha256": "c1facfdb47f61b6d1e082e847250ed3f1d2b7cd3bb4baf667ba1ed704823bb2b"
+    },
+    {
+      "path": "public/detail.html",
+      "sha256": "351f7f9b4ecd95916b6d04cc5db71a4463867ca843650bdbaf6acef346efe8e2"
+    },
+    {
+      "path": "public/dual-action-ui.js",
+      "sha256": "d8a857177cb91f9012883435500e112e9a4d3139b0de53fa10f8b9334c10b764"
+    },
+    {
+      "path": "public/dual-action.js",
+      "sha256": "e7ee3f25e47e8f961136027c8509257c2e5fca72441f52aa9e7d11118a0f56de"
+    },
+    {
+      "path": "public/index.html",
+      "sha256": "84d95638b24d35d3308730fd1f32ebd1037ee368deae30a79ca5f3dc77ca49d3"
+    },
+    {
+      "path": "public/scanner.html",
+      "sha256": "992f7553219ce0d141687bb7e62a9bb09e94e2abaf57a613c2c1334718937089"
+    },
+    {
+      "path": "src/index.js",
+      "sha256": "3a90151bf0c762523d7b5d0f27c8bf65baa3eb58345fee07d32f259b02083b5f"
+    },
+    {
+      "path": "src/scan-job.mjs",
+      "sha256": "8ac313183a650e31ef8cad6ff588d93dbbd07da65a936aa1cbffb500c66c816a"
+    },
+    {
+      "path": "src/scan-runtime.mjs",
+      "sha256": "33c4a49c06b4507f7525bb1ab0c509ee29737926b106290dcc255675af403ee2"
+    },
+    {
+      "path": "tests/background-scan.test.mjs",
+      "sha256": "370d42a1db39931641d09eca94dfc14ac10d8d8a759dfbc28fd4f3c7fefd1e81"
+    },
+    {
+      "path": "tests/intraday-official-fallback.test.cjs",
+      "sha256": "4b5be5df3425947e94c1abb3344334801766b4a78de5889c318881a42878235c"
+    },
+    {
+      "path": "tests/r21-page-integration.test.cjs",
+      "sha256": "07ce21e3a23830e728f871ad64722e715ad2a2d96b16e7038f66099aad5079e3"
+    },
+    {
+      "path": "tests/r24-dual-action.test.cjs",
+      "sha256": "200e9f2f9cbf15555c227a9fc701a3a9383c670346bfcea0d4f463f30a09d6d0"
+    },
+    {
+      "path": "tests/r26-close-volume.test.cjs",
+      "sha256": "23a88effa87e882f177056b89ee73954180519806f4c0a5eb5eee37481561a26"
+    },
+    {
+      "path": "tests/r26-scan.test.mjs",
+      "sha256": "25b08ef11db347f08591c50c8e7bee940bc9dfd26b4ad3964762257de876918b"
+    }
+  ]
+}

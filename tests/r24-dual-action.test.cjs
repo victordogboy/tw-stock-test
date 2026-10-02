@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 const storage=new Map(),ctx=vm.createContext({localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}});
 vm.runInContext(fs.readFileSync('public/dual-action.js','utf8'),ctx);const D=ctx.TWDualAction;
-const scores=hold=>({setup:50,opportunity:60,entry:40,hold});
+const scores=hold=>({setup:50,opportunity:60,entry:40,hold,holdVolumeRatio:1});
 function fixture(){const rows=Array.from({length:35},(_,i)=>({date:new Date(Date.UTC(2026,7,i+1)).toISOString().slice(0,10),open:100,high:101,low:99,close:100,volume:1000000}));const inst=rows.map(r=>({date:r.date,Foreign_Investor_buy:0,Foreign_Investor_sell:50000,Investment_Trust_buy:0,Investment_Trust_sell:0,Dealer_Hedging_buy:1e9,Dealer_Hedging_sell:0}));return {rows,inst}}
 test('independent defaults, validation, legacy storage and full same-weight recalculation',()=>{
  storage.set('twq_action_weights_v1160r2','legacy');assert.ok(D.valid(D.read()));assert.equal(D.read().buy.hold,55);assert.equal(D.read().stay.hold,80);

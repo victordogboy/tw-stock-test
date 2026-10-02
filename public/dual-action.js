@@ -1,7 +1,7 @@
 /* R24: independent entry/holding weights; observation-only institutional absorption. */
 (function(root){
   'use strict';
-  const key='twq_dual_action_r24',schema='dual-action-r24';
+  const key='twq_dual_action_r24',schema='dual-action-r26';
   const keys=['setup','opportunity','entry','hold'];
   const defaults={buy:{setup:0,opportunity:20,entry:25,hold:55},stay:{setup:20,opportunity:0,entry:0,hold:80}};
   const copy=x=>JSON.parse(JSON.stringify(x));
@@ -10,13 +10,23 @@
   function read(){try{const w=JSON.parse(root.localStorage.getItem(key));return valid(w)?w:copy(defaults)}catch{return copy(defaults)}}
   function save(w){if(!valid(w))return false;try{root.localStorage.setItem(key,JSON.stringify(w));return true}catch{return false}}
   function score(s,w){if(!s||!validWeight(w)||!keys.every(k=>w[k]===0||Number.isFinite(s[k])))return null;return Math.round(keys.reduce((a,k)=>a+(w[k]?s[k]*w[k]/100:0),0))}
+  // Use the same volume confirmation bands as Hold + volume. Never invent a
+  // zero bonus when the previous completed session's volume is unavailable.
+  function volumeBonus(r){
+    const ratio=Number.isFinite(r?.holdVolumeRatio)?r.holdVolumeRatio:
+      Number.isFinite(r?.volume)&&r.volume>=0&&Number.isFinite(r?.previousVolume)&&r.previousVolume>0?r.volume/r.previousVolume:null;
+    return ratio===null?null:ratio>=2?10:ratio>=1.5?7:ratio>=1.2?4:ratio<0.6?-4:0;
+  }
   function metrics(r,w=read()){
-    const empty={buy:null,buyDelta:null,stay:null,stayDelta:null,stayDrop:null};
+    const empty={buy:null,buyDelta:null,stay:null,stayDelta:null,stayDrop:null,buyScoreDelta:null,stayScoreDelta:null,volumeBonus:null};
     if(!valid(w)||r?.holdNeedsRefresh)return empty;
     const buy=score(r,w.buy),stay=score(r,w.stay),pb=score(r?.previousScores,w.buy),ps=score(r?.previousScores,w.stay);
     const trail=r?.actionTrail||[],values=trail.map(x=>score(Object.fromEntries(keys.map((k,i)=>[k,x[i]])),w.stay));
     const stayDrop=stay!==null&&values.length===5&&values.every(Number.isFinite)?Math.max(0,Math.max(...values)-stay):null;
-    return {buy,stay,buyDelta:buy!==null&&pb!==null?buy-pb:null,stayDelta:stay!==null&&ps!==null?stay-ps:null,stayDrop};
+    const bonus=volumeBonus(r),buyScoreDelta=buy!==null&&pb!==null?buy-pb:null,stayScoreDelta=stay!==null&&ps!==null?stay-ps:null;
+    return {buy,stay,buyScoreDelta,stayScoreDelta,volumeBonus:bonus,
+      buyDelta:buyScoreDelta!==null&&bonus!==null?buyScoreDelta+bonus:null,
+      stayDelta:stayScoreDelta!==null&&bonus!==null?stayScoreDelta+bonus:null,stayDrop};
   }
   const selections={buyAction:'buy',buyActionDelta:'buyDelta',stayAction:'stay',stayActionDelta:'stayDelta',stayDrawdown:'stayDrop'};
   function rank(r,k,w){const v=metrics(r,w)[selections[k]];return k==='stayActionDelta'&&v!==null?-v:v}
@@ -61,5 +71,5 @@
   }
   const signed=v=>Number.isFinite(v)?(v>0?'+':'')+v:'—';
   function note(a){if(!a)return '待更新｜重新掃描或更新盤中行情';return `${a.state}｜法人截至 ${a.chipDate||'—'}${a.lag?'（落後 '+a.lag+' 個交易日）':''}｜${a.detail}。外資＋投信，排除自營商；尚未計入加減分。`}
-  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,metrics,selections,rank,history,absorption,signed,note};
+  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,volumeBonus,metrics,selections,rank,history,absorption,signed,note};
 })(globalThis);

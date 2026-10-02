@@ -34,7 +34,7 @@ const context = vm.createContext({
   AbortSignal,
   TextDecoder,
   Intl,
-  Date,
+  Date: class extends Date {constructor(...args){super(...(args.length?args:['2026-09-16T01:17:00Z']))}static now(){return new Date('2026-09-16T01:17:00Z').getTime()}},
   setTimeout,
   clearTimeout,
   caches: {default: {

@@ -475,6 +475,11 @@ async function fetchTwseMisIntraday(code,market,attempts){
       const validationErrors=intradayValidationErrors(bar);
       if(validationErrors.length){attempt.validation_errors=validationErrors;continue}
       const session=taipeiSessionState();
+      const quoteMinutes=time?Number(time.slice(0,2))*60+Number(time.slice(3,5)):null;
+      const closed=date<session.date||(!session.is_open&&session.minutes>=810);
+      if(closed&&(quoteMinutes===null||quoteMinutes<810)){
+        attempt.error='closing cumulative volume not yet confirmed';continue;
+      }
       return {
         ok:true,
         quote_valid:true,
@@ -1115,7 +1120,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.17.0-R25",
+      version: "1.17.0-R26",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1344,7 +1349,31 @@ async function routeApi(request, env, url) {
             session_open:session.is_open && latestDay===session.date,
             session_date:session.date
           };
-          if(!validation_errors.length)return json(quote,200,{"cache-control":"no-store"});
+          if(!validation_errors.length){
+            // A 1-minute sum can omit auction/trades. After close use a dated
+            // daily bar, never relabel the minute aggregate as final volume.
+            if(!quote.session_open&&(latestDay<session.date||session.minutes>=810)){
+              const daily=await fetchYahooHistory(code,market,latestDay,latestDay);
+              const finalBar=daily.data?.find(r=>r.date===latestDay);
+              if(finalBar&&Number.isFinite(finalBar.volume)&&finalBar.volume>=0&&!intradayValidationErrors(finalBar).length){
+                quote.bar={...bar,...finalBar,last_time:'13:30:00',
+                  change:Number.isFinite(bar.prev_close)?roundTwPrice(finalBar.close-bar.prev_close):null,
+                  change_pct:Number.isFinite(bar.prev_close)&&bar.prev_close!==0?(finalBar.close/bar.prev_close-1)*100:null};
+                quote.source='Yahoo Finance completed daily';
+                quote.volume_basis='completed-daily';
+              }else{
+                if(!officialTried){
+                  officialTried=true;
+                  const official=await fetchTwseMisIntraday(code,market,attempts);
+                  if(official&&official.bar.date===latestDay&&/^1[3-9]:/.test(official.bar.last_time||'')&&
+                    (Number(official.bar.last_time.slice(0,2))*60+Number(official.bar.last_time.slice(3,5)))>=810)
+                    return json({...official,volume_basis:'official-close'},200,{"cache-control":"no-store"});
+                }
+                return json({ok:false,error:'盤後完整成交量尚未取得，請稍後更新',attempts},503,{"cache-control":"no-store"});
+              }
+            }
+            return json(quote,200,{"cache-control":"no-store"});
+          }
           attempts.push({host,symbol,error:'quote validation failed',validation_errors});
         }catch(e){attempts.push({host,symbol,error:String(e?.message||e)})}
         // Yahoo is intermittently rate-limited around the Taiwan open. Try the
@@ -1372,7 +1401,7 @@ async function routeApi(request, env, url) {
     // merged history at the Worker edge so a second scan does not hit Yahoo/TWSE again.
     const historyCache=caches.default;
     const historyCacheKey=new Request(
-      `${url.origin}/__cache/history-auto/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
+      `${url.origin}/__cache/history-auto-r26/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
     );
     // fresh=1 is used by Scanner/Detail latest-data requests.
     // It must never reuse the 6-hour custom cache, otherwise an intraday
@@ -1383,6 +1412,10 @@ async function routeApi(request, env, url) {
     }
 
     const yahoo=await fetchYahooHistory(code,market,startDate,endDate);
+    // Cache only completed sessions; partial daily bars must be replaced by
+    // projected live bars and must not survive as closing volume after 13:30.
+    const historySession=taipeiSessionState();
+    if(!fresh&&historySession.minutes<810)yahoo.data=(yahoo.data||[]).filter(r=>r.date<historySession.date);
     if(yahoo.ok && yahoo.data.length>=150){
       let data=yahoo.data, freshness={
         merged:0,source:"Yahoo only",last_twse:null,error:null
@@ -1955,7 +1988,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.17.0-R25");
+        headers.set("X-App-Version","1.17.0-R26");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

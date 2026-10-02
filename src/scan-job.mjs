@@ -114,12 +114,15 @@ export function createScanJobClass(api){return class ScanJob {
    if(s.phase==='initializing'){await this.initialize(s);s.retries=0;await this.commit(s);return}
    const runtime=createScanRuntime(s,path=>this.json(path,s));
    const rows=[],remove=[];
-   // A small batch bounds CPU/subrequests; expensive chip requests run one stock per alarm.
-   const batch=s.phase==='scanning'?Math.min(4,s.options.concurrency):1;
+   // Bound upstream fan-out per phase; chip history itself fans out heavily.
+   const batch=Math.min(s.options.concurrency,s.phase==='scanning'?8:s.phase==='formalizing'?2:s.phase==='live'?4:1);
    if(s.phase==='scanning'){
     const items=[];
+    const chunks=new Map();
     for(let i=s.cursor;i<Math.min(s.cursor+batch,s.total);i++){
-     const chunk=await this.ctx.storage.get('universe:'+Math.floor(i/100));items.push(chunk[i%100]);
+     const key=Math.floor(i/100);
+     if(!chunks.has(key))chunks.set(key,await this.ctx.storage.get('universe:'+key));
+     items.push(chunks.get(key)[i%100]);
     }
     const scanned=await Promise.all(items.map(item=>createScanRuntime(s,path=>this.json(path,s)).scan(item)));
     for(const {row,error} of scanned){
@@ -137,8 +140,8 @@ export function createScanJobClass(api){return class ScanJob {
     s.message=`背景掃描 ${s.scanned}/${s.total}｜符合 ${s.qualified}｜略過 ${s.skipped}`;
     if(s.cursor>=s.total){s.phase='formalizing';s.work=s.ranked.map(x=>x.code);s.cursor=0;s.message='正式日K重評'}
    }else{
-    const code=s.work[s.cursor];
-    if(code){
+    const codes=s.work.slice(s.cursor,s.cursor+batch);
+    const updated=await Promise.all(codes.map(async code=>{
      const row=await this.readRow(code);if(!row)throw Error('掃描紀錄缺失');
      try{
       if(s.phase==='formalizing')await runtime.formalizeListedOne(row);
@@ -147,19 +150,21 @@ export function createScanJobClass(api){return class ScanJob {
      }catch(e){
       const field=s.phase==='chips'?'chipError':s.phase==='live'?'liveError':'formalPriceError';row[field]=String(e.message||e).slice(0,500);s.errors.push(code+': '+row[field]);
      }
-     rows.push(row);s.ranked=s.ranked.map(r=>r.code===code?rankRow(row,runtime):r);s.cursor++;
-    }
+     return row;
+    }));
+    for(const row of updated){rows.push(row);s.ranked=s.ranked.map(r=>r.code===row.code?rankRow(row,runtime):r);}
+    s.cursor+=codes.length;
     s.message=({formalizing:'正式日K重評',chips:'籌碼重評',live:'盤中行情重算'})[s.phase]+` ${s.cursor}/${s.work.length}`;
     if(s.cursor>=s.work.length){
      s.ranked=runtime.selectCandidates(s.ranked);
      if(s.phase==='formalizing'){
       const old=s.ranked;s.ranked=s.ranked.slice(0,s.options.finTopN);remove.push(...old.slice(s.options.finTopN).map(r=>r.code));s.phase='chips';
      }else if(s.phase==='chips')s.phase='live';
-     else{s.phase='completed';s.message=`R24 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
+     else{s.phase='completed';s.message=`R26 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
      s.work=s.ranked.map(r=>r.code);s.cursor=0;
     }
    }
-   s.errors=s.errors.slice(-30);s.retries=0;await this.commit(s,rows,remove);
+   s.errors=s.errors.slice(-30);s.retries=0;await this.commit(s,rows,remove.filter(code=>!s.ranked.some(r=>r.code===code)));
   }catch(e){
    // Retry from the last committed cursor; never skip uncommitted rows after a crash.
    s=await this.ctx.storage.get('job');if(!s||!ACTIVE.has(s.phase))return;

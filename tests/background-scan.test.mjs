@@ -71,3 +71,10 @@ test('route requires unguessable capability, rejects cross-origin and invalid se
  assert.equal((await scanRoute(new Request('https://test/api/scan/job',{headers:{'x-scan-key':'a'.repeat(64)}}),{})).status,503);
  assert.throws(()=>validateOptions({maxStocks:100000}));assert.throws(()=>validateOptions({selection:'fake'}));assert.throws(()=>validateOptions({weights:{entry:100,hold:100}}));
 });
+test('R26 honours six concurrent scan items and batches history/live rechecks',async()=>{
+ const h=setup();await h.newJob().fetch(request('POST'));await h.newJob().alarm();
+ await h.newJob().alarm();assert.equal((await h.storage.get('job')).scanned,6);
+ let steps=2;
+ while((await h.storage.get('job')).phase!=='completed'&&steps++<40)await h.newJob().alarm();
+ assert.equal((await h.storage.get('job')).phase,'completed');assert.equal(steps,9);
+});
