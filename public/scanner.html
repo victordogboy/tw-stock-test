@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 Scan｜V1.17.0-R26｜掃描加速・雙 Action 量能版</title>
+<title>台股 Scan｜V1.17.0-R27｜掃描加速・雙 Action 量能版</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -32,8 +32,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .selected-metric{background:rgba(255,209,102,.09);min-width:105px}th[data-metric]{white-space:nowrap}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 Scan｜V1.17.0-R26｜掃描加速・雙 Action 量能版</h1>
-<p class="release-note"><b>R26｜掃描加速・雙 Action 量能版</b>　選取指標自動置前；雙 Action 日變化加入量能，盤中估量／盤後實量。</p>
+<h1>台股 Scan｜V1.17.0-R27｜掃描加速・雙 Action 量能版</h1>
+<p class="release-note"><b>R27｜掃描加速・雙 Action 量能版</b>　選取指標自動置前；雙 Action 日變化加入量能，盤中估量／盤後實量。</p>
 <div id="futuresStatus" class="small muted">期貨名單：待載入</div>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
@@ -453,7 +453,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.17.0-R26',
+    version:'1.17.0-R27',
     savedAt:Date.now(),
     backgroundJobId:window.__backgroundScanJobId||null,
     backgroundJobComplete:!!window.__backgroundScanJobComplete,
@@ -494,7 +494,7 @@ function restoreScan(){
     scanSelectionDualWeights=p.scanSelectionDualWeights||dualWeights;
     currentRank=visibleRank(p.currentRank)||'entry';
 
-    if(!['1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24','1.17.0-R25','1.17.0-R26'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
+    if(!['1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24','1.17.0-R25','1.17.0-R26','1.17.0-R27'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
     if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${SCAN_TYPES[scanSelection]} 篩選 · ${results.length} 檔${results.some(r=>r.holdNeedsRefresh)?'｜舊版 Hold 待重算，請按「更新榜單盤中行情」':''}`;
     if($('stats')) $('stats').textContent=p.stats||'';
     if($('prog')) $('prog').value=100;
@@ -882,7 +882,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R26 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R27 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').textContent=e.message}
  finally{scanBusy=false;setScanControlsBusy(false);$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}

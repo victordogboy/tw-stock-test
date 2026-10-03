@@ -70,6 +70,34 @@ assert.equal(detail.nodes.get('chartBuyAction').textContent,vm.runInContext('TWD
 assert.equal(JSON.stringify(vm.runInContext('TWDualAction.metrics(dualLiveRow,dualDetailWeights)',detail.ctx)),liveBefore);
 
 assert.equal(detail.nodes.get('liveScoreCard').style.display,'block');
+// R27: historical price/date/deltas survive both live and closing quote refresh.
+const auditClose=detail.nodes.get('auditClosePill').textContent;
+assert.ok(auditClose.startsWith('收盤：'+vm.runInContext('fmt(fixture[80].close,2)',detail.ctx)+' '));
+const auditBuy=detail.nodes.get('chartBuyDelta').textContent;
+assert.equal(auditBuy,vm.runInContext('TWDualAction.signed(TWDualAction.metrics(dualAuditRow,dualDetailWeights).buyDelta)',detail.ctx));
+assert.match(detail.nodes.get('chartBuyDeltaSub').textContent,/分數差 .*｜量能 /);
+assert.equal(detail.nodes.get('liveBuyDelta').textContent,vm.runInContext('TWDualAction.signed(TWDualAction.metrics(dualLiveRow,dualDetailWeights).buyDelta)',detail.ctx));
+await vm.runInContext('window.__refreshTodayDetail()',detail.ctx);
+assert.equal(vm.runInContext('STATE.auditIndex',detail.ctx),80);
+assert.equal(detail.nodes.get('auditClosePill').textContent,auditClose);
+assert.equal(detail.nodes.get('chartBuyDelta').textContent,auditBuy);
+assert.equal(detail.nodes.get('chartLiveVolume').textContent,'目前成交量：4,000 張');
+assert.equal(Number(detail.nodes.get('chartLivePrice').textContent),current.close);
+// Formal close adds a new K without moving the historical audit cursor.
+detail.ctx.Date=class extends RealDate{constructor(...args){super(...(args.length?args:['2026-09-21T06:00:00Z']))}static now(){return new RealDate('2026-09-21T06:00:00Z').getTime()}};
+detail.ctx.quote={...detail.ctx.quote,session_open:false,market_state:'CLOSED',bar:{...current,volume:15402000,last_time:'13:30:00'}};
+await vm.runInContext('window.__refreshTodayDetail()',detail.ctx);
+assert.equal(vm.runInContext('STATE.auditIndex',detail.ctx),80);
+assert.equal(detail.nodes.get('auditClosePill').textContent,auditClose);
+assert.equal(detail.nodes.get('chartBuyDelta').textContent,auditBuy);
+assert.equal(detail.nodes.get('chartLiveVolume').textContent,'收盤成交量：15,402 張');
+assert.equal(detail.nodes.get('auditSlider').max,vm.runInContext('STATE.prices.length-1',detail.ctx));
+// Selecting latest explicitly updates the historical close and actual volume.
+const latest=detail.events.find(([id,event])=>id==='latestBtn'&&event==='click');latest[2]();
+assert.equal(vm.runInContext('STATE.auditIndex',detail.ctx),vm.runInContext('STATE.prices.length-1',detail.ctx));
+assert.equal(detail.nodes.get('volumePill').textContent,'量：15,402 張');
+assert.notEqual(detail.nodes.get('auditClosePill').textContent,auditClose);
+
 // New scanner selection must project volume before candidate selection and preserve it in recheck.
 vm.runInContext("SCAN_TARGET_DATE='2026-09-21';scanSelection='holdVolumeDelta';getJSON=async url=>url.startsWith('/api/intraday')?quote:{data:fixture.slice(0,-1)}",scan.ctx);
 const stage1=await vm.runInContext("stage1CurrentHistory('2330','twse','2025-01-01','2026-09-21')",scan.ctx);
