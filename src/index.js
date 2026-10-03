@@ -704,6 +704,7 @@ async function chipForDate(code,iso){
       const dealerTotal=(dealerSelf||0)+(dealerHedge||0);
       if(foreign!=null||trust!=null||dealerSelf!=null||dealerHedge!=null) result.inst={
         date:iso,stock_id:String(code),
+        _reportedGroups:[...(foreign!=null?['foreign']:[]),...(trust!=null?['trust']:[])],
         Foreign_Investor_buy:foreign>0?foreign:0,
         Foreign_Investor_sell:foreign<0?-foreign:0,
         Foreign_Dealer_Self_buy:0,
@@ -1583,7 +1584,7 @@ async function routeApi(request, env, url) {
       const map=new Map();
       for(const r of rows||[]){
         const date=r?.date; if(!date) continue;
-        if(!map.has(date)) map.set(date,{date,stock_id:String(code),
+        if(!map.has(date)) map.set(date,{date,stock_id:String(code),_reportedGroups:[],
           Foreign_Investor_buy:0,Foreign_Investor_sell:0,
           Foreign_Dealer_Self_buy:0,Foreign_Dealer_Self_sell:0,
           Investment_Trust_buy:0,Investment_Trust_sell:0,
@@ -1592,8 +1593,8 @@ async function routeApi(request, env, url) {
         const o=map.get(date), name=String(r.name||"").toLowerCase();
         const buy=Number(r.buy)||0,sell=Number(r.sell)||0;
         if(name.includes("foreign_dealer")){o.Foreign_Dealer_Self_buy+=buy;o.Foreign_Dealer_Self_sell+=sell}
-        else if(name.includes("foreign")){o.Foreign_Investor_buy+=buy;o.Foreign_Investor_sell+=sell}
-        else if(name.includes("investment_trust")){o.Investment_Trust_buy+=buy;o.Investment_Trust_sell+=sell}
+        else if(name.includes("foreign")){o.Foreign_Investor_buy+=buy;o.Foreign_Investor_sell+=sell;if(r.buy!=null&&r.sell!=null&&Number.isFinite(Number(r.buy))&&Number.isFinite(Number(r.sell)))o._reportedGroups.push('foreign')}
+        else if(name.includes("investment_trust")){o.Investment_Trust_buy+=buy;o.Investment_Trust_sell+=sell;if(r.buy!=null&&r.sell!=null&&Number.isFinite(Number(r.buy))&&Number.isFinite(Number(r.sell)))o._reportedGroups.push('trust')}
         else if(name.includes("dealer_hedg")||name.includes("hedg")){o.Dealer_Hedging_buy+=buy;o.Dealer_Hedging_sell+=sell}
         else if(name.includes("dealer_self")||name.includes("dealer-self")){o.Dealer_self_buy+=buy;o.Dealer_self_sell+=sell}
         else if(name.includes("dealer")){o.Dealer_buy+=buy;o.Dealer_sell+=sell}

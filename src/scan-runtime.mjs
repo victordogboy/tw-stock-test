@@ -119,9 +119,56 @@ const TWDualAction=(()=>{const root={};
     if(lag>1){state='資料落後';detail='法人資料落後超過1個交易日，不判定目前承接狀態';}
     return {...out,state,detail,net5,ratio,return5:ret,sellStreak,support,foreign5:foreign.reduce((a,b)=>a+b,0),trust5:trust.reduce((a,b)=>a+b,0)};
   }
+  // R29: same-price accumulation is a flow proxy, NOT institutional ownership.
+  // Fixed price-only reference selection prevents picking the most flattering flow.
+  function samePrice(rows,inst=[]){
+    const current=rows.at(-1),priceDate=current?.date||null,projected=!!current?.intradayProjected;
+    const empty={schema:'same-price-r29',score:null,state:'資料不足',detail:'需要至少21根日K及比較區間完整外資、投信買賣超',priceDate,projected,chipDate:null,lag:null,proxy:true};
+    const price=number(current?.close),last=rows.length-1;
+    if(last<20||!(price>0))return empty;
+    if(rows.some((r,i)=>!r.date||(i>0&&r.date<=rows[i-1].date)))return {...empty,detail:'日K日期重複或未依日期遞增'};
+    const map=new Map(inst.filter(r=>r.date<=priceDate&&(!projected||r.date<priceDate)).map(r=>[r.date,r]));
+    const end=rows.findLastIndex(r=>map.has(r.date));
+    if(end<0)return empty;
+    const out={...empty,chipDate:rows[end].date,lag:last-end};
+    if(out.lag>1)return {...out,state:'資料落後',detail:'法人資料落後超過1個交易日，暫不計分'};
+    let base=-1;
+    for(let j=last-20;j>=Math.max(0,last-120);j--){
+      const p=number(rows[j].close);
+      if(p>0&&Math.abs(price/p-1)<=.0300000001){base=j;break;}
+    }
+    if(base<0)return {...out,state:'無同價位基準',detail:'前20～120個交易日內沒有與目前價格相差±3%的收盤價'};
+    const ref=rows[base],meta={...out,referenceDate:ref.date,referencePrice:number(ref.close),currentPrice:price,priceChangePct:(price/number(ref.close)-1)*100,intervalDays:end-base};
+    let foreign=0,trust=0,volume=0,missing=0,recent5=0;
+    for(let j=base+1;j<=end;j++){
+      const p=rows[j],r=map.get(p.date),f=net(r,'Foreign_Investor'),t=net(r,'Investment_Trust'),v=number(p.volume);
+      // Large discontinuities can be capital changes or mixed price adjustment.
+      if(!(number(p.close)>0)||Math.abs(number(p.close)/number(rows[j-1].close)-1)>.20)return {...meta,state:'價格不可比',detail:'區間出現超過20%價格跳動，需先確認還原價格／增減資'};
+      if(f===null||t===null||!(v>0)||r?._reportedGroups&&(!r._reportedGroups.includes('foreign')||!r._reportedGroups.includes('trust'))){missing++;continue;}
+      foreign+=f;trust+=t;volume+=v;
+      if(j>end-5)recent5+=f+t;
+    }
+    if(missing)return {...meta,missingDays:missing,detail:`比較區間缺少${missing}個交易日的完整法人或成交量，不以0補值`};
+    if(!(volume>0))return meta;
+    if(last>end&&Math.abs(price/number(rows[end].close)-1)>.20)return {...meta,state:'價格不可比',detail:'最新價格跳動超過20%，需先確認還原價格／增減資'};
+    const netShares=foreign+trust,ratioPct=netShares/volume*100;
+    const score=Math.round(Math.max(0,Math.min(100,50+5*ratioPct)));
+    const lows=rows.slice(-21,-1).map(r=>number(r.low)),support=lows.every(v=>v>0)?Math.min(...lows):null;
+    const broken=support!==null&&price<support;
+    return {...meta,score,netShares,foreignShares:foreign,trustShares:trust,volume,ratioPct,recent5,support,broken,missingDays:0,
+      state:score>=75?'累積偏強':score>50?'累積偏多':score===50?'中性':'籌碼減少',
+      detail:broken?'價格跌破前20日低點，高分不能抵銷破位風險':recent5<0?'近5日已轉為淨賣超，留意累積優勢流失':'與前次同價位比較；高分供觀察排序，未驗證買入勝率'};
+  }
+  function samePriceNote(a){
+    if(!a)return '待更新｜更新榜單行情或重新分析；不增加額外資料請求';
+    const head=`${a.state}｜價格 ${a.priceDate||'—'}｜法人截至 ${a.chipDate||'—'}${a.lag?'（落後'+a.lag+'個交易日）':''}`;
+    const ref=a.referenceDate?`｜比較 ${a.referenceDate}（${a.referencePrice.toFixed(2)}元），價差 ${a.priceChangePct.toFixed(2)}%`:'';
+    const flow=a.score!==null?`｜外資＋投信累積 ${Math.round(a.netShares/1000).toLocaleString('zh-TW')} 張／${a.intervalDays}日，占同期成交量 ${a.ratioPct.toFixed(2)}%｜外資 ${Math.round(a.foreignShares/1000).toLocaleString('zh-TW')} 張、投信 ${Math.round(a.trustShares/1000).toLocaleString('zh-TW')} 張｜近5日 ${Math.round(a.recent5/1000).toLocaleString('zh-TW')} 張`:'';
+    return head+ref+flow+'｜'+a.detail;
+  }
   const signed=v=>Number.isFinite(v)?(v>0?'+':'')+v:'—';
   function note(a){if(!a)return '待更新｜重新掃描或更新盤中行情';return `${a.state}｜法人截至 ${a.chipDate||'—'}${a.lag?'（落後 '+a.lag+' 個交易日）':''}｜${a.detail}。外資＋投信，排除自營商；尚未計入加減分。`}
-  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,volumeBonus,metrics,selections,rank,history,absorption,signed,note};
+  root.TWDualAction={key,schema,keys,defaults,valid,validWeight,read,save,score,volumeBonus,metrics,selections,rank,history,absorption,samePrice,samePriceNote,signed,note};
 
 return root.TWDualAction;})();
 const num=x=>Number(String(x??0).replace(/,/g,''))||0;
@@ -988,7 +1035,7 @@ function formalScore(hist,chips={}){
   const prior=hist.filter(x=>String(x.date)<date);
   const previousDate=prior.at(-1)?.date||null;
   const previousScores=prior.length>=65?scoreAt(prior,cutChips(previousDate)):null;
-  return {...sc,actionSchema:TWDualAction.schema,actionTrail:TWDualAction.history(hist,a=>scoreAt(a,cutChips(a.at(-1).date))),absorption:TWDualAction.absorption(hist,chips.inst||[]),previousDate,previousScores,scoreSchema:TWHoldChange.schema,holdNeedsRefresh:false,
+  return {...sc,actionSchema:TWDualAction.schema,actionTrail:TWDualAction.history(hist,a=>scoreAt(a,cutChips(a.at(-1).date))),samePrice:TWDualAction.samePrice(hist,chips.inst||[]),absorption:TWDualAction.absorption(hist,chips.inst||[]),previousDate,previousScores,scoreSchema:TWHoldChange.schema,holdNeedsRefresh:false,
     ...TWHoldChange.calculate(sc,previousScores,hist.at(-1)?.volume,prior.at(-1)?.volume),
     holdVolumeProjected:!!hist.at(-1)?.intradayProjected};
 }
