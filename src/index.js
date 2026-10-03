@@ -581,11 +581,11 @@ async function mergeTwseExactRecentBars(code,startDate,endDate,history){
 
 function twDateCompact(iso){ return String(iso||"").replaceAll("-",""); }
 function recentWeekdays(endIso,count){
-  const out=[]; let d=new Date(endIso+"T12:00:00+08:00");
+  const out=[]; let d=new Date(endIso+"T12:00:00Z");
   while(out.length<count){
-    const wd=d.getDay();
+    const wd=d.getUTCDay();
     if(wd!==0&&wd!==6) out.push(d.toISOString().slice(0,10));
-    d.setDate(d.getDate()-1);
+    d.setUTCDate(d.getUTCDate()-1);
   }
   return out;
 }
@@ -1120,7 +1120,7 @@ async function routeApi(request, env, url) {
     return json({
       ok: true,
       service: "tw-stock-api",
-      version: "1.17.0-R27",
+      version: "1.17.0-R28",
       time_utc: new Date().toISOString(),
       finmind_secret_configured: Boolean(env.FINMIND_TOKEN),
     });
@@ -1548,15 +1548,15 @@ async function routeApi(request, env, url) {
     const force=url.searchParams.get("force")==="1";
 
     const finmindMode=EFFECTIVE_FINMIND_TOKEN?"token":"anon";
-    const cacheKey=new Request(`${url.origin}/__cache/chips-r11/${finmindMode}/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
+    const cacheKey=new Request(`${url.origin}/__cache/chips-r28/${finmindMode}/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
     const cache=caches.default;
-    if(!force){
-      const cached=await cache.match(cacheKey);
-      if(cached) return cached;
-    }
+    const cached=await cache.match(cacheKey);
+    let previous=null;
+    if(cached){try{previous=await cached.clone().json()}catch{}}
+    if(!force && previous?.ok) return cached;
 
     async function finmindDataset(dataset){
-      const dsKey=new Request(`${url.origin}/__cache/finmind-r11/${finmindMode}/${dataset}/${code}/${startDate}/${endDate}`,request);
+      const dsKey=new Request(`${url.origin}/__cache/finmind-r28/${finmindMode}/${dataset}/${code}/${startDate}/${endDate}`,request);
       if(!force){
         const hit=await cache.match(dsKey);
         if(hit){ try{return await hit.json()}catch{} }
@@ -1566,7 +1566,7 @@ async function routeApi(request, env, url) {
       if(EFFECTIVE_FINMIND_TOKEN) q.set("token",EFFECTIVE_FINMIND_TOKEN);
       const u=`https://api.finmindtrade.com/api/v4/data?${q.toString()}`;
       try{
-        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r16"}});
+        const r=await fetch(u,{headers:{"accept":"application/json","user-agent":"tw-stock-api/1.17.0-r28"},signal:AbortSignal.timeout(12000)});
         const text=await r.text(); let j=null; try{j=JSON.parse(text)}catch{}
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
@@ -1608,7 +1608,8 @@ async function routeApi(request, env, url) {
     if(market==="twse"){
       // Market-wide reports: validate Target date only here. R6's 12×3 upstream
       // requests in one hybrid call were too heavy and could surface platform HTML errors.
-      const rows=[await chipForDate(code,endDate)];
+      const latestWeekday=recentWeekdays(endDate,1)[0];
+      const rows=latestWeekday>=startDate?[await chipForDate(code,latestWeekday)]:[];
       margin=rows.map(x=>x.margin).filter(Boolean);
       inst=rows.map(x=>x.inst).filter(Boolean);
       daytrade=rows.map(x=>x.daytrade).filter(Boolean);
@@ -1632,17 +1633,7 @@ async function routeApi(request, env, url) {
     }
     async function fillInst(){
       const officialLatest=inst.at(-1)||null;
-      let r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySellWide");
-      diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySellWide",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
-      if(r.ok&&r.data?.length){
-        inst=r.data.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-        if(officialLatest){
-          inst=inst.filter(x=>String(x.date)!==String(officialLatest.date)).concat([officialLatest]).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-          source_detail.inst="FinMind Wide hist + TWSE latest";
-        }else source_detail.inst="FinMind Wide";
-        return;
-      }
-      r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySell");
+      const r=await finmindDataset("TaiwanStockInstitutionalInvestorsBuySell");
       diagnostics.push({dataset:"TaiwanStockInstitutionalInvestorsBuySell",ok:r.ok,http:r.http,count:r.data?.length||0,msg:r.msg||r.error||null});
       const wide=institutionalStandardToWide(r.data||[]);
       if(r.ok&&wide.length){
@@ -1667,29 +1658,36 @@ async function routeApi(request, env, url) {
     }
 
     await fillMargin();
-
-    // Manual Analyze needs a real financing history, not merely one latest point.
-    if(force && market==="twse" && margin.length<5){
-      const dates=recentWeekdays(endDate,20);
-      const officialRows=[];
-      const concurrency=4;
-      for(let i=0;i<dates.length;i+=concurrency){
-        const batch=dates.slice(i,i+concurrency);
-        const got=await Promise.all(batch.map(d=>marginForDate(code,d)));
-        officialRows.push(...got.filter(Boolean));
-      }
-      if(officialRows.length){
-        const byDate=new Map();
-        for(const r of margin) byDate.set(String(r.date),r);
-        for(const r of officialRows) byDate.set(String(r.date),r);
-        margin=[...byDate.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-        source_detail.margin=(source_detail.margin?source_detail.margin+" + ":"")+"TWSE official history";
-        diagnostics.push({dataset:"TWSE MI_MARGN history fallback",ok:true,count:officialRows.length});
-      }else diagnostics.push({dataset:"TWSE MI_MARGN history fallback",ok:false,count:0});
-    }
-
     await fillInst();
     await fillDaytrade();
+
+    // A forced refresh must not destroy successful history when quota/network fails.
+    function mergeHistory(oldRows,newRows){
+      const rows=new Map();
+      for(const r of [...(oldRows||[]),...(newRows||[])]){
+        if(r?.date>=startDate && r.date<=endDate)rows.set(r.date,r);
+      }
+      return [...rows.values()].sort((a,b)=>a.date.localeCompare(b.date));
+    }
+    margin=mergeHistory(previous?.margin,margin);
+    inst=mergeHistory(previous?.inst,inst);
+    daytrade=mergeHistory(previous?.daytrade,daytrade);
+    if(previous?.ok)diagnostics.push({dataset:'既有籌碼快取',ok:true,msg:'已合併保留；資料日期以各序列為準'});
+
+    // Bound official fallback below Worker subrequest limits; restore BOTH chart lines.
+    if(force && market==="twse" && (margin.length<5 || inst.length<5)){
+      const dates=recentWeekdays(endDate,8).filter(d=>d>=startDate);
+      const officialRows=[];
+      for(let n=0;n<dates.length;n+=2){
+        officialRows.push(...await Promise.all(dates.slice(n,n+2).map(d=>chipForDate(code,d))));
+      }
+      const om=officialRows.map(r=>r.margin).filter(Boolean),oi=officialRows.map(r=>r.inst).filter(Boolean),od=officialRows.map(r=>r.daytrade).filter(Boolean);
+      margin=mergeHistory(margin,om);inst=mergeHistory(inst,oi);daytrade=mergeHistory(daytrade,od);
+      for(const [key,rows] of [['margin',om],['inst',oi],['daytrade',od]]){
+        if(rows.length)source_detail[key]=(source_detail[key]?source_detail[key]+' + ':'')+'TWSE official history';
+      }
+      diagnostics.push({dataset:'TWSE 官方近期歷史',ok:!!(om.length||oi.length),count:Math.max(om.length,oi.length),msg:om.length||oi.length?null:'官方來源尚未取得資料'});
+    }
 
     // R16: "missing" margin balance must stay missing, never become numeric 0.
     // Explicit 0 is still valid; null/undefined/''/'--' are removed.
@@ -1717,8 +1715,12 @@ async function routeApi(request, env, url) {
       finmind_mode:EFFECTIVE_FINMIND_TOKEN?"token":"anonymous",
       diagnostics
     };
-    const resp=json(body,200,{"cache-control":"public,max-age=900"});
-    await cache.put(cacheKey,resp.clone());
+    const resp=json(body,200,{"cache-control":"no-store"});
+    // Empty/error responses are retryable; only successful data belongs in cache.
+    if(available){
+      const saved=json(body,200,{"cache-control":"public,max-age=900"});
+      try{await cache.put(cacheKey,saved)}catch{}
+    }
     return resp;
   }
 
@@ -1988,7 +1990,7 @@ export default {
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
         headers.set("Expires","0");
-        headers.set("X-App-Version","1.17.0-R27");
+        headers.set("X-App-Version","1.17.0-R28");
         return new Response(asset.body,{status:asset.status,statusText:asset.statusText,headers});
       }
       return asset;

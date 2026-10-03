@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R27｜K 線審計・獨立變化格</title>
+<title>台股個股分析｜V1.17.0-R28｜籌碼趨勢更新</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -119,8 +119,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R27｜K 線審計・獨立變化格</h1>
-      <p class="release-note"><b>R27｜K 線審計・獨立變化格</b>　收盤價跟隨所選 K 線；最新行情獨立顯示成交量；進場／續抱 Action 變化各自一格。</p>
+      <h1>台股個股分析｜V1.17.0-R28｜籌碼趨勢更新</h1>
+      <p class="release-note"><b>R28｜籌碼趨勢更新</b>　修復重複分析與籌碼載入；籌碼趨勢可獨立更新，失敗保留資料並顯示原因。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -239,7 +239,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 
   <div class="section cols5050">
     <div class="card">
-      <h2>籌碼代理趨勢</h2>
+      <h2 style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">籌碼代理趨勢 <button id="refreshChipsBtn" class="secondary" type="button" disabled>更新籌碼</button></h2>
+      <div class="note" id="chipRefreshStatus" role="status" aria-live="polite">請先分析股票。</div>
       <div class="kpis" id="chipKpis"></div>
       <div class="chipchart"><canvas id="chipChart"></canvas></div>
       <div class="note" style="margin-top:8px">「大戶代理」= 三大法人累積買賣超；「散戶代理」= 融資餘額。這不是千張大戶持股/股東人數資料，避免把代理指標誤稱為真實大戶持股。</div>
@@ -345,8 +346,8 @@ const pct=(x,d=1)=>Number.isFinite(x)?`${x>=0?'+':''}${x.toFixed(d)}%`:'—';
 const tick=p=>p<10?.01:p<50?.05:p<100?.1:p<500?.5:p<1000?1:5;
 const roundTick=p=>{const t=tick(p);return Math.round(p/t)*t};
 const dateISO=d=>d.toISOString().slice(0,10);
-const today=()=>{const d=new Date();return dateISO(new Date(d.getFullYear(),d.getMonth(),d.getDate()))};
-const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return dateISO(d)};
+const today=()=>dateISO(new Date(Date.now()+8*3600e3));
+const daysAgo=n=>{const d=new Date(today()+'T12:00:00Z');d.setUTCDate(d.getUTCDate()-n);return dateISO(d)};
 const sum=a=>a.reduce((x,y)=>x+y,0);
 const avg=a=>a.length?sum(a)/a.length:NaN;
 const last=a=>a[a.length-1];
@@ -360,6 +361,7 @@ function setBanner(msg,type='ok'){
 function clearBanner(){ $('banner').style.display='none'; }
 function setLoading(on,msg='讀取資料中'){
   $('analyzeBtn').disabled=on;
+  $('refreshChipsBtn').disabled=on||CHIP_REFRESH_BUSY||!STATE.prices.length;
   $('analyzeBtn').innerHTML=on?`<span class="loading"></span>${msg}`:'分析';
 }
 function scoreGrade(s){
@@ -373,6 +375,8 @@ function positionPct(s){
 let CHIP_BUNDLE_PROMISE=null;
 let CHIP_BUNDLE_KEY='';
 let FORCE_ANALYSIS_REFRESH=false;
+let ANALYSIS_BUSY=false,CHIP_REFRESH_BUSY=false,CHIP_STATE_CODE='';
+function detailMarket(){return ['twse','tpex'].includes(STATE.stock?.type)?STATE.stock.type:MARKET}
 function getBrowserFinMindToken(){return TWFinMindTokens.activeToken()}
 function finmindAuthHeaders(extra={}){return TWFinMindTokens.headers(extra)}
 function bindFinMindTokenPanel(){
@@ -412,7 +416,7 @@ function scannerChipSnapshot(code){
   }catch(e){return null}
 }
 async function loadChipBundle(code,start_date,end_date){
-  const key=`${code}|${MARKET}|${start_date}|${end_date}|${FORCE_ANALYSIS_REFRESH?'force':'normal'}`;
+  const key=`${code}|${detailMarket()}|${start_date}|${end_date}|${FORCE_ANALYSIS_REFRESH?'force':'normal'}`;
   if(CHIP_BUNDLE_PROMISE && CHIP_BUNDLE_KEY===key) return CHIP_BUNDLE_PROMISE;
   CHIP_BUNDLE_KEY=key;
 
@@ -421,20 +425,20 @@ async function loadChipBundle(code,start_date,end_date){
     // Snapshot is baseline; fresh upstream data augments/overwrites matching dates.
     const snap=scannerChipSnapshot(code);
     const baseline={
-      margin:snap?.chips?.margin||[],
-      inst:snap?.chips?.inst||[],
-      daytrade:snap?.chips?.daytrade||[]
+      margin:mergeChipRows(snap?.chips?.margin,CHIP_STATE_CODE===String(code)?STATE.margin:[]),
+      inst:mergeChipRows(snap?.chips?.inst,CHIP_STATE_CODE===String(code)?STATE.inst:[]),
+      daytrade:mergeChipRows(snap?.chips?.daytrade,CHIP_STATE_CODE===String(code)?STATE.daytrade:[])
     };
 
     let fresh={margin:[],inst:[],daytrade:[]},hj=null,fetchError=null;
     try{
-      const q=new URLSearchParams({code:String(code),market:MARKET||'',start_date,end_date});
+      const q=new URLSearchParams({code:String(code),market:detailMarket(),start_date,end_date});
       if(FORCE_ANALYSIS_REFRESH) q.set('force','1');
-      const hr=await fetch('/api/chips/hybrid?'+q.toString(),{cache:'no-store',headers:finmindAuthHeaders()});
+      const hr=await fetch('/api/chips/hybrid?'+q.toString(),{cache:'no-store',headers:finmindAuthHeaders(),signal:AbortSignal.timeout(60000)});
       const text=await hr.text();
       try{hj=JSON.parse(text)}catch{}
       if(!hr.ok || !hj || hj.ok===false){
-        throw new Error(hj?.error||`chips HTTP ${hr.status}`);
+        throw new Error(hj?.error||chipDiagnosticText(hj)||`籌碼資料未取得（HTTP ${hr.status}）`);
       }
       fresh={margin:hj.margin||[],inst:hj.inst||[],daytrade:hj.daytrade||[]};
     }catch(e){
@@ -456,12 +460,14 @@ async function loadChipBundle(code,start_date,end_date){
     window.__chipSource=sourceParts.join(' + ') || 'unavailable';
     window.__chipStatus={
       completeness,
+      diagnostics:hj?.diagnostics||[],
+      refreshedAt:new Date().toLocaleTimeString('zh-TW',{hour12:false}),
       detail:detailFlags,
       sources:{...(snap?.chipSourceDetail||{}),...(hj?.source_detail||{})},
-      dates:{...(snap?.chipDates||{}),...(hj?.data_dates||{})},
+      dates:{margin:margin.at(-1)?.date||null,inst:inst.at(-1)?.date||null,daytrade:daytrade.at(-1)?.date||null},
       coverage,
       historyReady:{margin:coverage.margin>=5,inst:coverage.inst>=5,daytrade:coverage.daytrade>=5},
-      fetchError:fetchError?String(fetchError.message||fetchError):null
+      fetchError:fetchError?String(fetchError.message||fetchError):chipDiagnosticText(hj)||null
     };
     if(snap) window.__scannerAuditSnapshot=snap;
 
@@ -472,7 +478,37 @@ async function loadChipBundle(code,start_date,end_date){
       fetchError:window.__chipStatus.fetchError
     };
   })();
-  return CHIP_BUNDLE_PROMISE;
+  const pending=CHIP_BUNDLE_PROMISE;
+  try{return await pending}finally{if(CHIP_BUNDLE_PROMISE===pending){CHIP_BUNDLE_PROMISE=null;CHIP_BUNDLE_KEY=''}}
+}
+
+function chipDiagnosticText(payload){
+  const names={TaiwanStockMarginPurchaseShortSale:'融資',TaiwanStockInstitutionalInvestorsBuySell:'法人',TaiwanStockInstitutionalInvestorsBuySellWide:'法人',TaiwanStockDayTrading:'當沖'};
+  return (payload?.diagnostics||[]).filter(x=>x.ok===false).map(x=>{
+    const msg=String(x.msg||x.error||'來源暫時無資料');
+    return `${names[x.dataset]||x.dataset||'來源'}：${/upper limit|quota|402|429/i.test(msg+' '+x.http)?'FinMind 額度或權限限制，請檢查 Token／稍後重試':msg}`;
+  }).join('；');
+}
+function paintChipStatus(prefix=''){
+  const s=window.__chipStatus||{},c=s.coverage||{},d=s.dates||{};
+  $('chipRefreshStatus').textContent=`${prefix}${s.refreshedAt?'｜更新時間 '+s.refreshedAt:''}｜融資 ${c.margin||0} 日／法人 ${c.inst||0} 日／當沖 ${c.daytrade||0} 日｜資料日：融資 ${d.margin||'—'}、法人 ${d.inst||'—'}、當沖 ${d.daytrade||'—'}${s.fetchError?'｜來源訊息：'+s.fetchError:''}`;
+}
+async function refreshChipTrend(){
+  if(ANALYSIS_BUSY||CHIP_REFRESH_BUSY||!STATE.stock||!STATE.prices.length)return;
+  CHIP_REFRESH_BUSY=true;FORCE_ANALYSIS_REFRESH=true;
+  const btn=$('refreshChipsBtn');btn.disabled=true;btn.textContent='更新中…';$('analyzeBtn').disabled=true;
+  $('chipRefreshStatus').textContent='正在更新籌碼，保留現有資料…';
+  CHIP_BUNDLE_PROMISE=null;CHIP_BUNDLE_KEY='';
+  try{
+    const bundle=await loadChipBundle(STATE.stock.stock_id,daysAgo(140),today());
+    STATE.margin=bundle.margin;STATE.inst=bundle.inst;STATE.daytrade=bundle.daytrade;
+    CHIP_STATE_CODE=String(STATE.stock.stock_id);
+    // Recalculate the selected audit day; discard stale live scores until refreshed.
+    dualLiveRow=null;render();
+    paintChipStatus(bundle.fetchError?'更新部分失敗，已保留可用資料':bundle.ok?'籌碼更新完成':'尚未取得籌碼，請稍後重試');
+    try{window.__refreshTodayDetail?.()}catch(e){}
+  }catch(e){$('chipRefreshStatus').textContent='更新失敗，已保留原資料：'+(e.message||e)}
+  finally{CHIP_REFRESH_BUSY=false;FORCE_ANALYSIS_REFRESH=false;btn.disabled=false;btn.textContent='更新籌碼';$('analyzeBtn').disabled=false}
 }
 
 function readScannerSnapshot(code){
@@ -499,7 +535,7 @@ async function api(dataset,data_id='',start_date='',end_date=''){
     const snap=fromScanner?readScannerSnapshot(String(data_id)):null;
     const q=new URLSearchParams({
       code:String(data_id),
-      market:MARKET,
+      market:detailMarket(),
       start_date:start_date||daysAgo(500),
       end_date:end_date||today(),
       fresh:'1',
@@ -591,11 +627,13 @@ async function loadStockInfo(){
 function resolveStock(q){
   q=q.trim();
   if(!q)return null;
-  const exact=STATE.info.find(x=>String(x.stock_id)===q || String(x.stock_name)===q);
+  const leadingCode=q.match(/^(\d{4,6}[A-Za-z]?)(?:\s|$)/)?.[1];
+  const exact=STATE.info.find(x=>String(x.stock_id)===(leadingCode||q) || String(x.stock_name)===q);
   if(exact)return exact;
   const incl=STATE.info.filter(x=>String(x.stock_name||'').includes(q));
   if(incl.length===1)return incl[0];
-  if(/^\d{4,6}[A-Za-z]?$/.test(q)){
+  if(leadingCode){
+    q=leadingCode;
     const url=new URL(location.href);
     const hintedName=url.searchParams.get('name');
     const hintedMarket=url.searchParams.get('market');
@@ -1675,12 +1713,12 @@ function renderChipKpis(m,i,d,cur,a){
     <div class="mini"><span class="label">大戶代理｜法人淨額</span><strong class="${signClass(id.total)}">${Number.isFinite(id.total)?fmt(id.total/1000,0):'—'} 張</strong><span class="tiny">當日三大法人合計</span></div>
     <div class="mini"><span class="label">主力集中代理</span><strong class="${signClass(a.instConc)}">${Number.isFinite(a.instConc)?pct(a.instConc,2):'—'}</strong><span class="tiny">法人淨額 / 總成交量</span></div>
     <div class="mini"><span class="label">當沖率</span><strong class="${a.dayRatio>50?'red':'green'}">${Number.isFinite(a.dayRatio)?fmt(a.dayRatio,1)+'%':'—'}</strong><span class="tiny">${dr?'資料日 '+dr.date:'資料未取得'}</span></div>`;
-  const cov=window.__chipStatus?.coverage||{};
+  const cov={margin:m.length,inst:i.length};
   const parent=$('chipKpis').parentElement;
   let warn=parent.querySelector('#marginHistoryWarn');
   if(!warn){warn=document.createElement('div');warn.id='marginHistoryWarn';warn.className='note';warn.style.marginTop='8px';$('chipKpis').after(warn)}
   warn.textContent=(cov.margin||0)<5
-    ?`⚠ 融資目前只有 ${cov.margin||0} 個交易日，黃色融資線不足以形成歷史曲線。按「分析」會重新抓 FinMind/TWSE，並與 Scanner 已取得的籌碼歷史合併，不會再把原本完整資料洗成空白。`
+    ?`⚠ 融資目前只有 ${cov.margin||0} 個交易日，黃色融資線不足以形成歷史曲線。可按「更新籌碼」補抓。資料依所選審計日截斷；上游無資料時會保留已取得的歷史。`
     :'';
 }
 function renderMATable(rows,opt,a){
@@ -1814,7 +1852,9 @@ async function scanMarket(){
 async function openScanStock(id){$('stockInput').value=id;await analyze();window.scrollTo({top:0,behavior:'smooth'})}
 
 async function analyze(){
+  if(ANALYSIS_BUSY||CHIP_REFRESH_BUSY)return false;
   const q=$('stockInput').value.trim(); if(!q){setBanner('請輸入股票代號或中文名稱。','warn');return}
+  ANALYSIS_BUSY=true;
   FORCE_ANALYSIS_REFRESH=true;
   dualLiveRow=null;dualAuditRow=null;paintDetailDual();
   CHIP_BUNDLE_PROMISE=null;CHIP_BUNDLE_KEY='';
@@ -1840,6 +1880,7 @@ async function analyze(){
     STATE.inst=results[2].status==='fulfilled'?results[2].value.sort((a,b)=>a.date.localeCompare(b.date)):[];
     STATE.daytrade=results[3].status==='fulfilled'?results[3].value.sort((a,b)=>a.date.localeCompare(b.date)):[];
     if(STATE.prices.length<65)throw new Error(`只取得 ${STATE.prices.length} 個交易日，無法可靠計算 MA60。`);
+    CHIP_STATE_CODE=String(id);
     STATE.auditIndex=STATE.prices.length-1;
     $('auditSlider').min=Math.min(64,STATE.prices.length-1);$('auditSlider').max=STATE.prices.length-1;$('auditSlider').value=STATE.auditIndex;
     const failed=[];
@@ -1855,20 +1896,22 @@ async function analyze(){
     setBanner(`已載入 ${id} ${stock.stock_name}。股價 ${pDate}｜融資 ${mDate}｜法人 ${iDate}｜當沖 ${dDate}｜籌碼來源 ${chipSrc}${fmDetail}${scoreNote}${failed.length?`；未取得：${failed.join('、')}`:''}`,'ok');
     try{
       render();
+      paintChipStatus(failed.length?'分析完成，部分籌碼未取得':'籌碼載入完成');
     }catch(renderErr){
       console.error('render failed',renderErr);
       setBanner(`資料已取得，但畫面繪製失敗：${renderErr.message||renderErr}`,'err');
       throw renderErr;
     }
+    return true;
   }catch(e){
     setBanner(`讀取失敗：${e.message}<br><span class="tiny">若瀏覽器顯示 Failed to fetch，可能是 file:// 跨來源限制或資料 API 暫時無法連線。你仍可把這個 HTML 用 Chrome/Edge 開啟重試；Token 不是必填。</span>`,'err');
-  }finally{FORCE_ANALYSIS_REFRESH=false;setLoading(false)}
+    return false;
+  }finally{ANALYSIS_BUSY=false;FORCE_ANALYSIS_REFRESH=false;setLoading(false)}
 }
-$('analyzeBtn').addEventListener('click',analyze);
+$('refreshChipsBtn').addEventListener('click',refreshChipTrend);
 if($('scanBtn')) $('scanBtn').addEventListener('click',scanMarket);
 if($('latestBtn')) $('latestBtn').addEventListener('click',()=>{if(!STATE.prices.length)return;STATE.auditIndex=STATE.prices.length-1;$('auditSlider').value=STATE.auditIndex;render()});
 if($('auditSlider')) $('auditSlider').addEventListener('input',e=>{if(!STATE.prices.length)return;STATE.auditIndex=Number(e.target.value);render()});
-$('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 $('tokenInput').value='';
 window.addEventListener('resize',()=>{if(STATE.prices.length)render()});
 
@@ -1890,7 +1933,8 @@ $('watchBtn').addEventListener('click',()=>{
 });
 const _origAnalyze=analyze;
 analyze=async function(){
-  await _origAnalyze();
+  const completed=await _origAnalyze();
+  if(!completed)return;
   syncWatchBtn();
   if(STATE.stock?.stock_id && STATE.prices?.length){
     const cs=window.__chipStatus||{};
@@ -1899,7 +1943,7 @@ analyze=async function(){
     const ctext=cs.completeness!=null
       ?`｜籌碼歷史：融 ${cov.margin||0}日${ready.margin?'✓':'⚠'} / 法 ${cov.inst||0}日${ready.inst?'✓':'⚠'} / 沖 ${cov.daytrade||0}日${ready.daytrade?'✓':'⚠'}`
       :'';
-    setBanner(`✅ ${STATE.stock.stock_id} ${STATE.stock.stock_name} 完整分析完成｜最新K：${last(STATE.prices).date}｜籌碼來源：${window.__chipSource||'unknown'}${ctext}｜正在同步最新現價…`,'ok');
+    setBanner(`✅ ${STATE.stock.stock_id} ${STATE.stock.stock_name} 分析完成｜最新K：${last(STATE.prices).date}｜籌碼來源：${window.__chipSource||'unknown'}${ctext}｜正在同步最新現價…`,'ok');
   }
   // Keep the spot/current-price section visible even if Yahoo intraday is temporarily unavailable.
   try{window.__showFormalPriceFallback?.('正在同步最新現價')}catch(e){}
@@ -1911,7 +1955,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R27 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R28 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;
@@ -2061,7 +2105,7 @@ setTimeout(refreshFuturesBadge,700);
     const dDate=STATE.daytrade?.length?STATE.daytrade.at(-1).date:'—';
     if(STATE.stock){
       setBanner(
-        `✅ ${STATE.stock.stock_id} ${STATE.stock.stock_name} 完整分析完成｜最新K：${pDate}｜`+
+        `✅ ${STATE.stock.stock_id} ${STATE.stock.stock_name} 分析完成｜最新K：${pDate}｜`+
         `股價來源：Yahoo 1m 收盤完成K｜融資 ${mDate}｜法人 ${iDate}｜當沖 ${dDate}`,
         'ok'
       );
