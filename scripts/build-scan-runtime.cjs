@@ -10,7 +10,7 @@ for(const [file,symbol] of [['action-score.js','TWAction'],['hold-change.js','TW
 }
 out+=slice(engine,'const num=','function setBanner')+slice(engine,'function scoreGrade','async function api(')+slice(engine,'function normalizePrices','function maProjection');
 out+='\nexport function createScanRuntime(job,getJSON){\n';
-out+='let results=[],errors=[];const scanSelection=job.options.selection,scanSelectionWeights=job.options.weights,scanWeights=scanSelectionWeights,scanWeightsValid=true;const scanSelectionDualWeights=job.options.dualWeights||TWDualAction.defaults;\n';
+out+='let results=[],errors=[];const scanSamePriceOptions=TWDualAction.samePriceOptions(job.options.samePriceOptions||{});const scanSelection=job.options.selection,scanSelectionWeights=job.options.weights,scanWeights=scanSelectionWeights,scanWeightsValid=true;const scanSelectionDualWeights=job.options.dualWeights||TWDualAction.defaults;\n';
 out+='const SCAN_TARGET_DATE=job.targetDate,SCAN_FILTERS=job.options;let SCAN_PROVISIONAL_COUNT=0,SCAN_FORMALIZED_COUNT=0,SCAN_LATEST_MISSING=0;\n';
 out+=slice(scan,'function selectionScore','function setScanControlsBusy')+slice(scan,'function n(v','let scanWeights=')+slice(scan,'function scanDelta','function displayScore')+slice(scan,'function priceDecision','function decisionScore');
 out+=slice(scan,'async function finmindRecheckOne','async function runFinmindTop')+slice(scan,'function scanMinutes','async function runLiveCurrent')+slice(scan,'async function stage1CurrentHistory','async function formalizeListedPool')+slice(scan,'async function worker(item)','async function runPool');
@@ -21,3 +21,4 @@ out+=`\nreturn {selectionScore,selectCandidates,formalScore,formalizeListedOne,f
 out=out.replaceAll("toLocaleDateString('sv-SE')","toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'})");
 const file=path.join(root,'src/scan-runtime.mjs');
 if(process.argv.includes('--check')){if(read('src/scan-runtime.mjs')!==out)throw Error('Run node scripts/build-scan-runtime.cjs');}else fs.writeFileSync(file,out);
+

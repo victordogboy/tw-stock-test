@@ -19,7 +19,7 @@ rows.at(-1).volume=8000000;
 const date=rows.at(-1).date;
 const options={selection:'holdVolumeDelta',maxStocks:4,finTopN:3,minLots:3000};
 const request=(method='GET',id='12345678-1234-4321-1234-123456789012')=>new Request('https://test/api/scan/job',{method,headers:{authorization:'Bearer private-test-token'},...(method==='POST'?{body:JSON.stringify({id,options})}:{})});
-function setup(){
+function setup(samePrice=false){
  const storage=new Storage(),ctx={storage,blockConcurrencyWhile:fn=>fn()},calls=[];
  const api=async req=>{
   const u=new URL(req.url);calls.push({path:u.pathname,token:req.headers.get('x-finmind-token')});
@@ -28,7 +28,7 @@ function setup(){
   else if(u.pathname==='/api/history/auto')j={ok:true,data:code==='2222'?rows.map(r=>({...r,volume:1000})):rows};
   else if(u.pathname==='/api/market/universe')j={data:['1111','2222','3333','4444','5555','6666','7777'].map(code=>({code,name:code,market:'twse'}))};
   else if(u.pathname==='/api/futures/stock-list')j={codes:['2368'],source:'fixture'};
-  else if(u.pathname==='/api/chips/hybrid')j={ok:true,margin:[],inst:[],daytrade:[],completeness:0};
+  else if(u.pathname==='/api/chips/hybrid')j={ok:true,margin:[],inst:samePrice?rows.map(r=>({date:r.date,Foreign_Investor_buy:code==='7777'?2000000:1000,Foreign_Investor_sell:0,Investment_Trust_buy:0,Investment_Trust_sell:0})):[],daytrade:[],completeness:0};
   else throw Error(u.pathname);
   return new Response(JSON.stringify(j));
  };
@@ -77,4 +77,15 @@ test('R26 honours six concurrent scan items and batches history/live rechecks',a
  let steps=2;
  while((await h.storage.get('job')).phase!=='completed'&&steps++<40)await h.newJob().alarm();
  assert.equal((await h.storage.get('job')).phase,'completed');assert.equal(steps,9);
+});
+
+
+test('R31 background scans every eligible chip candidate before retaining top one and persists options',async()=>{
+ const h=setup(true),req=new Request('https://test/api/scan/job',{method:'POST',body:JSON.stringify({id:'12345678-1234-4321-1234-123456789012',options:{...options,selection:'samePrice',maxStocks:1,finTopN:1,samePriceOptions:{lookback:60,tolerance:5,minGap:5}}})});
+ await h.newJob().fetch(req);let steps=0;
+ while((await h.storage.get('job')).phase!=='completed'&&steps++<40)await h.newJob().alarm();
+ const s=await h.storage.get('job');assert.equal(s.phase,'completed');assert.equal(s.ranked[0].code,'7777');
+ assert.equal(h.calls.filter(c=>c.path==='/api/chips/hybrid').length,6,'all six eligible rows have chips before rank cap, no repeat fetch for winner');
+ assert.equal(s.options.samePriceOptions.lookback,60);
+ const row=await h.storage.get('row:7777');assert.ok(row.samePrice.score>50);
 });

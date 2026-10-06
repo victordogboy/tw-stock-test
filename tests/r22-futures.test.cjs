@@ -49,7 +49,7 @@ const plain=x=>JSON.parse(JSON.stringify(x));
   const scan=read('public/scanner.html');
   const worker=scan.slice(scan.indexOf('async function worker(item){'),scan.indexOf('async function runPool'));
   vm.runInContext(worker,ctx);
-  Object.assign(ctx,{n:(x,d=0)=>Number.isFinite(Number(x))?Number(x):d,errors:[],results:[],SCAN_TARGET_DATE:'2026-09-23',selectionScore:()=>80,SCAN_FILTERS:{minClose:10,maxClose:300,minLots:3000},stage1CurrentHistory:async()=>({hist:[{date:'2026-09-23',close:1000,volume:4000000}],provisional:false}),formalScore:()=>({setup:80,opportunity:80,entry:80,hold:80}),twPrice:x=>x,priceDecision:()=>({})});
+  Object.assign(ctx,{n:(x,d=0)=>Number.isFinite(Number(x))?Number(x):d,errors:[],results:[],scanSelection:'entry',SCAN_TARGET_DATE:'2026-09-23',selectionScore:()=>80,SCAN_FILTERS:{minClose:10,maxClose:300,minLots:3000},stage1CurrentHistory:async()=>({hist:[{date:'2026-09-23',close:1000,volume:4000000}],provisional:false}),formalScore:()=>({setup:80,opportunity:80,entry:80,hold:80}),twPrice:x=>x,priceDecision:()=>({})});
   await evaluate("worker({code:'2368',hasFutures:true})");
   assert.equal(ctx.results.length,1);assert.equal(ctx.results[0].code,'2368');
   await evaluate("worker({code:'9999',hasFutures:false})");
@@ -59,3 +59,4 @@ const plain=x=>JSON.parse(JSON.stringify(x));
   assert.equal(ctx.results.length,1);assert.match(ctx.errors.at(-1),/低於最低成交量/);
   console.log('R22 passed: official 249-stock snapshot, parser, duplicates, exclusions, removals, cache migration, offline fallback, browser fallback, scanner price/volume gates');
 })().catch(e=>{console.error(e);process.exitCode=1});
+

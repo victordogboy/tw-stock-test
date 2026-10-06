@@ -63,6 +63,7 @@
   if(lastJob!==job.id&&cached?.backgroundJobId!==job.id)currentRank=job.options.selection;
   lastJob=job.id;
   window.__backgroundScanJobId=job.id;window.__backgroundScanJobComplete=!job.active;
+  if(!preserveLocal){scanSamePriceOptions=TWDualAction.samePriceOptions(job.options.samePriceOptions||{});syncSamePriceControls();}
   scanSelection=job.options.selection;scanSelectionWeights=job.options.weights;
   scanSelectionDualWeights=job.options.dualWeights||TWDualAction.defaults;
   if(job.active&&job.options.dualWeights)dualControls?.set(job.options.dualWeights);
@@ -97,7 +98,7 @@
   submitting=true;busy(true);clearTimeout(timer);
   try{
    await key(true);
-   const id=crypto.randomUUID(),options={selection:$('scanType').value,weights:{...scanWeights},dualWeights:JSON.parse(JSON.stringify(dualWeights))};
+   const id=crypto.randomUUID(),options={selection:$('scanType').value,weights:{...scanWeights},samePriceOptions:{...scanSamePriceOptions},dualWeights:JSON.parse(JSON.stringify(dualWeights))};
    for(const k of filters)options[k]=Number($(k).value);
    currentRank=options.selection;
    $('status').textContent='正在提交背景工作，請等候伺服器確認…';
@@ -118,3 +119,4 @@
  // Keep existing watchlists, token slots, weights and ranking caches under their original keys.
  (async()=>{try{if(await key()&&!submitting){busy(true);await poll()}}catch(e){$('status').textContent=e.message}})();
 })();
+

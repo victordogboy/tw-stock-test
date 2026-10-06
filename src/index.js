@@ -624,11 +624,11 @@ function pickField(obj,needles){
   }
   return null;
 }
-async function fetchTwseJson(url){
+async function fetchTwseJson(url,force=false){
   const cache=caches.default;
-  const key=new Request(`https://twse-cache.local/${encodeURIComponent(url)}`);
+  const key=new Request(`https://twse-cache-r31.local/${encodeURIComponent(url)}`);
   const hit=await cache.match(key);
-  if(hit){
+  if(hit&&!force){
     try{return await hit.json()}catch{}
   }
   const r=await fetch(url,{headers:{
@@ -641,7 +641,7 @@ async function fetchTwseJson(url){
   let j=null; try{j=JSON.parse(text)}catch{throw new Error("TWSE invalid JSON")}
   const resp=new Response(JSON.stringify(j),{status:200,headers:{
     "content-type":"application/json;charset=UTF-8",
-    "cache-control":"public,max-age=21600"
+    "cache-control":`public,max-age=${Array.isArray(j.data)&&j.data.length?21600:60}`
   }});
   try{await cache.put(key,resp.clone())}catch{}
   return j;
@@ -666,13 +666,14 @@ async function marginForDate(code,iso){
   }catch(e){ return null; }
 }
 
-async function chipForDate(code,iso){
+async function chipForDate(code,iso,force=false){
   const date=twDateCompact(iso);
   const result={date:iso,margin:null,inst:null,daytrade:null,errors:[]};
 
   // Margin balance
   try{
-    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=${date}&selectType=ALL&response=json`);
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=${date}&selectType=ALL&response=json`,force);
+    if(j.date&&String(j.date)!==date)throw Error("official report date mismatch");
     const hit=rowByFields(j,code);
     if(hit){
       const o=hit.obj;
@@ -693,7 +694,8 @@ async function chipForDate(code,iso){
 
   // Institutional investors (official TWSE daily report backend)
   try{
-    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/fund/T86?date=${date}&selectType=ALL&response=json`);
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/fund/T86?date=${date}&selectType=ALL&response=json`,force);
+    if(j.date&&String(j.date)!==date)throw Error("official report date mismatch");
     const hit=rowByFields(j,code);
     if(hit){
       const o=hit.obj;
@@ -724,7 +726,8 @@ async function chipForDate(code,iso){
   // Day trading — use the dated TWSE report only.
   // TWTB4U OpenAPI observed in audit is a suspension/status dataset, not day-trading volume.
   try{
-    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/dayTrading/TWTB4U?date=${date}&selectType=All&response=json`);
+    const j=await fetchTwseJson(`https://www.twse.com.tw/rwd/zh/dayTrading/TWTB4U?date=${date}&selectType=All&response=json`,force);
+    if(j.date&&String(j.date)!==date)throw Error("official report date mismatch");
     const hit=rowByFields(j,code);
     if(hit){
       const vol=cleanNum(pickField(hit.obj,["當日沖銷交易成交股數","當日沖銷成交股數"]));
@@ -1547,6 +1550,8 @@ async function routeApi(request, env, url) {
     const endDate=url.searchParams.get("end_date")||isoDateTaipei();
     const startDate=url.searchParams.get("start_date")||addDaysISO(endDate,-140);
     const force=url.searchParams.get("force")==="1";
+    const requireCurrent=url.searchParams.get("require_current")==="1";
+    const requiredDate=recentWeekdays(endDate,1)[0];
 
     const finmindMode=EFFECTIVE_FINMIND_TOKEN?"token":"anon";
     const cacheKey=new Request(`${url.origin}/__cache/chips-r28/${finmindMode}/${market||"auto"}/${code}/${startDate}/${endDate}`,request);
@@ -1554,13 +1559,23 @@ async function routeApi(request, env, url) {
     const cached=await cache.match(cacheKey);
     let previous=null;
     if(cached){try{previous=await cached.clone().json()}catch{}}
-    if(!force && previous?.ok) return cached;
+    const completeInst=r=>!!r&&(!r._reportedGroups||['foreign','trust'].every(k=>r._reportedGroups.includes(k)))&&['Foreign_Investor_buy','Foreign_Investor_sell','Investment_Trust_buy','Investment_Trust_sell'].every(k=>cleanNum(r[k])!==null);
+    const isCurrent=(previous?.inst||[]).some(r=>r.date===requiredDate&&completeInst(r));
+    const datasetCurrent=(data,dataset)=>dataset==='TaiwanStockInstitutionalInvestorsBuySell'
+      ? ['foreign_investor','investment_trust'].every(name=>(data||[]).some(r=>r.date===requiredDate&&String(r.name).toLowerCase()===name&&cleanNum(r.buy)!==null&&cleanNum(r.sell)!==null))
+      : (data||[]).some(r=>r.date===requiredDate);
+    if(!force && previous?.ok && (!requireCurrent||isCurrent))return json(previous,200,{"cache-control":"no-store"});
 
     async function finmindDataset(dataset){
       const dsKey=new Request(`${url.origin}/__cache/finmind-r28/${finmindMode}/${dataset}/${code}/${startDate}/${endDate}`,request);
       if(!force){
         const hit=await cache.match(dsKey);
-        if(hit){ try{return await hit.json()}catch{} }
+        if(hit){try{
+          const saved=await hit.json();
+          const current=datasetCurrent(saved.data,dataset);
+          // Keep published history; do not accept an old response as today's observation.
+          if(!requireCurrent||dataset!=="TaiwanStockInstitutionalInvestorsBuySell"||current)return saved;
+        }catch{}}
       }
 
       const q=new URLSearchParams({dataset,data_id:code,start_date:startDate,end_date:endDate});
@@ -1572,7 +1587,7 @@ async function routeApi(request, env, url) {
         const out=(!r.ok || !j || !(j.status===200 || j.status==="200"))
           ? {ok:false,http:r.status,error:`HTTP ${r.status}`,msg:j?.msg||text.slice(0,180),data:[]}
           : {ok:true,http:r.status,data:Array.isArray(j.data)?j.data:[]};
-        const ttl=out.ok?21600:900;
+        const ttl=out.ok?(datasetCurrent(out.data,dataset)?21600:60):60;
         try{await cache.put(dsKey,new Response(JSON.stringify(out),{headers:{
           "content-type":"application/json;charset=UTF-8","cache-control":`public,max-age=${ttl}`
         }}))}catch{}
@@ -1593,8 +1608,8 @@ async function routeApi(request, env, url) {
         const o=map.get(date), name=String(r.name||"").toLowerCase();
         const buy=Number(r.buy)||0,sell=Number(r.sell)||0;
         if(name.includes("foreign_dealer")){o.Foreign_Dealer_Self_buy+=buy;o.Foreign_Dealer_Self_sell+=sell}
-        else if(name.includes("foreign")){o.Foreign_Investor_buy+=buy;o.Foreign_Investor_sell+=sell;if(r.buy!=null&&r.sell!=null&&Number.isFinite(Number(r.buy))&&Number.isFinite(Number(r.sell)))o._reportedGroups.push('foreign')}
-        else if(name.includes("investment_trust")){o.Investment_Trust_buy+=buy;o.Investment_Trust_sell+=sell;if(r.buy!=null&&r.sell!=null&&Number.isFinite(Number(r.buy))&&Number.isFinite(Number(r.sell)))o._reportedGroups.push('trust')}
+        else if(name.includes("foreign")){o.Foreign_Investor_buy+=buy;o.Foreign_Investor_sell+=sell;if(cleanNum(r.buy)!==null&&cleanNum(r.sell)!==null)o._reportedGroups.push('foreign')}
+        else if(name.includes("investment_trust")){o.Investment_Trust_buy+=buy;o.Investment_Trust_sell+=sell;if(cleanNum(r.buy)!==null&&cleanNum(r.sell)!==null)o._reportedGroups.push('trust')}
         else if(name.includes("dealer_hedg")||name.includes("hedg")){o.Dealer_Hedging_buy+=buy;o.Dealer_Hedging_sell+=sell}
         else if(name.includes("dealer_self")||name.includes("dealer-self")){o.Dealer_self_buy+=buy;o.Dealer_self_sell+=sell}
         else if(name.includes("dealer")){o.Dealer_buy+=buy;o.Dealer_sell+=sell}
@@ -1610,7 +1625,7 @@ async function routeApi(request, env, url) {
       // Market-wide reports: validate Target date only here. R6's 12×3 upstream
       // requests in one hybrid call were too heavy and could surface platform HTML errors.
       const latestWeekday=recentWeekdays(endDate,1)[0];
-      const rows=latestWeekday>=startDate?[await chipForDate(code,latestWeekday)]:[];
+      const rows=latestWeekday>=startDate?[await chipForDate(code,latestWeekday,force)]:[];
       margin=rows.map(x=>x.margin).filter(Boolean);
       inst=rows.map(x=>x.inst).filter(Boolean);
       daytrade=rows.map(x=>x.daytrade).filter(Boolean);
@@ -1658,9 +1673,7 @@ async function routeApi(request, env, url) {
       }
     }
 
-    await fillMargin();
-    await fillInst();
-    await fillDaytrade();
+    await Promise.all([fillMargin(),fillInst(),fillDaytrade()]);
 
     // A forced refresh must not destroy successful history when quota/network fails.
     function mergeHistory(oldRows,newRows){
@@ -1695,6 +1708,7 @@ async function routeApi(request, env, url) {
     margin=margin.filter(r=>cleanNum(r?.MarginPurchaseTodayBalance)!==null);
 
     const flags={margin:margin.length>0,inst:inst.length>0,daytrade:daytrade.length>0};
+    const current_detail={margin:margin.at(-1)?.date===requiredDate,inst:inst.at(-1)?.date===requiredDate&&completeInst(inst.at(-1)),daytrade:daytrade.at(-1)?.date===requiredDate};
     const history_ready={margin:margin.length>=5,inst:inst.length>=5,daytrade:daytrade.length>=5};
     const available=Object.values(flags).filter(Boolean).length;
     const body={
@@ -1702,7 +1716,7 @@ async function routeApi(request, env, url) {
       source:"TWSE + FinMind assist",
       source_detail,
       completeness:Math.round(available/3*100),
-      completeness_detail:flags,
+      completeness_detail:flags,current_detail,required_date:requiredDate,
       history_ready,
       coverage_days:{margin:margin.length,inst:inst.length,daytrade:daytrade.length},
       margin,inst,daytrade,
@@ -1999,3 +2013,4 @@ export default {
     return new Response("Static assets binding is missing.", { status: 500 });
   }
 };
+

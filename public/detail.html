@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R29｜同價位法人累積</title>
+<title>台股個股分析｜V1.17.0-R31｜同價位法人增持</title>
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -119,8 +119,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R29｜同價位法人累積</h1>
-      <p class="release-note"><b>R29｜同價位法人累積</b>　新增同價位法人累積分數；審計日與最新價位分開顯示，沿用籌碼獨立更新。</p>
+      <h1>台股個股分析｜V1.17.0-R31｜同價位法人增持</h1>
+      <p class="release-note"><b>R31｜同價位法人增持</b>　比較相近價位平均法人籌碼；可調回看天數與價差，盤後需當日法人資料。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -228,14 +228,19 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 
   <div class="section card" id="dualDetailControls"></div>
   <div class="section card" id="samePriceCard">
-    <h2>同價位法人累積分數 <span class="pill">買賣超代理</span></h2>
+    <h2>同價位法人增持分數 <span class="pill">買賣超代理</span></h2>
     <div class="kpis">
-      <div class="mini"><span class="label">所選審計日</span><strong id="chartSamePriceScore">—</strong><span class="tiny">0～100；50為淨額中性</span></div>
+      <div class="mini"><span class="label">所選審計日</span><strong id="chartSamePriceScore">—</strong><span class="tiny">0～100；50為籌碼持平</span></div>
       <div class="mini"><span class="label">最新／盤中價位</span><strong id="liveSamePriceScore">—</strong><span class="tiny">法人使用已公布資料</span></div>
     </div>
     <p class="note" id="chartSamePriceNote">等待分析</p>
     <p class="note" id="liveSamePriceNote">等待行情</p>
-    <details><summary>計算方式與限制</summary><p class="note">找前20～120個交易日、價差±3%內最近一次收盤價。自基準日次日起累積外資（不含外資自營商）＋投信淨買超，除以同期成交量；分數＝50＋5×淨買超占量百分比，限制0～100。75分代表占量+5%，不是75%勝率。高分供觀察排序，尚未回測；獨立顯示，未加入Action。這不是實際持股量或持股比例，不計自營商。缺日不補0；盤中不預估法人，資料落後超過1個交易日不計分。使用現有價格口徑，跨除權息／增減資仍須確認價格可比性；超過20%跳動會停算。無同價位基準不代表弱勢，可能已突破。</p></details>
+    <details><summary>審計日比對明細</summary><div id="chartSamePriceSamples"></div></details>
+<div class="card" id="samePriceSettings"><b>同價位法人增持設定</b>
+<label>回看交易日 <select id="spLookback"><option value="20">20日</option><option value="60" selected>60日</option><option value="120">120日</option></select></label>
+<label>相近價位 <select id="spTolerance"><option value="3">±3%</option><option value="5" selected>±5%</option><option value="10">±10%</option></select></label>
+<label>至少相隔 <select id="spMinGap"><option value="1">1日</option><option value="5" selected>5日</option><option value="10">10日</option><option value="20">20日</option></select></label>
+<p class="small note">同價位時，外資＋投信比以前多多少？以所有符合價位的歷史日期平均比較。50分為持平，每增加1倍20日均量加10分，限制0～100；分數不是勝率。這是累計買賣超代理，不是實際持股。盤後需當日法人資料；盤中只用前一交易日資料。跨除權息／增減資須確認價格可比性。</p></div>
   </div>
   <details class="section card dual-observation"><summary>所選審計日：法人承接與價格防守</summary><div class="note" id="chartDualObservation"></div></details>
 
@@ -334,7 +339,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 </div>
 
 <script src="/finmind-token-manager.js"></script>
-<script src="/dual-action.js?r29"></script>
+<script src="/dual-action.js?r31"></script>
 <script src="/dual-action-ui.js?r26"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
@@ -442,7 +447,7 @@ async function loadChipBundle(code,start_date,end_date){
 
     let fresh={margin:[],inst:[],daytrade:[]},hj=null,fetchError=null;
     try{
-      const q=new URLSearchParams({code:String(code),market:detailMarket(),start_date,end_date});
+      const q=new URLSearchParams({code:String(code),market:detailMarket(),start_date,end_date,require_current:'1'});
       if(FORCE_ANALYSIS_REFRESH) q.set('force','1');
       const hr=await fetch('/api/chips/hybrid?'+q.toString(),{cache:'no-store',headers:finmindAuthHeaders(),signal:AbortSignal.timeout(60000)});
       const text=await hr.text();
@@ -1507,13 +1512,16 @@ function renderStructuralStress(rows,R,m,i,d){
   $('stressNote').innerHTML=`<b>買點取消 / 降級條件：</b>${cancel.join('；')}。<br><span class="tiny">全部只用審計日與左側資料；三個 Entry 分數是下一交易日的假設壓力測試，不是偷看未來。</span>`;
 }
 
+let detailSamePriceOptions=TWDualAction.readSamePrice();
 let dualDetailWeights=TWDualAction.read(),dualAuditRow=null,dualLiveRow=null;
 function detailDualRow(rows,chips){
   const at=a=>{const date=a.at(-1).date,c=k=>(chips[k]||[]).filter(x=>x.date<=date),R=combineScores(a,c('margin'),c('inst'),c('daytrade')),E=entryEngine(a,R);return {setup:R.quality,opportunity:E.opportunity,entry:E.score,hold:E.hold,priceGuard:{broken:!!R.market.hardBroken,stop:R.market.stop,risk:R.market.risk}}};
   const prior=rows.slice(0,-1);
-  return {...at(rows),dataDate:rows.at(-1).date,previousDate:prior.at(-1)?.date,previousScores:prior.length>=65?at(prior):null,volume:rows.at(-1).volume,previousVolume:prior.at(-1)?.volume,projected:!!rows.at(-1).intradayProjected,actionTrail:TWDualAction.history(rows,at),samePrice:TWDualAction.samePrice(rows,chips.inst||[]),absorption:TWDualAction.absorption(rows,chips.inst||[])};
+  return {...at(rows),dataDate:rows.at(-1).date,previousDate:prior.at(-1)?.date,previousScores:prior.length>=65?at(prior):null,volume:rows.at(-1).volume,previousVolume:prior.at(-1)?.volume,projected:!!rows.at(-1).intradayProjected,actionTrail:TWDualAction.history(rows,at),samePrice:TWDualAction.samePrice(rows,chips.inst||[],detailSamePriceOptions),absorption:TWDualAction.absorption(rows,chips.inst||[])};
 }
 function paintDetailDual(){
+ const samples=dualAuditRow?.samePrice?.samples||[];
+ $('chartSamePriceSamples').textContent=samples.length?samples.map(x=>`${x.date}｜收盤 ${x.price.toFixed(2)}元｜至法人資料日淨增減 ${(x.netShares/1000).toFixed(1)}張`).join('；\n'):'無可用比對樣本';
  for(const [prefix,row] of [['chart',dualAuditRow],['live',dualLiveRow]]){
   const m=TWDualAction.metrics(row,dualDetailWeights);
   $(prefix+'SamePriceScore').textContent=row?.samePrice?.score==null?'—':row.samePrice.score+' / 100';
@@ -1531,6 +1539,16 @@ function paintDetailDual(){
   $(prefix==='chart'?'chartDualObservation':'liveDualObservation').textContent=
    (row?.priceGuard?.broken?'價格結構破位。':'')+TWDualAction.note(row?.absorption);
  }
+}
+for(const [id,key] of [['spLookback','lookback'],['spTolerance','tolerance'],['spMinGap','minGap']]){
+ $(id).value=detailSamePriceOptions[key];
+ $(id).addEventListener('change',()=>{
+  detailSamePriceOptions=TWDualAction.samePriceOptions({lookback:$('spLookback').value,tolerance:$('spTolerance').value,minGap:$('spMinGap').value});
+  try{localStorage.setItem('twq_same_price_r31',JSON.stringify(detailSamePriceOptions))}catch{}
+  if(STATE.prices.length)render();
+  // Existing live price stays intact; wait for the next quote refresh for its new settings.
+  dualLiveRow=null;paintDetailDual();
+ });
 }
 TWDualUI.controls($('dualDetailControls'),(w,valid)=>{dualDetailWeights=valid?w:null;paintDetailDual()});
 function detailHoldChange(rows,E){
@@ -1967,7 +1985,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R29 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R31 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;
@@ -2334,3 +2352,4 @@ checkFinMindTokenStatus();
 
 </body>
 </html>
+
