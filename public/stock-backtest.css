@@ -1,0 +1,11 @@
+#stockBacktest fieldset{border:1px solid var(--line);border-radius:10px;min-width:0;margin:0;padding:12px}
+#stockBacktest legend{font-size:13px;font-weight:700;padding:0 6px}
+#stockBacktest label{display:block;font-size:12px;color:var(--muted);min-width:0}
+#stockBacktest input,#stockBacktest select{display:block;box-sizing:border-box;width:100%;min-width:0;margin-top:5px;padding:10px 7px;background:#07101f;color:#edf3ff;border:1px solid var(--line);border-radius:8px;font:inherit;font-size:14px}
+.bt-weight-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bt-four,.bt-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.bt-fields{margin:14px 0}.bt-scroll{overflow-x:auto}.bt-scroll table{min-width:650px}
+#stockBacktest summary{cursor:pointer;color:#a9cfff;font-size:13px;padding:8px 0}
+#stockBacktest p{line-height:1.65}#stockBacktest h3{font-size:15px;margin-top:22px}
+#stockBacktest .toolbar{margin-top:14px}#stockBacktest .toolbar button{white-space:normal}
+@media(max-width:800px){.bt-weight-grid{grid-template-columns:1fr}.bt-fields{grid-template-columns:1fr 1fr}.bt-four{grid-template-columns:1fr 1fr}}
