@@ -89,3 +89,15 @@ test('R31 background scans every eligible chip candidate before retaining top on
  assert.equal(s.options.samePriceOptions.lookback,60);
  const row=await h.storage.get('row:7777');assert.ok(row.samePrice.score>50);
 });
+
+test('R34 final volume refresh removes candidates below threshold through compact persisted rankings',async()=>{
+ const h=setup();await h.newJob().fetch(request('POST'));let steps=0;
+ while((await h.storage.get('job')).phase!=='live'&&steps++<40)await h.newJob().alarm();
+ const before=await h.storage.get('job');assert.equal(before.phase,'live');
+ const code=before.ranked[0].code,row=await h.storage.get('row:'+code);
+ row._hist.at(-1).volume=2000000;row.formalPrice=true;await h.storage.put('row:'+code,row);
+ while((await h.storage.get('job')).phase!=='completed'&&steps++<40)await h.newJob().alarm();
+ const after=await h.storage.get('job');assert.equal(after.phase,'completed');assert.equal(after.ranked.length,2);
+ assert.ok(after.ranked.every(r=>r.code!==code&&r.liquidityVolume>=3000000));
+ const snapshot=(await (await h.newJob().fetch(request())).json()).job;assert.equal(snapshot.results.length,2);
+});

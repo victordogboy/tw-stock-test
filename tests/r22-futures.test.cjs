@@ -48,6 +48,7 @@ const plain=x=>JSON.parse(JSON.stringify(x));
   // Execute the real scanner worker: futures waive only the upper price filter.
   const scan=read('public/scanner.html');
   const worker=scan.slice(scan.indexOf('async function worker(item){'),scan.indexOf('async function runPool'));
+  vm.runInContext(scan.slice(scan.indexOf('function scanVolumeFields'),scan.indexOf('function chipCutForLive')),ctx);
   vm.runInContext(worker,ctx);
   Object.assign(ctx,{n:(x,d=0)=>Number.isFinite(Number(x))?Number(x):d,errors:[],results:[],scanSelection:'entry',SCAN_TARGET_DATE:'2026-09-23',selectionScore:()=>80,SCAN_FILTERS:{minClose:10,maxClose:300,minLots:3000},stage1CurrentHistory:async()=>({hist:[{date:'2026-09-23',close:1000,volume:4000000}],provisional:false}),formalScore:()=>({setup:80,opportunity:80,entry:80,hold:80}),twPrice:x=>x,priceDecision:()=>({})});
   await evaluate("worker({code:'2368',hasFutures:true})");
