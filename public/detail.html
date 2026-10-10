@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R31｜同價位法人增持</title>
+<title>台股個股分析｜V1.17.0-R32｜個股 Action 回測</title>
+<link rel="stylesheet" href="/stock-backtest.css?r32">
 <style>
 :root{
   --bg:#07101f;--card:#111b2e;--card2:#0b1425;--text:#edf3ff;--muted:#92a2bf;
@@ -119,8 +120,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R31｜同價位法人增持</h1>
-      <p class="release-note"><b>R31｜同價位法人增持</b>　比較相近價位平均法人籌碼；可調回看天數與價差，盤後需當日法人資料。</p>
+      <h1>台股個股分析｜V1.17.0-R32｜個股 Action 回測</h1>
+      <p class="release-note"><b>R32｜個股 Action 回測</b>　兩組權重、進出場門檻、績效與一鍵最佳化；同價位法人增持功能保留。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -227,6 +228,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
   </div>
 
   <div class="section card" id="dualDetailControls"></div>
+  <section class="section card" id="stockBacktest"></section>
   <div class="section card" id="samePriceCard">
     <h2>同價位法人增持分數 <span class="pill">買賣超代理</span></h2>
     <div class="kpis">
@@ -1966,6 +1968,7 @@ analyze=async function(){
   const completed=await _origAnalyze();
   if(!completed)return;
   syncWatchBtn();
+  window.TWStockBacktestRefresh?.();
   if(STATE.stock?.stock_id && STATE.prices?.length){
     const cs=window.__chipStatus||{};
     const srcs=cs.sources||{};
@@ -1985,7 +1988,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R31 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R32 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;
@@ -2350,6 +2353,11 @@ bindFinMindTokenPanel();
 checkFinMindTokenStatus();
 </script>
 
+<script>
+window.TWStockBacktestContext=()=>({stock:STATE.stock,prices:STATE.prices,chips:{margin:STATE.margin,inst:STATE.inst,daytrade:STATE.daytrade},weights:dualDetailWeights,ready:!ANALYSIS_BUSY&&!CHIP_REFRESH_BUSY&&CHIP_STATE_CODE===String(STATE.stock?.stock_id)});
+</script>
+<script src="/stock-backtest-core.js?r32"></script>
+<script src="/stock-backtest-ui.js?r32"></script>
 </body>
 </html>
 
