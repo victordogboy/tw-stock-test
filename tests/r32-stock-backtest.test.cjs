@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const C=require('../public/stock-backtest-core.js');
-const p=()=>({...C.defaults,buy:{setup:100,opportunity:0,entry:0,hold:0},stay:{setup:0,opportunity:0,entry:0,hold:100},enter:60,exit:40,minTrades:1});
+const p=()=>({...C.defaults,entryMode:'absolute',entryBuffer:0,goal:'balanced',maxDrawdown:100,buy:{setup:100,opportunity:0,entry:0,hold:0},stay:{setup:0,opportunity:0,entry:0,hold:100},enter:60,exit:40,minTrades:1});
 const bars=(values)=>values.map(([open,close,buy,stay],i)=>({date:new Date(Date.UTC(2025,0,1+i)).toISOString().slice(0,10),open,close,high:Math.max(open,close)+1,low:Math.min(open,close)-1,volume:100000,scores:{setup:buy,opportunity:0,entry:0,hold:stay}}));
 test('inclusive entry/exit thresholds use NEXT open, not same-day or best OHLC',()=>{
  const r=C.simulate(bars([[100,100,60,80],[110,120,0,40],[130,140,0,80]]),p());

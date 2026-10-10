@@ -10,20 +10,25 @@
  const todayTW=()=>new Date(Date.now()+8*3600000).toISOString().slice(0,10);
  let stockKey='',worker=null,busy=false,loaded=null,report=null,runParams=null,controller=null,runId=0;
  const pieces=new Map();
- el.innerHTML=`<h2>個股 Action 門檻回測 <span class="pill">R32</span></h2>
+ el.innerHTML=`<h2>個股 Action 門檻回測 <span class="pill">R33</span></h2>
   <p class="note" id="btStock">先完成上方個股分析</p>
   <div class="bt-weight-grid">${['buy','stay'].map(group=>`<fieldset><legend>${group==='buy'?'進場 Action 係數':'續抱 Action 係數（出場判斷）'}</legend><div class="bt-four">${C.keys.map(k=>`<label>${labels[k]} %<input id="bt${group}_${k}" type="number" min="0" max="100" step="1" value="${C.defaults[group][k]}"></label>`).join('')}</div></fieldset>`).join('')}</div>
   <div class="bt-fields">
-    <label>進場分數 ≥<input id="btEnter" type="number" min="0" max="100" value="60"></label>
+    <label>進場判斷<select id="btEntryMode"><option value="deltaVolume">Action 變化＋量能分（同掃描器）</option><option value="delta">Action 純分數差</option><option value="absolute">Action 絕對分數（比較用）</option></select></label>
+    <label>進場續抱安全距離（分）<input id="btBuffer" type="number" min="0" max="100" value="5"></label>
+    <label>搜尋最大回撤上限 %<input id="btMaxDD" type="number" min="0" max="100" value="30"></label>
+  </div>
+  <div class="bt-fields">
+    <label><span id="btEnterLabel">進場 Action 變化 ≥</span><input id="btEnter" type="number" min="-104" max="110" value="10"></label>
     <label>續抱分數 ≤ 離場<input id="btExit" type="number" min="0" max="100" value="45"></label>
     <label>每筆本金／起始資金（元）<input id="btCapital" type="number" min="1" step="10000" value="1000000"></label>
     <label>來回總成本（基點）<input id="btCost" type="number" min="0" max="1000" step="1" value="0"></label>
   </div>
-  <p class="tiny">判斷 Action 本身的0～100分，不是分數日變化。兩組係數各合計100%。收盤訊號 → 下一交易日開盤成交；單一多單、不加碼。每次投入上限為原始本金，虧損後以剩餘資金投入；1基點＝0.01%，成本在買賣兩側各計一半。</p>
+  <p class="tiny">進場預設＝今日進場 Action − 前交易日同係數 Action ＋量能分；續抱仍用0～100絕對分數。只有續抱分數 &gt; 離場門檻＋安全距離才允許進場（0分距離也必須高於離場門檻）。量比＝當日收盤量÷前日實量；≥2倍加10、≥1.5倍加7、≥1.2倍加4、&lt;0.6倍減4，其餘0，與掃描器盤後定義相同。兩組係數各合計100%。收盤訊號 → 下一交易日開盤成交；單一多單、不加碼。每次投入上限為原始本金，虧損後以剩餘資金投入；1基點＝0.01%，成本在買賣兩側各計一半。</p>
   <div class="bt-fields">
     <label>回測開始<input id="btStart" type="date"></label><label>回測結束<input id="btEnd" type="date"></label>
-    <label>最佳化目標<select id="btGoal"><option value="balanced">報酬／回撤比</option><option value="roi">總報酬率最高</option><option value="winRate">勝率最高</option></select></label>
-    <label>搜尋期最低交易筆數<input id="btMinTrades" type="number" min="1" max="100" value="5"></label>
+    <label>最佳化目標<select id="btGoal"><option value="robustWinRate">樣本校正勝率（預設）</option><option value="balanced">報酬／回撤比</option><option value="roi">總報酬率最高</option><option value="winRate">勝率最高</option></select></label>
+    <label>搜尋期正式離場最低筆數<input id="btMinTrades" type="number" min="1" max="100" value="20"></label>
   </div>
   <div class="toolbar"><button id="btRun" type="button">依設定回測</button><button id="btOptimize" type="button">一鍵找最佳參數</button><button id="btCancel" type="button" class="secondary" disabled>停止</button><button id="btImport" type="button" class="secondary">帶入上方 Action 係數</button></div>
   <p class="tiny" id="btSaved">回測設定依個股儲存在此瀏覽器。</p>
@@ -31,10 +36,11 @@
   <p id="btStatus" role="status" aria-live="polite" class="note">等待個股資料</p><progress id="btProgress" max="1" value="0" style="width:100%;display:none"></progress>
   <div id="btResults"></div>`;
  function context(){return root.TWStockBacktestContext?.()}
- function storageKey(){return 'twq_stock_backtest_r32:'+stockKey}
- function params(){return C.validate({buy:Object.fromEntries(C.keys.map(k=>[k,readNumber('buy_'+k)])),stay:Object.fromEntries(C.keys.map(k=>[k,readNumber('stay_'+k)])),enter:readNumber('Enter'),exit:readNumber('Exit'),capital:readNumber('Capital'),costBps:readNumber('Cost'),minTrades:readNumber('MinTrades'),goal:$('Goal').value})}
+ function storageKey(){return 'twq_stock_backtest_r33:'+stockKey}
+ function params(){return C.validate({buy:Object.fromEntries(C.keys.map(k=>[k,readNumber('buy_'+k)])),stay:Object.fromEntries(C.keys.map(k=>[k,readNumber('stay_'+k)])),entryMode:$('EntryMode').value,entryBuffer:readNumber('Buffer'),maxDrawdown:readNumber('MaxDD'),enter:readNumber('Enter'),exit:readNumber('Exit'),capital:readNumber('Capital'),costBps:readNumber('Cost'),minTrades:readNumber('MinTrades'),goal:$('Goal').value})}
  function readNumber(id){return $(id).value.trim()===''?NaN:Number($(id).value)}
- function fill(p){for(const group of ['buy','stay'])for(const k of C.keys)$(group+'_'+k).value=p[group][k];for(const [id,k] of [['Enter','enter'],['Exit','exit'],['Capital','capital'],['Cost','costBps'],['MinTrades','minTrades'],['Goal','goal']])$(id).value=p[k];}
+ function fill(p){for(const group of ['buy','stay'])for(const k of C.keys)$(group+'_'+k).value=p[group][k];for(const [id,k] of [['EntryMode','entryMode'],['Buffer','entryBuffer'],['MaxDD','maxDrawdown'],['Enter','enter'],['Exit','exit'],['Capital','capital'],['Cost','costBps'],['MinTrades','minTrades'],['Goal','goal']])$(id).value=p[k];syncMode();}
+ function syncMode(){const mode=$('EntryMode').value;$('EnterLabel').textContent=mode==='absolute'?'進場 Action 分數 ≥':'進場 Action 變化 ≥';$('Enter').min=mode==='absolute'?0:mode==='delta'?-100:-104;$('Enter').max=mode==='deltaVolume'?110:100;}
  function save(){
   if(!stockKey)return;
   try{const p=params();localStorage.setItem(storageKey(),JSON.stringify(p));$('Saved').textContent='已儲存 '+stockKey+' 的回測設定；兩組權重各100%。';}
@@ -49,11 +55,11 @@
   const c=context();if(!c?.stock?.stock_id)return;
   stop('個股資料已更新，可開始回測。');loaded=null;clearResults();
   const key=c.stock.type+':'+c.stock.stock_id,changed=key!==stockKey;stockKey=key;
-  if(changed){let p=copy(C.defaults);try{const stored=JSON.parse(localStorage.getItem(storageKey()));if(stored)p=C.validate(stored);}catch{}fill(p);}
+  let migrated=false;if(changed){let p=copy(C.defaults);try{const stored=JSON.parse(localStorage.getItem(storageKey()));if(stored)p=C.validate(stored);else{const old=JSON.parse(localStorage.getItem('twq_stock_backtest_r32:'+stockKey));if(old){p=C.migrateLegacy(old);migrated=true;}}}catch{}fill(p);}
   const prices=c.prices.filter(r=>!r.intradayProjected&&r.date<=completedEnd());
   $('Start').value=prices[Math.min(64,prices.length-1)]?.date||'';$('End').value=prices.at(-1)?.date||'';
   $('Stock').textContent=c.stock.stock_id+' '+c.stock.stock_name+'｜回測專用係數，依股票保存';
-  $('Saved').textContent='回測設定依個股儲存；上方分析與掃描器的權重可用按鈕帶入。';
+  $('Saved').textContent=migrated?'已帶入R32係數、離場門檻與本金；進場改為Action變化≥10、安全距離5、最低20筆、回撤上限30%。原R32設定保留。':'回測設定依個股儲存；上方分析與掃描器的權重可用按鈕帶入。';
  }
  function completedEnd(){const d=new Date(Date.now()+8*3600000);return d.getUTCHours()*60+d.getUTCMinutes()<810?delta(todayTW(),-1):todayTW()}
  function dataset(){
@@ -73,7 +79,7 @@
     const p=params(),data=dataset();save();clearResults();runParams=copy(p);setBusy(true);$('Progress').value=0;
     $('Status').textContent='計算歷史四項分數；相同資料後續會沿用計算結果…';
     if(!worker){
-      worker=new Worker('/stock-backtest-worker.js?r32');
+      worker=new Worker('/stock-backtest-worker.js?r33');
       worker.onerror=e=>{stop('計算失敗：'+(e.message||'背景計算無法載入'));};
       worker.onmessage=({data:m})=>{
         if(m.type==='progress'){$('Progress').value=m.done/m.total;$('Status').textContent=(m.phase==='score'?'重播歷史分數 ':'搜尋參數 ')+m.done.toLocaleString()+' / '+m.total.toLocaleString();}
@@ -84,8 +90,8 @@
     worker.postMessage({mode,params:p,data});
   }catch(e){setBusy(false);$('Status').textContent=e.message;}
  }
- function metrics(m){return `<div class="kpis">${[['總報酬率',pct(m.roi)],['勝率',pct(m.winRate)],['最大回撤',pct(m.maxDrawdown)],['交易筆數',m.trades],['平均每筆報酬',pct(m.avgReturn)],['獲利因子',n(m.profitFactor)],['年化報酬（滿一年）',pct(m.cagr)],['報酬／回撤比',n(m.returnDrawdown)]].map(([k,v])=>`<div class="mini"><span class="label">${k}</span><strong>${v}</strong></div>`).join('')}</div>`}
- function weights(p){return '進場 '+C.keys.map(k=>p.buy[k]).join('/')+'；續抱 '+C.keys.map(k=>p.stay[k]).join('/')+'（Setup／Opportunity／Entry／Hold）｜進場≥'+p.enter+'；離場≤'+p.exit}
+ function metrics(m){return `<div class="kpis">${[['總報酬率',pct(m.roi)],['勝率（正式離場）',pct(m.signalWinRate)],['最大回撤',pct(m.maxDrawdown)],['正式離場筆數',m.completedTrades],['平均每筆報酬',pct(m.avgReturn)],['獲利因子',n(m.profitFactor)],['年化報酬（滿一年）',pct(m.cagr)],['報酬／回撤比',n(m.returnDrawdown)],['樣本校正勝率',pct(m.adjustedWinRate)]].map(([k,v])=>`<div class="mini"><span class="label">${k}</span><strong>${v}</strong></div>`).join('')}</div>`}
+ function weights(p){return '進場 '+C.keys.map(k=>p.buy[k]).join('/')+'；續抱 '+C.keys.map(k=>p.stay[k]).join('/')+'（Setup／Opportunity／Entry／Hold）｜'+({absolute:'進場分數',delta:'純分數差',deltaVolume:'日變化含量能'}[p.entryMode])+'≥'+p.enter+'；進場時續抱>'+n(p.exit+p.entryBuffer,0)+'；離場時續抱≤'+p.exit}
  function equityChart(m){
   if(m.curve.length<2)return '';
   const vals=[runParams.capital,...m.curve.map(x=>x.equity)],min=Math.min(...vals),max=Math.max(...vals),span=max-min||1;
@@ -94,16 +100,17 @@
  }
  function renderReport(){
   const r=report.result,c=report.coverage,m=r.full;
-  $('Status').textContent=(r.done?'搜尋完成 '+r.done.toLocaleString()+' 組，'+r.eligible.toLocaleString()+' 組符合最低交易筆數。':'回測完成。')+'有效評分 '+c.scored+' 日；資料缺漏 '+c.missing+' 日。';
+  $('Status').textContent=(r.done?'搜尋完成 '+r.done.toLocaleString()+' 組，'+r.eligible.toLocaleString()+' 組符合筆數、正報酬與回撤限制。':'回測完成。')+'有效評分 '+c.scored+' 日；資料缺漏 '+c.missing+' 日。';
   let html=`<h3>${r.done?'搜尋最佳組合｜全期間重跑':'自訂參數｜全期間'}</h3><p class="note">${esc(m.start)} ～ ${esc(m.end)}｜實際可用期間；請對照設定日期。<br>${esc(weights(r.best))}</p>${metrics(m)}${equityChart(m)}`;
   if(r.done){
-    html+=`<h3>時間切分驗證</h3><div class="bt-scroll"><table><thead><tr><th>區段</th><th>日期</th><th>報酬率</th><th>最大回撤</th><th>勝率</th><th>筆數</th></tr></thead><tbody>${[['前70%：搜尋參數',r.train],['後30%：未參與搜尋',r.test]].map(([name,x])=>`<tr><td>${name}</td><td>${x.start} ～ ${x.end}</td><td>${pct(x.roi)}</td><td>${pct(x.maxDrawdown)}</td><td>${pct(x.winRate)}</td><td>${x.trades}</td></tr>`).join('')}</tbody></table></div>
-    <p class="note">搜尋範圍：兩組係數以25%為間隔（另含目前係數），進場門檻40～80、離場20～60，各間隔5分，另含目前門檻。${r.best.goal==='balanced'?'排序使用報酬率÷max(最大回撤,1%)。':''}「最佳」只代表本次有限搜尋結果；後30%僅驗證，未用來挑選。兩段各自空手開始、期末結清，結果不可直接相加。${r.test.trades<5?'後段少於5筆交易，樣本偏少。':''}</p>
-    <button id="btApply" type="button">套用並保存最佳參數</button><details style="margin-top:12px"><summary>搜尋期前10名</summary><div class="bt-scroll"><table><thead><tr><th>組合</th><th>報酬率</th><th>回撤</th><th>勝率</th><th>筆數</th></tr></thead><tbody>${r.top.map(x=>`<tr><td>${esc(weights(x.params))}</td><td>${pct(x.result.roi)}</td><td>${pct(x.result.maxDrawdown)}</td><td>${pct(x.result.winRate)}</td><td>${x.result.trades}</td></tr>`).join('')}</tbody></table></div></details>`;
+    html+=`<h3>時間切分驗證</h3><div class="bt-scroll"><table><thead><tr><th>區段</th><th>日期</th><th>報酬率</th><th>最大回撤</th><th>勝率</th><th>筆數</th></tr></thead><tbody>${[['前70%：搜尋參數',r.train],['後30%：未參與搜尋',r.test]].map(([name,x])=>`<tr><td>${name}</td><td>${x.start} ～ ${x.end}</td><td>${pct(x.roi)}</td><td>${pct(x.maxDrawdown)}</td><td>${pct(x.signalWinRate)}</td><td>${x.completedTrades}</td></tr>`).join('')}</tbody></table></div>
+    <p class="note">搜尋範圍：兩組係數以25%為間隔（另含目前係數），進場門檻 ${r.search.entries.join('／')}；續抱離場 ${r.search.exits.join('／')}。進場續抱安全距離固定 ${r.best.entryBuffer} 分。搜尋需正式離場≥${r.best.minTrades}筆、總報酬&gt;0、回撤≤${r.best.maxDrawdown}%。${r.best.goal==='balanced'?'排序使用報酬率÷max(最大回撤,1%)。':''}「最佳」只代表本次有限搜尋結果；後30%僅驗證，未用來挑選。兩段各自空手開始、期末結清，結果不可直接相加。${r.test.completedTrades<20?'後段正式離場少於20筆，樣本偏少。':''}</p>
+    <p class="tiny">樣本校正勝率採Wilson 95%名目下界，僅用於降低少筆全勝的排名優勢；不是搜尋後的可信保證，也不代表未來勝率。最高勝率仍可能伴隨大額虧損，請同時看平均報酬、獲利因子與回撤。反覆查看後段再調參，也會污染驗證。</p>
+    <button id="btApply" type="button">套用並保存最佳參數</button><details style="margin-top:12px"><summary>搜尋期前10名</summary><div class="bt-scroll"><table><thead><tr><th>組合</th><th>報酬率</th><th>回撤</th><th>勝率</th><th>筆數</th></tr></thead><tbody>${r.top.map(x=>`<tr><td>${esc(weights(x.params))}</td><td>${pct(x.result.roi)}</td><td>${pct(x.result.maxDrawdown)}</td><td>${pct(x.result.signalWinRate)}</td><td>${x.result.completedTrades}</td></tr>`).join('')}</tbody></table></div></details>`;
   }
-  html+=`<p class="tiny">買進持有價格報酬 ${pct(m.benchmark)}（未計成本／股息）；持股天數占比 ${pct(m.exposure)}。期末估值結清 ${m.forced} 筆，已包含於勝率與報酬；不表示可保證成交。跳過／延後不可成交日 ${m.unfilled} 次。最大回撤採每日收盤權益，包含浮虧，不代表盤中最大跌幅。</p>
+  html+=`<p class="tiny">買進持有價格報酬 ${pct(m.benchmark)}（未計成本／股息）；持股天數占比 ${pct(m.exposure)}。符合進場訊號但續抱不足／缺值而排除 ${m.blockedEntries} 次。期末估值結清 ${m.forced} 筆，包含於報酬但不列入正式離場勝率、樣本校正與最低筆數；不表示可保證成交。跳過／延後不可成交日 ${m.unfilled} 次。最大回撤採每日收盤權益，包含浮虧，不代表盤中最大跌幅。</p>
   <p class="tiny">使用歷史收盤量與當日盤後籌碼。要求連續20個交易日三類籌碼完整才評分；缺漏日仍計算持股市值，但不產生新分數訊號。單一價位或零量日不假設能在開盤成交。原始股價未調整除權息／分割，也未加回股息；歷史籌碼修訂與公告時間差未建模。搜尋結果不保證未來績效。</p>
-  <details><summary>逐筆交易明細（${m.trades}筆）</summary><div class="bt-scroll"><table><thead><tr><th>進場訊號</th><th>買進日／價</th><th>離場訊號</th><th>賣出日／價</th><th>持有日</th><th>損益</th><th>報酬</th><th>原因</th></tr></thead><tbody>${m.tradeLog.map(t=>`<tr><td>${t.signalDate}</td><td>${t.entryDate} / ${n(t.entry)}</td><td>${t.exitSignalDate||'—'}</td><td>${t.exitDate} / ${n(t.exit)}</td><td>${t.days}</td><td>${n(t.profit,0)}</td><td>${pct(t.returnPct)}</td><td>${esc(t.reason)}</td></tr>`).join('')||'<tr><td colspan="8">此條件沒有交易</td></tr>'}</tbody></table></div></details>`;
+  <details><summary>逐筆交易明細（${m.trades}筆）</summary><div class="bt-scroll"><table><thead><tr><th>進場訊號日</th><th>進場訊號值／續抱分數</th><th>買進日／價</th><th>離場訊號</th><th>賣出日／價</th><th>持有日</th><th>損益</th><th>報酬</th><th>原因</th></tr></thead><tbody>${m.tradeLog.map(t=>`<tr><td>${t.signalDate}</td><td>${n(t.entrySignal,0)} / ${n(t.stayAtSignal,0)}</td><td>${t.entryDate} / ${n(t.entry)}</td><td>${t.exitSignalDate||'—'}</td><td>${t.exitDate} / ${n(t.exit)}</td><td>${t.days}</td><td>${n(t.profit,0)}</td><td>${pct(t.returnPct)}</td><td>${esc(t.reason)}</td></tr>`).join('')||'<tr><td colspan="9">此條件沒有交易</td></tr>'}</tbody></table></div></details>`;
   $('Results').innerHTML=html;
   if($('Apply'))$('Apply').onclick=()=>{fill(r.best);save();$('Status').textContent='已套用並保存 '+stockKey+' 的最佳參數，可依設定再次回測。';};
  }
@@ -137,7 +144,7 @@
   }catch(e){if(generation===runId)$('Status').textContent=e.name==='AbortError'?'歷史下載已停止':e.message;}
   finally{if(generation===runId){controller=null;setBusy(false);}}
  }
- el.querySelectorAll('input,select').forEach(n=>n.addEventListener('change',()=>{save();clearResults();}));
+ el.querySelectorAll('input,select').forEach(n=>n.addEventListener('change',()=>{if(n.id==='btEntryMode'){$('Enter').value=n.value==='absolute'?60:10;syncMode();}save();clearResults();}));
  $('Run').onclick=()=>run('manual');$('Optimize').onclick=()=>run('optimize');$('Cancel').onclick=()=>stop();$('Load').onclick=loadHistory;
  $('Import').onclick=()=>{const w=context()?.weights;if(!w){$('Status').textContent='上方係數無效，請先調整合計100%';return;}for(const group of ['buy','stay'])for(const k of C.keys)$(group+'_'+k).value=w[group][k];save();clearResults();};
  root.TWStockBacktestRefresh=attach;attach();

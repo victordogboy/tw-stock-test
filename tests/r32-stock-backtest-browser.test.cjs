@@ -30,23 +30,23 @@ test('mobile individual-stock backtest, persistence, history cache, optimizer an
   browser=await chromium.launch({headless:true,...(process.env.SCAN_TEST_CHROME?{executablePath:process.env.SCAN_TEST_CHROME}:{}),args:['--no-sandbox']});
   const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true}),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/detail');
-  await page.evaluate(()=>{localStorage.setItem('twq_watchlist_v16','["2368"]');localStorage.setItem('twq_finmind_tokens_v2',JSON.stringify({tokens:['test-one','test-two'],active:1}));});
+  await page.evaluate(()=>{localStorage.setItem('twq_watchlist_v16','["2368"]');localStorage.setItem('twq_stock_backtest_r32:twse:2330',JSON.stringify({...TWStockBacktest.defaults,enter:65,exit:45}));localStorage.setItem('twq_finmind_tokens_v2',JSON.stringify({tokens:['test-one','test-two'],active:1}));});
   await page.fill('#stockInput','2330');await page.click('#analyzeBtn');await page.waitForFunction(()=>document.getElementById('btStock').textContent.includes('2330'));
-  await page.fill('#btEnter','40');await page.fill('#btExit','60');await page.fill('#btMinTrades','1');await page.click('#btRun');
+  assert.match(await page.locator('#btSaved').innerText(),/已帶入R32/);assert.equal(await page.inputValue('#btEnter'),'10');assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_stock_backtest_r32:twse:2330')).enter),65);assert.equal(await page.inputValue('#btEntryMode'),'deltaVolume');assert.equal(await page.inputValue('#btBuffer'),'5');await page.selectOption('#btEntryMode','absolute');assert.equal(await page.inputValue('#btEnter'),'60');await page.selectOption('#btEntryMode','deltaVolume');assert.equal(await page.inputValue('#btEnter'),'10');await page.fill('#btEnter','10');await page.fill('#btExit','60');await page.fill('#btMinTrades','1');await page.click('#btRun');
   await page.waitForFunction(()=>document.getElementById('btStatus').textContent.includes('回測完成'));
   assert.ok(await page.locator('#btResults').innerText().then(s=>s.includes('最大回撤')));assert.equal(researchRequests,0);
   await page.click('#btOptimize');await page.waitForSelector('#btApply',{timeout:60000});
   assert.ok((await page.locator('#btResults').innerText()).includes('後30%：未參與搜尋'));assert.equal(researchRequests,0);
   await page.click('#btApply');const chosen=await page.inputValue('#btEnter');
-  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_stock_backtest_r32:twse:2330')));assert.equal(stored.enter,Number(chosen));
+  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_stock_backtest_r33:twse:2330')));assert.equal(stored.enter,Number(chosen));
   assert.equal(await page.evaluate(()=>localStorage.getItem('twq_watchlist_v16')),'["2368"]');
   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_finmind_tokens_v2'))),{tokens:['test-one','test-two'],active:1});
   // Check that the panel fits a phone; tables may scroll within their own box.
   assert.equal(await page.evaluate(()=>{const r=document.getElementById('stockBacktest').getBoundingClientRect();return r.right<=innerWidth&&r.left>=0;}),true);
   assert.equal(await page.evaluate(()=>{const e=document.getElementById('stockBacktest');return e.scrollWidth<=e.clientWidth;}),true);
-  await page.locator('#stockBacktest').screenshot({path:process.env.R32_SCREENSHOT||'/tmp/r32-stock-backtest-mobile.png'});
+  await page.locator('#stockBacktest').screenshot({path:process.env.R32_SCREENSHOT||'/tmp/r33-stock-backtest-mobile.png'});
   await page.click('#btOptimize');await page.click('#btCancel');assert.match(await page.locator('#btStatus').innerText(),/已停止/);assert.equal(await page.locator('#btRun').isEnabled(),true);
-  await page.fill('#stockInput','2454');await page.click('#analyzeBtn');await page.waitForFunction(()=>document.getElementById('btStock').textContent.includes('2454'));assert.equal(await page.inputValue('#btEnter'),'60');
+  await page.fill('#stockInput','2454');await page.click('#analyzeBtn');await page.waitForFunction(()=>document.getElementById('btStock').textContent.includes('2454'));assert.equal(await page.inputValue('#btEnter'),'10');
   await page.fill('#stockInput','2330');await page.click('#analyzeBtn');await page.waitForFunction(()=>document.getElementById('btStock').textContent.includes('2330'));assert.equal(await page.inputValue('#btEnter'),chosen);
   await page.reload();await page.fill('#stockInput','2330');await page.click('#analyzeBtn');await page.waitForFunction(()=>document.getElementById('btStock').textContent.includes('2330'));assert.equal(await page.inputValue('#btEnter'),chosen);
   await page.locator('#stockBacktest > details > summary').click();await page.click('#btLoad');await page.waitForFunction(()=>document.getElementById('btStatus').textContent.includes('歷史已載入'));assert.equal(researchRequests,8);

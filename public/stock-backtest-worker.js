@@ -1,4 +1,4 @@
-importScripts('/detail-score-r32.js?r32','/stock-backtest-core.js?r32');
+importScripts('/detail-score-r32.js?r32','/stock-backtest-core.js?r33');
 let cacheKey='',prepared=null;
 self.onmessage=({data:input})=>{
   try{
