@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 Scan｜V1.17.0-R31｜同價位法人增持</title>
+<title>台股 Scan｜V1.17.0-R34｜盤中預估量篩選</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -32,8 +32,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .selected-metric{background:rgba(255,209,102,.09);min-width:105px}th[data-metric]{white-space:nowrap}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 Scan｜V1.17.0-R31｜同價位法人增持</h1>
-<p class="release-note"><b>R31｜同價位法人增持</b>　同價位法人增持可直接作為掃描依據；比較相近價位平均籌碼，盤後檢查法人日期。</p>
+<h1>台股 Scan｜V1.17.0-R34｜盤中預估量篩選</h1>
+<p class="release-note"><b>R34｜盤中預估量篩選</b>　最低成交量與分數統一使用盤中預估收盤量；盤後使用當日實際量。舊榜單請重新全市場掃描。</p>
 <div id="futuresStatus" class="small muted">期貨名單：待載入</div>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
@@ -58,7 +58,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <option value="buyAction">進場 Action</option><option value="buyActionDelta">進場 Action 日變化</option><option value="stayAction">續抱 Action</option><option value="stayActionDelta">續抱 Action 日變化｜下降優先</option><option value="stayDrawdown">續抱 Action 前5日高點回落</option></select><div class="small muted">雙組續抱日變化以降幅優先，其餘依選定指標由高到低保留、重評；雙 Action 變化以分數差＋量能分排序。選取指標會置於第一個分數欄；完整市場候選需重新掃描。</div></div>
 <div><label>最低股價</label><input id="minClose" type="number" value="10"></div>
 <div><label>最高股價（有股票期貨者不受限）</label><input id="maxClose" type="number" value="300" min="0"><div class="small muted">0 = 不限制</div></div>
-<div><label>最低成交量（張）</label><input id="minLots" type="number" value="3000"></div>
+<div><label>最低成交量（張；盤中用預估量）</label><input id="minLots" type="number" value="3000"></div>
 <div><label>最大保留檔數</label><input id="maxStocks" type="number" value="200"></div>
 <div><label>同時請求數</label><input id="concurrency" type="number" min="1" max="8" value="6"></div>
 <div><label>第二階段重評檔數</label><input id="finTopN" type="number" min="1" max="100" value="100"></div>
@@ -90,10 +90,11 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <label>相近價位 <select id="spTolerance"><option value="3">±3%</option><option value="5" selected>±5%</option><option value="10">±10%</option></select></label>
 <label>至少相隔 <select id="spMinGap"><option value="1">1日</option><option value="5" selected>5日</option><option value="10">10日</option><option value="20">20日</option></select></label>
 <p class="small note">同價位時，外資＋投信比以前多多少？以所有符合價位的歷史日期平均比較。50分為持平，每增加1倍20日均量加10分，限制0～100；分數不是勝率。這是累計買賣超代理，不是實際持股。盤後需當日法人資料；盤中只用前一交易日資料。跨除權息／增減資須確認價格可比性。</p></div><p class="small muted">選此掃描模式會對所有通過基本條件的股票取得籌碼後排名，資料請求較多。其他模式的按鈕只重排目前榜單。無資料顯示 —，不冒充0分。最高股價及最低成交量篩選仍適用。</p>
+<p class="small muted">最低成交量：盤中依行情時間估算收盤量，開盤初期混合前5日均量降低波動；盤後使用當日實際量。預估量不代表最終成交量。更新行情會重新檢查門檻；要找榜單外新放量股票，請重新全市場掃描。</p>
 <p class="small muted">原始 Hold 變化＝本次 Hold − 前一交易日 Hold。新欄位＝原始變化＋量能加減分，百分比另列；盤中用預估收盤量，盤後用實際量，皆與前一交易日實際量比較。量比 ≥2× 加10分、≥1.5× 加7分、≥1.2× 加4分、&lt;0.6× 減4分，其餘0分。新欄位為分數變化，不限制在0～100；進場／續抱 Action 分數仍使用原始 Hold；雙 Action 日變化＝今日分數−前日同權重分數＋上述量能分。量能只加一次，缺少前日量時顯示 —。</p>
 <div style="overflow:auto"><table id="rankTable"><thead><tr>
 <th>代號</th><th>名稱</th>
-<th data-metric="setup">Setup</th><th data-metric="opportunity">Opportunity</th><th data-metric="entry">Entry</th><th data-metric="hold">Hold</th><th data-metric="holdDelta">Hold 變化</th><th data-metric="holdVolumeDelta">Hold 變化＋量變化</th><th data-metric="buyAction">進場 Action</th><th data-metric="buyActionDelta">進場 Δ（含量能）</th><th data-metric="stayAction">續抱 Action</th><th data-metric="stayActionDelta">續抱 Δ（含量能）</th><th data-metric="stayDrawdown">前5日高點回落</th><th data-metric="samePrice">同價位法人增持</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>今日量（張）</th><th>估量比</th>
+<th data-metric="setup">Setup</th><th data-metric="opportunity">Opportunity</th><th data-metric="entry">Entry</th><th data-metric="hold">Hold</th><th data-metric="holdDelta">Hold 變化</th><th data-metric="holdVolumeDelta">Hold 變化＋量變化</th><th data-metric="buyAction">進場 Action</th><th data-metric="buyActionDelta">進場 Δ（含量能）</th><th data-metric="stayAction">續抱 Action</th><th data-metric="stayActionDelta">續抱 Δ（含量能）</th><th data-metric="stayDrawdown">前5日高點回落</th><th data-metric="samePrice">同價位法人增持</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>累計／實際量（張）</th><th>篩選量（張）</th><th>量比（對前5日均量）</th>
 <th>市場</th><th>資料日</th><th>期貨</th><th>現價／收盤</th><th>資料完整度</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
@@ -163,8 +164,11 @@ function selectionScore(r){
   }
   return Number.isFinite(r[scanSelection])?r[scanSelection]:null;
 }
+function passesScanVolume(r){
+  return !Number.isFinite(r.liquidityVolume)||r.liquidityVolume/1000>=SCAN_FILTERS.minLots;
+}
 function selectCandidates(list,limit=Infinity){
-  return list.filter(r=>Number.isFinite(selectionScore(r)))
+  return list.filter(r=>passesScanVolume(r)&&Number.isFinite(selectionScore(r)))
     .sort((a,b)=>selectionScore(b)-selectionScore(a)||(scanSelection==='samePrice'?(b.samePrice?.strength||0)-(a.samePrice?.strength||0):0)||String(a.code).localeCompare(String(b.code)))
     .slice(0,limit);
 }
@@ -464,7 +468,7 @@ function buildPersistPayload(){
     return x;
   });
   return {
-    version:'1.17.0-R31',samePriceOptions:scanSamePriceOptions,
+    version:'1.17.0-R34',samePriceOptions:scanSamePriceOptions,
     savedAt:Date.now(),
     backgroundJobId:window.__backgroundScanJobId||null,
     backgroundJobComplete:!!window.__backgroundScanJobComplete,
@@ -506,7 +510,7 @@ function restoreScan(){
     scanSamePriceOptions=TWDualAction.samePriceOptions(p.samePriceOptions||{});
     currentRank=visibleRank(p.currentRank)||'entry';
 
-    if(!['1.17.0-R31','1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24','1.17.0-R25','1.17.0-R26','1.17.0-R27','1.17.0-R28','1.17.0-R29'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
+    if(!['1.17.0-R34','1.17.0-R31','1.17.0-R22','1.17.0-R23','1.17.0-R23.1','1.17.0-R24','1.17.0-R25','1.17.0-R26','1.17.0-R27','1.17.0-R28','1.17.0-R29'].includes(p.version)&&$('futuresStatus'))$('futuresStatus').textContent='舊榜單請重新全市場掃描，才能補回先前被排除的期貨股';
     if($('status')) $('status').textContent=`已恢復上次掃描結果 · ${SCAN_TYPES[scanSelection]} 篩選 · ${results.length} 檔${results.some(r=>r.holdNeedsRefresh)?'｜舊版 Hold 待重算，請按「更新榜單盤中行情」':''}`;
     if($('stats')) $('stats').textContent=p.stats||'';
     if($('prog')) $('prog').value=100;
@@ -533,7 +537,7 @@ function renderRankOnly(key=currentRank){
   const header=$('rankTable').tHead.rows[0];
   const metricKeys=['setup','opportunity','entry','hold','holdDelta','holdVolumeDelta','buyAction','buyActionDelta','stayAction','stayActionDelta','stayDrawdown','samePrice'];
   for(const k of metricKeys.slice().reverse())header.insertBefore(header.querySelector('[data-metric="'+k+'"]'),header.children[2]);
-  const a=[...results].sort((x,y)=>rankVal(y,currentRank)-rankVal(x,currentRank)||(currentRank==='samePrice'?(y.samePrice?.strength||0)-(x.samePrice?.strength||0):0)).slice(0,100);
+  const a=results.filter(passesScanVolume).sort((x,y)=>rankVal(y,currentRank)-rankVal(x,currentRank)||(currentRank==='samePrice'?(y.samePrice?.strength||0)-(x.samePrice?.strength||0):0)).slice(0,100);
   $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'},'${r.market||'twse'}')">
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
@@ -542,6 +546,7 @@ function renderRankOnly(key=currentRank){
     <td data-metric="holdVolumeDelta" class="hold-change-cell"><b class="${r.holdVolumeDelta>0?'hold-up':r.holdVolumeDelta<0?'hold-down':''}">${displayScore(scanDelta(r,'holdVolumeDelta'),true)}</b><small class="muted">${r.holdNeedsRefresh?'請更新榜單盤中行情':TWHoldChange.volumeText(r,r.holdVolumeProjected)}</small></td>
     ${dualCell(r)}<td data-metric="samePrice" style="min-width:250px;text-align:left"><b>${displayScore(r.samePrice?.schema==='same-price-r31'?r.samePrice.score:null)}</b><br><small class="muted">${safeText(TWDualAction.samePriceNote(r.samePrice))}</small></td><td style="min-width:220px;text-align:left">${safeText(TWDualAction.note(r.absorption))}${r.absorption?.ratio!=null?'<br>5日淨額占量 '+r.absorption.ratio.toFixed(2)+'%':''}</td><td>${r.priceGuard?.broken?'結構破位':r.priceGuard?'結構未破':'待更新'}</td><td>${r.previousDate||'—'}</td><td>${r.liveError?'更新失敗':(r.liveTime||'未更新')}</td>
     <td>${r.liveActualVolume==null?'—':Math.round(r.liveActualVolume/1000).toLocaleString()}</td>
+    <td>${Number.isFinite(r.liquidityVolume)?Math.round(r.liquidityVolume/1000).toLocaleString()+'<br><small>'+safeText(r.liquidityBasis==='projected'?'預估收盤量':'當日實際量')+'</small>':'—'}</td>
     <td>${r.liveVolumeRatio==null?'—':r.liveVolumeRatio.toFixed(2)+'×'}</td>
     <td>${r.market==='tpex'?'上櫃':'上市'}</td>
     <td>${r.dataDate||'—'}</td>
@@ -626,8 +631,16 @@ function scanMarketOpen(j,b){
   if(String(b?.date||'')!==now.date)return false;
   return Number.isFinite(now.minutes)&&now.minutes>=540&&now.minutes<810;
 }
-function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');return [...new Set(errs)]}
-function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
+function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');if(b?.volume==null||!Number.isFinite(Number(b.volume))||Number(b.volume)<0)errs.push('volume invalid');if(scanMarketOpen(j,b)){const mins=scanMinutes(b.last_time);if(!Number.isFinite(mins)||mins<540||mins>810)errs.push('volume time invalid')}return [...new Set(errs)]}
+function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(n(currentVol)<=0)return {volume:0,fraction:1};if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
+function scanVolumeFields(bar,avg5){
+  const volume=Number(bar.volume),projected=!!bar.intradayProjected;
+  if(bar.volume==null||!Number.isFinite(volume)||volume<0)throw new Error('成交量資料缺失或異常');
+  return {liquidityVolume:volume,liquidityLots:volume/1000,liquidityDate:bar.date,
+    liquidityBasis:projected?'projected':'actual',liveActualVolume:projected?bar.actualVolume:volume,
+    liveProjectedVolume:volume,liveMarketOpen:projected,liveTime:bar.last_time||'',
+    liveVolumeRatio:avg5>0?volume/avg5:null};
+}
 function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}
 async function liveCurrentRecheckOne(r){
   const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`);
@@ -640,9 +653,9 @@ async function liveCurrentRecheckOne(r){
   const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
   if(base.length<65)throw new Error('盤中基準K不足');
   const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
-  const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
+  const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),actualVolume:n(b.volume),last_time:b.last_time,turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
   const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
-  delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
+  delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);Object.assign(r,scanVolumeFields(liveBar,avg5));return r;
 }
 async function runLiveCurrent(topList,limit=6){let idx=0,done=0,ok=0,fail=0;async function lane(){while(true){const i=idx++;if(stopped||i>=topList.length)return;const r=topList[i];try{await liveCurrentRecheckOne(r);ok++}catch(e){fail++;r.liveError=e.message;errors.push(`Live ${r.code}: ${e.message}`)}done++;$('prog').value=Math.round(done/topList.length*100);$('status').textContent=`現價四分數重算 ${done}/${topList.length} · 成功 ${ok} · 失敗 ${fail}`;if(done%3===0||done===topList.length)showRank(currentRank);await new Promise(res=>setTimeout(res,35))}}await Promise.all(Array.from({length:Math.max(1,Math.min(8,limit))},lane))}
 
@@ -656,13 +669,7 @@ async function stage1CurrentHistory(code,market,start,end){
     .filter(x=>Number.isFinite(Number(x.close))&&Number(x.close)>0);
   if(hist.length<180) throw new Error(`歷史K不足 ${hist.length}`);
   const last=hist.at(-1);
-  const completed=hist.filter(z=>String(z.date)<String(SCAN_TARGET_DATE)).at(-1)||last;
-  const lastFormalDate=completed?.date||null;
-  const lastFormalVolume=Math.max(0,n(completed?.volume,0));
   let provisional=false,liveSource=null;
-  if(SCAN_TARGET_DATE && String(last?.date||'')<String(SCAN_TARGET_DATE) && lastFormalVolume/1000<SCAN_FILTERS.minLots){
-    throw new Error(`低於最低成交量 ${(lastFormalVolume/1000).toFixed(0)}張（前一正式日）`);
-  }
 
   if(SCAN_TARGET_DATE && (String(last?.date||'')<String(SCAN_TARGET_DATE)||(SCAN_TARGET_DATE===scanTaipeiNow().date&&scanMarketOpen({}, {date:SCAN_TARGET_DATE})))){
     const iq=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
@@ -675,12 +682,12 @@ async function stage1CurrentHistory(code,market,start,end){
     const avg5=prior.slice(-5).reduce((sum,z)=>sum+n(z.volume),0)/Math.max(1,Math.min(5,prior.length));
     const open=scanMarketOpen(iq,b),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
     const bar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
-      volume:Math.max(0,Math.round(pv.volume)),turnover:0,stage1Provisional:true,formalVolume:false,intradayProjected:open};
+      volume:Math.max(0,Math.round(pv.volume)),actualVolume:n(b.volume),last_time:b.last_time,turnover:0,stage1Provisional:true,formalVolume:false,intradayProjected:open};
     hist=hist.filter(z=>String(z.date)<String(bar.date)).concat([bar]);
     provisional=true; liveSource=iq.source||'Yahoo Finance 1m';
     SCAN_PROVISIONAL_COUNT++;
   }
-  return {hist,source:j.source,provisional,liveSource,lastFormalDate,lastFormalVolume};
+  return {hist,source:j.source,provisional,liveSource};
 }
 
 async function formalizeListedOne(r){
@@ -700,6 +707,7 @@ async function formalizeListedOne(r){
       r._hist=hist;
       Object.assign(r,formalScore(hist,r._chips||{}));
       const last=hist.at(-1); r.close=twPrice(last.close); r.dataDate=last.date; r.decision=priceDecision(hist);
+      Object.assign(r,scanVolumeFields(last,hist.slice(-6,-1).reduce((sum,b)=>sum+n(b.volume),0)/5));
       r.prelimScore=selectionScore(r); r.stage1Provisional=!!last.intradayProjected; r.formalPrice=!last.intradayProjected;
       SCAN_FORMALIZED_COUNT++;
     }
@@ -731,14 +739,12 @@ async function worker(item){
     let hist=sh.hist;
     const lastBar=hist.at(-1)||{};
     const latestClose=n(lastBar.close,0);
-    // Audit proved Yahoo 1m volume can materially undercount official Daily volume.
-    // If Target-day K is provisional, use the previous completed Daily volume only
-    // for the liquidity filter. Target-day price/structure still uses the latest K.
-    const liquidityVolume=sh.provisional?sh.lastFormalVolume:n(lastBar.volume,0);
-    const liquidityLots=liquidityVolume/1000;
+    // Use the same current-day volume as scoring: projected intraday, actual after close.
+    const volumeFields=scanVolumeFields(lastBar,hist.slice(-6,-1).reduce((sum,b)=>sum+n(b.volume),0)/5);
+    const liquidityLots=volumeFields.liquidityLots;
     if(latestClose<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${latestClose}`);
     if(SCAN_FILTERS.maxClose>0&&latestClose>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
-    if(liquidityLots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${liquidityLots.toFixed(0)}張（${sh.provisional?'前一正式日':'正式日'}）`);
+    if(liquidityLots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${liquidityLots.toFixed(0)}張（${lastBar.intradayProjected?'盤中預估':'當日實際'}）`);
     const s=formalScore(hist);
     for(const k of ['setup','opportunity','entry','hold']){
       const v=Number(s[k]);
@@ -756,8 +762,7 @@ async function worker(item){
       historySource:sh.source,
       stage1Provisional:sh.provisional,
       stage1LiveSource:sh.liveSource,
-      liquidityDate:sh.provisional?sh.lastFormalDate:last.date,
-      liquidityLots:Math.round(liquidityLots),
+      ...volumeFields,
       dataDate:last.date,
       yahooLast:null,
       latestTwseDate:null,
@@ -893,6 +898,7 @@ $('scanBtn').onclick=async()=>{
   $('prog').value=0;
   $('status').textContent=`籌碼完成，開始以現價重算四大分數 ${top.length} 檔…`;
   await runLiveCurrent(results,Math.max(2,Math.min(6,n($('concurrency').value,6))));
+  results=selectCandidates(results);
   showRank(scanSelection);
   $('errors').textContent=errors.slice(-30).join(' | ')||'—';
   const full=results.filter(x=>x.finmindCompleteness===100).length;
@@ -900,7 +906,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R31 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R34 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').textContent=e.message}
  finally{scanBusy=false;setScanControlsBusy(false);$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
@@ -922,7 +928,7 @@ $('refreshLiveBtn').onclick=async()=>{
     }
     await runLiveCurrent(results,Math.max(1,Math.min(6,n($('concurrency').value,6))));
     showRank(currentRank);
-    $('status').textContent=(stopped?'已停止更新':'行情更新完成')+'｜成功 '+results.filter(r=>!r.liveError).length+'/'+results.length;
+    $('status').textContent=(stopped?'已停止更新':'行情更新完成')+'｜成功 '+results.filter(r=>!r.liveError).length+'/'+results.length+'｜符合量門檻 '+results.filter(passesScanVolume).length+' 檔';
   }finally{scanBusy=false;$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
 };
 $('stopBtn').onclick=()=>{stopped=true;$('status').textContent='正在停止…'};

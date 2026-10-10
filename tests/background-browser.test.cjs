@@ -71,6 +71,12 @@ for(const scenario of ['normal','quota-existing-key','quota-new-key','quota-empt
   assert.equal(await page.locator('#rows tr').count(),scenario==='quota-empty-result'?0:3);
   assert.equal(await page.evaluate(()=>localStorage.getItem('twq_watchlist_v16')),'["2368"]');
   assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('twq_finmind_tokens_v2'))),{tokens:['test-token-one','test-token-two'],active:1});
+  if(scenario==='normal'){
+   assert.match(await page.locator('#rankTable thead').innerText(),/篩選量（張）/);
+   const cells=await page.locator('#rows tr').first().locator('td').allTextContents();
+   assert.ok(cells.some(s=>s.includes('8,000')&&s.includes('當日實際量')));
+   assert.equal(cells.length,await page.locator('#rankTable thead th').count());
+  }
   assert.equal(await page.locator('#scanBtn').isEnabled(),true);
   assert.equal(await page.locator('#scanType').inputValue(),selection);
   assert.equal(await page.locator('#rankTabs button.active').getAttribute('data-rank'),selection);

@@ -1,6 +1,6 @@
 import {createScanRuntime} from './scan-runtime.mjs';
 const ACTIVE=new Set(['initializing','scanning','formalizing','chips','live']);
-const rankRow=(r,runtime)=>({code:r.code,samePrice:r.samePrice?{schema:r.samePrice.schema,score:r.samePrice.score,strength:r.samePrice.strength}:null,dualSelectionValue:runtime.selectionScore(r),setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold,holdVolumeDelta:r.holdVolumeDelta,previousScores:r.previousScores?Object.fromEntries(['entry','setup','opportunity','hold'].map(k=>[k,r.previousScores[k]])):null});
+const rankRow=(r,runtime)=>({code:r.code,liquidityVolume:r.liquidityVolume,samePrice:r.samePrice?{schema:r.samePrice.schema,score:r.samePrice.score,strength:r.samePrice.strength}:null,dualSelectionValue:runtime.selectionScore(r),setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold,holdVolumeDelta:r.holdVolumeDelta,previousScores:r.previousScores?Object.fromEntries(['entry','setup','opportunity','hold'].map(k=>[k,r.previousScores[k]])):null});
 const TTL=24*3600*1000, MAX_RUN=4*3600*1000;
 export const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
 export function validateOptions(raw={}){
@@ -163,7 +163,7 @@ export function createScanJobClass(api){return class ScanJob {
      if(s.phase==='formalizing'){
       const old=s.ranked;s.ranked=s.ranked.slice(0,s.options.finTopN);remove.push(...old.slice(s.options.finTopN).map(r=>r.code));s.phase='chips';
      }else if(s.phase==='chips')s.phase='live';
-     else{s.phase='completed';s.message=`R31 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
+     else{s.phase='completed';s.message=`R34 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
      s.work=s.ranked.map(r=>r.code);s.cursor=0;
     }
    }

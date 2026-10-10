@@ -18,12 +18,6 @@ test('dual deltas use volume confirmation once; scores stay unchanged; missing v
  assert.equal(D.metrics({...base,volume:100,previousVolume:0},w).stayDelta,null);
 });
 const rows=Array.from({length:220},(_,i)=>({date:new Date(Date.UTC(2025,0,i+1)).toISOString().slice(0,10),open:30,high:31,low:29,close:30,volume:1000000}));
-test('illiquid lagging daily rows skip the second quote request without changing liquidity threshold',async()=>{
- const calls=[],rt=createScanRuntime({options:validateOptions({minLots:3000}),targetDate:'2026-09-30'},async url=>{calls.push(url);return {data:rows}});
- const result=await rt.scan({code:'2330',market:'twse'});
- assert.equal(result.row,null);assert.match(result.error,/低於最低成交量/);
- assert.equal(calls.length,1);assert.match(calls[0],/history/);
-});
 test('official closing volume survives the final realtime phase',async()=>{
  const last=rows.at(-1),official={...last,volume:4000000};
  const rt=createScanRuntime({options:validateOptions({minLots:0}),targetDate:last.date},async()=>({quote_valid:true,bar:{...last,volume:1000000,last_time:'13:30:00'}}));

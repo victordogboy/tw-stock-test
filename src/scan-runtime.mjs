@@ -985,8 +985,11 @@ function selectionScore(r){
   }
   return Number.isFinite(r[scanSelection])?r[scanSelection]:null;
 }
+function passesScanVolume(r){
+  return !Number.isFinite(r.liquidityVolume)||r.liquidityVolume/1000>=SCAN_FILTERS.minLots;
+}
 function selectCandidates(list,limit=Infinity){
-  return list.filter(r=>Number.isFinite(selectionScore(r)))
+  return list.filter(r=>passesScanVolume(r)&&Number.isFinite(selectionScore(r)))
     .sort((a,b)=>selectionScore(b)-selectionScore(a)||(scanSelection==='samePrice'?(b.samePrice?.strength||0)-(a.samePrice?.strength||0):0)||String(a.code).localeCompare(String(b.code)))
     .slice(0,limit);
 }
@@ -1120,8 +1123,16 @@ function scanMarketOpen(j,b){
   if(String(b?.date||'')!==now.date)return false;
   return Number.isFinite(now.minutes)&&now.minutes>=540&&now.minutes<810;
 }
-function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');return [...new Set(errs)]}
-function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
+function scanQuoteErrors(j,b){const errs=[...(j?.validation_errors||[])],pos=v=>{const x=Number(v);return Number.isFinite(x)&&x>0?x:null};const o=pos(b?.open),h=pos(b?.high),l=pos(b?.low),c=pos(b?.close);if(o===null)errs.push('open invalid');if(h===null)errs.push('high invalid');if(l===null)errs.push('low invalid');if(c===null)errs.push('close invalid');if(h!==null&&l!==null&&l>h)errs.push('low > high');if(b?.volume==null||!Number.isFinite(Number(b.volume))||Number(b.volume)<0)errs.push('volume invalid');if(scanMarketOpen(j,b)){const mins=scanMinutes(b.last_time);if(!Number.isFinite(mins)||mins<540||mins>810)errs.push('volume time invalid')}return [...new Set(errs)]}
+function scanProjectedVolume(currentVol,lastTime,avg5,open){const mins=scanMinutes(lastTime);if(n(currentVol)<=0)return {volume:0,fraction:1};if(!open||!Number.isFinite(mins)||mins>=810)return {volume:n(currentVol),fraction:1};const elapsed=Math.max(1,Math.min(270,mins-540)),frac=Math.max(.03,elapsed/270),linear=n(currentVol)/frac,conf=Math.max(.28,Math.min(1,elapsed/120)),base=n(avg5)>0?n(avg5):linear;return {volume:Math.max(n(currentVol),Math.round(linear*conf+base*(1-conf))),fraction:frac}}
+function scanVolumeFields(bar,avg5){
+  const volume=Number(bar.volume),projected=!!bar.intradayProjected;
+  if(bar.volume==null||!Number.isFinite(volume)||volume<0)throw new Error('成交量資料缺失或異常');
+  return {liquidityVolume:volume,liquidityLots:volume/1000,liquidityDate:bar.date,
+    liquidityBasis:projected?'projected':'actual',liveActualVolume:projected?bar.actualVolume:volume,
+    liveProjectedVolume:volume,liveMarketOpen:projected,liveTime:bar.last_time||'',
+    liveVolumeRatio:avg5>0?volume/avg5:null};
+}
 function chipCutForLive(arr,date,open){return (arr||[]).filter(x=>{const d=String(x?.date||'');return open?d<date:d<=date})}
 async function liveCurrentRecheckOne(r){
   const j=await getJSON(`/api/intraday?code=${encodeURIComponent(r.code)}&market=${encodeURIComponent(r.market||'twse')}`);
@@ -1134,9 +1145,9 @@ async function liveCurrentRecheckOne(r){
   const open=scanMarketOpen(j,b);let base=(r._hist||[]).filter(x=>String(x.date)<String(b.date));
   if(base.length<65)throw new Error('盤中基準K不足');
   const avg5=base.slice(-5).reduce((sum,x)=>sum+n(x.volume),0)/Math.max(1,Math.min(5,base.length)),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
-  const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
+  const liveBar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),volume:Math.round(pv.volume),actualVolume:n(b.volume),last_time:b.last_time,turnover:0,intradayProjected:open},sim=base.concat([liveBar]);
   const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
-  delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);return r;
+  delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);Object.assign(r,scanVolumeFields(liveBar,avg5));return r;
 }
 async function stage1CurrentHistory(code,market,start,end){
   // Scalable path: cached Yahoo Daily first. If it lags the market-data target,
@@ -1147,13 +1158,7 @@ async function stage1CurrentHistory(code,market,start,end){
     .filter(x=>Number.isFinite(Number(x.close))&&Number(x.close)>0);
   if(hist.length<180) throw new Error(`歷史K不足 ${hist.length}`);
   const last=hist.at(-1);
-  const completed=hist.filter(z=>String(z.date)<String(SCAN_TARGET_DATE)).at(-1)||last;
-  const lastFormalDate=completed?.date||null;
-  const lastFormalVolume=Math.max(0,n(completed?.volume,0));
   let provisional=false,liveSource=null;
-  if(SCAN_TARGET_DATE && String(last?.date||'')<String(SCAN_TARGET_DATE) && lastFormalVolume/1000<SCAN_FILTERS.minLots){
-    throw new Error(`低於最低成交量 ${(lastFormalVolume/1000).toFixed(0)}張（前一正式日）`);
-  }
 
   if(SCAN_TARGET_DATE && (String(last?.date||'')<String(SCAN_TARGET_DATE)||(SCAN_TARGET_DATE===scanTaipeiNow().date&&scanMarketOpen({}, {date:SCAN_TARGET_DATE})))){
     const iq=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
@@ -1166,12 +1171,12 @@ async function stage1CurrentHistory(code,market,start,end){
     const avg5=prior.slice(-5).reduce((sum,z)=>sum+n(z.volume),0)/Math.max(1,Math.min(5,prior.length));
     const open=scanMarketOpen(iq,b),pv=scanProjectedVolume(n(b.volume),b.last_time,avg5,open);
     const bar={date:b.date,open:twPrice(b.open),high:twPrice(b.high),low:twPrice(b.low),close:twPrice(b.close),
-      volume:Math.max(0,Math.round(pv.volume)),turnover:0,stage1Provisional:true,formalVolume:false,intradayProjected:open};
+      volume:Math.max(0,Math.round(pv.volume)),actualVolume:n(b.volume),last_time:b.last_time,turnover:0,stage1Provisional:true,formalVolume:false,intradayProjected:open};
     hist=hist.filter(z=>String(z.date)<String(bar.date)).concat([bar]);
     provisional=true; liveSource=iq.source||'Yahoo Finance 1m';
     SCAN_PROVISIONAL_COUNT++;
   }
-  return {hist,source:j.source,provisional,liveSource,lastFormalDate,lastFormalVolume};
+  return {hist,source:j.source,provisional,liveSource};
 }
 
 async function formalizeListedOne(r){
@@ -1191,6 +1196,7 @@ async function formalizeListedOne(r){
       r._hist=hist;
       Object.assign(r,formalScore(hist,r._chips||{}));
       const last=hist.at(-1); r.close=twPrice(last.close); r.dataDate=last.date; r.decision=priceDecision(hist);
+      Object.assign(r,scanVolumeFields(last,hist.slice(-6,-1).reduce((sum,b)=>sum+n(b.volume),0)/5));
       r.prelimScore=selectionScore(r); r.stage1Provisional=!!last.intradayProjected; r.formalPrice=!last.intradayProjected;
       SCAN_FORMALIZED_COUNT++;
     }
@@ -1208,14 +1214,12 @@ async function worker(item){
     let hist=sh.hist;
     const lastBar=hist.at(-1)||{};
     const latestClose=n(lastBar.close,0);
-    // Audit proved Yahoo 1m volume can materially undercount official Daily volume.
-    // If Target-day K is provisional, use the previous completed Daily volume only
-    // for the liquidity filter. Target-day price/structure still uses the latest K.
-    const liquidityVolume=sh.provisional?sh.lastFormalVolume:n(lastBar.volume,0);
-    const liquidityLots=liquidityVolume/1000;
+    // Use the same current-day volume as scoring: projected intraday, actual after close.
+    const volumeFields=scanVolumeFields(lastBar,hist.slice(-6,-1).reduce((sum,b)=>sum+n(b.volume),0)/5);
+    const liquidityLots=volumeFields.liquidityLots;
     if(latestClose<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${latestClose}`);
     if(SCAN_FILTERS.maxClose>0&&latestClose>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
-    if(liquidityLots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${liquidityLots.toFixed(0)}張（${sh.provisional?'前一正式日':'正式日'}）`);
+    if(liquidityLots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${liquidityLots.toFixed(0)}張（${lastBar.intradayProjected?'盤中預估':'當日實際'}）`);
     const s=formalScore(hist);
     for(const k of ['setup','opportunity','entry','hold']){
       const v=Number(s[k]);
@@ -1233,8 +1237,7 @@ async function worker(item){
       historySource:sh.source,
       stage1Provisional:sh.provisional,
       stage1LiveSource:sh.liveSource,
-      liquidityDate:sh.provisional?sh.lastFormalDate:last.date,
-      liquidityLots:Math.round(liquidityLots),
+      ...volumeFields,
       dataDate:last.date,
       yahooLast:null,
       latestTwseDate:null,
