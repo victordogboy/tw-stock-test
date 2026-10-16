@@ -147,5 +147,6 @@
  el.querySelectorAll('input,select').forEach(n=>n.addEventListener('change',()=>{if(n.id==='btEntryMode'){$('Enter').value=n.value==='absolute'?60:10;syncMode();}save();clearResults();}));
  $('Run').onclick=()=>run('manual');$('Optimize').onclick=()=>run('optimize');$('Cancel').onclick=()=>stop();$('Load').onclick=loadHistory;
  $('Import').onclick=()=>{const w=context()?.weights;if(!w){$('Status').textContent='上方係數無效，請先調整合計100%';return;}for(const group of ['buy','stay'])for(const k of C.keys)$(group+'_'+k).value=w[group][k];save();clearResults();};
- root.TWStockBacktestRefresh=attach;attach();
+ root.TWStockBacktestStudyContext=()=>({params:params(),data:dataset(),stockKey});
+ root.TWStockBacktestRefresh=()=>{attach();root.TWSarKdStudyRefresh?.();};attach();
 })(globalThis);
