@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R33｜個股 Action 回測</title>
+<title>台股個股分析｜V1.17.0-R35｜K 線 SAR 可調 AF</title>
 <link rel="stylesheet" href="/stock-backtest.css?r32">
 <style>
 :root{
@@ -55,6 +55,12 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .ma10pill{color:#67a5ff!important;border-color:#67a5ff!important;background:#11233e!important}
 .ma20pill{color:#bd8cff!important;border-color:#bd8cff!important;background:#24183a!important}
 .ma60pill{color:#35d6a0!important;border-color:#35d6a0!important;background:#102b22!important}
+.sar-control{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12px;color:#dce6f9}
+.sar-control input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#ffa94d}
+.sar-factor{width:74px;padding:5px 7px;border-radius:7px;background:#07101f;color:#edf3ff;border:1px solid #52647e;font-size:13px}
+.sar-factor:focus-visible{outline:2px solid #ffa94d;outline-offset:1px}
+.sar-status{border-color:#9e6b3f!important;color:#ffc68f!important}
+
 
 .detail-futures-badge{display:inline-block;margin-left:8px;padding:4px 9px;border-radius:999px;background:#6d4bc3;color:white;font-size:12px;font-weight:900}
 
@@ -209,6 +215,11 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="pill ma10pill">MA10 ●</span>
       <span class="pill ma20pill">MA20 ●</span>
       <span class="pill ma60pill">MA60 ●</span>
+      <label class="sar-control" title="SAR 拋物線指標"><input id="sarEnabled" type="checkbox" checked> SAR</label>
+      <label class="sar-control" for="sarAcceleration" title="SAR 起始／每次創高低的遞增加速因子，最大 AF 固定為 0.20">加速因子 AF
+        <input id="sarAcceleration" class="sar-factor" type="number" inputmode="decimal" value="0.05" min="0.005" max="0.2" step="0.005">
+      </label>
+      <span class="pill sar-status" id="sarStatusPill" title="橘色點＝多頭 SAR（股價下方）；藍色點＝空頭 SAR（股價上方）">SAR：待分析</span>
       <span class="pill">成交量</span>
       <span class="pill" id="auditPill">審計日：—</span><span class="pill" id="auditClosePill">收盤：—</span><span class="pill" id="marketPill">市場：—</span><span class="pill" id="kColorPill">K色：—</span><span class="pill" id="volumePill">量：—</span>
     </div>
@@ -345,6 +356,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <script src="/dual-action-ui.js?r26"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
+<script src="/parabolic-sar.js?r35"></script>
 <script>
 let DETAIL_FUTURES_LIST=TWStockFutures.fallback();
 const MARKET=new URL(location.href).searchParams.get('market')||'twse';
@@ -354,6 +366,45 @@ const MARKET=new URL(location.href).searchParams.get('market')||'twse';
 const API='https://api.finmindtrade.com/api/v4/data';
 let STATE={info:[],prices:[],margin:[],inst:[],daytrade:[],stock:null,auditIndex:0,lastAnalysis:null};
 const $=id=>document.getElementById(id);
+const SAR_STORAGE_KEY='twq_detail_sar_v1';
+function loadSarSettings(){
+  try{
+    const stored=JSON.parse(localStorage.getItem(SAR_STORAGE_KEY)||'null');
+    return {enabled:stored?.enabled!==false,af:TWParabolicSAR.normalizeAf(stored?.af??0.05)};
+  }catch{return {enabled:true,af:0.05}}
+}
+let sarSettings=loadSarSettings();
+function saveSarSettings(){
+  try{localStorage.setItem(SAR_STORAGE_KEY,JSON.stringify(sarSettings))}catch{}
+}
+function redrawSarSettings(){
+  if(STATE.prices.length>=2){
+    drawPriceChart(STATE.prices.slice(0,STATE.auditIndex+1));
+  }else{
+    $('sarStatusPill').textContent=sarSettings.enabled?'SAR：待分析':'SAR：關閉';
+  }
+}
+{
+  const sarToggle=$('sarEnabled'),sarInput=$('sarAcceleration');
+  sarToggle.checked=sarSettings.enabled;
+  sarInput.value=String(sarSettings.af);
+  sarToggle.addEventListener('change',()=>{
+    sarSettings.enabled=sarToggle.checked;
+    saveSarSettings();
+    redrawSarSettings();
+  });
+  sarInput.addEventListener('change',()=>{
+    const value=Number(sarInput.value);
+    if(!Number.isFinite(value)||value<TWParabolicSAR.MIN_AF||value>TWParabolicSAR.MAX_AF){
+      sarInput.value=String(sarSettings.af);
+      return;
+    }
+    sarSettings.af=TWParabolicSAR.normalizeAf(value);
+    sarInput.value=String(sarSettings.af);
+    saveSarSettings();
+    redrawSarSettings();
+  });
+}
 const num=x=>Number(String(x??0).replace(/,/g,''))||0;
 const twTickSize=p=>{p=Number(p);if(!Number.isFinite(p)||p<=0)return .01;if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5};
 const twPrice=p=>{p=Number(p);if(!Number.isFinite(p))return null;const t=twTickSize(p),v=Math.round(p/t)*t;return Number(v.toFixed(t<.1?2:t<1?1:0))};
@@ -1768,8 +1819,15 @@ function drawPriceChart(rows){
   const c=$('chart'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
   c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   const view=rows.slice(-100),n=view.length;if(!n)return;
+  // Recalculate only through the selected audit date: future candles never enter SAR.
+  const sarValues=sarSettings.enabled?TWParabolicSAR.calculate(rows,sarSettings.af).slice(-n):null;
+  const recentSar=sarValues?sarValues[sarValues.length-1]:null;
+  $('sarStatusPill').textContent=!sarSettings.enabled?'SAR：關閉'
+    :recentSar?('SAR '+(recentSar.rising?'多頭':'空頭')+' '+fmt(recentSar.value,2)+'｜AF '+sarSettings.af)
+    :'SAR：資料不足';
+  const sarPrices=sarValues?sarValues.filter(v=>v&&Number.isFinite(v.value)).map(v=>v.value):[];
   const left=54,right=18,top=18,volH=95,bottom=24,priceBottom=h-volH-bottom-12;
-  const pMin=Math.min(...view.map(x=>x.low)),pMax=Math.max(...view.map(x=>x.high)),pad=(pMax-pMin)*.06||1,lo=pMin-pad,hi=pMax+pad;
+  const pMin=Math.min(...view.map(x=>x.low),...sarPrices),pMax=Math.max(...view.map(x=>x.high),...sarPrices),pad=(pMax-pMin)*.06||1,lo=pMin-pad,hi=pMax+pad;
   const y=p=>top+(hi-p)/(hi-lo)*(priceBottom-top),x=i=>left+(i+.5)*(w-left-right)/n;
   ctx.strokeStyle='#21314b';ctx.lineWidth=1;ctx.font='11px system-ui';ctx.fillStyle='#8292ad';
   for(let k=0;k<5;k++){const yy=top+k*(priceBottom-top)/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();ctx.fillText(fmt(hi-(hi-lo)*k/4,1),4,yy+4)}
@@ -1786,6 +1844,17 @@ function drawPriceChart(rows){
     view.forEach((_,i)=>{const gi=rows.length-view.length+i,m=ma(rows,n,gi);if(!Number.isFinite(m))return;const xx=x(i),yy=y(m);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
     ctx.stroke();
   });
+  // Orange dots mark rising SAR below candles; blue dots mark falling SAR above.
+  if(sarValues){
+    const radius=Math.max(1.8,Math.min(3.2,(w-left-right)/n*.4));
+    sarValues.forEach((point,i)=>{
+      if(!point||!Number.isFinite(point.value))return;
+      ctx.beginPath();
+      ctx.arc(x(i),y(point.value),radius,0,Math.PI*2);
+      ctx.fillStyle=point.rising?'#ffa94d':'#63c9f4';
+      ctx.fill();
+    });
+  }
   ctx.fillStyle='#92a2bf';ctx.font='11px system-ui';ctx.fillText(view[0].date,left,h-5);ctx.fillText(last(view).date,w-right-72,h-5);
 }
 function drawChipChart(m,i,date){
