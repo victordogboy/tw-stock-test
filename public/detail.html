@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R35｜SAR 加速因子設定</title>
+<title>台股個股分析｜V1.17.0-R35.1｜SAR 三項參數設定</title>
 <link rel="stylesheet" href="/stock-backtest.css?r32">
 <style>
 :root{
@@ -28,7 +28,6 @@ button:disabled{opacity:.55;cursor:wait}
 .label{font-size:12px;color:var(--muted)}.big{font-size:27px;font-weight:900;margin-top:6px;line-height:1.15}
 .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}.purple{color:var(--purple)}
 .section{margin-top:13px}.section h2{font-size:17px;margin:0 0 10px}
-.sar-controls{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin:10px 0}.sar-controls label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}.sar-controls input[type=number]{width:110px;max-width:100%;min-width:0}.sar-controls .sar-toggle{flex-direction:row;align-items:center;align-self:center}.sar-controls input[type=checkbox]{width:auto}#sarError{color:#ff9aaa}
 .chartwrap{padding:12px}.chart{height:470px;background:#091322;border-radius:10px;overflow:hidden;position:relative}.chart canvas{display:block;width:100%;height:100%}
 .chart-score-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 8px}.chart-score-cell{background:#081321;border:1px solid var(--line);border-radius:9px;padding:7px 9px;text-align:center}.chart-score-cell span{display:block;font-size:10px;color:var(--muted)}.chart-score-cell b{display:block;font-size:19px;line-height:1.15;margin-top:2px}
 .chipchart{height:260px;background:#091322;border-radius:10px;overflow:hidden}.chipchart canvas{display:block;width:100%;height:100%}
@@ -56,6 +55,12 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 .ma10pill{color:#67a5ff!important;border-color:#67a5ff!important;background:#11233e!important}
 .ma20pill{color:#bd8cff!important;border-color:#bd8cff!important;background:#24183a!important}
 .ma60pill{color:#35d6a0!important;border-color:#35d6a0!important;background:#102b22!important}
+.sar-control{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:12px;color:#dce6f9}
+.sar-control input[type="checkbox"]{width:16px;height:16px;margin:0;accent-color:#ffa94d}
+.sar-factor{width:74px;padding:5px 7px;border-radius:7px;background:#07101f;color:#edf3ff;border:1px solid #52647e;font-size:13px}
+.sar-factor:focus-visible{outline:2px solid #ffa94d;outline-offset:1px}
+.sar-status{border-color:#9e6b3f!important;color:#ffc68f!important}
+
 
 .detail-futures-badge{display:inline-block;margin-left:8px;padding:4px 9px;border-radius:999px;background:#6d4bc3;color:white;font-size:12px;font-weight:900}
 
@@ -121,8 +126,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R35｜SAR 加速因子設定</h1>
-      <p class="release-note"><b>R35｜K 線新增可調 SAR</b>　可設定初始加速因子、增加量與上限。　進場Action日變化＋續抱絕對分數，防止進出場條件衝突；同價位法人增持功能保留。</p>
+      <h1>台股個股分析｜V1.17.0-R35.1｜SAR 三項參數設定</h1>
+      <p class="release-note"><b>R35.1｜SAR 初始值、增加量與上限可分別設定</b>　進場Action日變化＋續抱絕對分數，防止進出場條件衝突；同價位法人增持功能保留。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -210,19 +215,23 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="pill ma10pill">MA10 ●</span>
       <span class="pill ma20pill">MA20 ●</span>
       <span class="pill ma60pill">MA60 ●</span>
+      <label class="sar-control" title="SAR 拋物線指標"><input id="sarEnabled" type="checkbox" checked> SAR</label>
+      <label class="sar-control" for="sarAcceleration" title="SAR 初始加速因子">初始加速因子
+        <input id="sarAcceleration" class="sar-factor" type="number" inputmode="decimal" value="0.05" min="0.005" max="0.2" step="0.001">
+      </label>
+      <label class="sar-control" for="sarStep">每次增加量
+        <input id="sarStep" class="sar-factor" type="number" inputmode="decimal" value="0.05" min="0.001" max="1" step="0.001">
+      </label>
+      <label class="sar-control" for="sarMax">加速因子上限
+        <input id="sarMax" class="sar-factor" type="number" inputmode="decimal" value="0.20" min="0.005" max="1" step="0.001">
+      </label>
+      <button id="sarReset" type="button">恢復預設</button>
+      <span class="pill sar-status" id="sarStatusPill" title="橘色點＝多頭 SAR（股價下方）；藍色點＝空頭 SAR（股價上方）">SAR：待分析</span>
       <span class="pill">成交量</span>
       <span class="pill" id="auditPill">審計日：—</span><span class="pill" id="auditClosePill">收盤：—</span><span class="pill" id="marketPill">市場：—</span><span class="pill" id="kColorPill">K色：—</span><span class="pill" id="volumePill">量：—</span>
     </div>
-    <div class="sar-controls" aria-label="SAR 設定">
-      <label class="sar-toggle"><input type="checkbox" id="sarEnabled" checked> 顯示 SAR</label>
-      <label>初始加速因子<input id="sarstart" type="number" min="0.001" max="1" step="any" value="0.02" inputmode="decimal"></label>
-      <label>每次增加量<input id="sarstep" type="number" min="0.001" max="1" step="any" value="0.02" inputmode="decimal"></label>
-      <label>加速因子上限<input id="sarmax" type="number" min="0.001" max="1" step="any" value="0.20" inputmode="decimal"></label>
-      <button id="sarReset" type="button">恢復預設</button>
-    </div>
-    <div class="tiny">SAR：<span style="color:#ff6d7b">● 多頭</span>／<span style="color:#35d6a0">● 空頭</span>；修改後即時重畫。盤中未收盤的 SAR 會隨高低價變動。</div>
-    <div id="sarError" class="note" role="alert"></div>
-    <div id="sarValue" class="dual-note" aria-live="polite">SAR：等待分析</div>
+    <div id="sarError" class="note" role="alert" style="color:#ff9aaa"></div>
+    <div class="tiny">橘色點＝多頭 SAR；藍色點＝空頭 SAR。盤中尚未收盤的 SAR 會隨高低價變動。</div>
     <div id="chartLiveHud" class="chart-live-hud flat">
       <div class="hd" id="chartLiveTitle">盤中即時</div>
       <div><span class="px" id="chartLivePrice">—</span> <span class="chg" id="chartLiveChange">—</span></div>
@@ -356,7 +365,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <script src="/dual-action-ui.js?r26"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
-<script src="/parabolic-sar.js?r35"></script>
+<script src="/parabolic-sar.js?r35.1"></script>
 <script>
 let DETAIL_FUTURES_LIST=TWStockFutures.fallback();
 const MARKET=new URL(location.href).searchParams.get('market')||'twse';
@@ -366,6 +375,48 @@ const MARKET=new URL(location.href).searchParams.get('market')||'twse';
 const API='https://api.finmindtrade.com/api/v4/data';
 let STATE={info:[],prices:[],margin:[],inst:[],daytrade:[],stock:null,auditIndex:0,lastAnalysis:null};
 const $=id=>document.getElementById(id);
+const SAR_STORAGE_KEY='twq_detail_sar_v1';
+function loadSarSettings(){
+  try{
+    const stored=JSON.parse(localStorage.getItem(SAR_STORAGE_KEY)||'null');
+    if(stored){
+      const start=TWParabolicSAR.normalizeAf(stored.af??0.05);
+      return TWParabolicSAR.validate({enabled:stored.enabled!==false,start,step:stored.step??start,max:stored.max??0.2});
+    }
+    const previous=JSON.parse(localStorage.getItem('twq_chart_sar_v1')||'null');
+    if(previous)return TWParabolicSAR.validate(previous);
+  }catch{}
+  return {...TWParabolicSAR.defaults};
+}
+let sarSettings=loadSarSettings();
+function saveSarSettings(){
+  try{localStorage.setItem(SAR_STORAGE_KEY,JSON.stringify({enabled:sarSettings.enabled,af:sarSettings.start,step:sarSettings.step,max:sarSettings.max}))}
+  catch{$('sarError').textContent='目前瀏覽器無法儲存設定，本次仍可使用。'}
+}
+function redrawSarSettings(){
+  if(STATE.prices.length>=2)drawPriceChart(STATE.prices.slice(0,STATE.auditIndex+1));
+  else $('sarStatusPill').textContent=sarSettings.enabled?'SAR：待分析':'SAR：關閉';
+}
+function fillSarSettings(){
+  $('sarEnabled').checked=sarSettings.enabled;
+  $('sarAcceleration').value=String(sarSettings.start);
+  $('sarStep').value=String(sarSettings.step);
+  $('sarMax').value=String(sarSettings.max);
+}
+fillSarSettings();
+$('sarEnabled').addEventListener('change',()=>{
+  sarSettings.enabled=$('sarEnabled').checked;fillSarSettings();
+  $('sarError').textContent='';saveSarSettings();redrawSarSettings();
+});
+for(const id of ['sarAcceleration','sarStep','sarMax'])$(id).addEventListener('change',()=>{
+  try{
+    sarSettings=TWParabolicSAR.validate({enabled:$('sarEnabled').checked,start:$('sarAcceleration').value,step:$('sarStep').value,max:$('sarMax').value});
+    fillSarSettings();$('sarError').textContent='';saveSarSettings();redrawSarSettings();
+  }catch(e){$('sarError').textContent=e.message+' 圖表維持上一組有效設定。'}
+});
+$('sarReset').addEventListener('click',()=>{
+  sarSettings={...TWParabolicSAR.defaults};fillSarSettings();$('sarError').textContent='';saveSarSettings();redrawSarSettings();
+});
 const num=x=>Number(String(x??0).replace(/,/g,''))||0;
 const twTickSize=p=>{p=Number(p);if(!Number.isFinite(p)||p<=0)return .01;if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5};
 const twPrice=p=>{p=Number(p);if(!Number.isFinite(p))return null;const t=twTickSize(p),v=Math.round(p/t)*t;return Number(v.toFixed(t<.1?2:t<1?1:0))};
@@ -1776,18 +1827,19 @@ function renderMATable(rows,opt,a){
   const rw=runway(rows,20,opt,10);
   $('runwayText').textContent=`20MA 扣抵安全期近似：若價格維持在最佳買點 ${fmt(opt)} 附近，接下來約 ${rw} 個交易日的已知扣抵序列仍低於該情境價。此推演只使用審計日前已存在的歷史收盤價。`;
 }
-let sarChartRows=[];
-TWSar.init(()=>{if(sarChartRows.length)drawPriceChart(sarChartRows)});
 function drawPriceChart(rows){
-  sarChartRows=rows;
   const c=$('chart'),ctx=c.getContext('2d'),dpr=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
   c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   const view=rows.slice(-100),n=view.length;if(!n)return;
+  // Recalculate only through the selected audit date: future candles never enter SAR.
+  const sarValues=sarSettings.enabled?TWParabolicSAR.calculate(rows,sarSettings).slice(-n):null;
+  const recentSar=sarValues?sarValues[sarValues.length-1]:null;
+  $('sarStatusPill').textContent=!sarSettings.enabled?'SAR：關閉'
+    :recentSar?('SAR '+(recentSar.rising?'多頭':'空頭')+' '+fmt(recentSar.value,2)+'｜目前 AF '+recentSar.af+'｜'+last(view).date)
+    :'SAR：資料不足';
+  const sarPrices=sarValues?sarValues.filter(v=>v&&Number.isFinite(v.value)).map(v=>v.value):[];
   const left=54,right=18,top=18,volH=95,bottom=24,priceBottom=h-volH-bottom-12;
-  const sarSettings=TWSar.settings,sarPoints=sarSettings.enabled?TWSar.calculate(rows,sarSettings).slice(-100):[];
-  const sarValues=sarPoints.filter(Boolean).map(p=>p.value),currentSar=sarPoints.at(-1);
-  $('sarValue').textContent=!sarSettings.enabled?'SAR：已隱藏':currentSar?`審計日 ${last(view).date}｜SAR ${fmt(currentSar.value)}｜${currentSar.up?'多頭（下方）':'空頭（上方）'}｜目前加速因子 ${Number(currentSar.af.toFixed(4))}`:'SAR：至少需要兩根有效 K 線';
-  const pMin=Math.min(...view.map(x=>x.low),...sarValues),pMax=Math.max(...view.map(x=>x.high),...sarValues),pad=(pMax-pMin)*.06||1,lo=pMin-pad,hi=pMax+pad;
+  const pMin=Math.min(...view.map(x=>x.low),...sarPrices),pMax=Math.max(...view.map(x=>x.high),...sarPrices),pad=(pMax-pMin)*.06||1,lo=pMin-pad,hi=pMax+pad;
   const y=p=>top+(hi-p)/(hi-lo)*(priceBottom-top),x=i=>left+(i+.5)*(w-left-right)/n;
   ctx.strokeStyle='#21314b';ctx.lineWidth=1;ctx.font='11px system-ui';ctx.fillStyle='#8292ad';
   for(let k=0;k<5;k++){const yy=top+k*(priceBottom-top)/4;ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(w-right,yy);ctx.stroke();ctx.fillText(fmt(hi-(hi-lo)*k/4,1),4,yy+4)}
@@ -1804,11 +1856,17 @@ function drawPriceChart(rows){
     view.forEach((_,i)=>{const gi=rows.length-view.length+i,m=ma(rows,n,gi);if(!Number.isFinite(m))return;const xx=x(i),yy=y(m);if(!started){ctx.moveTo(xx,yy);started=true}else ctx.lineTo(xx,yy)});
     ctx.stroke();
   });
-  sarPoints.forEach((point,i)=>{
-    if(!point)return;
-    ctx.beginPath();ctx.fillStyle=point.up?'#ff6d7b':'#35d6a0';
-    ctx.arc(x(i),y(point.value),Math.max(1.5,Math.min(3,(w-left-right)/n*.25)),0,Math.PI*2);ctx.fill();
-  });
+  // Orange dots mark rising SAR below candles; blue dots mark falling SAR above.
+  if(sarValues){
+    const radius=Math.max(1.8,Math.min(3.2,(w-left-right)/n*.4));
+    sarValues.forEach((point,i)=>{
+      if(!point||!Number.isFinite(point.value))return;
+      ctx.beginPath();
+      ctx.arc(x(i),y(point.value),radius,0,Math.PI*2);
+      ctx.fillStyle=point.rising?'#ffa94d':'#63c9f4';
+      ctx.fill();
+    });
+  }
   ctx.fillStyle='#92a2bf';ctx.font='11px system-ui';ctx.fillText(view[0].date,left,h-5);ctx.fillText(last(view).date,w-right-72,h-5);
 }
 function drawChipChart(m,i,date){
@@ -2011,7 +2069,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R35 SAR 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R35.1 SAR 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;

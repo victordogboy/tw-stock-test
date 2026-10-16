@@ -23,26 +23,26 @@ test('SAR phone controls, redraw, persistence, audit date and no extra data requ
     page.on('pageerror',e=>errors.push(e.message));
     await page.goto('http://127.0.0.1:'+server.address().port+'/detail');
     await page.fill('#stockInput','2330');await page.click('#analyzeBtn');
-    await page.waitForFunction(()=>document.getElementById('sarValue').textContent.includes('加速因子'));
+    await page.waitForFunction(()=>document.getElementById('sarStatusPill').textContent.includes('目前 AF'));
     const original=await page.locator('#chart').evaluate(c=>c.toDataURL()),baseline=requests;
-    await page.fill('#sarstart','0.05');await page.locator('#sarstart').blur();
+    await page.fill('#sarAcceleration','0.07');await page.locator('#sarAcceleration').blur();
     assert.notEqual(await page.locator('#chart').evaluate(c=>c.toDataURL()),original);
-    await page.fill('#sarmax','0.01');await page.locator('#sarmax').blur();assert.match(await page.locator('#sarError').innerText(),/上限不可/);
-    assert.equal(await page.evaluate(()=>TWSar.settings.max),.2);
-    await page.fill('#sarmax','0.3');await page.locator('#sarmax').blur();
-    await page.uncheck('#sarEnabled');assert.match(await page.locator('#sarValue').innerText(),/已隱藏/);
+    await page.fill('#sarMax','0.01');await page.locator('#sarMax').blur();assert.match(await page.locator('#sarError').innerText(),/上限不可/);
+    assert.equal(await page.evaluate(()=>sarSettings.max),.2);
+    await page.fill('#sarMax','0.3');await page.locator('#sarMax').blur();
+    await page.uncheck('#sarEnabled');assert.match(await page.locator('#sarStatusPill').innerText(),/關閉/);
     await page.check('#sarEnabled');assert.equal(requests,baseline);
     await page.locator('#auditSlider').evaluate(el=>{el.value='120';el.dispatchEvent(new Event('input',{bubbles:true}));});
-    assert.match(await page.locator('#sarValue').innerText(),new RegExp(prices[120].date));
+    assert.match(await page.locator('#sarStatusPill').innerText(),new RegExp(prices[120].date));
     for(const width of [393,320,1280]){
       await page.setViewportSize({width,height:852});
-      assert.equal(await page.locator('.sar-controls').evaluate(e=>e.scrollWidth<=e.clientWidth),true);
-      for(const id of ['sarstart','sarstep','sarmax','sarReset'])assert.equal(await page.locator('#'+id).evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth}),true);
+      assert.equal(await page.locator('.toolbar').evaluate(e=>e.scrollWidth<=e.clientWidth),true);
+      for(const id of ['sarAcceleration','sarStep','sarMax','sarReset'])assert.equal(await page.locator('#'+id).evaluate(e=>{const r=e.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth}),true);
     }
     await page.setViewportSize({width:393,height:852});
     await page.locator('.chartwrap').screenshot({path:'/tmp/r35-sar-mobile.png'});
-    await page.reload();assert.equal(await page.inputValue('#sarstart'),'0.05');assert.equal(await page.inputValue('#sarmax'),'0.3');
-    await page.click('#sarReset');assert.equal(await page.inputValue('#sarstart'),'0.02');assert.equal(await page.inputValue('#sarmax'),'0.2');
+    await page.reload();assert.equal(await page.inputValue('#sarAcceleration'),'0.07');assert.equal(await page.inputValue('#sarMax'),'0.3');
+    await page.click('#sarReset');assert.equal(await page.inputValue('#sarAcceleration'),'0.05');assert.equal(await page.inputValue('#sarMax'),'0.2');
     assert.deepEqual(errors,[]);
   }finally{await browser?.close();await new Promise(r=>server.close(r));}
 });
