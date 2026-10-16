@@ -32,9 +32,13 @@ function indicators(prices,sarParams){
 }
 const buckets=[
   {id:'all',name:'Action 原始策略',match:()=>true},
+  {id:'sarEarly',name:'Action ＋ SAR 初翻多天數內',match:(x,o)=>x.sarDays>=1&&x.sarDays<=o.earlyDays},
   {id:'sar1',name:'SAR 翻多第 1 天',match:x=>x.sarDays===1},
   {id:'sar2',name:'SAR 翻多第 2 天',match:x=>x.sarDays===2},
   {id:'sar3',name:'SAR 翻多第 3 天',match:x=>x.sarDays===3},
+  {id:'sar5',name:'SAR 翻多第 5 天',match:x=>x.sarDays===5},
+  {id:'sar10',name:'SAR 翻多第 10 天',match:x=>x.sarDays===10},
+  {id:'sar15',name:'SAR 翻多第 15 天',match:x=>x.sarDays===15},
   {id:'sar47',name:'SAR 多頭第 4～7 天',match:x=>x.sarDays>=4&&x.sarDays<=7},
   {id:'sar815',name:'SAR 多頭第 8～15 天',match:x=>x.sarDays>=8&&x.sarDays<=15},
   {id:'sar16',name:'SAR 多頭第 16 天以上',match:x=>x.sarDays>=16},
