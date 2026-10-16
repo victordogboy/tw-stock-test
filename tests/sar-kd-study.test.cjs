@@ -73,5 +73,5 @@ test('parameter validation rejects bad configurations and uses SAR factor settin
  const b=S.study(rows,p,params(),{start:.02,step:.02,max:.2});
  assert.equal(a.sarParams.start,.05);
  assert.equal(b.sarParams.start,.02);
- assert.deepEqual(a.summaries.map(x=>x.id),['all','sar1','sar2','sar3','sar47','sar815','sar16','kd','sarKd']);
+ assert.deepEqual(a.summaries.map(x=>x.id),['all','sarEarly','sar1','sar2','sar3','sar5','sar10','sar15','sar47','sar815','sar16','kd','sarKd']);
 });
