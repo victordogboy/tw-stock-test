@@ -55,7 +55,7 @@
           sar = next;
           if (today.high > extreme) {
             extreme = today.high;
-            af = Math.min(cap, af + step);
+            af = Math.min(cap, Math.round((af + step) * 1000) / 1000);
           }
         }
       } else {
@@ -71,7 +71,7 @@
           sar = next;
           if (today.low < extreme) {
             extreme = today.low;
-            af = Math.min(cap, af + step);
+            af = Math.min(cap, Math.round((af + step) * 1000) / 1000);
           }
         }
       }
