@@ -17,6 +17,7 @@
     "test:stock-backtest": "node scripts/build-detail-score.cjs --check && node --test tests/r32-stock-backtest.test.cjs tests/r33-action-delta.test.cjs tests/parabolic-sar.test.cjs",
     "test:stock-backtest:browser": "node --test tests/r32-stock-backtest-browser.test.cjs",
     "test:sar": "node --test tests/parabolic-sar.test.cjs tests/r35-sar.test.cjs",
-    "test:sar:browser": "node --test tests/r35-sar-browser.test.cjs"
+    "test:sar:browser": "node --test tests/r35-sar-browser.test.cjs",
+    "test:sar-kd": "node --test tests/sar-kd-study.test.cjs"
   }
 }
