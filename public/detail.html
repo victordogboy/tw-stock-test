@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台股個股分析｜V1.17.0-R35｜K 線 SAR 可調 AF</title>
+<title>台股個股分析｜V1.17.0-R35.1｜SAR 三項參數設定</title>
 <link rel="stylesheet" href="/stock-backtest.css?r32">
 <style>
 :root{
@@ -126,8 +126,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <div class="container">
   <div class="top">
     <div>
-      <h1>台股個股分析｜V1.17.0-R33｜個股 Action 回測</h1>
-      <p class="release-note"><b>R33｜Action變化進場回測</b>　進場Action日變化＋續抱絕對分數，防止進出場條件衝突；同價位法人增持功能保留。</p>
+      <h1>台股個股分析｜V1.17.0-R35.1｜SAR 三項參數設定</h1>
+      <p class="release-note"><b>R35.1｜SAR 初始值、增加量與上限可分別設定</b>　進場Action日變化＋續抱絕對分數，防止進出場條件衝突；同價位法人增持功能保留。</p>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
 <div id="finmindTokenPanel" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:6px 0 10px">
 <input id="finmindTokenInput1" type="password" autocomplete="off" placeholder="FinMind Token 1（你的）" style="min-width:230px;max-width:380px;flex:1">
@@ -216,13 +216,22 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <span class="pill ma20pill">MA20 ●</span>
       <span class="pill ma60pill">MA60 ●</span>
       <label class="sar-control" title="SAR 拋物線指標"><input id="sarEnabled" type="checkbox" checked> SAR</label>
-      <label class="sar-control" for="sarAcceleration" title="SAR 起始／每次創高低的遞增加速因子，最大 AF 固定為 0.20">加速因子 AF
+      <label class="sar-control" for="sarAcceleration" title="SAR 初始加速因子">初始加速因子
         <input id="sarAcceleration" class="sar-factor" type="number" inputmode="decimal" value="0.05" min="0.005" max="0.2" step="0.001">
       </label>
+      <label class="sar-control" for="sarStep">每次增加量
+        <input id="sarStep" class="sar-factor" type="number" inputmode="decimal" value="0.05" min="0.001" max="1" step="0.001">
+      </label>
+      <label class="sar-control" for="sarMax">加速因子上限
+        <input id="sarMax" class="sar-factor" type="number" inputmode="decimal" value="0.20" min="0.005" max="1" step="0.001">
+      </label>
+      <button id="sarReset" type="button">恢復預設</button>
       <span class="pill sar-status" id="sarStatusPill" title="橘色點＝多頭 SAR（股價下方）；藍色點＝空頭 SAR（股價上方）">SAR：待分析</span>
       <span class="pill">成交量</span>
       <span class="pill" id="auditPill">審計日：—</span><span class="pill" id="auditClosePill">收盤：—</span><span class="pill" id="marketPill">市場：—</span><span class="pill" id="kColorPill">K色：—</span><span class="pill" id="volumePill">量：—</span>
     </div>
+    <div id="sarError" class="note" role="alert" style="color:#ff9aaa"></div>
+    <div class="tiny">橘色點＝多頭 SAR；藍色點＝空頭 SAR。盤中尚未收盤的 SAR 會隨高低價變動。</div>
     <div id="chartLiveHud" class="chart-live-hud flat">
       <div class="hd" id="chartLiveTitle">盤中即時</div>
       <div><span class="px" id="chartLivePrice">—</span> <span class="chg" id="chartLiveChange">—</span></div>
@@ -356,7 +365,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
 <script src="/dual-action-ui.js?r26"></script>
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
-<script src="/parabolic-sar.js?r35"></script>
+<script src="/parabolic-sar.js?r35.1"></script>
 <script>
 let DETAIL_FUTURES_LIST=TWStockFutures.fallback();
 const MARKET=new URL(location.href).searchParams.get('market')||'twse';
@@ -370,41 +379,44 @@ const SAR_STORAGE_KEY='twq_detail_sar_v1';
 function loadSarSettings(){
   try{
     const stored=JSON.parse(localStorage.getItem(SAR_STORAGE_KEY)||'null');
-    return {enabled:stored?.enabled!==false,af:TWParabolicSAR.normalizeAf(stored?.af??0.05)};
-  }catch{return {enabled:true,af:0.05}}
+    if(stored){
+      const start=TWParabolicSAR.normalizeAf(stored.af??0.05);
+      return TWParabolicSAR.validate({enabled:stored.enabled!==false,start,step:stored.step??start,max:stored.max??0.2});
+    }
+    const previous=JSON.parse(localStorage.getItem('twq_chart_sar_v1')||'null');
+    if(previous)return TWParabolicSAR.validate(previous);
+  }catch{}
+  return {...TWParabolicSAR.defaults};
 }
 let sarSettings=loadSarSettings();
 function saveSarSettings(){
-  try{localStorage.setItem(SAR_STORAGE_KEY,JSON.stringify(sarSettings))}catch{}
+  try{localStorage.setItem(SAR_STORAGE_KEY,JSON.stringify({enabled:sarSettings.enabled,af:sarSettings.start,step:sarSettings.step,max:sarSettings.max}))}
+  catch{$('sarError').textContent='目前瀏覽器無法儲存設定，本次仍可使用。'}
 }
 function redrawSarSettings(){
-  if(STATE.prices.length>=2){
-    drawPriceChart(STATE.prices.slice(0,STATE.auditIndex+1));
-  }else{
-    $('sarStatusPill').textContent=sarSettings.enabled?'SAR：待分析':'SAR：關閉';
-  }
+  if(STATE.prices.length>=2)drawPriceChart(STATE.prices.slice(0,STATE.auditIndex+1));
+  else $('sarStatusPill').textContent=sarSettings.enabled?'SAR：待分析':'SAR：關閉';
 }
-{
-  const sarToggle=$('sarEnabled'),sarInput=$('sarAcceleration');
-  sarToggle.checked=sarSettings.enabled;
-  sarInput.value=String(sarSettings.af);
-  sarToggle.addEventListener('change',()=>{
-    sarSettings.enabled=sarToggle.checked;
-    saveSarSettings();
-    redrawSarSettings();
-  });
-  sarInput.addEventListener('change',()=>{
-    const value=Number(sarInput.value);
-    if(!Number.isFinite(value)||value<TWParabolicSAR.MIN_AF||value>TWParabolicSAR.MAX_AF){
-      sarInput.value=String(sarSettings.af);
-      return;
-    }
-    sarSettings.af=TWParabolicSAR.normalizeAf(value);
-    sarInput.value=String(sarSettings.af);
-    saveSarSettings();
-    redrawSarSettings();
-  });
+function fillSarSettings(){
+  $('sarEnabled').checked=sarSettings.enabled;
+  $('sarAcceleration').value=String(sarSettings.start);
+  $('sarStep').value=String(sarSettings.step);
+  $('sarMax').value=String(sarSettings.max);
 }
+fillSarSettings();
+$('sarEnabled').addEventListener('change',()=>{
+  sarSettings.enabled=$('sarEnabled').checked;fillSarSettings();
+  $('sarError').textContent='';saveSarSettings();redrawSarSettings();
+});
+for(const id of ['sarAcceleration','sarStep','sarMax'])$(id).addEventListener('change',()=>{
+  try{
+    sarSettings=TWParabolicSAR.validate({enabled:$('sarEnabled').checked,start:$('sarAcceleration').value,step:$('sarStep').value,max:$('sarMax').value});
+    fillSarSettings();$('sarError').textContent='';saveSarSettings();redrawSarSettings();
+  }catch(e){$('sarError').textContent=e.message+' 圖表維持上一組有效設定。'}
+});
+$('sarReset').addEventListener('click',()=>{
+  sarSettings={...TWParabolicSAR.defaults};fillSarSettings();$('sarError').textContent='';saveSarSettings();redrawSarSettings();
+});
 const num=x=>Number(String(x??0).replace(/,/g,''))||0;
 const twTickSize=p=>{p=Number(p);if(!Number.isFinite(p)||p<=0)return .01;if(p<10)return .01;if(p<50)return .05;if(p<100)return .1;if(p<500)return .5;if(p<1000)return 1;return 5};
 const twPrice=p=>{p=Number(p);if(!Number.isFinite(p))return null;const t=twTickSize(p),v=Math.round(p/t)*t;return Number(v.toFixed(t<.1?2:t<1?1:0))};
@@ -1820,10 +1832,10 @@ function drawPriceChart(rows){
   c.width=w*dpr;c.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
   const view=rows.slice(-100),n=view.length;if(!n)return;
   // Recalculate only through the selected audit date: future candles never enter SAR.
-  const sarValues=sarSettings.enabled?TWParabolicSAR.calculate(rows,sarSettings.af).slice(-n):null;
+  const sarValues=sarSettings.enabled?TWParabolicSAR.calculate(rows,sarSettings).slice(-n):null;
   const recentSar=sarValues?sarValues[sarValues.length-1]:null;
   $('sarStatusPill').textContent=!sarSettings.enabled?'SAR：關閉'
-    :recentSar?('SAR '+(recentSar.rising?'多頭':'空頭')+' '+fmt(recentSar.value,2)+'｜AF '+sarSettings.af)
+    :recentSar?('SAR '+(recentSar.rising?'多頭':'空頭')+' '+fmt(recentSar.value,2)+'｜目前 AF '+recentSar.af+'｜'+last(view).date)
     :'SAR：資料不足';
   const sarPrices=sarValues?sarValues.filter(v=>v&&Number.isFinite(v.value)).map(v=>v.value):[];
   const left=54,right=18,top=18,volH=95,bottom=24,priceBottom=h-volH-bottom-12;
@@ -2057,7 +2069,7 @@ $('analyzeBtn').addEventListener('click',analyze);
 $('stockInput').addEventListener('keydown',e=>{if(e.key==='Enter')analyze()});
 const qCode=new URL(location.href).searchParams.get('code');
 if(qCode){$('stockInput').value=qCode;setTimeout(()=>analyze(),80)}
-setBanner('V1.17.0-R33 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
+setBanner('V1.17.0-R35.1 SAR 個股完整審計已就緒。從全市場排行榜點股票即可開啟完整 K 線與 V4.4 訊息。','ok');
 
 $('backScannerBtn').addEventListener('click',()=>{
   const params=new URL(location.href).searchParams;

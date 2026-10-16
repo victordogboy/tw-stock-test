@@ -1,5 +1,5 @@
 /* Parabolic SAR: calculated from chronological daily OHLC candles only.
-   af is both the initial acceleration factor and the increment after new extremes.
+   Legacy numeric AF remains the initial factor and increment; options allow separate factors.
    The maximum acceleration factor is 0.20 by default. */
 (function (root) {
   'use strict';
@@ -12,6 +12,19 @@
     return Number.isFinite(n) && n >= MIN_AF && n <= MAX_AF
       ? Math.round(n * 1000) / 1000
       : DEFAULT_AF;
+  }
+
+  const defaults=Object.freeze({enabled:true,start:DEFAULT_AF,step:DEFAULT_AF,max:MAX_AF});
+  function validate(input={}) {
+    const p={...defaults,...input};
+    for(const k of ['start','step','max']) {
+      p[k]=Number(p[k]);
+      if(!Number.isFinite(p[k])||p[k]<0.001||p[k]>1)throw new Error('加速因子須介於 0.001 與 1。');
+      p[k]=Math.round(p[k]*1000)/1000;
+    }
+    if(p.start<MIN_AF||p.start>MAX_AF)throw new Error('初始加速因子須介於 0.005 與 0.200。');
+    if(p.max<p.start||p.max<p.step)throw new Error('上限不可小於初始值或每次增加量。');
+    p.enabled=p.enabled!==false;return p;
   }
 
   function calculate(rows, initialAf = DEFAULT_AF, maximumAf = MAX_AF) {
@@ -27,15 +40,17 @@
     if (prices.some(p => !Number.isFinite(p.high) || !Number.isFinite(p.low) ||
       !Number.isFinite(p.close) || p.low > p.high)) return result;
 
-    const step = normalizeAf(initialAf);
-    const cap = Number.isFinite(Number(maximumAf))
-      ? Math.max(step, Math.min(1, Number(maximumAf))) : MAX_AF;
+    const options=initialAf&&typeof initialAf==='object'?validate(initialAf):null;
+    const start=options?options.start:normalizeAf(initialAf);
+    const step=options?options.step:start;
+    const cap=options?options.max:(Number.isFinite(Number(maximumAf))
+      ? Math.max(start, Math.min(1, Number(maximumAf))) : MAX_AF);
     let rising = prices[1].close >= prices[0].close;
     let sar = rising ? Math.min(prices[0].low, prices[1].low)
                      : Math.max(prices[0].high, prices[1].high);
     let extreme = rising ? Math.max(prices[0].high, prices[1].high)
                          : Math.min(prices[0].low, prices[1].low);
-    let af = step;
+    let af = start;
     result[1] = { value: sar, rising, af, reversal: false };
 
     for (let i = 2; i < prices.length; i++) {
@@ -49,7 +64,7 @@
           sar = extreme;
           rising = false;
           extreme = today.low;
-          af = step;
+          af = start;
           reversal = true;
         } else {
           sar = next;
@@ -65,7 +80,7 @@
           sar = extreme;
           rising = true;
           extreme = today.high;
-          af = step;
+          af = start;
           reversal = true;
         } else {
           sar = next;
@@ -80,7 +95,7 @@
     return result;
   }
 
-  const api = { calculate, normalizeAf, DEFAULT_AF, MIN_AF, MAX_AF };
+  const api = { calculate, normalizeAf, validate, defaults, DEFAULT_AF, MIN_AF, MAX_AF };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.TWParabolicSAR = api;
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
