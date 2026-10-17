@@ -74,7 +74,7 @@ function card(title,item){
  add('訓練期：'+summary(item.training));
  add('未參與調參的驗證期：'+summary(item.validation));
  const p=item.config;
- add('六元素比例（總和 100%）：'+family.map((x,i)=>x+' '+fmt(p.weights[i],0)+'%').join('／'));
+ add('六欄位權重（法人 0% 即五元素，總和 100%）：'+family.map((x,i)=>x+' '+fmt(p.weights[i],0)+'%').join('／'));
  add('MACD（快／慢／訊號） '+p.macd.join('/')+
   '；KD（週期／K 平滑／D 平滑） '+p.kd.join('/')+
   '；SAR（初始／增加／最大） '+p.sar.join('/')+
@@ -91,8 +91,8 @@ $('r48Go').addEventListener('click',async()=>{
  const task=++token;$('r48Cancel').disabled=false;
  $('r48Results').replaceChildren();$('r48BySide').replaceChildren();$('r48Headline').textContent='';
  try{
-  const {rows,range,cost,minTrades,institutionMode}=inputs();
-  let {base}= {base:inputs().base},institutionRows=[],issues=[],loadFailure='';
+  const {rows,range,cost,minTrades,institutionMode,base:initialBase}=inputs();
+  let base=initialBase,institutionRows=[],issues=[],loadFailure='';
   if(institutionMode==='six'){
    try{
     const fetched=await loadInstitutional(range,task);
