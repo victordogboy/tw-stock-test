@@ -43,7 +43,11 @@ function render(ctx){
  $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold)+(s.contract?'｜策略合約 '+s.contract:'');
  $('actParts').textContent=names.map((name,i)=>name+'：進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i])).join('；')+'。追價扣分 '+f(s.penalty)+'；SAR 同向 '+(s.aligned?'是':'否')+'；下一根預估翻向觸發價 '+f(s.evidence.trigger,2)+'；距離 '+f(s.evidence.gap,2)+' ATR；KD K/D '+f(s.evidence.k,1)+'/'+f(s.evidence.dh,1)+'；翻向前分數 '+f(s.preFlipScore)+'；距最近翻向 '+(s.age===null?'尚未觀察到':s.age+' 根')+'。';
  composition(s);
- $('actSignal').textContent='空手（'+({early:'起漲 Action',trend:'MA 趨勢進場',hybrid:'起漲或 MA 趨勢'}[config.entryType])+'，趨勢模式需連續滿足設定根數）：'+(s.enter?'符合'+(s.aligned?'已翻向確認':'SAR 翻向前預判')+'進場，下一根開盤模擬進場':'等待')+'；持倉：'+(s.leave?'續抱低於門檻，下一根開盤模擬離場':'續抱分數尚未低於門檻')+'。';
+ const trendToday=s.evidence.trend.slice(0,3).every(Boolean);
+ $('actSignal').textContent='起漲 Action：'+(s.enter?'當日符合':'當日不符合')+
+  '；MA 趨勢（收盤高於 MA20／MA5 高於 MA20／MA20 高於 MA60，做空方向相反）：'+(trendToday?'當日符合':'當日不符合')+
+  '，連續 '+config.trendBars+' 根由回測逐根驗證；目前採 '+({early:'A 起漲',trend:'B 趨勢',hybrid:'C 混合'}[config.entryType])+
+  ' 進場，持倉離場另依所選的 '+({hold:'Hold',trend:'趨勢確認',atr:'ATR 移動停損',mixed:'趨勢或 ATR'}[config.exitType])+' 判斷。';
 }
 function composition(s){
  const e=s.evidence,pass=e.trend.map(v=>v?'符合 +25':'不符合 +0'),dir=config.direction==='long'?'大於':'小於';
