@@ -6,7 +6,7 @@ test('fixed mode with early audit still runs full date range; latest control and
  let calls=0;p.ctx.fetch=async()=>{calls++;return new Response(JSON.stringify({ok:true,data:[...data,...data.slice(0,90).map(b=>({...b,contract_date:'202611'}))],source:'fixture'}));};
  const fire=(id,event='click',value)=>p.events.find(e=>e[0]===id&&e[1]===event)[2](value);
  p.nodes.get('txYears').value='1';p.nodes.get('txSession').value='position';await fire('txLoad');
- p.nodes.get('txAudit').value='3';fire('txAudit','input');assert.match(p.nodes.get('actScores').textContent,/目前 4 根/);assert.equal(p.nodes.get('actRun').disabled,false);assert.equal(p.nodes.get('actOptimize').disabled,false);
+ p.nodes.get('txAudit').value='3';fire('txAudit','input');assert.match(p.nodes.get('actScores').textContent,/缺少次月合約|連續跨月訊號/);assert.equal(p.nodes.get('actRun').disabled,false);assert.equal(p.nodes.get('actOptimize').disabled,false);
  p.nodes.get('txContract').value='202612';fire('txContract','change');p.nodes.get('txAudit').value='3';fire('txAudit','input');fire('actRun');const result=p.nodes.get('actResult').textContent;assert.match(result,/合約 202612/);assert(result.includes(data.at(-1).date));
  p.nodes.get('actMinTrades').value='1';p.ctx.setTimeout=fn=>fn();await fire('actOptimize');assert.match(p.nodes.get('actOptStatus').textContent,/搜尋完成/);
  fire('actLatest');assert.match(p.nodes.get('actScores').textContent,/進場 Action/);assert.equal(p.nodes.get('actResult').textContent,result);
