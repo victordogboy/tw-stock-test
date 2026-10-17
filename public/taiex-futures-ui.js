@@ -87,8 +87,12 @@
   for(const id of ['txSession','txContract'])$(id).addEventListener('change',()=>{selectSeries();save();});
   $('txYears').addEventListener('change',()=>save());
   $('txAudit').addEventListener('input',()=>{index=Number($('txAudit').value);render();});
-  $('txLatest').addEventListener('click',()=>{index=Math.max(0,rows.length-1);$('txAudit').value=String(index);render();});
-  $('txChart').addEventListener('pointerup',event=>{if(!canvasView)return;const v=canvasView,px=event.clientX-$('txChart').getBoundingClientRect().left;if(px<v.left||px>v.w-v.right)return;index=v.offset+Math.min(v.n-1,Math.floor((px-v.left)/(v.w-v.left-v.right)*v.n));$('txAudit').value=String(index);render();});
+  for(const id of ['txLatest','actLatest'])$(id).addEventListener('click',()=>{index=Math.max(0,rows.length-1);$('txAudit').value=String(index);render();});
+  let chartPress=null;
+  $('txChart').addEventListener('pointerdown',e=>{chartPress={x:e.clientX,y:e.clientY,id:e.pointerId};});
+  $('txChart').addEventListener('pointermove',e=>{if(chartPress&&Math.hypot(e.clientX-chartPress.x,e.clientY-chartPress.y)>8)chartPress=null;});
+  $('txChart').addEventListener('pointercancel',()=>{chartPress=null;});
+  $('txChart').addEventListener('pointerup',event=>{const press=chartPress;chartPress=null;if(!press||press.id!==event.pointerId||Math.hypot(event.clientX-press.x,event.clientY-press.y)>8||!canvasView)return;const v=canvasView,px=event.clientX-$('txChart').getBoundingClientRect().left;if(px<v.left||px>v.w-v.right)return;index=v.offset+Math.min(v.n-1,Math.floor((px-v.left)/(v.w-v.left-v.right)*v.n));$('txAudit').value=String(index);render();});
   $('txSarEnabled').addEventListener('change',()=>{config.enabled=$('txSarEnabled').checked;fillSar();text('txSarError','');save();render();});
   for(const id of ['txSarStart','txSarStep','txSarMax'])$(id).addEventListener('change',()=>{try{config=TWParabolicSAR.validate({enabled:$('txSarEnabled').checked,start:$('txSarStart').value,step:$('txSarStep').value,max:$('txSarMax').value});fillSar();text('txSarError','');save();render();}catch(e){text('txSarError',e.message+' 圖表沿用上一組有效設定。');}});
   $('txSarReset').addEventListener('click',()=>{config={...TWParabolicSAR.defaults};fillSar();text('txSarError','');save();render();});

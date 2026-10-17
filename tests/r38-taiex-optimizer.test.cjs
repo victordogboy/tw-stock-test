@@ -29,7 +29,7 @@ test('page selects interval, shows four conditions, optimizes/applies locally an
  p.ctx.fetch=async()=>{calls++;return new Response(JSON.stringify({ok:true,source:'fixture',data:r.map(b=>({...b,futures_id:'TX',contract_date:b.contract,trading_session:'position',max:b.high,min:b.low,open_interest:1000}))}));};
  const fire=(id,event='click')=>p.events.find(e=>e[0]===id&&e[1]===event)[2]();
  p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';await fire('txLoad');
- assert(p.nodes.get('actOptimize').disabled);p.nodes.get('txContract').value='202612';fire('txContract','change');
+ assert.equal(p.nodes.get('actOptimize').disabled,false);p.nodes.get('txContract').value='202612';fire('txContract','change');
  assert.equal(p.nodes.get('actComposition').children.length,5);assert.match(p.nodes.get('actComposition').children[0].children[1].textContent,/MA20/);
  p.nodes.get('actStart').value=r[80].date;p.nodes.get('actEnd').value=r[160].date;fire('actStart','input');fire('actRun');assert.match(p.nodes.get('actResult').textContent,new RegExp(r[80].date));assert.match(p.nodes.get('actResult').textContent,new RegExp(r[160].date));
  p.nodes.get('actMinTrades').value='1';p.ctx.setTimeout=fn=>fn();await fire('actOptimize');assert.match(p.nodes.get('actOptStatus').textContent,/搜尋完成/);assert(p.nodes.get('actOptResults').children.length>0);

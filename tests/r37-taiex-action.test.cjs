@@ -30,16 +30,16 @@ test('mixed contracts and malformed parameters fail; no-signal metrics do not fa
  for(const p of [{entryWeights:[0,0,0,0]},{holdWeights:[-1,2,3,4]},{delta:''},{maxAge:1.5},{cost:-1}])assert.throws(()=>A.validate(p));
  const out=A.backtest(bars(),{delta:100});assert.equal(out.trades.length,0);assert.equal(out.winRate,null);assert.equal(out.profitFactor,null);assert.equal(out.net,0);
 });
-test('page wires local settings, fixed-contract backtest, audit cutoff and stale-result clearing without API calls',async()=>{
+test('page wires local settings, fixed-contract backtest, audit independence and stale-result clearing without API calls',async()=>{
  const {page}=require('./helpers/detail-page.cjs'),p=page('futures.html');await new Promise(r=>setImmediate(r));
  let calls=0;const data=bars().map(b=>({...b,futures_id:'TX',contract_date:b.contract,trading_session:'position',max:b.high,min:b.low,open_interest:1000}));
  p.ctx.fetch=async()=>{calls++;return new Response(JSON.stringify({ok:true,data,source:'fixture'}));};
  const fire=(id,event='click')=>p.events.find(e=>e[0]===id&&e[1]===event)[2]();
- p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';await fire('txLoad');assert.equal(p.nodes.get('actRun').disabled,true);assert.match(p.nodes.get('actScores').textContent,/進場 Action/);
+ p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';await fire('txLoad');assert.equal(p.nodes.get('actRun').disabled,false);assert.match(p.nodes.get('actScores').textContent,/進場 Action/);
  p.nodes.get('txContract').value='202612';fire('txContract','change');assert.equal(p.nodes.get('actRun').disabled,false);
  for(const [id,v]of [['actDelta','0'],['actMinimum','0'],['actAge','0']])p.nodes.get(id).value=v;
  fire('actApply');fire('actRun');assert.match(p.nodes.get('actResult').textContent,/淨損益/);assert(p.nodes.get('actTrades').children.length>0);
- p.nodes.get('txAudit').value='120';fire('txAudit','input');assert.match(p.nodes.get('actResult').textContent,/重新執行/);fire('actRun');for(const tr of p.nodes.get('actTrades').children)assert(tr.children[3].textContent<=data[120].date);
+ p.nodes.get('txAudit').value='120';fire('txAudit','input');assert.match(p.nodes.get('actResult').textContent,/淨損益/);fire('actRun');for(const tr of p.nodes.get('actTrades').children)assert(tr.children[3].textContent<=data.at(-1).date);
  p.nodes.get('actDelta').value='50';fire('actDelta','input');fire('txLatest');assert.equal(p.nodes.get('actRun').disabled,true);fire('actApply');assert.equal(JSON.parse(p.storage.get('twq_taiex_action_r37')).delta,50);
  p.nodes.get('actCost').value='-1';fire('actApply');assert.match(p.nodes.get('actError').textContent,/沿用/);
  p.nodes.get('txSession').value='after_market';fire('txSession','change');assert.equal(p.nodes.get('actSignal').textContent,'');assert.equal(calls,1);
