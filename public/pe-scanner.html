@@ -61,8 +61,8 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div class="toolbar"><strong>A／B／C 本益比排行榜（最多 500 檔）</strong><span id="caption" class="hint">尚無資料</span></div>
 <div class="table-wrap">
 <table class="results"><thead><tr>
-<th>股票代號</th><th>名稱</th><th>股價</th><th>5日均量(張)</th><th>A EPS</th><th>A PE</th><th>B EPS</th><th>B PE</th><th>C EPS</th><th>C PE</th><th>壓力PE(選定策略)</th><th>行情交易日</th><th>財報季</th><th>財報出表日</th><th>最新營收月</th><th>均量日期</th><th>期貨</th>
-</tr></thead><tbody id="tbody"><tr><td colspan="17" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
+<th>股票代號</th><th>名稱</th><th>股價</th><th>5日均量(張)</th><th>A EPS</th><th>A PE</th><th>B EPS</th><th>B PE</th><th>C EPS</th><th>C PE</th><th>C 資料狀態／缺欄位</th><th>壓力PE(選定策略)</th><th>行情交易日</th><th>財報季</th><th>財報出表日</th><th>最新營收月</th><th>均量日期</th><th>期貨</th>
+</tr></thead><tbody id="tbody"><tr><td colspan="18" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
 </div>
 </section>
 <section class="panel details">
@@ -178,13 +178,14 @@ function render(){
  $('volDays').textContent=volumeDays.twse.length+' ／ '+volumeDays.tpex.length;
  $('caption').textContent='策略 '+$('strategy').value+' 可計算：'+full.filter(r=>r.models?.[$('strategy').value]?.status==='ok').length+' 檔｜篩選後 '+m.length+' 檔｜顯示 '+Math.min(500,m.length)+' 檔';
  const body=$('tbody');body.textContent='';
- if(!m.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=17;td.className='empty';td.textContent=full.length?($('strategy').value==='B'?'B 尚未取得 4～8 季歷史損益資料，不顯示虛構的 B 估值。':'目前沒有符合該策略與量價門檻的股票。'):'尚無資料';tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;}
+ if(!m.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=18;td.className='empty';td.textContent=full.length?($('strategy').value==='B'?'B 尚未取得 4～8 季歷史損益資料，不顯示虛構的 B 估值。':'目前沒有符合該策略與量價門檻的股票。'):'尚無資料';tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;}
  const frag=document.createDocumentFragment();
  for(const r of m.slice(0,500)){
   const tr=document.createElement('tr');
   function put(v,tip='',cls=''){const td=document.createElement('td');td.textContent=v;td.title=tip;td.className=cls;tr.appendChild(td);}
   put(r.code);put(r.name,'','company');put(f(r.close));put(f(r.avg5Lots??($('strict').checked?null:r.volumeTodayLots),0),r.avg5Lots===null?'未驗證5日均量':'已取得5個交易日');
   for(const method of ['A','B','C']){const mod=r.models?.[method];for(const key of ['eps','pe'])put(mod?.status==='ok'?f(mod[key]):'—',mod?.status==='ok'?(mod.assumptions||mod.basis||'已取得'):mod?.status||'來源無法提供',key==='pe'&&method===$('strategy').value?'up':'');}
+  put(r.models?.C?.status==='ok'?'可計算（未來業外0）':(r.models?.C?.status||'無 C 資料'),'C 資料完整性原因');
   put(f(pressure(r)),'選定策略 EPS 壓力下修 '+num('stress',20)+'%','up');
   put(r.quoteReportedDate||'未提供',r.quoteReportedDate?'行情來源交易日':'行情來源未提供交易日，不能用抓取時間代替');
   put(r.financeQuarter||'—');put(r.financeIssueDate||'未提供');put(r.latestRevenueMonth||'—');put(volRange(r));put(r.hasFutures?'有':'—','','');
