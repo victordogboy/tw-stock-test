@@ -93,7 +93,7 @@
 <label>每段合約來回總成本（點）<input id="r46Cost" type="number" min="0" max="10000" step="0.5" value="0"></label>
 <label>各折訓練最少獨立交易<input id="r46Minimum" type="number" min="1" max="10000" step="1" value="4"></label>
 </div>
-<p class="muted">回測起訖日期沿用上方「回測區間」欄位。先在頁面頂部選「近 5 年＋暖機」，載入行情，再選「近月連續」。R46 滾動驗證為前三折逐步增加訓練資料，每次只使用當折過去資料選參數，下一段才驗證。反覆看過的歷史仍不等於全新未來資料。</p>
+<p class="muted">回測起訖日期沿用上方「回測區間」欄位。先在頁面頂部選「近 5 年＋暖機」，載入行情，再選「近月連續」。R46 滾動驗證為前三折逐步增加訓練資料，每次只使用當折過去資料選參數，下一段才驗證。訓練評分＝策略超額淨點數－0.7×最大回撤－0.5×未達 2 倍基準的淨點數差距；基準虧損則最後一項不適用。反覆看過的歷史仍不等於全新未來資料。</p>
 <div class="controls"><button id="r46Run">執行 R46 雙向回測</button><button id="r46Walk">一鍵滾動驗證＋消融分析</button><button id="r46Stop" class="secondary" disabled>停止 R46 搜尋</button></div>
 <p id="r46Status" role="status">請先載入行情。</p>
 <p id="r46Current" class="action-scores"></p>
