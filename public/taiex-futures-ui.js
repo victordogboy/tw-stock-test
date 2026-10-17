@@ -56,6 +56,7 @@
   function selectSeries(){rows=core.series(raw,{session:$('txSession').value,contract:$('txContract').value});index=Math.max(0,rows.length-1);$('txAudit').max=String(index);$('txAudit').value=String(index);$('txAudit').disabled=!rows.length;render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;}
   function render(){
     window.TWTaiexActionUI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
+    window.TWTaiexR46UI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     const prefix=rows.slice(0,index+1),s=core.summary(prefix),sar=config.enabled?TWParabolicSAR.calculate(prefix,config):[],point=sar.at(-1);
     if(!s){for(const id of ['txClose','txChange','txVolume','txVolumeRatio','txOi','txOiChange','txSar','txSarAf','txOhlc','txAuditDate','txAnalysis','txRollNote'])text(id,'—');text('txChartTitle','所選時段或合約沒有資料');$('txMaTable').replaceChildren();draw([],[]);return;}
     const b=s.bar;

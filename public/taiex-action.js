@@ -177,7 +177,7 @@ function prepareMulti(allRows,input={},sarConfig={},range={}){
   previous=b;
  }
  if(!timeline.length)throw Error('所選區間沒有可回測的次月合約資料');
- return {timeline,lookup,features:analyze(adjusted,p,sarConfig),start:timeline[0].date,end:timeline.at(-1).date,signalBars:adjusted.length};
+ return {timeline,lookup,signalRows:adjusted,features:analyze(adjusted,p,sarConfig),start:timeline[0].date,end:timeline.at(-1).date,signalBars:adjusted.length};
 }
 function simulateMulti(prepared,p){
  const {timeline,lookup,features}=prepared,scores=new Map();
@@ -558,5 +558,5 @@ function* optimizeMultiR45(rows,input={},sarConfig={},range={},minTrades=10,trai
  }
 }
 
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth,benchmarkMulti,backtestMultiR44,simulateMultiCarry,objectiveR44,compareR44,optimizeMultiR44,simulateMultiR45,backtestMultiR45,candidateGridR45,compareR45,optimizeMultiR45};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth,benchmarkMulti,backtestMultiR44,simulateMultiCarry,objectiveR44,compareR44,optimizeMultiR44,simulateMultiR45,backtestMultiR45,candidateGridR45,compareR45,optimizeMultiR45,prepareMulti,rescore};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
