@@ -85,6 +85,23 @@ test('Missing real institutional dataset cannot manufacture a sixth factor, five
  assert(v.some(x=>x!==null&&x!==0));
  assert.notDeepEqual(v,R.compute(ctx,'institutional',[5]));
 });
+test('Institutional factor is historical only: later records never rewrite previous scores',()=>{
+ const n=ctx.rows.length-10,earlier=R.context(rows.filter(x=>x.date<=ctx.rows[n].date),range,4,
+   inst.filter(x=>x.date<=ctx.rows[n].date));
+ const full=R.compute(ctx,'institutional',[3]),partial=R.compute(earlier,'institutional',[3]);
+ assert.deepEqual(partial,full.slice(0,partial.length));
+ const changed=inst.map(x=>x.date>ctx.rows[n].date?
+  {...x,long_deal_volume:x.long_deal_volume+200000,long_open_interest_balance_volume:x.long_open_interest_balance_volume+100000}:x);
+ const future=R.compute(R.context(rows,range,4,changed),'institutional',[3]);
+ assert.deepEqual(full.slice(0,n+1),future.slice(0,n+1));
+});
+test('Sixth-factor group must have actual foreign, trust and dealer entries on a date',()=>{
+ const incomplete=inst.filter(x=>x.institutional_investors!=='投信');
+ const noTrust=R.context(rows,range,4,incomplete),features=R.compute(noTrust,'institutional',[3]);
+ assert(features.every(x=>x===null));
+ const falseInstitutional=R.test(noTrust,{cost:4,entry:12});
+ assert.equal(falseInstitutional.tradeCount,0);
+});
 test('R48 page browser buttons and five-indicator result display',async()=>{
  const {page}=require('./helpers/detail-page.cjs');
  const p=page('futures.html');
