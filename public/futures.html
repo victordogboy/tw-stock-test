@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台指期分析｜V1.17.0-R38</title>
-<link rel="stylesheet" href="/taiex-futures.css?r38">
+<title>台指期分析｜V1.17.0-R39</title>
+<link rel="stylesheet" href="/taiex-futures.css?r39">
 </head><body><main>
 <nav><a href="/scanner.html?restore=1">← 全市場掃描</a><a href="/detail.html">個股分析</a><span>TX・台指期</span></nav>
-<header><div><h1>台指期分析 <small>R38</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
+<header><div><h1>台指期分析 <small>R39</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
 <section class="panel">
 <div class="controls">
 <label>歷史範圍<select id="txYears"><option value="1">近 1 年＋暖機</option><option value="3">近 3 年＋暖機</option><option value="5">近 5 年＋暖機</option></select></label>
@@ -52,12 +52,12 @@
 <label>每筆來回總成本（點）<input id="actCost" type="number" min="0" max="10000" step="0.1" value="0"></label>
 </div><h3>進場權重</h3><div class="controls"><label>趨勢<input id="entryWeights0" type="number" min="0" max="100" value="30"></label><label>動能<input id="entryWeights1" type="number" min="0" max="100" value="30"></label><label>SAR<input id="entryWeights2" type="number" min="0" max="100" value="25"></label><label>量價<input id="entryWeights3" type="number" min="0" max="100" value="15"></label></div><h3>續抱權重</h3><div class="controls"><label>趨勢<input id="holdWeights0" type="number" min="0" max="100" value="35"></label><label>動能<input id="holdWeights1" type="number" min="0" max="100" value="25"></label><label>SAR<input id="holdWeights2" type="number" min="0" max="100" value="25"></label><label>量價<input id="holdWeights3" type="number" min="0" max="100" value="15"></label></div>
 <div class="controls"><button id="actApply">套用參數</button><button id="actReset" class="secondary">恢復試驗預設</button></div>
-<p id="actError" role="status"></p><p id="actScores" class="action-scores">等待行情</p><p id="actParts" class="muted"></p><p id="actSignal"></p><h3>四個指標組成條件（隨審計日更新）</h3><div id="actComposition" class="composition"></div><p id="actScope" class="warning"></p>
+<button id="actLatest" class="secondary">查看最新分數</button><p id="actError" role="status"></p><p id="actScores" class="action-scores">等待行情</p><p id="actParts" class="muted"></p><p id="actSignal"></p><h3>四個指標組成條件（隨審計日更新）</h3><div id="actComposition" class="composition"></div><p id="actScope" class="warning"></p>
 <h3>回測區間與最佳化</h3><div class="controls">
 <label>回測起日<input id="actStart" type="date"></label><label>回測迄日<input id="actEnd" type="date"></label>
 <label>最佳化最低交易筆數<input id="actMinTrades" type="number" min="1" max="10000" step="1" value="5"></label>
 <button id="actAllDates" class="secondary">使用已載入完整區間</button>
-</div><p class="muted">起日前資料僅用於指標暖機，起日空手開始；有效迄日取所選迄日與審計日較早者。需要更早資料請在上方增加歷史範圍並載入。</p>
+</div><p class="muted">起日前資料僅用於指標暖機，起日空手開始；回測只依此處日期，與上方審計日游標分開。需要更早資料請在上方增加歷史範圍並載入。</p>
 <div class="controls"><button id="actRun">執行單月合約回測</button><button id="actOptimize">一鍵尋找最高勝率</button><button id="actCancel" class="secondary" disabled>停止搜尋</button></div>
 <p id="actOptStatus" role="status">尚未最佳化</p><div id="actOptResults"></div>
 <p class="muted">搜尋目前交易方向、成本與 SAR 三參數下的進場／續抱權重及四個門檻。依勝率、淨點數、較小回撤、交易筆數排序；只代表此區間候選集合內最佳，不是全域最優，也不是未來勝率。搜尋及回測不另取行情。</p>
@@ -68,4 +68,4 @@
 </section>
 <section class="panel"><h2>技術觀察</h2><p id="txAnalysis">載入後顯示均線位置、SAR 方向與量能。</p><div id="txMaTable" class="ma-grid"></div><p class="muted">此頁使用期貨價格與口數，不套用股票的融資、持股或 Action 分數。近月連續線未還原轉倉價差，換月可能影響均線與 SAR；可改選指定月份核對。未平倉總量本身不代表法人偏多或偏空。</p></section>
 <footer>資料：FinMind TaiwanFuturesDaily／taiwan_futures_snapshot・不替換為加權現貨指數</footer>
-</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r35.1"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r38"></script><script src="/taiex-action-ui.js?r38"></script><script src="/taiex-futures-ui.js?r38"></script></body></html>
+</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r35.1"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r39"></script><script src="/taiex-action-ui.js?r39"></script><script src="/taiex-futures-ui.js?r39"></script></body></html>
