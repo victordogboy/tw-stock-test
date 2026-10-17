@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台指期分析｜V1.17.0-R36</title>
-<link rel="stylesheet" href="/taiex-futures.css?r36">
+<title>台指期分析｜V1.17.0-R37</title>
+<link rel="stylesheet" href="/taiex-futures.css?r37">
 </head><body><main>
 <nav><a href="/scanner.html?restore=1">← 全市場掃描</a><a href="/detail.html">個股分析</a><span>TX・台指期</span></nav>
-<header><div><h1>台指期分析 <small>R36</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
+<header><div><h1>台指期分析 <small>R37</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
 <section class="panel">
 <div class="controls">
 <label>歷史範圍<select id="txYears"><option value="1">近 1 年＋暖機</option><option value="3">近 3 年＋暖機</option><option value="5">近 5 年＋暖機</option></select></label>
@@ -41,6 +41,23 @@
 <label class="cursor">歷史審計<input type="range" id="txAudit" min="0" max="0" value="0" aria-label="選擇審計日"><span id="txAuditDate">—</span></label>
 <p id="txOhlc" class="muted">—</p><p id="txRollNote" class="warning"></p>
 </section>
+<section class="panel" id="actionPanel"><h2>台指期進場／續抱 Action・試驗版</h2>
+<p class="muted">權重自動按比例換算；預設僅供試驗，尚未經樣本外驗證。沿用上方 SAR 三參數；隱藏 SAR 圖點不會關閉策略計算。未平倉量不作方向加分。</p>
+<div class="controls">
+<label>交易方向<select id="actDirection"><option value="long">做多</option><option value="short">做空</option></select></label>
+<label>進場變化 ≥<input id="actDelta" type="number" min="0" max="100" value="10"></label>
+<label>進場分數 ≥<input id="actMinimum" type="number" min="0" max="100" value="55"></label>
+<label>續抱分數低於此值離場<input id="actExit" type="number" min="0" max="100" value="45"></label>
+<label>SAR 翻向後最多幾根（0＝不限）<input id="actAge" type="number" min="0" max="100" step="1" value="5"></label>
+<label>每筆來回總成本（點）<input id="actCost" type="number" min="0" max="10000" step="0.1" value="0"></label>
+</div><h3>進場權重</h3><div class="controls"><label>趨勢<input id="entryWeights0" type="number" min="0" max="100" value="30"></label><label>動能<input id="entryWeights1" type="number" min="0" max="100" value="30"></label><label>SAR<input id="entryWeights2" type="number" min="0" max="100" value="25"></label><label>量價<input id="entryWeights3" type="number" min="0" max="100" value="15"></label></div><h3>續抱權重</h3><div class="controls"><label>趨勢<input id="holdWeights0" type="number" min="0" max="100" value="35"></label><label>動能<input id="holdWeights1" type="number" min="0" max="100" value="25"></label><label>SAR<input id="holdWeights2" type="number" min="0" max="100" value="25"></label><label>量價<input id="holdWeights3" type="number" min="0" max="100" value="15"></label></div>
+<div class="controls"><button id="actApply">套用參數</button><button id="actReset" class="secondary">恢復試驗預設</button></div>
+<p id="actError" role="status"></p><p id="actScores" class="action-scores">等待行情</p><p id="actParts" class="muted"></p><p id="actSignal"></p><p id="actScope" class="warning"></p>
+<button id="actRun">執行單月合約回測</button><p id="actResult" role="status">尚未回測</p>
+<p class="muted">日 K 收盤判斷、下一根有效 K 開盤成交；空手時須同時通過進場變化、最低分、SAR 同向與翻向根數，且續抱不得低於離場門檻。單口、不加碼、不於同根離場後再入場。區間末持倉以最後收盤平倉並註記；成本包含自行估計的手續費、稅與滑價。結果為點數，非保證金報酬率；回撤按每日收盤權益計算，不代表盤中最大損失。</p>
+<div class="trade-scroll"><table><thead><tr><th>訊號日</th><th>進場日</th><th>進場點位</th><th>離場日</th><th>離場點位</th><th>淨點數</th><th>原因</th></tr></thead><tbody id="actTrades"></tbody></table></div>
+<details><summary>計分規則</summary><p class="muted">各項 0～100 分。趨勢各 25 分：收盤與 MA20、MA5 與 MA20、MA20 與 MA60、MA20 斜率符合交易方向。動能以 14 根平均真實波幅標準化：進場看前後兩段 3 根速度差，續抱看最近 3 根速度。SAR 進場分隨翻向根數遞減，續抱同向為 100 分。量價以當根方向漲跌配合前 20 根均量比；超過均線 2 倍平均真實波幅開始扣追價分，最多扣 30 分。至少 61 根暖機，未觀察到 SAR 翻向時不假設剛翻向。</p></details>
+</section>
 <section class="panel"><h2>技術觀察</h2><p id="txAnalysis">載入後顯示均線位置、SAR 方向與量能。</p><div id="txMaTable" class="ma-grid"></div><p class="muted">此頁使用期貨價格與口數，不套用股票的融資、持股或 Action 分數。近月連續線未還原轉倉價差，換月可能影響均線與 SAR；可改選指定月份核對。未平倉總量本身不代表法人偏多或偏空。</p></section>
 <footer>資料：FinMind TaiwanFuturesDaily／taiwan_futures_snapshot・不替換為加權現貨指數</footer>
-</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r35.1"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-futures-ui.js?r36"></script></body></html>
+</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r35.1"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r37"></script><script src="/taiex-action-ui.js?r37"></script><script src="/taiex-futures-ui.js?r37"></script></body></html>
