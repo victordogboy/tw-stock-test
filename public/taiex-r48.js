@@ -2,37 +2,38 @@
 'use strict';
 const A=root.TWTaiexAction,S=root.TWParabolicSAR;
 if(!A||!S)throw Error('R48 需載入 Action 與 SAR');
-const defaultWeights=[20,20,20,20,20];
-const defaults={side:'both',weights:defaultWeights,macd:[12,26,9],kd:[9,3,3],sar:[0.05,0.05,0.2],
+const defaultWeights=[20,20,15,15,15,15];
+const defaults={side:'both',weights:defaultWeights,macd:[12,26,9],kd:[9,3,3],sar:[0.05,0.05,0.2],institutional:[3],
  ma:[5,20,60],volume:[20,1.2],entry:25,exit:5,atrStop:3.5,cost:0,minTrades:10};
-const familyNames=['MACD','KD','SAR','均線','量能'];
+const familyNames=['MACD','KD','SAR','均線','量能','法人買賣／未平倉變化'];
 const grids={
  macd:[[8,21,5],[12,26,9],[16,32,9]],
  kd:[[9,3,3],[14,3,3],[21,3,3]],
  sar:[[0.02,0.02,0.2],[0.05,0.05,0.2],[0.05,0.02,0.2]],
  ma:[[5,20,60],[10,30,90],[5,15,45]],
- volume:[[5,1],[10,1.2],[20,1.5]]
+ volume:[[5,1],[10,1.2],[20,1.5]],institutional:[[1],[3],[5],[10]]
 };
 const clip=n=>Math.max(-1,Math.min(1,n));
 const key=x=>x.join(',');
 function validate(x={}){
  const p={...defaults,...x};
  if(!['long','short','both'].includes(p.side))throw Error('交易方向錯誤');
- for(const k of ['macd','kd','sar','ma','volume'])p[k]=[...p[k]].map(Number);
+ for(const k of ['macd','kd','sar','ma','volume','institutional'])p[k]=[...p[k]].map(Number);
  if(p.macd.length!==3||p.macd.some(v=>!Number.isInteger(v)||v<2||v>100)||p.macd[0]>=p.macd[1])throw Error('MACD 參數不正確');
  if(p.kd.length!==3||p.kd.some(v=>!Number.isInteger(v)||v<1||v>100))throw Error('KD 參數不正確');
  S.validate({start:p.sar[0],step:p.sar[1],max:p.sar[2]});
  if(p.ma.length!==3||p.ma.some(v=>!Number.isInteger(v)||v<2||v>250)||!(p.ma[0]<p.ma[1]&&p.ma[1]<p.ma[2]))throw Error('均線週期需由短到長');
  if(p.volume.length!==2||!Number.isInteger(p.volume[0])||p.volume[0]<2||p.volume[0]>100||p.volume[1]<0.5||p.volume[1]>5)throw Error('量能設定不正確');
+ if(p.institutional.length!==1||!Number.isInteger(p.institutional[0])||p.institutional[0]<1||p.institutional[0]>20)throw Error('法人觀察天數不正確');
  p.weights=[...p.weights].map(Number);
- if(p.weights.length!==5||p.weights.some(v=>v<0||v>100||!Number.isFinite(v))||Math.abs(p.weights.reduce((n,v)=>n+v,0)-100)>0.001)throw Error('五種權重須合計 100%');
+ if(p.weights.length!==6||p.weights.some(v=>v<0||v>100||!Number.isFinite(v))||Math.abs(p.weights.reduce((n,v)=>n+v,0)-100)>0.001)throw Error('六種權重須合計 100%');
  for(const [k,min,max] of [['entry',1,90],['exit',-40,60],['atrStop',1,10],['cost',0,10000]]){
   p[k]=Number(p[k]);if(!Number.isFinite(p[k])||p[k]<min||p[k]>max)throw Error(k+' 超出範圍');
  }
  if(!Number.isInteger(p.minTrades)||p.minTrades<1||p.minTrades>1000)throw Error('最低交易筆數不正確');
  return p;
 }
-function context(allRows,range={},cost=0){
+function context(allRows,range={},cost=0,institutionalRows=[]){
  const prepared=A.prepareMulti(allRows,{cost,delta:0,minEntry:0,exit:0}, {},range);
  const rows=prepared.signalRows,timeline=prepared.timeline,indexByDate=new Map(rows.map((b,i)=>[b.date,i])),
  active=timeline.map(b=>indexByDate.get(b.date)),close=rows.map(b=>b.close);
@@ -40,7 +41,13 @@ function context(allRows,range={},cost=0){
  let atr=0;const atrs=tr.map((v,i)=>{atr=i<14?(atr*i+v)/(i+1):(atr*13+v)/14;return atr});
  const cumulative=[0];for(const v of close)cumulative.push(cumulative.at(-1)+v);
  const average=(i,n)=>i<n-1?null:(cumulative[i+1]-cumulative[i+1-n])/n;
- return {...prepared,rows,close,atrs,active,average,cache:{macd:new Map(),kd:new Map(),sar:new Map(),ma:new Map(),volume:new Map()}};
+ const institution=new Map(),ids=['外資','投信','自營商'],fields=['long_deal_volume','short_deal_volume','long_open_interest_balance_volume','short_open_interest_balance_volume'];
+ for(const e of institutionalRows){if(!e||!ids.includes(e.institutional_investors)||typeof e.date!=='string')continue;
+   if(fields.some(k=>e[k]===null||e[k]===undefined||e[k]===''||!Number.isFinite(Number(e[k]))))continue;
+   if(!institution.has(e.date))institution.set(e.date,new Map());
+   institution.get(e.date).set(e.institutional_investors,e);
+ }
+ return {...prepared,rows,close,atrs,active,average,institution,cache:{macd:new Map(),kd:new Map(),sar:new Map(),ma:new Map(),volume:new Map(),institutional:new Map()}};
 }
 function compute(ctx,type,settings){
  const cache=ctx.cache[type],identity=key(settings);
@@ -72,14 +79,37 @@ function compute(ctx,type,settings){
     move=(close[i]-close[i-1])/Math.max(1,ctx.atrs[i]);
    out[i]=clip(move*Math.min(2,ratio/threshold)*0.5);
   }
+ }else if(type==='institutional'){
+  // TX institution data published after close; signal on date T, fill only T+1.
+  const look=settings[0],weights={'外資':0.5,'投信':0.25,'自營商':0.25};
+  const records=rows.map(b=>{
+   const groups=ctx.institution.get(b.date);
+   if(!groups||Object.keys(weights).some(group=>!groups.has(group)))return null;
+   let deal=0,openInterest=0;
+   for(const [name,w] of Object.entries(weights)){const x=groups.get(name);
+    deal+=w*(Number(x.long_deal_volume)-Number(x.short_deal_volume));
+    openInterest+=w*(Number(x.long_open_interest_balance_volume)-Number(x.short_open_interest_balance_volume));
+   }
+   return {deal,openInterest};
+  });
+  for(let i=20;i<n;i++){
+   const a=records[i],b=records[i-look];if(!a||!b)continue;
+   const past=records.slice(i-20,i),valid=past.filter(Boolean);
+   if(valid.length<16)continue;
+   const avgDeal=valid.reduce((v,x)=>v+Math.abs(x.deal),0)/valid.length||1;
+   const changes=past.slice(1).map((x,j)=>x&&past[j]?Math.abs(x.openInterest-past[j].openInterest):null).filter(Number.isFinite);
+   const avgOpenDelta=changes.length?changes.reduce((v,x)=>v+x,0)/changes.length:1;
+   out[i]=clip(0.5*Math.tanh((a.deal-b.deal)/Math.max(1,avgDeal))+
+     0.5*Math.tanh((a.openInterest-b.openInterest)/Math.max(1,avgOpenDelta*look)));
+  }
  }else throw Error('Unknown indicator '+type);
  cache.set(identity,out);return out;
 }
 function signals(ctx,p){
- const specs=[p.macd,p.kd,p.sar,p.ma,p.volume],series=specs.map((v,i)=>compute(ctx,['macd','kd','sar','ma','volume'][i],v));
+ const specs=[p.macd,p.kd,p.sar,p.ma,p.volume,p.institutional],series=specs.map((v,i)=>p.weights[i]>0?compute(ctx,['macd','kd','sar','ma','volume','institutional'][i],v):null);
  return ctx.active.map(i=>{
-  if(series.some(x=>x[i]===null))return null;
-  return series.reduce((score,x,j)=>score+p.weights[j]*x[i],0);
+  if(series.some(x=>x!==null&&x[i]===null))return null;
+  return series.reduce((score,x,j)=>score+(x===null?0:p.weights[j]*x[i]),0);
  });
 }
 function test(ctx,input={},first=0,last=ctx.timeline.length-1){
@@ -158,24 +188,25 @@ function* optimize(ctx,options={}){
  const clone=(p,change)=>validate({...p,...change});
  // Deterministic bounded coordinate-search rather than impractical 5D Cartesian product.
  // Start from an equally-weighted neutral baseline; fit entry/exits and weights first.
- const p0=clone(base,{weights:[20,20,20,20,20]});
+ const p0=clone(base,{weights:[20,20,15,15,15,15]}),fiveOnly=clone(base,{weights:[20,20,20,20,20,0]});
  for(const side of ['long','short','both'])for(const entry of [12,25,38])for(const exit of [0,10]){
-  register(clone(p0,{side,entry,exit}));
+  register(clone(fiveOnly,{side,entry,exit}));
+  if(ctx.institution.size)register(clone(p0,{side,entry,exit}));
  }
  yield {evaluated,eligible,phase:'起始進出場門檻',best};
  const maxSteps=options.steps==='deep'?2:1;
  for(let pass=0;pass<maxSteps;pass++){
-  const center=best?.p||p0;
+  const center=best?.p||(ctx.institution.size?p0:fiveOnly);
   // Each group exchanges weight with one other family, always keeping sum at 100.
-  for(let from=0;from<5;from++)for(let to=0;to<5;to++)if(from!==to)for(const portion of [10,20]){
+  for(let from=0;from<6;from++)for(let to=0;to<6;to++)if(from!==to)for(const portion of [5,10,15,20]){
    if(center.weights[from]<portion)continue;
    const w=[...center.weights];w[from]-=portion;w[to]+=portion;
    if(w[to]<=100)register(clone(center,{weights:w}));
   }
   yield {evaluated,eligible,phase:'搜尋五元素權重',best};
-  for(const type of ['macd','kd','sar','ma','volume']){
+  for(const type of ['macd','kd','sar','ma','volume','institutional']){
    for(const params of grids[type])register(clone(best?.p||center,{[type]:params}));
-   yield {evaluated,eligible,phase:'調整 '+familyNames[['macd','kd','sar','ma','volume'].indexOf(type)]+' 參數',best};
+   yield {evaluated,eligible,phase:'調整 '+familyNames[['macd','kd','sar','ma','volume','institutional'].indexOf(type)]+' 參數',best};
   }
   for(const side of ['long','short','both'])for(const entry of [12,25,38])for(const exit of [0,10]){
    register(clone(best?.p||center,{side,entry,exit}));
