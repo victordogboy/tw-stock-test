@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台指期分析｜V1.17.0-R46</title>
+<title>台指期分析｜V1.17.0-R47</title>
 <link rel="stylesheet" href="/taiex-futures.css?r42">
 </head><body><main>
 <nav><a href="/scanner.html?restore=1">← 全市場掃描</a><a href="/detail.html">個股分析</a><span>TX・台指期</span></nav>
-<header><div><h1>台指期分析 <small>R46</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
+<header><div><h1>台指期分析 <small>R47</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
 <section class="panel">
 <div class="controls">
 <label>歷史範圍<select id="txYears"><option value="1">近 1 年＋暖機</option><option value="3">近 3 年＋暖機</option><option value="5">近 5 年＋暖機</option></select></label>
@@ -104,6 +104,22 @@
 <div class="trade-scroll"><table><thead><tr><th>移除指標</th><th>第 1 折差值</th><th>第 2 折差值</th><th>第 3 折差值</th><th>合計差值</th></tr></thead><tbody id="r46Ablation"></tbody></table></div>
 <p class="warning">「兩倍大盤」目前比較的是單口台指期依相同換月日買進持有的淨點數，而非相同本金、保證金或風險調整後報酬。做空可能遭遇軋空、追加保證金及超額損失；日 K 收盤停損無法保證次日開盤能以停損價格成交。成本為 0 時回測偏樂觀。</p>
 </section>
+<section class="panel" id="r47Panel"><h2>R47｜交易損益歸因：為什麼輸給買進持有？</h2>
+<p class="muted">R47 不新增進出場參數，沿用 R46 的真實交易明細及相同合約換月日，逐日用「前日收盤→今日舊合約開盤」與「今日新合約開盤→收盤」計算。空手／做空的比較差額可以為正或負；不把跨月價差當成獲利。按上方「執行 R46 雙向回測」或「一鍵滾動驗證」後自動更新。</p>
+<p id="r47Status" role="status">請先執行 R46 回測或三段滾動驗證。</p>
+<h3>同區間損益歸因（精確對帳）</h3>
+<p id="r47Summary"></p>
+<div class="trade-scroll"><table><thead><tr><th>因素</th><th>落後基準點數</th><th>解讀</th></tr></thead><tbody id="r47Parts"></tbody></table></div>
+<p id="r47Side"></p>
+<p id="r47Costs"></p>
+<h3>最拖累表現的月份（按落後點數排序）</h3>
+<div class="trade-scroll"><table><thead><tr><th>月份</th><th>策略淨點數</th><th>基準淨點數</th><th>落後基準</th><th>空手因素</th><th>空單因素</th><th>策略成本</th></tr></thead><tbody id="r47Months"></tbody></table></div>
+<h3>離場原因與後續機會</h3><p class="muted">離場原因表列出真正獨立的進出場交易（不是每次換月），並列出空手時市場正向／反向變化的累積點數；這些是歷史價格變化，不等於當時可無風險成交的報酬。</p>
+<div class="trade-scroll"><table><thead><tr><th>離場原因</th><th>獨立交易數</th><th>勝利筆數</th><th>累計淨點數</th></tr></thead><tbody id="r47Exits"></tbody></table></div>
+<h3>三段樣本外歸因（特別檢查第 3 折）</h3><p id="r47FoldSummary"></p>
+<div id="r47FoldCards" class="composition"></div>
+<p class="warning">R47 是對既有 R46 交易的**事後歸因**，沒有自行最佳化，不保證修改交易方式就能得到相同改善。日線模擬不包含實際滑價、追繳保證金或強制平倉；只用 1 口台指期轉倉基準比較淨點數，不能當成等本金、等風險的報酬率。</p>
+</section>
 <section class="panel"><h2>技術觀察</h2><p id="txAnalysis">載入後顯示均線位置、SAR 方向與量能。</p><div id="txMaTable" class="ma-grid"></div><p class="muted">此頁使用期貨價格與口數，不套用股票的融資、持股或 Action 分數。R45 基準是 1 口台指期按完全相同合約月曆轉倉的買進持有，不是加權現貨指數含股息的報酬；策略與基準均以點數而非保證金 ROI 比較。近月連續線未還原轉倉價差，換月可能影響均線與 SAR；可改選指定月份核對。未平倉總量本身不代表法人偏多或偏空。</p></section>
 <footer>資料：FinMind TaiwanFuturesDaily／taiwan_futures_snapshot・不替換為加權現貨指數</footer>
-</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r42"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r46"></script><script src="/taiex-action-ui.js?r45"></script><script src="/taiex-r46.js?r46"></script><script src="/taiex-r46-ui.js?r46"></script><script src="/taiex-futures-ui.js?r46"></script></body></html>
+</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r42"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r46"></script><script src="/taiex-action-ui.js?r45"></script><script src="/taiex-r46.js?r47"></script><script src="/taiex-r46-ui.js?r47"></script><script src="/taiex-r47.js?r47"></script><script src="/taiex-r47-ui.js?r47"></script><script src="/taiex-futures-ui.js?r47"></script></body></html>
