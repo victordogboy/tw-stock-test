@@ -2,20 +2,46 @@
 (function(root){
 'use strict';
 const sar=typeof module==='object'&&module.exports?require('./parabolic-sar.js'):root.TWParabolicSAR;
-const defaults={direction:'long',entryWeights:[30,30,25,15],holdWeights:[35,25,25,15],delta:10,minEntry:55,exit:45,maxAge:5,cost:0};
+const defaults={direction:'long',entryWeights:[30,30,25,15],holdWeights:[35,25,25,15],delta:10,minEntry:55,exit:45,maxAge:5,cost:0,sarMode:'both',preFlipGap:0.75,preFlipMin:65};
 const clamp=x=>Math.max(0,Math.min(100,x));
 function validate(input={}){
  const p={...defaults,...input};
  if(!['long','short'].includes(p.direction))throw Error('請選擇做多或做空');
+ if(!['aligned','anticipate','both'].includes(p.sarMode))throw Error('SAR 進場模式不正確');
  for(const k of ['entryWeights','holdWeights']){if(!Array.isArray(p[k])||p[k].length!==4)throw Error('權重需有四項');if(p[k].some(x=>x===''||x===null))throw Error('權重不可空白');p[k]=p[k].map(Number);if(p[k].some(x=>!Number.isFinite(x)||x<0||x>100)||!p[k].some(x=>x>0))throw Error('權重須為 0～100，且至少一項大於零');}
- for(const [k,min,max] of [['delta',0,100],['minEntry',0,100],['exit',0,100],['maxAge',0,100],['cost',0,10000]]){if(p[k]===''||p[k]===null)throw Error('參數不可空白');p[k]=Number(p[k]);if(!Number.isFinite(p[k])||p[k]<min||p[k]>max)throw Error('門檻或成本超出範圍');}
+ for(const [k,min,max] of [['delta',0,100],['minEntry',0,100],['exit',0,100],['maxAge',0,100],['cost',0,10000],['preFlipGap',0.05,3],['preFlipMin',0,100]]){if(p[k]===''||p[k]===null)throw Error('參數不可空白');p[k]=Number(p[k]);if(!Number.isFinite(p[k])||p[k]<min||p[k]>max)throw Error('門檻或成本超出範圍');}
  if(!Number.isInteger(p.maxAge))throw Error('SAR 根數須為整數');return p;
 }
 const weighted=(v,w)=>v.reduce((s,x,i)=>s+x*w[i],0)/w.reduce((a,b)=>a+b,0);
+// KD 9,3,3: recursively smoothed K and D with no future or next-candle inputs.
+function kdSeries(rows){
+ let k=50,d=50;return rows.map((b,i)=>{
+  const section=rows.slice(Math.max(0,i-8),i+1),high=Math.max(...section.map(x=>x.high)),low=Math.min(...section.map(x=>x.low));
+  const rsv=high===low?50:clamp((b.close-low)/(high-low)*100);
+  k=(k*2+rsv)/3;d=(d*2+k)/3;return {k,d};
+ });
+}
+// The candidate trigger for NEXT bar is calculated from information known at today's close.
+// A near trigger cannot guarantee tomorrow's reversal.
+function preFlipEvidence(point,b,prev,atr,acceleration,volume,kd,prevKD,d,preGap){
+ const gap=(d===1?point.nextTrigger-b.high:b.low-point.nextTrigger)/atr;
+ const near=clamp(100-100*Math.max(0,gap)/preGap);
+ const kdAgree=d===1?kd.k>kd.d&&kd.k>prevKD.k:kd.k<kd.d&&kd.k<prevKD.k;
+ const kdScore=kdAgree?100:0;
+ const preFlipScore=clamp(near*0.35+acceleration*0.3+kdScore*0.25+volume*0.1);
+ return {gap,near,kdAgree,kdScore,preFlipScore,priceImproving:d*(b.close-prev.close)>0};
+}
+function entryGate(s,p){
+ const after=s.aligned&&(p.maxAge===0||(s.age!==null&&s.age<=p.maxAge));
+ const before=!s.aligned&&s.evidence.kdAgree&&s.evidence.priceImproving&&
+   s.evidence.gap<=p.preFlipGap&&s.evidence.gap>=-0.5&&s.preFlipScore>=p.preFlipMin;
+ return p.sarMode==='aligned'?after:p.sarMode==='anticipate'?before:(after||before);
+}
+
 function analyze(rows,input={},sarConfig={}){
  const p=validate(input),d=p.direction==='long'?1:-1;
  if(new Set(rows.map(b=>b.contract)).size>1)throw Error('Action 必須使用單一月份合約，避免換月價差');
- const points=sar.calculate(rows,{...sar.defaults,...sarConfig,enabled:true});
+ const points=sar.calculate(rows,{...sar.defaults,...sarConfig,enabled:true}),kd=kdSeries(rows);
  const avg=(i,n,k='close')=>rows.slice(i-n+1,i+1).reduce((s,b)=>s+b[k],0)/n;
  const tr=rows.map((b,i)=>Math.max(b.high-b.low,i?Math.abs(b.high-rows[i-1].close):0,i?Math.abs(b.low-rows[i-1].close):0));
  let age=null,lastDirection;
@@ -28,17 +54,20 @@ function analyze(rows,input={},sarConfig={}){
   const velocity=d*(b.close-rows[i-3].close)/(3*atr),previous=d*(rows[i-3].close-rows[i-6].close)/(3*atr);
   const momentum=clamp(50+velocity*35),acceleration=clamp(50+(velocity-previous)*50);
   const aligned=sp.rising===(d===1),recent=age!==null?(p.maxAge===0?100:clamp(100-age*100/(p.maxAge+1))):0;
-  const sarEntry=aligned?recent:0,sarHold=aligned?100:0;
+  const sarHold=aligned?100:0;
   const ratio=b.volume/Math.max(1,avg(i-1,20,'volume')),move=d*(b.close-rows[i-1].close)/atr;
   const volume=clamp(50+move*25*Math.min(2,ratio));
+  const pre=preFlipEvidence(sp,b,rows[i-1],atr,acceleration,volume,kd[i],kd[i-1],d,p.preFlipGap);
+  const sarEntry=aligned?recent:pre.preFlipScore;
   const extension=Math.max(0,d*(b.close-m20)/atr-2),penalty=Math.min(30,extension*10);
   const entryParts=[trend,acceleration,sarEntry,volume],holdParts=[trend,momentum,sarHold,volume];
   const entry=clamp(weighted(entryParts,p.entryWeights)-penalty),hold=weighted(holdParts,p.holdWeights);
-  return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr,evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension}};
+  return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr,preFlipScore:pre.preFlipScore,
+   evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension,acceleration,volume,trigger:sp.nextTrigger,
+   gap:pre.gap,near:pre.near,kdAgree:pre.kdAgree,priceImproving:pre.priceImproving,k:kd[i].k,dh:kd[i].d}};
  }).map((s,i,all)=>{
   if(!s)return null;const delta=all[i-1]?s.entry-all[i-1].entry:null;
-  const ageOK=p.maxAge===0||(s.age!==null&&s.age<=p.maxAge);
-  return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&s.aligned&&ageOK,leave:s.hold<p.exit};
+  return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&entryGate(s,p),leave:s.hold<p.exit};
  });
 }
 function selectRange(rows,range={}){
@@ -72,8 +101,19 @@ function simulate(rows,p,scores,first=0){
 }
 // Reuse observed features for the grid; never recompute SAR/ATR for each candidate.
 function rescore(features,p){
- const scored=features.map(s=>{if(!s)return null;const entryParts=[...s.entryParts];entryParts[2]=s.aligned&&s.age!==null?(p.maxAge===0?100:clamp(100-s.age*100/(p.maxAge+1))):0;return {...s,entryParts,entry:clamp(weighted(entryParts,p.entryWeights)-s.penalty),hold:weighted(s.holdParts,p.holdWeights)};});
- return scored.map((s,i)=>{if(!s)return null;const delta=scored[i-1]?s.entry-scored[i-1].entry:null;return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&s.aligned&&(p.maxAge===0||(s.age!==null&&s.age<=p.maxAge)),leave:s.hold<p.exit};});
+ const scored=features.map(s=>{
+  if(!s)return null;
+  const e=s.evidence,preFlipScore=clamp((100-100*Math.max(0,e.gap)/p.preFlipGap)*0.35+
+    e.acceleration*0.3+(e.kdAgree?100:0)*0.25+e.volume*0.1);
+  const entryParts=[...s.entryParts];
+  entryParts[2]=s.aligned&&s.age!==null?(p.maxAge===0?100:clamp(100-s.age*100/(p.maxAge+1))):s.aligned?0:preFlipScore;
+  return {...s,preFlipScore,entryParts,entry:clamp(weighted(entryParts,p.entryWeights)-s.penalty),hold:weighted(s.holdParts,p.holdWeights)};
+ });
+ return scored.map((s,i)=>{
+  if(!s)return null;
+  const delta=scored[i-1]?s.entry-scored[i-1].entry:null;
+  return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&entryGate(s,p),leave:s.hold<p.exit};
+ });
 }
 function candidateGrid(input){
  const p=validate(input),uniq=a=>[...new Map(a.map(v=>[JSON.stringify(v),v])).values()];
@@ -162,6 +202,17 @@ function candidateGridMulti(input){
  for(const delta of [0,3,7,12,20])for(const minEntry of [30,45,60])
  for(const exit of [30,45,60])for(const maxAge of [0,5,12])
  grid.push({...p,entryWeights,holdWeights,delta,minEntry,exit,maxAge});
+ // Compare confirmed SAR, before-flip-only, and mixed signals under multiple
+ // pre-flip KD/ATR thresholds without exploding the on-device search space.
+ for(const sarMode of ['aligned','anticipate','both'])
+ for(const preFlipGap of [0.45,1.0])
+ for(const preFlipMin of [55,70])
+ for(const entryWeights of entryProfiles.slice(0,3))
+ for(const holdWeights of holdProfiles.slice(0,3))
+ for(const delta of [0,7,15])
+ for(const minEntry of [40,55])
+ for(const exit of [30,45])
+ grid.push({...p,sarMode,preFlipGap,preFlipMin,entryWeights,holdWeights,delta,minEntry,exit,maxAge:p.maxAge});
  return unique(grid);
 }
 function tradeSignature(result){return result.trades.map(t=>[t.contract,t.entryDate,t.exitDate].join(':')).join('|');}
