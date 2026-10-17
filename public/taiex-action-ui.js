@@ -2,7 +2,7 @@
 'use strict';
 const $=id=>document.getElementById(id),A=TWTaiexAction,key='twq_taiex_action_r37',names=['趨勢','動能','SAR','量價'];
 const f=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('zh-TW',{maximumFractionDigits:n}):'—';
-let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null,autoStart='',autoEnd=';
+let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null,autoStart='',autoEnd='';
 try{config=A.validate(JSON.parse(localStorage.getItem(key)||'{}'));}catch{}
 const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin'};
 function fill(){for(const [k,id]of Object.entries(fields))$(id).value=config[k];for(const group of ['entryWeights','holdWeights'])config[group].forEach((v,i)=>$(group+i).value=v);}
