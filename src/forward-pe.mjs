@@ -35,7 +35,7 @@ async function fetchRows(url,asCsv){
  if(!r.ok)throw Error('HTTP '+r.status);
  if(!asCsv){
   const j=await r.json();
-  if(!Array.isArray(j)||j.length<1)throw Error('資料不是非空陣列');
+  if(!Array.isArray(j))throw Error('資料不是陣列');
   return j;
  }
  const bytes=await r.arrayBuffer();
@@ -106,7 +106,8 @@ function forecast(share,fin,month){
   revenue3moProxy:elapsedMonths===3?inferredRevenue:null,
   projectedYearRevenue,unreportedRevenue,
   earningsYield:projectedEPS/share.close*100,
-  annualizationFactor:projectedYearRevenue/fin.reportedYtdRevenue
+  annualizationFactor:projectedYearRevenue/fin.reportedYtdRevenue,
+  revenueMomentum:month.monthRevenue/(fin.reportedYtdRevenue/(fin.quarter*3))-1
  };
 }
 
