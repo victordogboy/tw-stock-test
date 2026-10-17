@@ -214,6 +214,51 @@ async function volumeBatch(url){
 // A single-company report never applies screener thresholds, sorting or the
 // chosen PE method. It reuses the official-data snapshot (and its 15-min cache)
 // but checks only that stock's recent trading volume.
+
+// Secondary quote feed: batched OTC/TWSE MIS calls, only when the regular
+// exchange bulk quote endpoint is missing codes. Do not turn previous-close
+// reference (y) into an actual traded price (z).
+async function fetchMisQuotes(batch){
+ const symbols=batch.map(item=>(item.market==='tpex'?'otc_':'tse_')+item.code+'.tw').join('|');
+ const url='https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch='+
+  encodeURIComponent(symbols)+'&json=1&delay=0';
+ const res=await fetch(url,{headers:{accept:'application/json','referer':'https://mis.twse.com.tw/stock/index.jsp'},
+  signal:AbortSignal.timeout(6500)});
+ if(!res.ok)throw Error('TWSE MIS HTTP '+res.status);
+ const json=await res.json();
+ if(!Array.isArray(json.msgArray))throw Error('TWSE MIS 資料格式錯誤');
+ const allowed=new Set(batch.map(x=>x.code));
+ const out=[];
+ const today=Date.now();
+ for(const row of json.msgArray){
+  const code=String(row.c||'').trim(),price=number(row.z),date=quoteDateISO(row.d);
+  if(!allowed.has(code)||!(price>0)||!date)continue;
+  const dateMs=Date.parse(date+'T23:59:59+08:00');
+  if(!Number.isFinite(dateMs)||dateMs>today+86400000||today-dateMs>15*86400000)continue;
+  const source=String(row.ex)==='otc'?'tpex':String(row.ex)==='tse'?'twse':batch.find(x=>x.code===code)?.market;
+  const item=batch.find(x=>x.code===code);
+  if(source!==item?.market)continue;
+  const volumeLots=number(row.v);
+  out.push({code,name:String(row.n||item.name||code).trim(),market:source,close:price,
+   volume_shares:volumeLots!==null&&volumeLots>=0?volumeLots*1000:null,
+   raw:{Date:date},priceSource:'TWSE MIS '+(source==='tpex'?'上櫃':'上市')+'行情'});
+ }
+ return out;
+}
+async function misFallback(missing){
+ const batches=[];
+ for(let i=0;i<missing.length;i+=60)batches.push(missing.slice(i,i+60));
+ if(!batches.length)return {data:[],error:null,attempted:0};
+ let first;
+ try{first=await fetchMisQuotes(batches[0]);}
+ catch(e){return {data:[],error:String(e.message||e),attempted:1};}
+ if(!first.length)return {data:[],error:'MIS 未回傳有效即時成交價，停止批量補價',attempted:1};
+ // Remaining batched requests are bounded to avoid exhausting Worker subrequests.
+ const rest=await parallel(batches.slice(1,27),5,async batch=>({ok:true,data:await fetchMisQuotes(batch)}));
+ return {data:[...first,...rest.filter(x=>x.ok).flatMap(x=>x.data)],
+  error:rest.some(x=>!x.ok)?'部分 MIS 批次補價失敗':null,
+  attempted:1+rest.length};
+}
 async function singleStockLookup(request,env,fetchExisting,url){
  const query=(url.searchParams.get('query')||'').trim();
  if(!query||query.length>40)return response({ok:false,error:'請輸入股票代號或公司名稱（最多40字）'},400);
@@ -324,7 +369,13 @@ export async function forwardPeRoute(request,env,fetchExisting){
   if(stockCode(code)&&name&&!companyMaster.has(code))
    companyMaster.set(code,{code,name,market:item.market==='tpex'?'tpex':'twse',masterSource:'證交所 ISIN 名冊'});
  }
- const mergedQuotes=[...quotes],seenQuoted=new Set(quotes.map(x=>String(x.code||'')));
+ const officialCodes=new Set(quotes.map(x=>String(x.code||'')));
+ const missingToPrice=[...companyMaster.values()].filter(x=>!officialCodes.has(x.code)&&
+  (x.market==='tpex'||!top[0].ok));
+ const mis=await misFallback(missingToPrice);
+ if(mis.error)errors.push({market:'MIS',type:'quoteFallback',message:mis.error});
+ const mergedQuotes=[...quotes,...mis.data],
+  seenQuoted=new Set(mergedQuotes.map(x=>String(x.code||'')));
  for(const item of companyMaster.values()){
   if(seenQuoted.has(item.code))continue;
   mergedQuotes.push({...item,close:null,volume_shares:null,raw:null});
@@ -338,7 +389,7 @@ export async function forwardPeRoute(request,env,fetchExisting){
   const actualClose=close>0?close:null;
   const share={code,name:String(stock.name||companyMaster.get(code)?.name||code),market:stock.market||'',
    close:actualClose,volumeTodayLots:volume!==null&&volume>=0?volume/1000:null,
-   priceSource:actualClose?(stock.market==='tpex'?'TPEx':'TWSE')+' 官方行情':null,
+   priceSource:actualClose?(stock.priceSource||((stock.market==='tpex'?'TPEx':'TWSE')+' 官方行情')):null,
    priceStatus:actualClose?'有官方報價':'官方報價缺漏（不能推論停牌）',
    masterSource:companyMaster.get(code)?.masterSource||null,
    hasFutures:futures.has(code)};
@@ -368,8 +419,9 @@ export async function forwardPeRoute(request,env,fetchExisting){
    universeCount:rows.length,listedUniverse:rows.filter(x=>x.market==='twse').length,
    otcUniverse:rows.filter(x=>x.market==='tpex').length,
    missingQuotes:rows.filter(x=>!(x.close>0)).length,
-   partial:!top[0].ok||!top[1].ok||rows.some(x=>!(x.close>0)),
-   companyDirectory:companyMaster.size,isinFallback:!!masterFallback.ok},
+   partial:rows.some(x=>!(x.close>0))||!top[0].ok||!top[1].ok,
+   misRecoveredQuotes:mis.data.length,misBatchesAttempted:mis.attempted,
+   misError:mis.error,companyDirectory:companyMaster.size,isinFallback:!!masterFallback.ok},
   asOf:{snapshotFetchedAt:new Date().toISOString(),timeZone:'Asia/Taipei',
    quotes:'交易所最新日線快照；若來源未提供交易日則標示「未提供」，不可當作即時報價',
    statements:'每檔 financeQuarter 為財報所屬季；financeIssueDate 為來源出表日期（可能無）',
