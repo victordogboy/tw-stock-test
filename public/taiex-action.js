@@ -200,6 +200,10 @@ function simulateMulti(prepared,p){
  return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers,entrySignals,exitSignals,preFlipEntries,preFlipCheck:{evaluated,within2,percent:evaluated?within2/evaluated*100:null},signalBars:prepared.signalBars};
 }
 function backtestMulti(rows,input={},sarConfig={},range={}){const p=validate(input);return simulateMulti(prepareMulti(rows,p,sarConfig,range),p);}
+function analyzeMulti(rows,input={},sarConfig={},range={}){
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range);
+ return {scores:rescore(prepared.features,p),start:prepared.start,end:prepared.end,signalBars:prepared.signalBars};
+}
 // More independent profiles, including low-frequency and active-entry variants.
 // Trade count is a constraint, not an objective; identical trade calendars occupy only one finalist.
 function candidateGridMulti(input){
@@ -242,5 +246,5 @@ function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
    yield {done:i+1,total:grid.length,eligible,maxTrades,validBars:result.validBars,totalBars:result.totalBars,top:top.map(({config,result})=>({config,result})),start:prepared.start,end:prepared.end,months:[...new Set(prepared.timeline.map(b=>b.contract))]};
  }
 }
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
