@@ -1,4 +1,4 @@
-// R51: separate unfiltered single-stock detail from the full-market ABC forward-PE screener. Existing Action scanner unchanged.
+// R52: preserve stocks even when the OTC quote feed is unavailable; give company lookup a quote fallback.
 const FIN_TYPES=['ci','basi','fh','ins','bd','mim'];
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
 const number=x=>{
@@ -8,6 +8,13 @@ const number=x=>{
  const n=Number(s);return Number.isFinite(n)?n:null;
 };
 const codeOf=r=>String(r['公司代號']||r['股票代號']||r.Code||r.code||'').trim();
+const nameOf=r=>String(r['公司簡稱']||r['公司名稱']||r['證券名稱']||r['名稱']||r.Name||r.name||'').trim();
+const quoteDateISO=v=>{
+ const s=String(v||'').replace(/[^0-9]/g,'');
+ if(s.length===7)return (Number(s.slice(0,3))+1911)+'-'+s.slice(3,5)+'-'+s.slice(5);
+ if(s.length===8)return s.slice(0,4)+'-'+s.slice(4,6)+'-'+s.slice(6);
+ return null;
+};
 const stockCode=c=>/^[1-9]\d{3}$/.test(String(c||''));
 const rocYear=v=>{const n=number(v);return n!==null?(n<1911?n+1911:n):null;};
 const response=(obj,status=200)=>new Response(JSON.stringify(obj),{status,headers:JSON_HEADERS});
@@ -184,7 +191,15 @@ async function yahooFiveDayVolume(code,market){
  }
  const last=rows.slice(-5),maxAge=(now-new Date((last.at(-1)?.d||'2000-01-01')+'T00:00:00+08:00'))/86400000;
  if(last.length!==5||maxAge>15||maxAge<0)throw Error('近5日交易量不足或報價過期');
- return {code,avg5Lots:last.reduce((a,b)=>a+b.v,0)/5000,dates:last.map(x=>x.d),source:'Yahoo 1d completed sessions'};
+ const closes=chart?.indicators?.quote?.[0]?.close||[];
+ let lastClose=null,lastQuoteDate=null;
+ for(let i=times.length-1;i>=0;i--){
+  const day=new Date(times[i]*1000+8*3600000).toISOString().slice(0,10);
+  const price=Number(closes[i]);
+  if(day<=today&&Number.isFinite(price)&&price>0){lastClose=price;lastQuoteDate=day;break;}
+ }
+ return {code,avg5Lots:last.reduce((a,b)=>a+b.v,0)/5000,
+  dates:last.map(x=>x.d),lastClose,lastQuoteDate,source:'Yahoo Finance 日K'};
 }
 async function volumeBatch(url){
  const market=url.searchParams.get('market');
@@ -215,12 +230,22 @@ async function singleStockLookup(request,env,fetchExisting,url){
   searched:query,quotedStockCount:entries.length,sourceErrors:snapshot.errors||[],snapshotTime:snapshot.date||null},404);
  if(found.length>1)return response({ok:true,ambiguous:true,query,candidates:found.slice(0,25).map(r=>({code:r.code,name:r.name,market:r.market})),
   truncated:found.length>25,snapshotTime:snapshot.date||null});
- const stock=found[0];
+ const stock={...found[0],models:{...(found[0].models||{})}};
  // An inactive or suspended four-digit stock may have no usable quote.
  // Keep its official financials visible rather than screening it away.
  let volume5={ok:false,error:'成交量明細尚未取得'};
- try{const detail=await yahooFiveDayVolume(stock.code,stock.market);volume5={ok:true,...detail};}
- catch(err){volume5={ok:false,error:String(err.message||err)};}
+ try{
+  const detail=await yahooFiveDayVolume(stock.code,stock.market);
+  volume5={ok:true,...detail};
+  if(!(stock.close>0)&&detail.lastClose>0){
+   stock.close=detail.lastClose;stock.quoteReportedDate=detail.lastQuoteDate;
+   stock.priceSource=detail.source;stock.priceStatus='Yahoo 日K補價，非交易所官方收盤報價';
+   for(const m of Object.values(stock.models)){
+    if(m?.status==='ok'&&m.eps>0){m.pe=stock.close/m.eps;m.pressurePE=stock.close/(m.eps*0.8);}
+   }
+   if(stock.estimatedEPS>0)stock.estimatedPE=stock.close/stock.estimatedEPS;
+  }
+ }catch(err){volume5={ok:false,error:String(err.message||err)};}
  return response({ok:true,ambiguous:false,query,stock,volume5,
   snapshotTime:snapshot.date||null,priceBasis:snapshot.priceBasis,
   sourceErrors:snapshot.errors||[],sources:snapshot.sources||null,
@@ -231,10 +256,10 @@ export async function forwardPeRoute(request,env,fetchExisting){
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
  if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
  if(url.pathname==='/api/pe-screener/stock')return singleStockLookup(request,env,fetchExisting,url);
- if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R51',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
+ if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R52',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
- const key=new Request(url.origin+'/__cache/eps-forward-r51');
+ const key=new Request(url.origin+'/__cache/eps-forward-r52');
  if(!fresh){const hit=await cache.match(key);if(hit)return hit;}
  const started=Date.now();
  const inputs=[
@@ -265,12 +290,15 @@ export async function forwardPeRoute(request,env,fetchExisting){
   const data=await fetchRows(job.url,job.market==='O');
   return {ok:true,data};
  });
- const errors=[],financials=new Map(),months=new Map();
+ const errors=[],financials=new Map(),months=new Map(),companyMaster=new Map();
  for(let i=0;i<jobs.length;i++){
   const job=jobs[i],result=results[i];
   if(!result.ok){errors.push({market:job.market,type:job.type||'revenue',message:result.error});continue;}
   for(const row of result.data){
    const code=codeOf(row);if(!stockCode(code))continue;
+   const name=nameOf(row);
+   if(name)companyMaster.set(code,{code,name,market:job.market==='O'?'tpex':'twse',
+    masterSource:job.type?'MOPS 損益公司清單':'MOPS 月營收公司清單'});
    if(job.type){
     const fin=readFin(row,job.type);if(fin)financials.set(code,choose(financials.get(code),fin));
    }else{
@@ -281,17 +309,43 @@ export async function forwardPeRoute(request,env,fetchExisting){
  }
  const futures=new Set((top[2].data?.codes||[]).map(String));
  const quotes=[...(top[0].data?.data||[]),...(top[1].data?.data||[])];
+ // Official exchange quote outages should not erase existing OTC stocks.
+ // Fetch the independent security directory when any quote source is missing.
+ let masterFallback={ok:false,data:[]};
+ if(!top[0].ok||!top[1].ok||quotes.length<1700){
+  try{
+   const response=await fetchExisting(new Request(url.origin+'/api/market/universe',{headers:request.headers}));
+   const result=await response.json();
+   if(response.ok&&result.ok&&Array.isArray(result.data))masterFallback=result;
+  }catch(e){errors.push({market:'master',type:'universe',message:String(e.message||e)});}
+ }
+ for(const item of masterFallback.data){
+  const code=String(item.code||'').trim(),name=String(item.name||'').trim();
+  if(stockCode(code)&&name&&!companyMaster.has(code))
+   companyMaster.set(code,{code,name,market:item.market==='tpex'?'tpex':'twse',masterSource:'證交所 ISIN 名冊'});
+ }
+ const mergedQuotes=[...quotes],seenQuoted=new Set(quotes.map(x=>String(x.code||'')));
+ for(const item of companyMaster.values()){
+  if(seenQuoted.has(item.code))continue;
+  mergedQuotes.push({...item,close:null,volume_shares:null,raw:null});
+  seenQuoted.add(item.code);
+ }
  const rows=[],unique=new Set();
- for(const stock of quotes){
+ for(const stock of mergedQuotes){
   const code=String(stock.code||'').trim(),close=number(stock.close),volume=number(stock.volume_shares);
   if(!stockCode(code)||unique.has(code))continue;
   unique.add(code);
-  const share={code,name:String(stock.name||code),market:stock.market||'',
-   close:close>0?close:null,volumeTodayLots:volume!==null&&volume>=0?volume/1000:null,hasFutures:futures.has(code)};
+  const actualClose=close>0?close:null;
+  const share={code,name:String(stock.name||companyMaster.get(code)?.name||code),market:stock.market||'',
+   close:actualClose,volumeTodayLots:volume!==null&&volume>=0?volume/1000:null,
+   priceSource:actualClose?(stock.market==='tpex'?'TPEx':'TWSE')+' 官方行情':null,
+   priceStatus:actualClose?'有官方報價':'官方報價缺漏（不能推論停牌）',
+   masterSource:companyMaster.get(code)?.masterSource||null,
+   hasFutures:futures.has(code)};
   const fin=financials.get(code)||null,mon=months.get(code)||null;
   const projected=forecast(share,fin,mon);
   const models=methodModels(share,fin,mon,projected);
-  const quoteReportedDate=String(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate||'').trim()||null;
+  const quoteReportedDate=quoteDateISO(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate)||null;
   rows.push({...share,...projected,models,quoteReportedDate,
    statementBasis:fin?.source??null,
    revenueBasis:mon?.source??null,
@@ -308,7 +362,14 @@ export async function forwardPeRoute(request,env,fetchExisting){
  }
  rows.sort((a,b)=>(a.estimatedPE??Infinity)-(b.estimatedPE??Infinity));
  const ok=rows.length>0&&financials.size>0&&months.size>0;
- const payload={ok,version:'R51',date:new Date().toISOString(),
+ const payload={ok,version:'R52',date:new Date().toISOString(),
+  coverage:{officialQuotes:quotes.length,listedQuotes:quotes.filter(x=>x.market==='twse').length,
+   otcQuotes:quotes.filter(x=>x.market==='tpex').length,
+   universeCount:rows.length,listedUniverse:rows.filter(x=>x.market==='twse').length,
+   otcUniverse:rows.filter(x=>x.market==='tpex').length,
+   missingQuotes:rows.filter(x=>!(x.close>0)).length,
+   partial:!top[0].ok||!top[1].ok||rows.some(x=>!(x.close>0)),
+   companyDirectory:companyMaster.size,isinFallback:!!masterFallback.ok},
   asOf:{snapshotFetchedAt:new Date().toISOString(),timeZone:'Asia/Taipei',
    quotes:'交易所最新日線快照；若來源未提供交易日則標示「未提供」，不可當作即時報價',
    statements:'每檔 financeQuarter 為財報所屬季；financeIssueDate 為來源出表日期（可能無）',
@@ -322,7 +383,8 @@ export async function forwardPeRoute(request,env,fetchExisting){
    models:{A:rows.filter(x=>x.models.A.status==='ok').length,
     B:rows.filter(x=>x.models.B.status==='ok').length,
     C:rows.filter(x=>x.models.C.status==='ok').length}},
-  sources:{twse:top[0].ok,tpex:top[1].ok,futures:top[2].ok,futuresDegraded:!!top[2].data?.degraded},
+  sources:{twse:top[0].ok,tpex:top[1].ok,futures:top[2].ok,
+   masterFallback:!!masterFallback.ok,futuresDegraded:!!top[2].data?.degraded},
   errors:[...errors,...top.map((r,i)=>r.ok?null:{market:inputs[i].id,message:r.error}).filter(Boolean)],
   rows,elapsedMs:Date.now()-started};
  const output=response(payload,ok?200:502);
