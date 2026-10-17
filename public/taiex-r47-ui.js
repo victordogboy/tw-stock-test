@@ -19,7 +19,7 @@ function showError(err){$('r47Status').textContent='R47 損益歸因未完成：
 function renderReport(r,label){
  $('r47Status').textContent=label+' 歸因完成，損益對帳誤差 '+fmt(r.reconciliation.unexplained,5)+' 點。';
  $('r47Summary').textContent=r.start+' ～ '+r.end+
-  '｜同期買進持有 '+signed(r.benchmarkNet)+' 點；策略 '+signed(r.strategyNet)+' 點；策略相對基準落後 '+signed(r.benchmarkLag)+' 點。'+
+  '｜同期買進持有 '+signed(r.benchmarkNet)+' 點；策略 '+signed(r.strategyNet)+' 點；基準－策略差額 '+signed(r.benchmarkLag)+' 點（正值落後、負值超越）。'+
   '【對帳：空手 '+signed(r.lost.flatNet)+'＋空單 '+signed(r.lost.shortNet)+'＋成本差 '+signed(r.costs.excess)+'＝'+signed(r.benchmarkLag)+' 點】';
  $('r47Parts').replaceChildren();
  for(const [name,val,description] of [
@@ -43,6 +43,7 @@ function renderReport(r,label){
  for(const cause of r.exits)appendRow('r47Exits',[cause.reason,cause.count,cause.wins,signed(cause.net)]);
 }
 function showRun(prep,result){
+ $('r47FoldCards').replaceChildren();$('r47FoldSummary').textContent='';
  try{
   const report=E.analyze(prep,result);renderReport(report,'R46 單組');
  }catch(err){showError(err);}
@@ -50,7 +51,7 @@ function showRun(prep,result){
 function showFolds(prep,walk){
  try{
   const r=E.folds(prep,walk),s=r.summary;
-  $('r47FoldSummary').textContent='三段驗證落後基準 '+signed(s.benchmarkLag)+' 點＝空手 '+signed(s.flatNet)+
+  $('r47FoldSummary').textContent='三段驗證基準－策略差額 '+signed(s.benchmarkLag)+' 點（正值落後、負值超越）＝空手 '+signed(s.flatNet)+
    ' 點＋做空 '+signed(s.shortNet)+' 點＋成本差 '+signed(s.costExcess)+' 點；策略 '+signed(s.strategyNet)+
    ' 點、基準 '+signed(s.benchmarkNet)+' 點。這些是分段回測的加總，並非持續持倉的實際資金曲線。';
   $('r47FoldCards').replaceChildren();
@@ -60,7 +61,7 @@ function showFolds(prep,walk){
    if(fold.unavailable)p.textContent='此折訓練期無符合最低筆數的候選，不做推論。';
    else{
     p.textContent=fold.start+' ～ '+fold.end+'：策略 '+signed(fold.strategyNet)+' 點／基準 '+signed(fold.benchmarkNet)+
-     ' 點；落後 '+signed(fold.benchmarkLag)+' 點＝空手 '+signed(fold.lost.flatNet)+
+     ' 點；基準－策略差額 '+signed(fold.benchmarkLag)+' 點＝空手 '+signed(fold.lost.flatNet)+
      '＋空單 '+signed(fold.lost.shortNet)+'＋成本差 '+signed(fold.costs.excess)+
      '。多單淨 '+signed(fold.long.net)+'、空單淨 '+signed(fold.short.net)+
      '；空手錯失上漲 '+fmt(fold.lost.flatPositive)+
