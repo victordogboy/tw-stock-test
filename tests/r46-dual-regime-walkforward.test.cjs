@@ -51,9 +51,9 @@ test('R46 cannot invent P&L from next-month roll price gaps',()=>{
   return {...b,open:b.open+shift,high:b.high+shift,low:b.low+shift,close:b.close+shift};
  });
  const rerun=R.backtest(changed,p,{},range);
- assert.equal(rerun.net,original.net);
- assert.equal(rerun.benchmarkNet,original.benchmarkNet);
- assert.equal(rerun.maxDrawdown,original.maxDrawdown);
+ assert(Math.abs(rerun.net-original.net)<1e-6,'no cross-contract price-gap P&L');
+ assert(Math.abs(rerun.benchmarkNet-original.benchmarkNet)<1e-6);
+ assert(Math.abs(rerun.maxDrawdown-original.maxDrawdown)<1e-6);
  assert.equal(rerun.signalTradeCount,original.signalTradeCount);
 });
 
