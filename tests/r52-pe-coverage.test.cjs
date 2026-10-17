@@ -6,7 +6,7 @@ const vm=require('node:vm');
 
 const repo=path.resolve(__dirname,'..');
 function readSource(name){return fs.readFileSync(path.join(repo,name),'utf8');}
-function makeRouter(){
+function makeRouter({misAvailable=false}={}){
  const src=readSource('src/forward-pe.mjs').replace('export async function forwardPeRoute','async function forwardPeRoute');
  const financeCsv='公司代號,公司名稱,年度,季別,基本每股盈餘（元）,營業收入\n3264,欣銓,115,2,5,1000\n3105,穩懋,115,2,6,1200\n3260,威剛,115,2,10,1300\n';
  const monthlyCsv='公司代號,公司名稱,資料年月,營業收入-當月營收,營業收入-上月營收,累計營業收入-當月累計營收\n3264,欣銓,11509,200,200,1500\n3105,穩懋,11509,230,220,1600\n3260,威剛,11509,240,240,1700\n';
@@ -17,6 +17,13 @@ function makeRouter(){
   caches:{default:{match:async()=>null,put:async()=>{}}},
   fetch:async uri=>{
    const u=String(uri);
+   if(misAvailable&&u.includes('mis.twse.com.tw')){
+    const date=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date()).replaceAll('-','');
+    return Response.json({msgArray:[
+     {c:'3264',n:'欣銓',ex:'otc',z:'230.5',v:'2500',d:date},
+     {c:'3105',n:'穩懋',ex:'otc',z:'440',v:'3000',d:date}
+    ]});
+   }
    if(u.includes('query1.finance.yahoo.com')&&u.includes('3264.TWO'))return Response.json(quote);
    if(u.includes('t187ap05_O.csv'))return new Response(monthlyCsv);
    if(u.includes('t187ap06_O_ci.csv'))return new Response(financeCsv);
@@ -62,6 +69,19 @@ test('when all OTC quotes fail, stock directory preserves three OTC stocks and c
   assert.equal(row.models.A.status,'ok');
   assert.equal(row.models.A.pe,null,'No real price: do not fabricate PE');
  }
+});
+test('R52 recovers OTC quotes in one validated TWSE MIS batch when TPEx bulk feed is blocked',async()=>{
+ const run=makeRouter({misAvailable:true});
+ const data=await (await run('data')).json();
+ assert.equal(data.coverage.otcQuotes,0);
+ assert.equal(data.coverage.misRecoveredQuotes,2);
+ assert.equal(data.coverage.missingQuotes,1);
+ const row=data.rows.find(x=>x.code==='3264');
+ assert.equal(row.close,230.5);
+ assert.equal(row.volumeTodayLots,2500);
+ assert.match(row.priceSource,/MIS/);
+ assert.ok(row.models.A.pe>0);
+ assert.match(row.quoteReportedDate,/^20\d\d-\d\d-\d\d$/);
 });
 test('unfiltered Chinese-name stock search repairs missing quote using labeled daily prices',async()=>{
  const run=makeRouter();
