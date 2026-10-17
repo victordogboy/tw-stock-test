@@ -152,7 +152,7 @@ async function fallbackVolume(warnings){
  const candidates=full.filter(x=>chosen(x).status==='ok'&&chosen(x).pe>0&&missingMarkets.includes(x.market)&&
    chosen(x).pe<=num('maxpe',35)&&
    (($('future').checked&&x.hasFutures)||
-    (x.close>=num('minprice',30)&&(num('maxprice',0)===0||x.close<=num('maxprice',0))));
+    (x.close>=num('minprice',30)&&(num('maxprice',0)===0||x.close<=num('maxprice',0)))));
  const groups=[];
  for(const market of missingMarkets){
   const codes=candidates.filter(x=>x.market===market&&x.avg5Lots===null).map(x=>x.code);
