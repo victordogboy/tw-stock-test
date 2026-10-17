@@ -45,6 +45,7 @@ function data(){
 const line=r=>'策略 '+fmt(r.net)+' 點｜基準 '+fmt(r.benchmarkNet)+' 點｜超額 '+fmt(r.excessNet)+
  ' 點｜基準倍數 '+(r.ratio===null?'不適用':fmt(r.ratio,2)+' 倍')+
  '｜2 倍 '+(r.target2x===null?'不適用':r.target2x?'達成':'未達成')+
+ '（差距 '+(r.targetShortfall===null?'不適用':fmt(r.targetShortfall)+' 點')+'）'+
  '｜回撤 '+fmt(r.maxDrawdown)+' 點｜'+r.signalTradeCount+' 筆獨立交易／'+r.legCount+' 合約段'+
  '｜勝率 '+fmt(r.winRate)+'%｜持倉 '+fmt(r.coverage)+'%（'+r.coveredBars+' 日）'+
  '｜空手絕對波動合計 '+fmt(r.flatAbsMotion)+' 點';
