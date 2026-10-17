@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const A=require('../public/taiex-action.js');
 function bars(){return Array.from({length:180},(_,i)=>{const c=20000+Math.sin(i/7)*300+i;return {date:new Date(Date.UTC(2026,0,i+1)).toISOString().slice(0,10),contract:'202612',open:c-10,close:c,high:c+35,low:c-35,volume:10000+i*3};});}
-const permissive={delta:0,minEntry:0,exit:45,maxAge:0,cost:2};
+const permissive={delta:0,minEntry:0,exit:45,maxAge:0,cost:2,sarMode:'aligned'}; // confirm-mode legacy gate
 test('scores are causal, bounded, warmed up, direction-specific; display SAR toggle has no effect',()=>{
  const r=bars(),s=A.analyze(r);assert(s.slice(0,60).every(x=>x===null));
  assert.deepEqual(A.analyze(r.slice(0,120)),s.slice(0,120));assert.deepEqual(A.analyze(r,{}, {enabled:false}),s);
@@ -14,7 +14,7 @@ test('entry requires all gates, blocks simultaneous exit; SAR initial direction 
  for(const x of s.filter(Boolean))if(x.enter){assert(x.hold>=45);assert(x.delta>=0);assert(x.aligned);assert(!x.leave);}
  assert(A.analyze(r,{...permissive,exit:100}).every(x=>!x?.enter));
  const monotonic=r.map((b,i)=>({...b,open:20000+i*10,close:20005+i*10,high:20020+i*10,low:19990+i*10}));
- assert(A.analyze(monotonic,{delta:0,minEntry:0,maxAge:5}).every(x=>!x?.enter));
+ assert(A.analyze(monotonic,{delta:0,minEntry:0,maxAge:5,sarMode:'aligned'}).every(x=>!x?.enter));
 });
 test('backtest executes next open, matches direction/cost, exits on following open and reports marked equity drawdown',()=>{
  for(const direction of ['long','short']){
