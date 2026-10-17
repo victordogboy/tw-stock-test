@@ -50,7 +50,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div class="stat"><div id="total" class="v">—</div><div class="k">取得普通股報價</div></div>
 <div class="stat"><div id="eligible" class="v">—</div><div class="k">可計算預估 EPS</div></div>
 <div class="stat"><div id="matches" class="v">—</div><div class="k">符合篩選條件</div></div>
-<div class="stat"><div id="volDays" class="v">—</div><div class="k">已驗證成交量日數（上市／上櫃）</div></div>
+<div class="stat"><div id="volDays" class="v">—</div><div class="k">整批成交量日數（上市／上櫃）</div></div>
 </section>
 <section class="panel">
 <div class="toolbar"><strong>預估本益比排行榜</strong><span id="caption" class="hint">尚無資料</span></div>
@@ -64,7 +64,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <strong>計算方法與限制</strong>
 <div>全年營收預測＝最新已公告當年累積營收＋（12－已公告月份）×最近月營收。</div>
 <div>全年 EPS 預測＝最新財報當年累積 EPS ×（全年營收預測 ÷ 最新財報當年累積營收）；預估 PE＝最新報價 ÷ 全年 EPS 預測。</div>
-<div>財報 EPS 是<strong>當年累計數</strong>，不是單季 EPS。預測假設獲利率與股數固定、沒有匯損或一次性利益變化；無法適用金融保險等特殊業別。負 EPS、對不上年度／月份和營收口徑異常者不列入排名。5 日均量來自實際歷史成交資料，不是估量；若證交所歷史來源阻擋，畫面會警告，取消嚴格模式才會明確以「當日成交量暫代」。</div>
+<div>財報 EPS 是<strong>當年累計數</strong>，不是單季 EPS。預測假設獲利率與股數固定、沒有匯損或一次性利益變化；無法適用金融保險等特殊業別。負 EPS、對不上年度／月份和營收口徑異常者不列入排名。5 日均量優先使用交易所整批歷史成交量；來源阻擋時改用個股 Yahoo 日線資料，不是盤中估量；若交易所與逐股日線都無法驗證，畫面會警告；取消嚴格模式才會明確以「當日成交量暫代」。</div>
 <div>上市／上櫃月營收及綜合損益：TWSE/MOPS 官方整批資料；成交價：交易所最近收盤行情快照；股票期貨：臺灣期貨交易所現行清單或標示過期的備份名單。所有數字僅供研究，不構成投資建議。</div>
 </section>
 </main>
@@ -112,6 +112,43 @@ async function buildVolumes(market){
  for(const [c,x] of sums)if(x.count===5)avg.set(c,x.sum/5);
  return {market,avg,dates:validDates,fails};
 }
+async function fallbackVolume(warnings){
+ const missingMarkets=['twse','tpex'].filter(m=>volumeDays[m].length<5);
+ if(!missingMarkets.length)return;
+ const candidates=full.filter(x=>x.status==='ok'&&missingMarkets.includes(x.market)&&
+   x.estimatedPE<=num('maxpe',15)&&
+   (x.close>=num('minprice',30)||($('future').checked&&x.hasFutures)));
+ const groups=[];
+ for(const market of missingMarkets){
+  const codes=candidates.filter(x=>x.market===market&&x.avg5Lots===null).map(x=>x.code);
+  for(let i=0;i<codes.length;i+=8)groups.push({market,codes:codes.slice(i,i+8)});
+ }
+ if(!groups.length)return;
+ let next=0,done=0,received=0,failed=0;
+ setStatus('官方歷史量不足，改用個股日線逐批補齊 '+candidates.length+' 檔（可能較慢）…');
+ await Promise.all(Array.from({length:3},async()=>{
+  while(next<groups.length){
+   const item=groups[next++];
+   try{
+    const p='/api/pe-screener/volume-batch?market='+item.market+'&codes='+item.codes.join(',');
+    const r=await fetch(p),j=await r.json();
+    if(!r.ok||!j.ok)throw Error(j.error||'batch failed');
+    for(const v of j.data||[]){
+     if(v.ok&&Number.isFinite(Number(v.avg5Lots))){
+      volumes[item.market].set(String(v.code),Number(v.avg5Lots));received++;
+     }else failed++;
+    }
+   }catch{failed+=item.codes.length;}
+   done++;
+   if(done%3===0||done===groups.length){
+    full.forEach(x=>{if(x.avg5Lots===null&&volumes[x.market]?.has(x.code))x.avg5Lots=volumes[x.market].get(x.code);});
+    render();
+    setStatus('逐股補量 '+done+'/'+groups.length+' 批，完成 '+received+' 檔');
+   }
+  }
+ }));
+ warnings.push('部分交易所整批歷史資料不可得；已逐股補量 '+received+' 檔，失敗 '+failed+' 檔。缺量者仍依嚴格模式排除。');
+}
 function eligible(r){
  if(r.status!=='ok'||!(r.estimatedPE>0)||r.estimatedPE>num('maxpe',15))return false;
  if($('market').value!=='all'&&r.market!==$('market').value)return false;
@@ -157,7 +194,7 @@ function exportCsv(){
  if(!shown.length)return;
  const cols=['代號','名稱','市場','最新股價','5日均量張','近一日張','已公告累積EPS','預估全年EPS','預估PE','最近月營收億元','財報期','營收月','股票期貨','量能來源'];
  const clean=x=>'"'+String(x??'').replace(/"/g,'""')+'"';
- const rows=shown.map(r=>[r.code,r.name,r.market,r.close,r.avg5Lots??'',r.volumeTodayLots,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,r.revenueLatest/1e5,r.financeQuarter,r.revenueMonth,r.hasFutures?'Y':'N',r.avg5Lots===null?'僅當日':'實際5日']);
+ const rows=shown.map(r=>[r.code,r.name,r.market,r.close,r.avg5Lots??'',r.volumeTodayLots,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,r.revenueLatest/1e5,r.financeQuarter,r.revenueMonth,r.hasFutures?'Y':'N',r.avg5Lots===null?'僅當日':'已驗證5日']);
  const csv='\uFEFF'+[cols,...rows].map(x=>x.map(clean).join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='forward_pe_'+currentTaiwanDate()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -182,7 +219,9 @@ async function scan(refresh=false){
    if(res.dates.length<5)warnings.push(res.market.toUpperCase()+' 歷史成交量只取得 '+res.dates.length+'/5 日；缺量股票不會通過嚴格篩選。'+(res.fails.length?'來源錯誤：'+res.fails[0]:''));
   }
   full.forEach(x=>x.avg5Lots=volumes[x.market]?.get(x.code)??null);
-  render();$('warning').textContent=warnings.join('\n');
+  render();
+  await fallbackVolume(warnings);
+  $('warning').textContent=warnings.join('\n');
   $('warning').style.whiteSpace='pre-line';
   setStatus('已完成 · '+new Date(j.date).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})+' 取得財報快照；股價不保證為盤中即時');
  }catch(e){
