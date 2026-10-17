@@ -2,7 +2,7 @@
 'use strict';
 const $=id=>document.getElementById(id),A=TWTaiexAction,key='twq_taiex_action_r37',names=['趨勢','動能','SAR','量價'];
 const f=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('zh-TW',{maximumFractionDigits:n}):'—';
-let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0;
+let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null;
 try{config=A.validate(JSON.parse(localStorage.getItem(key)||'{}'));}catch{}
 const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin'};
 function fill(){for(const [k,id]of Object.entries(fields))$(id).value=config[k];for(const group of ['entryWeights','holdWeights'])config[group].forEach((v,i)=>$(group+i).value=v);}
@@ -10,18 +10,30 @@ function cancel(message='條件已變更，請重新搜尋。'){job++;$('actCanc
 function clearResult(){cancel(); $('actResult').textContent='參數、SAR、合約或時段變更後，請重新執行回測。';$('actTrades').replaceChildren();}
 function render(ctx){
  const signature=JSON.stringify({session:ctx.session,contract:ctx.contract,sar:ctx.sar,config});
- if(signature!==lastSignature||ctx.raw!==lastRaw)clearResult();lastSignature=signature;lastRaw=ctx.raw;
+ if(signature!==lastSignature||ctx.raw!==lastRaw){clearResult();multiScores=null;}lastSignature=signature;lastRaw=ctx.raw;
  context=ctx;$('actComposition').replaceChildren();$('actSignal').textContent='';$('actScope').textContent='';
  const b=ctx.rows[ctx.index];
  if(!b){$('actScores').textContent='所選時段或合約沒有資料';$('actParts').textContent='';$('actRun').disabled=true;$('actOptimize').disabled=true;return;}
- // Score only the current contract's own observed history; never splice prices at a roll.
- const history=TWTaiexFutures.series(ctx.raw,{session:ctx.session,contract:b.contract}).filter(r=>r.date<=b.date);
- const s=A.analyze(history,config,ctx.sar).at(-1);
+ // Near mode uses precisely the same continuous, roll-adjusted scores as the
+ // cross-month backtest. Only fixed-contract mode resets indicators per month.
+ let s=null,scoreError='',historyCount=0;
+ if(ctx.contract==='near'){
+  try{
+   if(!multiScores){
+    const contracts=[...new Set(ctx.raw.map(r=>r.contract))],all=contracts.flatMap(contract=>TWTaiexFutures.series(ctx.raw,{session:ctx.session,contract}));
+    multiScores=new Map(A.analyzeMulti(all,config,ctx.sar,{start:ctx.rows[0].date,end:ctx.rows.at(-1).date}).scores.filter(Boolean).map(x=>[x.date,x]));
+   }
+   s=multiScores.get(b.date)||null;
+  }catch(e){scoreError=e.message;}
+ }else{
+  const history=TWTaiexFutures.series(ctx.raw,{session:ctx.session,contract:b.contract}).filter(r=>r.date<=b.date);
+  historyCount=history.length;s=A.analyze(history,config,ctx.sar).at(-1);
+ }
  $('actRun').disabled=dirty;$('actOptimize').disabled=$('actRun').disabled;
  if(!$('actStart').value)$('actStart').value=ctx.rows[0].date;if(!$('actEnd').value)$('actEnd').value=ctx.rows.at(-1).date;
  updateScope();
- if(!s){$('actScores').textContent='審計日 '+b.date+'：同月份目前 '+history.length+' 根，需至少 61 根才能計分。可按「查看最新分數」；下方回測仍使用自訂日期。';$('actParts').textContent='';return;}
- $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold);
+ if(!s){$('actScores').textContent=scoreError||('審計日 '+b.date+'：'+(ctx.contract==='near'?'連續跨月訊號尚未暖機 61 根或資料不足':'同月份目前 '+historyCount+' 根，需至少 61 根才能計分')+'；下方回測仍使用自訂日期。');$('actParts').textContent='';return;}
+ $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold)+(s.contract?'｜策略合約 '+s.contract:'');
  $('actParts').textContent=names.map((name,i)=>name+'：進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i])).join('；')+'。追價扣分 '+f(s.penalty)+'；SAR 同向 '+(s.aligned?'是':'否')+'；下一根預估翻向觸發價 '+f(s.evidence.trigger,2)+'；距離 '+f(s.evidence.gap,2)+' ATR；KD K/D '+f(s.evidence.k,1)+'/'+f(s.evidence.dh,1)+'；翻向前分數 '+f(s.preFlipScore)+'；距最近翻向 '+(s.age===null?'尚未觀察到':s.age+' 根')+'。';
  composition(s);
  $('actSignal').textContent='空手：'+(s.enter?'符合'+(s.aligned?'已翻向確認':'SAR 翻向前預判')+'進場，下一根開盤模擬進場':'等待')+'；持倉：'+(s.leave?'續抱低於門檻，下一根開盤模擬離場':'續抱分數尚未低於門檻')+'。';
