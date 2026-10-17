@@ -111,9 +111,39 @@ function forecast(share,fin,month){
  };
 }
 
+async function yahooFiveDayVolume(code,market){
+ const suffix=market==='tpex'?'.TWO':'.TW';
+ const uri='https://query1.finance.yahoo.com/v8/finance/chart/'+code+suffix+'?range=1mo&interval=1d&events=false';
+ const r=await fetch(uri,{headers:{accept:'application/json','user-agent':'Mozilla/5.0'},signal:AbortSignal.timeout(8000)});
+ if(!r.ok)throw Error('Yahoo HTTP '+r.status);
+ const j=await r.json(),chart=j?.chart?.result?.[0],times=chart?.timestamp,vals=chart?.indicators?.quote?.[0]?.volume;
+ if(!Array.isArray(times)||!Array.isArray(vals))throw Error('Yahoo 缺歷史成交量');
+ const now=new Date(),twNow=new Date(Date.now()+8*3600000);
+ const hour=twNow.getUTCHours(),minute=twNow.getUTCMinutes();
+ const today=twNow.toISOString().slice(0,10),includeToday=hour>13||(hour===13&&minute>=40);
+ const rows=[];
+ for(let i=0;i<times.length;i++){
+  const d=new Date(times[i]*1000+8*3600000).toISOString().slice(0,10);
+  const v=Number(vals[i]);
+  if((d<today||(d===today&&includeToday))&&Number.isFinite(v)&&v>=0)rows.push({d,v});
+ }
+ const last=rows.slice(-5),maxAge=(now-new Date((last.at(-1)?.d||'2000-01-01')+'T00:00:00+08:00'))/86400000;
+ if(last.length!==5||maxAge>15||maxAge<0)throw Error('近5日交易量不足或報價過期');
+ return {code,avg5Lots:last.reduce((a,b)=>a+b.v,0)/5000,dates:last.map(x=>x.d),source:'Yahoo 1d completed sessions'};
+}
+async function volumeBatch(url){
+ const market=url.searchParams.get('market');
+ const codes=(url.searchParams.get('codes')||'').split(',').filter(stockCode);
+ if(!['twse','tpex'].includes(market)||codes.length<1||codes.length>10||new Set(codes).size!==codes.length)
+  return response({ok:false,error:'需提供同市場1～10個不同的四碼股票代號'},400);
+ const output=await parallel(codes,3,async c=>({ok:true,...await yahooFiveDayVolume(c,market)}));
+ return response({ok:true,market,data:output.map((x,i)=>({...x,code:codes[i]}))});
+}
+
 export async function forwardPeRoute(request,env,fetchExisting){
  const url=new URL(request.url);
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
+ if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
  if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R49',method:'Official disclosed YTD EPS/revenue, latest monthly revenue annualization'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
