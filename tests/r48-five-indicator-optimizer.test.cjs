@@ -141,7 +141,54 @@ test('R48 page browser buttons and five-indicator result display',async()=>{
  assert.match(p.nodes.get('r48Status').textContent,/完成/);
  assert(p.nodes.get('r48Results').children.length>0);
  assert.equal(p.nodes.get('r48BySide').children.length,3);
- assert.match(p.nodes.get('r48Results').children[0].children[3].textContent,/六元素比例/);
+ assert.match(p.nodes.get('r48Results').children[0].children[3].textContent,/六欄位權重/);
  fire('r48Cancel');
  assert.match(p.nodes.get('r48Status').textContent,/停止/);
+});
+
+test('FinMind institutional endpoint distinguishes empty source and mismatched TX schema without making up volumes',async()=>{
+ const {taiexFuturesRoute}=await import('../src/taiex-futures.mjs');
+ const original=global.fetch,url='https://example.test/api/futures/taiex/institutional?start_date=2026-10-01&end_date=2026-10-15';
+ try{
+  global.fetch=async()=>new Response(JSON.stringify({status:200,data:[]}),{status:200});
+  const missing=await taiexFuturesRoute(new Request(url),{}),payload=await missing.json();
+  assert.equal(missing.status,422);assert.equal(payload.code,'TX_SOURCE_EMPTY');
+  assert.equal(payload.diagnostic.upstream_rows,0);
+  assert.equal(payload.diagnostic.start_date,'2026-10-01');
+  global.fetch=async()=>new Response(JSON.stringify({status:200,data:[
+   {date:'2026-10-03',name:'MXF',institutional_investors:'外資',long_deal_volume:12,
+    short_deal_volume:11,long_open_interest_balance_volume:30,short_open_interest_balance_volume:29}
+  ]}),{status:200});
+  const invalid=await taiexFuturesRoute(new Request(url),{}),bad=await invalid.json();
+  assert.equal(bad.code,'TX_SCHEMA_MISMATCH');
+  assert.deepEqual(bad.diagnostic.sample_products,['MXF']);
+  // But harmless whitespace and comma thousand separators in real TX rows are supported.
+  const row={date:'2026-10-03',name:' TX ',institutional_investors:' 外資 ',long_deal_volume:'1,203',
+   short_deal_volume:'100',long_open_interest_balance_volume:'22,005',short_open_interest_balance_volume:'12,900'};
+  global.fetch=async()=>new Response(JSON.stringify({status:200,data:[row]}),{status:200});
+  const ok=await taiexFuturesRoute(new Request(url),{}),pass=await ok.json();
+  assert.equal(ok.status,200);assert.equal(pass.data.length,1);
+  assert.equal(pass.data[0].long_deal_volume,1203);
+  assert.equal(pass.data[0].institutional_investors,'外資');
+ }finally{global.fetch=original;}
+});
+test('R48 mobile UI falls back to labeled five-factor search if FinMind source returns empty',async()=>{
+ const {page}=require('./helpers/detail-page.cjs'),p=page('futures.html');
+ await new Promise(resolve=>setImmediate(resolve));
+ const data=apiFixture(rows);
+ p.ctx.fetch=async url=>String(url).includes('/institutional')?
+  new Response(JSON.stringify({ok:false,code:'TX_SOURCE_EMPTY',error:'上游回傳空資料',
+   diagnostic:{upstream_rows:0}}),{status:422}):
+  new Response(JSON.stringify({ok:true,data,source:'fixture',cache_hit:false}));
+ const fire=(id,event='click')=>{
+  const obj=p.events.find(x=>x[0]===id&&x[1]===event);assert(obj,'missing '+id);return obj[2]();
+ };
+ p.nodes.get('txYears').value='1';p.nodes.get('txSession').value='position';
+ await fire('txLoad');p.nodes.get('r48MinTrades').value='2';
+ p.ctx.setTimeout=fn=>fn();await fire('r48Go');
+ assert.equal(p.nodes.get('r48Mode').value,'five');
+ assert.match(p.nodes.get('r48Status').textContent,/非六元素結果/);
+ assert.match(p.nodes.get('r48InstSummary').textContent,/來源回傳 0 列/);
+ assert(p.nodes.get('r48Results').children.length>0);
+ assert.match(p.nodes.get('r48Results').children[0].children[3].textContent,/法人 0%/);
 });

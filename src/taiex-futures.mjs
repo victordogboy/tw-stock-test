@@ -34,17 +34,36 @@ export async function taiexFuturesRoute(request,env={}){
     if(kind==='institutional'){
       const start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date');
       const names=new Set(['外資','投信','自營商']);
-      const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
-      const valid=r=>r.name==='TX'&&names.has(r.institutional_investors)&&validDate(r.date)&&r.date>=start&&r.date<=end&&
-        ['long_deal_volume','short_deal_volume','long_open_interest_balance_volume','short_open_interest_balance_volume'].every(k=>finite(r[k]));
+      const fields=['long_deal_volume','short_deal_volume','long_open_interest_balance_volume','short_open_interest_balance_volume'];
+      const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(String(v).replace(/,/g,'')));
+      // Normalize harmless white space in official investor names; do NOT map unrelated
+      // futures symbols, fabricate zero volumes or silently accept incomplete rows.
+      const valid=r=>String(r?.name||'').trim().toUpperCase()==='TX'&&
+        names.has(String(r.institutional_investors||'').trim())&&validDate(r.date)&&
+        r.date>=start&&r.date<=end&&fields.every(k=>finite(r[k]));
       data=raw.data.filter(valid).map(r=>({
-        date:r.date,name:'TX',institutional_investors:r.institutional_investors,
-        long_deal_volume:Number(r.long_deal_volume),short_deal_volume:Number(r.short_deal_volume),
-        long_open_interest_balance_volume:Number(r.long_open_interest_balance_volume),
-        short_open_interest_balance_volume:Number(r.short_open_interest_balance_volume)
+        date:r.date,name:'TX',institutional_investors:String(r.institutional_investors).trim(),
+        long_deal_volume:Number(String(r.long_deal_volume).replace(/,/g,'')),
+        short_deal_volume:Number(String(r.short_deal_volume).replace(/,/g,'')),
+        long_open_interest_balance_volume:Number(String(r.long_open_interest_balance_volume).replace(/,/g,'')),
+        short_open_interest_balance_volume:Number(String(r.short_open_interest_balance_volume).replace(/,/g,''))
       }));
-      // Never turn failed/missing data into synthetic zero-valued institutional flow.
-      if(!data.length)return json({ok:false,error:'FinMind 此區間無可辨識的 TX 法人部位／買賣資料，無法進行六指標回測。'},422);
+      if(!data.length){
+        // The old route always returned the same ambiguous 422. Preserve safe schema
+        // diagnostics (never tokens or raw financial holdings) to identify the cause.
+        const upstreamRows=raw.data.length;
+        const sample=raw.data.slice(0,100);
+        const samples=field=>[...new Set(sample.map(x=>String(x?.[field]??'').trim()))].filter(Boolean).slice(0,6);
+        const missing=fields.filter(field=>sample.length&&sample.every(r=>!finite(r?.[field])));
+        const code=upstreamRows?'TX_SCHEMA_MISMATCH':'TX_SOURCE_EMPTY';
+        return json({ok:false,code,
+          error:upstreamRows?
+            'FinMind 回傳 '+upstreamRows+' 列法人資料，但無法辨識完整 TX 外資／投信／自營商欄位，已停止六元素計算。':
+            'FinMind 查詢成功但此日期區間回傳 0 列法人資料；可能是日期範圍或來源歷史資料限制。',
+          diagnostic:{start_date:start,end_date:end,upstream_rows:upstreamRows,
+            sample_products:samples('name'),sample_investors:samples('institutional_investors'),
+            columns:sample[0]?Object.keys(sample[0]).slice(0,25):[],missing_fields:missing}},422);
+      }
     }else if(kind==='history'){
       const start=url.searchParams.get('start_date'),end=url.searchParams.get('end_date');
       data=raw.data.filter(r=>r.futures_id==='TX'&&validDate(r.date)&&r.date>=start&&r.date<=end).map(r=>({date:r.date,futures_id:'TX',contract_date:r.contract_date,open:r.open,max:r.max,min:r.min,close:r.close,volume:r.volume,open_interest:r.open_interest,trading_session:r.trading_session,settlement_price:r.settlement_price}));

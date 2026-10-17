@@ -35,20 +35,32 @@ function inputs(){
 async function loadInstitutional(range,owner){
  const start=new Date(range.start+'T00:00:00Z').getTime()-120*86400000,
  end=new Date(range.end+'T00:00:00Z').getTime(),day=86400000;
- fetchController=new AbortController();const rows=[];
- for(let cursor=start;cursor<=end;cursor+=395*day){
+ const batchDays=180; // Smaller periods avoid over-large historical FinMind requests.
+ fetchController=new AbortController();const rows=[],issues=[];
+ for(let cursor=start;cursor<=end;cursor+=batchDays*day){
   if(owner!==token)throw Error('搜尋已取消');
-  const params=new URLSearchParams({start_date:new Date(cursor).toISOString().slice(0,10),
-   end_date:new Date(Math.min(end,cursor+(395-1)*day)).toISOString().slice(0,10)});
-  $('r48Status').textContent='載入 FinMind 台指期三大法人真實買賣／未平倉量（'+new Date(cursor).toISOString().slice(0,10)+'）…';
+  const from=new Date(cursor).toISOString().slice(0,10),
+   until=new Date(Math.min(end,cursor+(batchDays-1)*day)).toISOString().slice(0,10);
+  const params=new URLSearchParams({start_date:from,end_date:until});
+  $('r48Status').textContent='載入台指期法人資料 '+from+'～'+until+'…';
   const response=await fetch('/api/futures/taiex/institutional?'+params.toString(),{
    headers:TWFinMindTokens.headers(),cache:'no-store',signal:fetchController.signal
   });
   const body=await response.json().catch(()=>null);
-  if(!response.ok||!body?.ok||!Array.isArray(body.data))throw Error(body?.error||'法人資料讀取失敗，請切換五元素模式或確認 FinMind Token');
+  if(response.status===422&&['TX_SOURCE_EMPTY','TX_SCHEMA_MISMATCH'].includes(body?.code)){
+   // Record an actual source problem instead of inventing institutional scores.
+   const d=body.diagnostic||{};
+   issues.push({from,until,code:body.code,reason:body.error||'無資料',
+    rows:d.upstream_rows??null,products:d.sample_products||[],investors:d.sample_investors||[]});
+   continue;
+  }
+  if(!response.ok||!body?.ok||!Array.isArray(body.data)){
+   const failure=Error(from+'～'+until+'：'+(body?.error||'法人資料讀取失敗'));
+   failure.name='InstitutionalFetchError';throw failure;
+  }
   rows.push(...body.data);
  }
- return rows;
+ return {rows,issues};
 }
 const sideName={long:'只做多',short:'只做空',both:'雙向'};
 const summary=r=>'淨獲利 '+fmt(r.net)+' 點｜勝率 '+fmt(r.winRate)+'%（'+r.wins+'/'+r.tradeCount+' 筆）'+
@@ -62,7 +74,7 @@ function card(title,item){
  add('訓練期：'+summary(item.training));
  add('未參與調參的驗證期：'+summary(item.validation));
  const p=item.config;
- add('六元素比例（總和 100%）：'+family.map((x,i)=>x+' '+fmt(p.weights[i],0)+'%').join('／'));
+ add('六欄位權重（法人 0% 即五元素，總和 100%）：'+family.map((x,i)=>x+' '+fmt(p.weights[i],0)+'%').join('／'));
  add('MACD（快／慢／訊號） '+p.macd.join('/')+
   '；KD（週期／K 平滑／D 平滑） '+p.kd.join('/')+
   '；SAR（初始／增加／最大） '+p.sar.join('/')+
@@ -79,18 +91,38 @@ $('r48Go').addEventListener('click',async()=>{
  const task=++token;$('r48Cancel').disabled=false;
  $('r48Results').replaceChildren();$('r48BySide').replaceChildren();$('r48Headline').textContent='';
  try{
-  const {rows,range,cost,minTrades,base,institutionMode}=inputs();
-  const institutionRows=institutionMode==='six'?await loadInstitutional(range,task):[];
+  const {rows,range,cost,minTrades,institutionMode,base:initialBase}=inputs();
+  let base=initialBase,institutionRows=[],issues=[],loadFailure='';
+  if(institutionMode==='six'){
+   try{
+    const fetched=await loadInstitutional(range,task);
+    institutionRows=fetched.rows;issues=fetched.issues;
+   }catch(err){
+    if(err.name==='AbortError'||task!==token)return;
+    loadFailure=err.message||'法人資料來源不可用';
+   }
+  }
   if(task!==token)return;
-  const ctx=R.context(rows,range,cost,institutionRows);
+  let ctx=R.context(rows,range,cost,institutionRows),fallbackReason='';
   if(institutionMode==='six'){
    const eligible=ctx.timeline.slice(20).filter(b=>{
     const groups=ctx.institution.get(b.date);return groups&&['外資','投信','自營商'].every(x=>groups.has(x));
    }).length,possible=Math.max(1,ctx.timeline.length-20),coverage=100*eligible/possible;
-   $('r48InstSummary').textContent='法人來源：FinMind TaiwanFuturesInstitutionalInvestors（TX）；'+
-    '外資／投信／自營商：50%／25%／25%；有效交易日 '+eligible+'／'+possible+
-    '（'+coverage.toFixed(1)+'%），交易買賣淨口數變化＋未平倉淨口數變化。';
-   if(coverage<80)throw Error('法人資料完整率僅 '+coverage.toFixed(1)+'%，不足 80%，已禁止使用不完整資料冒充六元素回測。請檢查 Token 或切換五元素。');
+   if(loadFailure||coverage<80){
+    // Run only the genuine five indicators; never display it as a six-factor win.
+    fallbackReason=loadFailure||'六元素資料覆蓋率 '+coverage.toFixed(1)+'%（'+eligible+'/'+possible+' 日），低於 80%';
+    const issueMessage=issues.length?'；來源區間異常：'+issues.slice(0,2).map(x=>x.from+'～'+x.until+
+      '（'+(x.code==='TX_SOURCE_EMPTY'?'來源回傳 0 列':'欄位格式不符')+
+      (x.products.length?'；商品 '+x.products.join('/'):'')+'）').join('、'):'';
+    $('r48InstSummary').textContent='六元素未執行：'+fallbackReason+issueMessage+
+      '。已自動改用五元素（法人權重 0%），不會製造法人資料；如需六元素請確認 FinMind Token 與日期涵蓋率。';
+    $('r48Mode').value='five';institutionRows=[];
+    base=R.validate({...base,weights:[20,20,20,20,20,0]});
+    ctx=R.context(rows,range,cost,[]);
+   }else{
+    $('r48InstSummary').textContent='六元素來源：FinMind 台指期 TX；外資／投信／自營商完整紀錄 '+
+      eligible+'/'+possible+' 日（'+coverage.toFixed(1)+'%）；真實買賣與淨未平倉量，非量價代理。';
+   }
   }else $('r48InstSummary').textContent='目前選擇五元素：法人權重固定為 0%，不使用任何替代或虛構法人資料。';
   const gen=R.optimize(ctx,{base,minTrades,mode:$('r48Objective').value||'win',steps:$('r48Depth').value||'fast'});
   let final;
@@ -103,7 +135,8 @@ $('r48Go').addEventListener('click',async()=>{
   }
   if(task!==token)return;
   $('r48Cancel').disabled=true;
-  $('r48Status').textContent='一鍵最佳化完成，共測試 '+final.evaluated+' 組（合格 '+final.eligible+
+  $('r48Status').textContent=(fallbackReason?'【已改用五元素，非六元素結果】':'')+
+   '一鍵最佳化完成，共測試 '+final.evaluated+' 組（合格 '+final.eligible+
    ' 組）；訓練截至 '+final.trainEnd+'，獨立驗證 '+final.validationStart+' ～ '+final.validationEnd+'。';
   $('r48Headline').textContent=final.results.length?
    '最佳結果（驗證期）：'+summary(final.results[0].validation):
