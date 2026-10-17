@@ -53,7 +53,7 @@
     }catch(e){if(e.name!=='AbortError'&&active===controller)text('txStatus','載入失敗：'+e.message+(raw.length?'；下方保留上次成功資料。':''));}
     finally{if(active===controller)for(const id of ['txLoad','txRefresh'])$(id).disabled=false;}
   }
-  function selectSeries(){rows=core.series(raw,{session:$('txSession').value,contract:$('txContract').value});index=Math.max(0,rows.length-1);$('txAudit').max=String(index);$('txAudit').value=String(index);$('txAudit').disabled=!rows.length;render();$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;}
+  function selectSeries(){rows=core.series(raw,{session:$('txSession').value,contract:$('txContract').value});index=Math.max(0,rows.length-1);$('txAudit').max=String(index);$('txAudit').value=String(index);$('txAudit').disabled=!rows.length;render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;}
   function render(){
     window.TWTaiexActionUI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     const prefix=rows.slice(0,index+1),s=core.summary(prefix),sar=config.enabled?TWParabolicSAR.calculate(prefix,config):[],point=sar.at(-1);
@@ -104,9 +104,9 @@
   $('txLoad').addEventListener('click',()=>load());$('txRefresh').addEventListener('click',()=>load(true));
   for(const id of ['txSession','txContract'])$(id).addEventListener('change',()=>{selectSeries();save();});
   $('txYears').addEventListener('change',()=>save());
-  $('txChartBars').addEventListener('change',()=>{save();render();$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;});
+  $('txChartBars').addEventListener('change',()=>{save();render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;});
   $('txAudit').addEventListener('input',()=>{index=Number($('txAudit').value);render();});
-  for(const id of ['txLatest','actLatest'])$(id).addEventListener('click',()=>{index=Math.max(0,rows.length-1);$('txAudit').value=String(index);render();$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;});
+  for(const id of ['txLatest','actLatest'])$(id).addEventListener('click',()=>{index=Math.max(0,rows.length-1);$('txAudit').value=String(index);render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;});
   let chartPress=null;
   $('txChart').addEventListener('pointerdown',e=>{chartPress={x:e.clientX,y:e.clientY,id:e.pointerId};});
   $('txChart').addEventListener('pointermove',e=>{if(chartPress&&Math.hypot(e.clientX-chartPress.x,e.clientY-chartPress.y)>8)chartPress=null;});
