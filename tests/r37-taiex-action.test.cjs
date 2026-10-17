@@ -39,7 +39,7 @@ test('page wires local settings, fixed-contract backtest, audit independence and
  p.nodes.get('txContract').value='202612';fire('txContract','change');assert.equal(p.nodes.get('actRun').disabled,false);
  for(const [id,v]of [['actDelta','0'],['actMinimum','0'],['actAge','0']])p.nodes.get(id).value=v;
  fire('actApply');fire('actRun');assert.match(p.nodes.get('actResult').textContent,/淨損益/);assert(p.nodes.get('actTrades').children.length>0);
- p.nodes.get('txAudit').value='120';fire('txAudit','input');assert.match(p.nodes.get('actResult').textContent,/淨損益/);fire('actRun');for(const tr of p.nodes.get('actTrades').children)assert(tr.children[3].textContent<=data.at(-1).date);
+ p.nodes.get('txAudit').value='120';fire('txAudit','input');assert.match(p.nodes.get('actResult').textContent,/淨損益/);fire('actRun');for(const tr of p.nodes.get('actTrades').children)assert(tr.children[4].textContent<=data.at(-1).date);
  p.nodes.get('actDelta').value='50';fire('actDelta','input');fire('txLatest');assert.equal(p.nodes.get('actRun').disabled,true);fire('actApply');assert.equal(JSON.parse(p.storage.get('twq_taiex_action_r37')).delta,50);
  p.nodes.get('actCost').value='-1';fire('actApply');assert.match(p.nodes.get('actError').textContent,/沿用/);
  p.nodes.get('txSession').value='after_market';fire('txSession','change');assert.equal(p.nodes.get('actSignal').textContent,'');assert.equal(calls,1);

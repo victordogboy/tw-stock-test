@@ -45,13 +45,14 @@ function range(){
 function backtestData(){
  if(!context?.rows.length)throw Error('請先載入行情');
  const dates=range();
- // Near-chart mode resolves ONE contract at requested period end; no cross-month splice.
- const contract=context.contract==='near'?context.rows.filter(b=>b.date<=dates.end).at(-1)?.contract:context.contract;
- if(!contract)throw Error('所選迄日前沒有合約行情，請調整日期');
- const rows=TWTaiexFutures.series(context.raw,{session:context.session,contract});
- return {rows,contract,dates};
+ if(context.contract==='near'){
+  const contracts=[...new Set(context.raw.map(b=>b.contract))],rows=contracts.flatMap(contract=>TWTaiexFutures.series(context.raw,{session:context.session,contract}));
+  return {rows,contract:'跨月份',dates,multi:true};
+ }
+ return {rows:TWTaiexFutures.series(context.raw,{session:context.session,contract:context.contract}),contract:context.contract,dates,multi:false};
 }
-function updateScope(){try{const data=backtestData();$('actScope').textContent=(context.contract==='near'?'近月圖模式：回測自動使用區間末月份 ':'回測合約 ')+data.contract+'，僅測試該月份自身歷史，不是跨月回測。回測日期獨立於上方審計游標。';}catch(e){$('actScope').textContent=e.message;}}
+function updateScope(){try{const data=backtestData();$('actScope').textContent=data.multi?'跨月份回測：使用所選起訖期間，每月交易次月合約，新月份首個交易日開盤平掉舊合約，再依新合約訊號進場。圖表近月線與此換月規則不同；月份價差不列損益。':'回測合約 '+data.contract+'，僅測試此月份自身歷史。回測日期獨立於審計游標。';}catch(e){$('actScope').textContent=e.message;}}
+
 function persist(){try{localStorage.setItem(key,JSON.stringify(config));}catch{}}
 fill();
 $('actApply').addEventListener('click',()=>{try{const p={};for(const [k,id]of Object.entries(fields))p[k]=$(id).value;for(const group of ['entryWeights','holdWeights'])p[group]=[0,1,2,3].map(i=>$(group+i).value);config=A.validate(p);dirty=false;try{localStorage.setItem(key,JSON.stringify(config));}catch{}fill();$('actError').textContent='已套用參數；下方分數與回測使用此組設定。';if(context)render(context);}catch(e){$('actError').textContent=e.message+'；沿用上次有效參數。';}});
@@ -59,9 +60,9 @@ for(const id of [...Object.values(fields),...['entryWeights','holdWeights'].flat
 $('actReset').addEventListener('click',()=>{config=A.validate();dirty=false;fill();try{localStorage.setItem(key,JSON.stringify(config));}catch{}$('actError').textContent='已恢復試驗預設；並非最佳參數。';if(context)render(context);});
 function run(){
  if(dirty||!context)return;
- try{const data=backtestData(),result=A.backtest(data.rows,config,context.sar,data.dates);updateScope();
- $('actResult').textContent=result.validBars<2?'有效樣本不足，請選擇有較長歷史的月份或增加載入年數。':'合約 '+data.contract+'｜'+result.start+' ～ '+result.end+'｜已平倉 '+result.trades.length+' 筆｜淨損益 '+f(result.net)+' 點｜勝率 '+f(result.winRate)+'%｜收盤權益最大回撤 '+f(result.maxDrawdown)+' 點｜獲利因子 '+(result.noLoss?'無虧損交易，無法估計':f(result.profitFactor,2))+'｜每筆來回成本 '+f(config.cost)+' 點'+(config.cost===0?'（未扣交易成本）':'')+'。';
- $('actTrades').replaceChildren();for(const t of result.trades){const tr=document.createElement('tr');for(const value of [t.signalDate,t.entryDate,f(t.entry),t.exitDate,f(t.exit),f(t.net),t.reason]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('actTrades').append(tr);}
+ try{const data=backtestData(),result=(data.multi?A.backtestMulti:A.backtest)(data.rows,config,context.sar,data.dates);updateScope();
+ $('actResult').textContent=result.validBars<2?'有效樣本不足：'+result.start+' ～ '+result.end+'，可計分 '+result.validBars+' 根'+(result.months?'／共 '+result.totalBars+' 根，涵蓋 '+result.months.length+' 個合約':'')+'。合約自身歷史不足 61 根時不產生分數；增加載入年數也無法補出尚未掛牌的行情。':'合約 '+data.contract+'｜'+result.start+' ～ '+result.end+'｜已平倉 '+result.trades.length+' 筆｜淨損益 '+f(result.net)+' 點｜勝率 '+f(result.winRate)+'%｜收盤權益最大回撤 '+f(result.maxDrawdown)+' 點｜獲利因子 '+(result.noLoss?'無虧損交易，無法估計':f(result.profitFactor,2))+'｜每筆來回成本 '+f(config.cost)+' 點'+(config.cost===0?'（未扣交易成本）':'')+(result.months?'｜涵蓋 '+result.months.length+' 個合約（'+result.months.join('、')+'）｜換月 '+result.rollovers+' 次｜可計分 '+result.validBars+'/'+result.totalBars+' 根，暖機不足 '+result.warmupBars+' 根':'')+'。';
+ $('actTrades').replaceChildren();for(const t of result.trades){const tr=document.createElement('tr');for(const value of [t.contract||data.contract,t.signalDate,t.entryDate,f(t.entry),t.exitDate,f(t.exit),f(t.net),t.reason]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('actTrades').append(tr);}
  }catch(e){$('actResult').textContent=e.message;}
 }
 $('actRun').addEventListener('click',run);
@@ -72,10 +73,10 @@ $('actOptimize').addEventListener('click',async()=>{
  if(dirty||!context)return;
  cancel('準備搜尋…');const own=job;$('actCancel').disabled=false;
  try{
- const data=backtestData();updateScope();const iterator=A.optimize(data.rows,config,context.sar,data.dates,Number($('actMinTrades').value));let last;
+ const data=backtestData();updateScope();const iterator=(data.multi?A.optimizeMulti:A.optimize)(data.rows,config,context.sar,data.dates,Number($('actMinTrades').value));let last;
  for(const progress of iterator){if(own!==job)return;last=progress;$('actOptStatus').textContent='已搜尋 '+progress.done+'／'+progress.total+' 組；符合最低筆數 '+progress.eligible+' 組';await new Promise(resolve=>setTimeout(resolve,0));}
  if(own!==job)return;
- $('actOptStatus').textContent=last.top.length?'合約 '+data.contract+'｜'+last.start+' ～ '+last.end+'｜搜尋完成 '+last.total+' 組，符合筆數 '+last.eligible+' 組。下列為樣本內前五名，請另換區間驗證。':'沒有候選達到最低交易筆數；可增加區間或調整最低筆數，勿將極少筆交易的高勝率當成可靠績效。';
+ $('actOptStatus').textContent=last.top.length?'合約 '+data.contract+'｜'+last.start+' ～ '+last.end+'｜搜尋完成 '+last.total+' 組，符合筆數 '+last.eligible+' 組'+(last.months?'，涵蓋 '+last.months.length+' 個合約':'')+'。下列為樣本內前五名，請另換區間驗證。':'沒有候選達到最低交易筆數'+(Number.isFinite(last.maxTrades)?'（本次候選最多 '+last.maxTrades+' 筆；涵蓋 '+last.months.length+' 個合約，可計分 '+last.validBars+'/'+last.totalBars+' 根）':'')+'；可增加區間或調整最低筆數，勿將極少筆交易的高勝率當成可靠績效。';
  for(const [i,item]of last.top.entries()){
  const card=document.createElement('article'),label=document.createElement('p'),params=document.createElement('p'),button=document.createElement('button'),p=item.config,r=item.result;
  label.textContent='第 '+(i+1)+' 名｜勝率 '+f(r.winRate)+'%｜'+r.trades.length+' 筆｜淨 '+f(r.net)+' 點｜回撤 '+f(r.maxDrawdown)+' 點';

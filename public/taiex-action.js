@@ -92,5 +92,45 @@ function* optimize(rows,input={},sarConfig={},range={},minTrades=5){
   if((i+1)%20===0||i===grid.length-1)yield {done:i+1,total:grid.length,eligible,top:[...top],start:selected.start,end:selected.end};
  }
 }
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,compare};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+// Calendar-defined next-month contract: known before the session, not chosen by future prices.
+function nextMonth(date){const y=Number(date.slice(0,4)),m=Number(date.slice(5,7));return String(y+(m===12?1:0))+String(m===12?1:m+1).padStart(2,'0');}
+function prepareMulti(allRows,input={},sarConfig={},range={}){
+ const p=validate(input),sorted=[...allRows].sort((a,b)=>a.date.localeCompare(b.date)||a.contract.localeCompare(b.contract));
+ const selection=selectRange(sorted,range),groups=new Map(),lookup=new Map();
+ for(const b of selection.rows){if(!groups.has(b.contract))groups.set(b.contract,[]);groups.get(b.contract).push(b);lookup.set(b.date+':'+b.contract,b);}
+ const dates=[...new Set(selection.rows.filter(b=>b.date>=selection.start).map(b=>b.date))];
+ const timeline=dates.map(date=>{const contract=nextMonth(date),b=lookup.get(date+':'+contract);if(!b)throw Error(date+' 缺少次月合約 '+contract+' 行情，無法完整跨月回測；請調整區間或重新載入。');return b;});
+ for(let i=1;i<timeline.length;i++)if(timeline[i].contract!==timeline[i-1].contract&&!lookup.has(timeline[i].date+':'+timeline[i-1].contract))throw Error(timeline[i].date+' 缺少舊合約開盤價，無法計算換月平倉。');
+ const features=new Map();for(const contract of new Set(timeline.map(b=>b.contract)))features.set(contract,analyze(groups.get(contract),p,sarConfig));
+ return {timeline,lookup,features,start:timeline[0].date,end:timeline.at(-1).date};
+}
+function simulateMulti(prepared,p){
+ const {timeline,lookup,features}=prepared,scores=new Map();for(const [contract,list]of features)for(const s of rescore(list,p))if(s)scores.set(s.date+':'+contract,s);
+ const d=p.direction==='long'?1:-1,trades=[],months=[...new Set(timeline.map(b=>b.contract))];let position=null,pending=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0;
+ function close(price,date,reason){const gross=d*(price-position.price),value=gross-p.cost;trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});net+=value;position=null;}
+ for(let i=0;i<timeline.length;i++){
+  const b=timeline[i],roll=i>0&&timeline[i-1].contract!==b.contract;
+  if(roll){rollovers++;if(position)close(lookup.get(b.date+':'+position.contract).open,b.date,'換月平倉');pending=null;}
+  if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
+  else if(pending==='enter'&&!position)position={contract:b.contract,date:b.date,price:b.open,signalDate:timeline[i-1].date};
+  pending=null;
+  const equity=net+(position?d*(b.close-position.price)-p.cost:0);peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
+  const s=scores.get(b.date+':'+b.contract);if(s)validBars++;
+  if(i===timeline.length-1){if(position)close(b.close,b.date,'區間結束平倉');break;}
+  if(s){if(position){if(s.leave)pending='exit';}else if(s.enter)pending='enter';}
+ }
+ const gain=trades.reduce((v,t)=>v+Math.max(0,t.net),0),loss=trades.reduce((v,t)=>v+Math.max(0,-t.net),0);
+ return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers};
+}
+function backtestMulti(rows,input={},sarConfig={},range={}){const p=validate(input);return simulateMulti(prepareMulti(rows,p,sarConfig,range),p);}
+function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
+ if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最低交易筆數須為 1～10000 的整數');
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),grid=candidateGrid(p),top=[];let eligible=0,maxTrades=0;
+ for(let i=0;i<grid.length;i++){
+  const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.trades.length);
+  if(result.trades.length>=minTrades){eligible++;top.push({config,result});top.sort(compare);top.length=Math.min(5,top.length);}
+  if((i+1)%10===0||i===grid.length-1)yield {done:i+1,total:grid.length,eligible,maxTrades,validBars:result.validBars,totalBars:result.totalBars,top:[...top],start:prepared.start,end:prepared.end,months:[...new Set(prepared.timeline.map(b=>b.contract))]};
+ }
+}
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,compare,backtestMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
