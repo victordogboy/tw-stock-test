@@ -249,12 +249,15 @@ async function scan(refresh=false){
   if(j.errors?.length)warnings.push('官方資料部分來源失敗 '+j.errors.length+' 項，結果可能不完整：'+j.errors.slice(0,2).map(x=>x.market+'/'+x.type).join('、'));
   if(j.coverage){
    const c=j.coverage;
-   $('audit').textContent+='｜官方報價：上市 '+c.listedQuotes+' / 上櫃 '+c.otcQuotes+
+   $('audit').textContent+='｜交易所整批報價：上市 '+c.listedQuotes+' / 上櫃 '+c.otcQuotes+
+    '｜TWSE MIS 批量補價 '+(c.misRecoveredQuotes||0)+' 檔'+
     '｜可辨識公司名冊 '+c.universeCount+' 檔（上市 '+c.listedUniverse+'，上櫃 '+c.otcUniverse+'）'+
-    '｜缺報價 '+c.missingQuotes+' 檔。';
-   if(c.partial)warnings.push('行情涵蓋率不足：交易所僅回 '+c.officialQuotes+
-     ' 檔報價，已由 MOPS／ISIN 名冊補齊至 '+c.universeCount+' 檔；其中 '+c.missingQuotes+
-     ' 檔缺報價，不會進本益比排名，但仍可單獨查詢；該個股將嘗試 Yahoo 日K補價。');
+    '｜仍缺報價 '+c.missingQuotes+' 檔。';
+   if(c.partial)warnings.push('行情來源部分失效：交易所整批只回 '+c.officialQuotes+
+     ' 檔，MIS 額外補價 '+(c.misRecoveredQuotes||0)+' 檔；公司名冊收錄 '+c.universeCount+
+     ' 檔、目前仍有 '+c.missingQuotes+' 檔缺報價。只有具有效成交價及財報的股票能進入 PE 排名。'+
+     (c.misError?' MIS 訊息：'+c.misError:'')+
+     ' 缺價者仍能單股查詢，並嘗試 Yahoo 日K補價。');
   }
   if(!j.sources?.futures||j.sources.futuresDegraded)warnings.push('期貨名單採用備份或不可驗證，請確認最新標的。');
   setStatus('已取得 '+full.length+' 檔，開始驗證上市／上櫃各最近 5 個交易日成交量…');
