@@ -22,7 +22,7 @@ function validate(input={}){
 }
 const ema=(prev,v,period)=>prev===null?v:prev+(v-prev)*2/(period+1);
 function features(rows){
- let e12=null,e26=null,signal=null,adx=0,smTR=0,smPlus=0,smMinus=0,dxSeen=0;
+ let e12=null,e26=null,signal=null,adx=0,smTR=0,smPlus=0,smMinus=0,dxSum=0;
  const all=[];
  const avg=(i,len)=>rows.slice(i-len+1,i+1).reduce((v,b)=>v+b.close,0)/len;
  for(let i=0;i<rows.length;i++){
@@ -35,12 +35,16 @@ function features(rows){
    const tr=Math.max(b.high-b.low,Math.abs(b.high-prev.close),Math.abs(b.low-prev.close));
    const up=b.high-prev.high,down=prev.low-b.low;
    const plus=up>down&&up>0?up:0,minus=down>up&&down>0?down:0;
-   smTR=i===1?tr:smTR-(smTR/14)+tr;
-   smPlus=i===1?plus:smPlus-(smPlus/14)+plus;
-   smMinus=i===1?minus:smMinus-(smMinus/14)+minus;
-   const pdi=smTR>0?100*smPlus/smTR:0,mdi=smTR>0?100*smMinus/smTR:0;
-   dx=pdi+mdi>0?100*Math.abs(pdi-mdi)/(pdi+mdi):0;
-   dxSeen++;adx=dxSeen===1?dx:adx+(dx-adx)/14;
+   // Standard Wilder ADX(14): seed TR/+DM/-DM from 14 completed bars,
+   // average the next 14 DX observations, then Wilder smooth continuously.
+   if(i<=14){smTR+=tr;smPlus+=plus;smMinus+=minus;}
+   else{smTR=smTR-smTR/14+tr;smPlus=smPlus-smPlus/14+plus;smMinus=smMinus-smMinus/14+minus;}
+   if(i>=14){
+    const pdi=smTR>0?100*smPlus/smTR:0,mdi=smTR>0?100*smMinus/smTR:0;
+    dx=pdi+mdi>0?100*Math.abs(pdi-mdi)/(pdi+mdi):0;
+    if(i<=27){dxSum+=dx;if(i===27)adx=dxSum/14;}
+    else adx=(adx*13+dx)/14;
+   }
    atr=smTR/Math.min(14,i);
   }
   const ready=i>=65;
