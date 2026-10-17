@@ -56,8 +56,8 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div class="toolbar"><strong>預估本益比排行榜</strong><span id="caption" class="hint">尚無資料</span></div>
 <div class="table-wrap">
 <table class="results"><thead><tr>
-<th>股票代號</th><th>名稱／市場</th><th>股價</th><th>5 日均量（張）</th><th>財報累計 EPS</th><th>預估全年 EPS</th><th>預估 PE</th><th>近月營收／財報月均</th><th>最新月營收（億元）</th><th>財報期／營收月</th><th>期貨</th>
-</tr></thead><tbody id="tbody"><tr><td colspan="11" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
+<th>股票代號</th><th>名稱／市場</th><th>股價</th><th>5 日均量（張）</th><th>財報累計 EPS</th><th>預估全年 EPS</th><th>預估 PE</th><th>近月營收／財報月均</th><th>最新月營收（億元）</th><th>財報後3月營收（億元）</th><th>財報期／營收月</th><th>期貨</th>
+</tr></thead><tbody id="tbody"><tr><td colspan="12" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
 </div>
 </section>
 <section class="panel details">
@@ -168,7 +168,7 @@ function render(){
  $('caption').textContent='資料量 '+full.length+' 檔 · 顯示 '+m.length+' 檔 · 5日均量不足時'+($('strict').checked?'排除':'以當日量暫代（非正式5日均量）');
  const body=$('tbody');body.textContent='';
  if(!m.length){
-  const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=11;td.className='empty';
+  const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=12;td.className='empty';
   td.textContent=full.length?'目前沒有符合條件的股票；若歷史成交量來源失效，請檢查上方警告或暫時取消嚴格模式。':'尚無資料';
   tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;
  }
@@ -177,12 +177,12 @@ function render(){
   const tr=document.createElement('tr');
   const v=r.avg5Lots??($('strict').checked?null:r.volumeTodayLots);
   const cells=[r.code,r.name,r.close,v,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,
-   r.revenueMomentum*100,r.revenueLatest/1e5,
+   r.revenueMomentum*100,r.revenueLatest/1e5,r.revenue3moProxy===null?null:r.revenue3moProxy/1e5,
    String(r.financeQuarter||'')+' / '+String(r.revenueMonth||''),r.hasFutures?'有':'—'];
   cells.forEach((v,i)=>{
    const td=document.createElement('td');
-   td.textContent=i===0||i===1||i===9||i===10?String(v):i===7?f(v,1)+'%':f(v,i===3?0:2);
-   if(i===1)td.className='company';if(i===6)td.className='up';if(i===10&&r.hasFutures)td.className='up';
+   td.textContent=i===0||i===1||i===10||i===11?String(v):i===7?f(v,1)+'%':f(v,i===3?0:2);
+   if(i===1)td.className='company';if(i===6)td.className='up';if(i===11&&r.hasFutures)td.className='up';
    if(i===3&&r.avg5Lots===null)td.title='非正式5日均量：此欄暫以當日成交量替代';
    tr.appendChild(td);
   });
