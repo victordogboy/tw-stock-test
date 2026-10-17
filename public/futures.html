@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台指期分析｜V1.17.0-R36</title>
+<link rel="stylesheet" href="/taiex-futures.css?r36">
+</head><body><main>
+<nav><a href="/scanner.html?restore=1">← 全市場掃描</a><a href="/detail.html">個股分析</a><span>TX・台指期</span></nav>
+<header><div><h1>台指期分析 <small>R36</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
+<section class="panel">
+<div class="controls">
+<label>歷史範圍<select id="txYears"><option value="1">近 1 年＋暖機</option><option value="3">近 3 年＋暖機</option><option value="5">近 5 年＋暖機</option></select></label>
+<label>交易時段<select id="txSession"><option value="position">日盤</option><option value="after_market">夜盤</option><option value="combined">夜盤＋日盤</option></select></label>
+<label>合約<select id="txContract"><option value="near">近月連續（未還原價差）</option></select></label>
+<button id="txLoad">載入分析</button><button id="txRefresh" class="secondary">重新取得資料</button>
+</div>
+<p id="txStatus" role="status">準備載入台指期日成交資料…</p>
+<p class="muted">日 K 來自 FinMind 盤後資料，不是即時 K 線。夜盤依期交所交易日歸屬；「夜盤＋日盤」以同一交易日先夜盤、後日盤合併，只顯示已取得日盤的日期。</p>
+<details><summary>FinMind Token（與個股、掃描共用）</summary><div class="controls tokens">
+<label>Token 1<input id="finmindTokenInput1" type="password" autocomplete="off"></label><label>Token 2<input id="finmindTokenInput2" type="password" autocomplete="off"></label>
+<label>目前使用<select id="finmindTokenActive"><option value="0">Token 1</option><option value="1">Token 2</option></select></label>
+<button id="saveFinmindTokensBtn">儲存兩組 TOKEN</button><button id="clearFinmindTokensBtn" class="secondary">清除兩組</button>
+</div><p class="muted">Token 保存在此瀏覽器；有設定時會隨資料請求送至你的 Worker，再交給 FinMind 驗證。載入行情會使用 API 額度，調參及切換審計日不另查資料。</p><p id="txTokenStatus"></p></details>
+</section>
+<section class="panel quote"><div><h2>近月盤中報價</h2><p class="muted">獨立顯示 TXFR1 近月報價，與下方歷史審計分開。需 FinMind sponsor 權限，按鈕每次查詢一次。</p></div><button id="txQuote">更新近月報價</button><p id="txQuoteStatus" role="status">尚未查詢；來源時間不代表此刻，休市時可能保留最後一筆。</p></section>
+<section class="grid" aria-label="審計日數據">
+<div class="panel metric"><span>所選日收盤</span><strong id="txClose">—</strong><small id="txChange">—</small></div>
+<div class="panel metric"><span>成交量（口）</span><strong id="txVolume">—</strong><small id="txVolumeRatio">較前 20 日均量 —</small></div>
+<div class="panel metric"><span>未平倉量（口）</span><strong id="txOi">—</strong><small id="txOiChange">較前一日 —</small></div>
+<div class="panel metric"><span>SAR 方向與價位</span><strong id="txSar">—</strong><small id="txSarAf">—</small></div>
+</section>
+<section class="panel">
+<div class="chart-title"><h2 id="txChartTitle">等待行情</h2><button id="txLatest" class="secondary">回到最新</button></div>
+<div class="controls sar-controls">
+<label class="check"><input id="txSarEnabled" type="checkbox" checked> 顯示 SAR</label>
+<label>初始加速因子<input id="txSarStart" type="number" min="0.005" max="0.2" step="0.001" value="0.05"></label>
+<label>每次增加量<input id="txSarStep" type="number" min="0.001" max="1" step="0.001" value="0.05"></label>
+<label>加速因子上限<input id="txSarMax" type="number" min="0.005" max="1" step="0.001" value="0.20"></label>
+<button id="txSarReset" class="secondary">恢復 SAR 預設</button>
+</div><p id="txSarError" class="error" role="alert"></p>
+<div class="legend"><span class="ma5">MA5</span><span class="ma10">MA10</span><span class="ma20">MA20</span><span class="ma60">MA60</span><span class="sarup">● 多頭 SAR</span><span class="sardown">● 空頭 SAR</span><span>虛線＝換月</span></div>
+<div class="chart"><canvas id="txChart" aria-label="台指期日 K、均線、SAR、成交量圖"></canvas></div>
+<label class="cursor">歷史審計<input type="range" id="txAudit" min="0" max="0" value="0" aria-label="選擇審計日"><span id="txAuditDate">—</span></label>
+<p id="txOhlc" class="muted">—</p><p id="txRollNote" class="warning"></p>
+</section>
+<section class="panel"><h2>技術觀察</h2><p id="txAnalysis">載入後顯示均線位置、SAR 方向與量能。</p><div id="txMaTable" class="ma-grid"></div><p class="muted">此頁使用期貨價格與口數，不套用股票的融資、持股或 Action 分數。近月連續線未還原轉倉價差，換月可能影響均線與 SAR；可改選指定月份核對。未平倉總量本身不代表法人偏多或偏空。</p></section>
+<footer>資料：FinMind TaiwanFuturesDaily／taiwan_futures_snapshot・不替換為加權現貨指數</footer>
+</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r35.1"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-futures-ui.js?r36"></script></body></html>

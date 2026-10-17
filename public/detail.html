@@ -140,9 +140,10 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
       <div class="sub">Strict No-Lookahead｜雲端 Yahoo/TWSE 價格資料｜完整 K 線 / 均線 / Entry / Hold / Persistence</div>
     </div>
     <div class="controls">
-      <input id="stockInput" class="search" placeholder="輸入 2330、台積電、2454、聯發科">
+      <input id="stockInput" class="search" placeholder="輸入股票代號、名稱或台指期">
       <input id="tokenInput" class="token" type="password" style="display:none" value="">
       <button id="backScannerBtn" class="secondary">← 回到大盤掃描</button>
+<a href="/futures.html" style="color:#8cbbff;padding:10px">台指期分析</a>
 <button id="analyzeBtn">分析</button><button id="watchBtn" class="secondary">☆ 加入追蹤</button>
       <button id="latestBtn" class="secondary">回到最新</button>
     </div>
@@ -1967,6 +1968,7 @@ async function openScanStock(id){$('stockInput').value=id;await analyze();window
 async function analyze(){
   if(ANALYSIS_BUSY||CHIP_REFRESH_BUSY)return false;
   const q=$('stockInput').value.trim(); if(!q){setBanner('請輸入股票代號或中文名稱。','warn');return}
+  if(/^(TX|TXF|台指期|臺指期|台指期貨|臺指期貨)$/i.test(q)){location.href='/futures.html';return;}
   ANALYSIS_BUSY=true;
   FORCE_ANALYSIS_REFRESH=true;
   dualLiveRow=null;dualAuditRow=null;paintDetailDual();
