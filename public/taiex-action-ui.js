@@ -4,10 +4,10 @@ const $=id=>document.getElementById(id),A=TWTaiexAction,key='twq_taiex_action_r3
 const f=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('zh-TW',{maximumFractionDigits:n}):'—';
 let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null,autoStart='',autoEnd='';
 try{config=A.validate(JSON.parse(localStorage.getItem(key)||'{}'));}catch{}
-const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin'};
+const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin',entryType:'actEntryType',exitType:'actExitType',trendBars:'actTrendBars',breakBars:'actBreakBars',atrMultiple:'actAtrMultiple'};
 function fill(){for(const [k,id]of Object.entries(fields))$(id).value=config[k];for(const group of ['entryWeights','holdWeights'])config[group].forEach((v,i)=>$(group+i).value=v);}
 function cancel(message='條件已變更，請重新搜尋。'){job++;$('actCancel').disabled=true;$('actOptStatus').textContent=message;$('actOptResults').replaceChildren();}
-function clearResult(){cancel(); $('actResult').textContent='參數、SAR、合約或時段變更後，請重新執行回測。';$('actBenchmark').textContent='';$('actTrades').replaceChildren();}
+function clearResult(){cancel(); $('actResult').textContent='參數、SAR、合約或時段變更後，請重新執行回測。';$('actBenchmark').textContent='';$('actExposure').textContent='';$('actModeResults').replaceChildren();$('actTrades').replaceChildren();}
 function render(ctx){
  const signature=JSON.stringify({session:ctx.session,contract:ctx.contract,sar:ctx.sar,config});
  const newMarket=ctx.raw!==lastRaw;
@@ -43,7 +43,11 @@ function render(ctx){
  $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold)+(s.contract?'｜策略合約 '+s.contract:'');
  $('actParts').textContent=names.map((name,i)=>name+'：進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i])).join('；')+'。追價扣分 '+f(s.penalty)+'；SAR 同向 '+(s.aligned?'是':'否')+'；下一根預估翻向觸發價 '+f(s.evidence.trigger,2)+'；距離 '+f(s.evidence.gap,2)+' ATR；KD K/D '+f(s.evidence.k,1)+'/'+f(s.evidence.dh,1)+'；翻向前分數 '+f(s.preFlipScore)+'；距最近翻向 '+(s.age===null?'尚未觀察到':s.age+' 根')+'。';
  composition(s);
- $('actSignal').textContent='空手：'+(s.enter?'符合'+(s.aligned?'已翻向確認':'SAR 翻向前預判')+'進場，下一根開盤模擬進場':'等待')+'；持倉：'+(s.leave?'續抱低於門檻，下一根開盤模擬離場':'續抱分數尚未低於門檻')+'。';
+ const trendToday=s.evidence.trend.slice(0,3).every(Boolean);
+ $('actSignal').textContent='起漲 Action：'+(s.enter?'當日符合':'當日不符合')+
+  '；MA 趨勢（收盤高於 MA20／MA5 高於 MA20／MA20 高於 MA60，做空方向相反）：'+(trendToday?'當日符合':'當日不符合')+
+  '，連續 '+config.trendBars+' 根由回測逐根驗證；目前採 '+({early:'A 起漲',trend:'B 趨勢',hybrid:'C 混合'}[config.entryType])+
+  ' 進場，持倉離場另依所選的 '+({hold:'Hold',trend:'趨勢確認',atr:'ATR 移動停損',mixed:'趨勢或 ATR'}[config.exitType])+' 判斷。';
 }
 function composition(s){
  const e=s.evidence,pass=e.trend.map(v=>v?'符合 +25':'不符合 +0'),dir=config.direction==='long'?'大於':'小於';
@@ -73,7 +77,7 @@ function backtestData(){
  }
  return {rows:TWTaiexFutures.series(context.raw,{session:context.session,contract:context.contract}),contract:context.contract,dates,multi:false};
 }
-function updateScope(){try{const data=backtestData();$('actScope').textContent=data.multi?'跨月份 R44：換月時舊合約開盤平倉；若前一根續抱訊號未要求離場，同一開盤立即持有新合約，不再重新等待 Action 進場。每段合約獨立扣成本，基準同樣換月。訊號使用逐次換月當日已知價差校正的連續 K 線計算 MA60、SAR、動能，避免每個月份重新暖機；量能先依各合約當時可知的過去成交量基準標準化，再接續計分；實際進出場仍用各合約原價，價差不計損益。上方近月圖未做價差校正，兩者分數可能不同。':'回測合約 '+data.contract+'，僅測試此月份自身歷史。回測日期獨立於審計游標。';}catch(e){$('actScope').textContent=e.message;}}
+function updateScope(){try{const data=backtestData();$('actScope').textContent=data.multi?'跨月份 R45：換月時舊合約開盤平倉；若前一根所選出場規則未要求離場，同一開盤立即持有新合約，不再重新等待 Action 進場。每段合約獨立扣成本，基準同樣換月。訊號使用逐次換月當日已知價差校正的連續 K 線計算 MA60、SAR、動能，避免每個月份重新暖機；量能先依各合約當時可知的過去成交量基準標準化，再接續計分；實際進出場仍用各合約原價，價差不計損益。上方近月圖未做價差校正，兩者分數可能不同。':'回測合約 '+data.contract+'，僅測試此月份自身歷史。回測日期獨立於審計游標。';}catch(e){$('actScope').textContent=e.message;}}
 
 function persist(){try{localStorage.setItem(key,JSON.stringify(config));}catch{}}
 fill();
@@ -82,9 +86,15 @@ for(const id of [...Object.values(fields),...['entryWeights','holdWeights'].flat
 $('actReset').addEventListener('click',()=>{config=A.validate();dirty=false;fill();try{localStorage.setItem(key,JSON.stringify(config));}catch{}$('actError').textContent='已恢復試驗預設；並非最佳參數。';if(context)render(context);});
 function run(){
  if(dirty||!context)return;
- try{const data=backtestData(),result=(data.multi?A.backtestMultiR44:A.backtest)(data.rows,config,context.sar,data.dates);updateScope();
+ try{const data=backtestData(),result=(data.multi?A.backtestMultiR45:A.backtest)(data.rows,config,context.sar,data.dates);updateScope();
  $('actResult').textContent=result.validBars<2?'有效樣本不足：'+result.start+' ～ '+result.end+'，可計分 '+result.validBars+' 根'+(result.months?'／共 '+result.totalBars+' 根，涵蓋 '+result.months.length+' 個合約':'')+'。連續跨月指標至少需要 61 根暖機；若想涵蓋更長期間，請先於上方選近 3 年或 5 年並重新載入行情。':'合約 '+data.contract+'｜'+result.start+' ～ '+result.end+'｜已平倉的獨立交易 '+(data.multi?result.signalTradeCount:result.trades.length)+' 筆／合約結算 '+result.trades.length+' 段｜淨損益 '+f(result.net)+' 點｜勝率 '+f(result.winRate)+'%｜收盤權益最大回撤 '+f(result.maxDrawdown)+' 點｜獲利因子 '+(result.noLoss?'無虧損交易，無法估計':f(result.profitFactor,2))+'｜每筆來回成本 '+f(config.cost)+' 點'+(config.cost===0?'（未扣交易成本）':'')+(result.months?'｜涵蓋 '+result.months.length+' 個合約（'+result.months.join('、')+'）｜換月 '+result.rollovers+' 次｜跨月連續訊號可計分 '+result.validBars+'/'+result.totalBars+' 根，暖機不足 '+result.warmupBars+' 根｜進場訊號 '+result.entrySignals+' 次｜其中翻向前進場訊號 '+result.preFlipEntries+' 次':'')+'｜預判後兩根內 SAR 實際翻向 '+(result.preFlipCheck.evaluated?result.preFlipCheck.within2+'/'+result.preFlipCheck.evaluated+' 次（'+f(result.preFlipCheck.percent)+'%）':'無可驗證候選')+'。';
  $('actBenchmark').textContent=data.multi?'同期買進持有（1 口台指期、同月份、同時換月、同樣每段成本）：淨 '+f(result.benchmark.net)+' 點｜回撤 '+f(result.benchmark.maxDrawdown)+' 點。策略超額 '+f(result.excessNet)+' 點｜倍數 '+(result.versusBenchmark===null?'基準非正值，不適用':f(result.versusBenchmark,2)+' 倍')+'｜2 倍目標 '+(result.target2x===null?'基準非正值，不適用':result.target2x?'達成':'未達成')+'。策略實際接續轉倉 '+result.carryRolls+' 次。'+(config.cost===0?'注意：成本設為 0，結果偏樂觀。':''):'指定單一月份模式僅測單月交易，不顯示跨月持有基準。';
+ $('actExposure').textContent=data.multi?
+  'R45 進場 '+({early:'A 起漲',trend:'B 趨勢',hybrid:'C 混合'}[config.entryType])+'／出場 '+({hold:'Hold',trend:'趨勢確認',atr:'ATR 移動停損',mixed:'趨勢或 ATR'}[config.exitType])+
+  '｜持倉覆蓋率 '+f(result.exposure.percent,1)+'%（'+result.exposure.coveredBars+'/'+result.exposure.totalBars+' 日）'+
+  '｜空手期間連續收盤上漲正值估計 '+f(result.exposure.missedUpPoints)+' 點，'+result.exposure.missedUpDays+' 日（非可實現損益）'+
+  '｜起漲進場 '+result.actions.earlyEntries+' 次／趨勢進場 '+result.actions.trendEntries+' 次'+
+  '｜趨勢離場 '+result.actions.exitTrend+' 次／ATR 離場 '+result.actions.exitAtr+' 次／Hold 離場 '+result.actions.exitHold+' 次。':'';
  $('actTrades').replaceChildren();for(const t of result.trades){const tr=document.createElement('tr');for(const value of [t.contract||data.contract,t.signalDate,t.signalType||'—',t.entryDate,f(t.entry),t.exitDate,f(t.exit),f(t.net),t.reason]){const td=document.createElement('td');td.textContent=value;tr.append(td);}$('actTrades').append(tr);}
  }catch(e){$('actResult').textContent=e.message;}
 }
@@ -94,31 +104,63 @@ $('actAllDates').addEventListener('click',()=>{if(!context?.rows.length)return;$
 $('actCancel').addEventListener('click',()=>cancel('搜尋已停止；未套用任何參數。'));
 $('actOptimize').addEventListener('click',async()=>{
  if(dirty||!context)return;
- cancel('準備搜尋…');const own=job;$('actCancel').disabled=false;
+ cancel('準備比較三種策略…');
+ $('actModeResults').replaceChildren();
+ const own=job;$('actCancel').disabled=false;
+ const fmtMode=m=>({early:'A｜起漲',trend:'B｜趨勢重新進場',hybrid:'C｜混合'}[m]||m);
+ const fmtExit=m=>({hold:'Hold',trend:'趨勢確認',atr:'ATR 移動停損',mixed:'趨勢或 ATR'}[m]||m);
+ const stats=(r)=>'淨 '+f(r.net)+' 點｜基準 '+f(r.benchmark.net)+' 點｜超額 '+f(r.excessNet)+' 點'+
+  '｜基準倍數 '+(r.versusBenchmark===null?'不適用':f(r.versusBenchmark,2)+' 倍')+
+  '｜2 倍目標 '+(r.target2x===null?'不適用':r.target2x?'達成':'未達成')+
+  '｜回撤 '+f(r.maxDrawdown)+' 點｜獨立交易 '+r.signalTradeCount+' 筆（勝率 '+f(r.winRate)+'%）'+
+  '｜持倉 '+f(r.exposure.percent)+'%｜空手上漲正值 '+f(r.exposure.missedUpPoints)+' 點';
  try{
- const data=backtestData();updateScope();const iterator=(data.multi?A.optimizeMultiR44:A.optimize)(data.rows,config,context.sar,data.dates,Number($('actMinTrades').value),Number($('actTrainShare').value));let last;
- for(const progress of iterator){if(own!==job)return;last=progress;$('actOptStatus').textContent='已搜尋 '+progress.done+'／'+progress.total+' 組；訓練期符合最低筆數 '+progress.eligible+' 組'+(progress.trainEnd?'｜訓練至 '+progress.trainEnd+'；驗證從 '+progress.validationStart:'');await new Promise(resolve=>setTimeout(resolve,0));}
- if(own!==job)return;
- $('actOptStatus').textContent=last.top.length?
-  (data.multi?'R44 搜尋完成 '+last.total+' 組，訓練期 '+last.trainStart+'～'+last.trainEnd+'，獨立驗證期 '+last.validationStart+'～'+last.validationEnd+'；訓練期符合最低筆數 '+last.eligible+' 組。下列排名只依訓練期超額獲利減 0.7 倍回撤，驗證期不參與選參數。請重視驗證結果。':
-    '單一合約搜尋完成 '+last.total+' 組（傳統勝率排名）；要做五年超額獲利驗證，請選近月連續合約。'):
-  '沒有候選達到'+(data.multi?'訓練期':'目前合約')+'最低獨立交易筆數 '+$('actMinTrades').value+' 筆'+(Number.isFinite(last.maxTrades)?'（最多 '+last.maxTrades+' 筆'+(last.trainEnd?'；訓練至 '+last.trainEnd:'')+'）':'')+'。建議載入五年資料，或調整有效樣本條件；不要把零交易包裝成最佳。';
- for(const [i,item]of last.top.entries()){
- const card=document.createElement('article'),label=document.createElement('p'),params=document.createElement('p'),button=document.createElement('button'),p=item.config,r=item.result;
- label.textContent=data.multi?
- '訓練第 '+(i+1)+' 名｜淨 '+f(r.net)+' 點｜基準 '+f(r.benchmark.net)+' 點｜超額 '+f(r.excessNet)+' 點｜回撤 '+f(r.maxDrawdown)+' 點｜'+r.signalTradeCount+' 筆／合約結算 '+r.trades.length+' 段（勝率 '+f(r.winRate)+'%）':
- '第 '+(i+1)+' 名｜勝率 '+f(r.winRate)+'%｜'+r.trades.length+' 筆｜淨 '+f(r.net)+' 點';
- params.textContent='SAR 進場 '+(p.sarMode==='both'?'混合':p.sarMode==='anticipate'?'翻向前預判':'已翻向')+'（距離 ≤ '+p.preFlipGap+' ATR、預判 ≥ '+p.preFlipMin+' 分）；進場權重 '+p.entryWeights.join('/')+'；續抱權重 '+p.holdWeights.join('/')+'；變化 ≥ '+p.delta+'；最低分 ≥ '+p.minEntry+'；離場 < '+p.exit+'；SAR 根數 '+(p.maxAge||'不限')+'；成本 '+p.cost+' 點';
- button.textContent='套用參數並檢查完整區間';button.addEventListener('click',()=>{config=A.validate(p);dirty=false;fill();persist();$('actError').textContent='已套用訓練期候選參數；獨立驗證已列於上方，完整區間僅供參考。';render(context);run();});
- card.append(label);
- if(data.multi&&item.validation){
-  const v=item.validation,detail=document.createElement('p');
-  detail.textContent='真正未參與調參的驗證期：策略 '+f(v.net)+' 點／基準 '+f(v.benchmark.net)+' 點｜超額 '+f(v.excessNet)+' 點｜'+(v.versusBenchmark===null?'基準非正值':f(v.versusBenchmark,2)+' 倍基準')+'｜兩倍目標 '+(v.target2x===null?'不適用':v.target2x?'達成':'未達成')+'｜回撤 '+f(v.maxDrawdown)+' 點｜'+v.signalTradeCount+' 筆／合約結算 '+v.trades.length+' 段（勝率 '+f(v.winRate)+'%）';
-  card.append(detail);
- }
- card.append(params,button);$('actOptResults').append(card);
- }
- }catch(e){if(own===job)$('actOptStatus').textContent=e.message;}finally{if(own===job)$('actCancel').disabled=true;}
+  const data=backtestData();
+  if(!data.multi)throw Error('R45 三策略最佳化須選「近月連續」；單月仍可使用原本獨立回測。');
+  const generator=A.optimizeMultiR45(data.rows,config,context.sar,data.dates,Number($('actMinTrades').value),Number($('actTrainShare').value));
+  let last;
+  for(const step of generator){
+   if(own!==job)return;
+   last=step;$('actOptStatus').textContent='R45 比較中 '+step.done+'/'+step.total+' 組；訓練期符合最低獨立筆數 '+step.eligible+' 組';
+   await new Promise(resolve=>setTimeout(resolve,0));
+  }
+  if(own!==job)return;
+  $('actOptStatus').textContent='R45 共 '+last.total+' 組，訓練期 '+last.trainStart+'～'+last.trainEnd+
+   '，不參與排名的驗證期 '+last.validationStart+'～'+last.validationEnd+
+   '。符合訓練期最低獨立交易 '+last.eligible+' 組；最多 '+last.maxTrades+' 筆。'+
+   '訓練排名只看超額淨點數減 0.7 倍回撤與 0.1 倍空手正漲幅，驗證期不回頭調參。';
+
+  function apply(p){
+    config=A.validate(p);dirty=false;fill();persist();
+    $('actError').textContent='已套用訓練選出的候選；驗證期數值只是檢驗，完整區間回測是另一個口徑。';
+    render(context);run();
+  }
+  for(const item of last.modes){
+   const card=document.createElement('article'),title=document.createElement('h3');
+   title.textContent=fmtMode(item.mode);card.append(title);
+   if(!item.choice){const para=document.createElement('p');para.textContent='沒有策略符合訓練期最低交易筆數，不能評估成效。';card.append(para);}
+   else{
+    const {config:p,result:r,validation:v}=item.choice;
+    for(const value of [
+     '訓練期：'+stats(r),
+     '獨立驗證期：'+stats(v),
+     '出場 '+fmtExit(p.exitType)+'；趨勢進場 '+p.trendBars+' 根；趨勢失守 '+p.breakBars+' 根；ATR ×'+p.atrMultiple
+    ]){const para=document.createElement('p');para.textContent=value;card.append(para);}
+    const applyBtn=document.createElement('button');applyBtn.textContent='套用這組 '+fmtMode(item.mode);applyBtn.addEventListener('click',()=>apply(p));card.append(applyBtn);
+   }
+   $('actModeResults').append(card);
+  }
+  for(const [i,item] of last.top.entries()){
+   const {config:p,result:r,validation:v}=item,card=document.createElement('article'),title=document.createElement('p'),para=document.createElement('p'),extra=document.createElement('p'),btn=document.createElement('button');
+   title.textContent='訓練第 '+(i+1)+' 名｜'+fmtMode(p.entryType)+'／'+fmtExit(p.exitType)+'｜'+stats(r);
+   para.textContent='真正樣本外：'+stats(v);
+   extra.textContent='趨勢連續 '+p.trendBars+' 根，失守 '+p.breakBars+' 根，ATR ×'+p.atrMultiple+
+    '；進場 Action 權重 '+p.entryWeights.join('/')+'；續抱 Action 權重 '+p.holdWeights.join('/')+'；變化門檻 ≥ '+p.delta;
+   btn.textContent='套用此組並回測';btn.addEventListener('click',()=>apply(p));
+   card.append(title,para,extra,btn);$('actOptResults').append(card);
+  }
+ }catch(e){if(own===job)$('actOptStatus').textContent=e.message;}
+ finally{if(own===job)$('actCancel').disabled=true;}
 });
 window.TWTaiexActionUI={render};
 })();
