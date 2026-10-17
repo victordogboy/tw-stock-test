@@ -34,18 +34,30 @@ function analyze(rows,input={},sarConfig={}){
   const extension=Math.max(0,d*(b.close-m20)/atr-2),penalty=Math.min(30,extension*10);
   const entryParts=[trend,acceleration,sarEntry,volume],holdParts=[trend,momentum,sarHold,volume];
   const entry=clamp(weighted(entryParts,p.entryWeights)-penalty),hold=weighted(holdParts,p.holdWeights);
-  return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr};
+  return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr,evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension}};
  }).map((s,i,all)=>{
   if(!s)return null;const delta=all[i-1]?s.entry-all[i-1].entry:null;
   const ageOK=p.maxAge===0||(s.age!==null&&s.age<=p.maxAge);
   return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&s.aligned&&ageOK,leave:s.hold<p.exit};
  });
 }
-function backtest(rows,input={},sarConfig={}){
- const p=validate(input),scores=analyze(rows,p,sarConfig),d=p.direction==='long'?1:-1,trades=[];
+function selectRange(rows,range={}){
+ const start=range.start||rows[0]?.date,end=range.end||rows.at(-1)?.date;
+ const valid=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s))&&new Date(s).toISOString().slice(0,10)===s;
+ if(!valid(start)||!valid(end)||start>end)throw Error('請設定有效的回測起訖日期，起日不可晚於迄日');
+ const eligible=rows.filter(b=>b.date<=end),first=eligible.findIndex(b=>b.date>=start);
+ if(first<0)throw Error('所選區間沒有 K 線資料');
+ return {rows:eligible,first,start:eligible[first].date,end:eligible.at(-1).date};
+}
+function backtest(rows,input={},sarConfig={},range={}){
+ const p=validate(input),selected=selectRange(rows,range);
+ return simulate(selected.rows,p,analyze(selected.rows,p,sarConfig),selected.first);
+}
+function simulate(rows,p,scores,first=0){
+ const d=p.direction==='long'?1:-1,trades=[];
  let position=null,pending=null,realized=0,peak=0,maxDrawdown=0;
  const close=(price,date,reason)=>{const gross=d*(price-position.price),net=gross-p.cost;trades.push({entryDate:position.date,signalDate:position.signalDate,exitDate:date,entry:position.price,exit:price,gross,net,reason});realized+=net;position=null;};
- for(let i=0;i<rows.length;i++){
+ for(let i=first;i<rows.length;i++){
   const b=rows[i];
   if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
   else if(pending==='enter'&&!position)position={price:b.open,date:b.date,signalDate:rows[i-1].date};
@@ -56,7 +68,29 @@ function backtest(rows,input={},sarConfig={}){
   if(position){if(s.leave)pending='exit';}else if(s.enter)pending='enter';
  }
  const wins=trades.filter(t=>t.net>0),gain=wins.reduce((s,t)=>s+t.net,0),loss=-trades.filter(t=>t.net<0).reduce((s,t)=>s+t.net,0);
- return {trades,net:realized,gross:trades.reduce((s,t)=>s+t.gross,0),winRate:trades.length?wins.length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars:scores.filter(Boolean).length};
+ return {trades,net:realized,gross:trades.reduce((s,t)=>s+t.gross,0),winRate:trades.length?wins.length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars:scores.slice(first).filter(Boolean).length,start:rows[first]?.date,end:rows.at(-1)?.date};
 }
-const api={defaults,validate,analyze,backtest};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+// Reuse observed features for the grid; never recompute SAR/ATR for each candidate.
+function rescore(features,p){
+ const scored=features.map(s=>{if(!s)return null;const entryParts=[...s.entryParts];entryParts[2]=s.aligned&&s.age!==null?(p.maxAge===0?100:clamp(100-s.age*100/(p.maxAge+1))):0;return {...s,entryParts,entry:clamp(weighted(entryParts,p.entryWeights)-s.penalty),hold:weighted(s.holdParts,p.holdWeights)};});
+ return scored.map((s,i)=>{if(!s)return null;const delta=scored[i-1]?s.entry-scored[i-1].entry:null;return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&s.aligned&&(p.maxAge===0||(s.age!==null&&s.age<=p.maxAge)),leave:s.hold<p.exit};});
+}
+function candidateGrid(input){
+ const p=validate(input),uniq=a=>[...new Map(a.map(v=>[JSON.stringify(v),v])).values()];
+ const profiles=[[25,25,25,25],[40,20,25,15],[20,40,25,15],[20,20,45,15]],out=[];
+ for(const entryWeights of uniq([p.entryWeights,...profiles]))for(const holdWeights of uniq([p.holdWeights,...profiles]))
+ for(const delta of uniq([p.delta,5,15]))for(const minEntry of uniq([p.minEntry,45,65]))for(const exit of uniq([p.exit,35,55]))for(const maxAge of uniq([p.maxAge,3,0]))out.push({...p,entryWeights,holdWeights,delta,minEntry,exit,maxAge});
+ return out;
+}
+function compare(a,b){return b.result.winRate-a.result.winRate||b.result.net-a.result.net||a.result.maxDrawdown-b.result.maxDrawdown||b.result.trades.length-a.result.trades.length;}
+function* optimize(rows,input={},sarConfig={},range={},minTrades=5){
+ if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最低交易筆數須為 1～10000 的整數');
+ const p=validate(input),selected=selectRange(rows,range),features=analyze(selected.rows,p,sarConfig),grid=candidateGrid(p),top=[];let eligible=0;
+ for(let i=0;i<grid.length;i++){
+  const config=grid[i],result=simulate(selected.rows,config,rescore(features,config),selected.first);
+  if(result.trades.length>=minTrades){eligible++;top.push({config,result});top.sort(compare);top.length=Math.min(5,top.length);}
+  if((i+1)%20===0||i===grid.length-1)yield {done:i+1,total:grid.length,eligible,top:[...top],start:selected.start,end:selected.end};
+ }
+}
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,compare};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
