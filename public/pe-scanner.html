@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股預估 EPS / 本益比掃描器 R51 ABC</title>
+<title>台股預估 EPS / 本益比掃描器 R52 ABC</title>
 <style>
 :root{color-scheme:dark;--bg:#0b1220;--panel:#111d31;--border:#273950;--ink:#edf4ff;--muted:#9caec5;--green:#4de0b0;--yellow:#edc47c;--blue:#6faafa}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,#14243a,#0b1220 65%);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:14px}
@@ -39,7 +39,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 </head>
 <body>
 <main>
-<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R51 · 單股查詢 / 全市場</span></nav>
+<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R52 · 期貨雙向豁免 / 名冊修復</span></nav>
 <h1>台股A／B／C 預估 EPS × 本益比掃描器</h1>
 <div class="lead">單一股票查詢不受股價、量能、本益比等篩選限制，完整呈現 A／B／C 與最新取得的原始財報、營收資料；全市場掃描才套用下方的篩選條件。行情採交易所最近日線快照，不保證盤中即時。</div>
 <section class="panel" id="singlePanel">
@@ -65,7 +65,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div class="actionbar">
 <label class="field" style="min-width:185px">排名策略<select id="strategy"><option value="A">A｜營收比例法</option><option value="B">B｜4～8季歷史淨利率法</option><option value="C">C｜毛利費用拆解法</option></select></label>
 <label class="field" style="max-width:170px">壓力 EPS 下修（%）<input id="stress" type="number" value="20" min="0" max="80" step="5"></label>
-<label class="toggle"><input id="future" type="checkbox" checked> 有股票期貨可豁免最低股價（不豁免最高股價）</label>
+<label class="toggle"><input id="future" type="checkbox" checked> 有股票期貨可同時豁免最低／最高股價</label>
 <label class="toggle"><input id="strict" type="checkbox" checked> 嚴格採用 5 日均量（資料不足不放行）</label>
 </div>
 <div class="actionbar">
@@ -75,7 +75,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div id="warning" class="warning" role="status"></div>
 </section>
 <section class="stats">
-<div class="stat"><div id="total" class="v">—</div><div class="k">取得普通股報價</div></div>
+<div class="stat"><div id="total" class="v">—</div><div class="k">實際取得交易所報價</div></div>
 <div class="stat"><div id="eligible" class="v">—</div><div class="k">A｜可計算</div></div>
 <div class="stat"><div id="bCount" class="v">—</div><div class="k">B｜可計算</div></div>
 <div class="stat"><div id="cCount" class="v">—</div><div class="k">C｜可計算</div></div>
@@ -151,8 +151,8 @@ async function fallbackVolume(warnings){
  if(!missingMarkets.length)return;
  const candidates=full.filter(x=>chosen(x).status==='ok'&&chosen(x).pe>0&&missingMarkets.includes(x.market)&&
    chosen(x).pe<=num('maxpe',35)&&
-   (x.close>=num('minprice',30)||($('future').checked&&x.hasFutures)) &&
-   (num('maxprice',0)===0||x.close<=num('maxprice',0)));
+   (($('future').checked&&x.hasFutures)||
+    (x.close>=num('minprice',30)&&(num('maxprice',0)===0||x.close<=num('maxprice',0))));
  const groups=[];
  for(const market of missingMarkets){
   const codes=candidates.filter(x=>x.market===market&&x.avg5Lots===null).map(x=>x.code);
@@ -192,8 +192,11 @@ function volRange(r){const d=r.volumeDates||volumeDays[r.market]||[];return d.le
 function eligible(r){
  const m=chosen(r);if(m.status!=='ok'||!(m.pe>0)||m.pe>num('maxpe',35))return false;
  if($('market').value!=='all'&&r.market!==$('market').value)return false;
- if(r.close<num('minprice',30)&&!($('future').checked&&r.hasFutures))return false;
- const highest=num('maxprice',0);if(highest>0&&r.close>highest)return false;
+ // The futures exemption covers BOTH minimum and maximum stock price bounds.
+ if(!($('future').checked&&r.hasFutures)){
+  if(r.close<num('minprice',30))return false;
+  const highest=num('maxprice',0);if(highest>0&&r.close>highest)return false;
+ }
  if($('strict').checked&&r.avg5Lots===null)return false;
  return (r.avg5Lots??r.volumeTodayLots)>=num('minvol',1000);
 }
@@ -239,11 +242,20 @@ async function scan(refresh=false){
   const quarters=[...new Set(full.map(x=>x.financeQuarter).filter(Boolean))].sort();
   const months=[...new Set(full.map(x=>x.latestRevenueMonth).filter(Boolean))].sort();
   $('audit').textContent='取得時間：'+twTime(j.date)+'（UTC+8）｜行情交易日：'+(full.filter(x=>x.quoteReportedDate).length?'個股欄有部分來源交易日':'來源未提供，勿誤認為今日即時價')+'｜財報所屬季度：'+(quarters.join('、')||'缺')+'｜月營收所屬月份：'+(months.join('、')||'缺')+'｜5日均量日期：待完成掃描';
-  $('total').textContent=f(j.counts.stocks,0);
+  $('total').textContent=f(j.coverage?.officialQuotes??j.counts.quotes,0);
   $('eligible').textContent=f(j.counts.models?.A??j.counts.projected,0);
   $('bCount').textContent=f(j.counts.models?.B??0,0);$('cCount').textContent=f(j.counts.models?.C??0,0);
   const warnings=[];
   if(j.errors?.length)warnings.push('官方資料部分來源失敗 '+j.errors.length+' 項，結果可能不完整：'+j.errors.slice(0,2).map(x=>x.market+'/'+x.type).join('、'));
+  if(j.coverage){
+   const c=j.coverage;
+   $('audit').textContent+='｜官方報價：上市 '+c.listedQuotes+' / 上櫃 '+c.otcQuotes+
+    '｜可辨識公司名冊 '+c.universeCount+' 檔（上市 '+c.listedUniverse+'，上櫃 '+c.otcUniverse+'）'+
+    '｜缺報價 '+c.missingQuotes+' 檔。';
+   if(c.partial)warnings.push('行情涵蓋率不足：交易所僅回 '+c.officialQuotes+
+     ' 檔報價，已由 MOPS／ISIN 名冊補齊至 '+c.universeCount+' 檔；其中 '+c.missingQuotes+
+     ' 檔缺報價，不會進本益比排名，但仍可單獨查詢；該個股將嘗試 Yahoo 日K補價。');
+  }
   if(!j.sources?.futures||j.sources.futuresDegraded)warnings.push('期貨名單採用備份或不可驗證，請確認最新標的。');
   setStatus('已取得 '+full.length+' 檔，開始驗證上市／上櫃各最近 5 個交易日成交量…');
   volumeDays={twse:[],tpex:[]};volumes={twse:new Map(),tpex:new Map()};render();
@@ -303,8 +315,10 @@ function displayStockReply(j){
  singleTitle(head,r.code+' '+r.name+'｜'+(r.market==='twse'?'上市':r.market==='tpex'?'上櫃':r.market));
  container.appendChild(head);
  const summary=singleElement('div','single-grid');
- singleTile(summary,'行情收盤價（元）',f(r.close),'交易所最近日線報價，非盤中即時價格');
+ singleTile(summary,'行情收盤價（元）',f(r.close),'原始行情來源：'+(r.priceSource||'無報價')+'；非盤中即時價格');
  singleTile(summary,'行情所屬交易日',r.quoteReportedDate||'來源未註明','取得時間不能當作交易日');
+ singleTile(summary,'行情來源',r.priceSource||'無有效報價',r.priceStatus||'');
+ singleTile(summary,'公司名冊來源',r.masterSource||'交易所報價清單','股票收錄不依賴當日報價是否成功');
  singleTile(summary,'本次資料抓取時間',twTime(j.snapshotTime),'台灣時間，代表抓取時點，不代表成交日');
  singleTile(summary,'股票期貨',r.hasFutures?'有':'無或未驗證');
  singleTile(summary,'最新成交量（張）',f(r.volumeTodayLots,0),'來源為該檔最新日線快照');
@@ -360,7 +374,7 @@ function displayStockReply(j){
  for(const [label,value] of items)singleTile(original,label,value);
  container.appendChild(original);
  const desc=singleElement('div','single-note',
-  '單股查詢沒有套用任何股票價格、成交量、本益比、期貨條件或排行榜策略。股價與公開財報是不同時間基準；若行情未提供交易日，不會把資料抓取時間當作真實成交日。'
+  '單股查詢不套用股價、量能、本益比、期貨條件。當官方上櫃報價無法取得時，可能採用Yahoo日K補價；明確標示行情來源及所屬交易日，不可當作盤中即時行情。'
   +(j.volume5?.ok?'':'\n5日均量取得失敗：'+(j.volume5?.error||'來源未知'))
   +(j.sourceErrors?.length?'\n部分官方資料來源異常：'+j.sourceErrors.slice(0,3).map(x=>x.market+'/'+x.type+':'+x.message).join('；'):''));
  container.appendChild(desc);
