@@ -12,7 +12,7 @@ function wipe(){
 function render(c){
  const changed=c.raw!==context?.raw||c.contract!==context?.contract||c.session!==context?.session;
  context=c;
- if(changed)wipe();
+ if(changed){wipe();if(c.rows?.length){$('r48Start').value=c.rows[0].date;$('r48End').value=c.rows.at(-1).date;}}
  const ready=c.contract==='near'&&c.rows?.length;
  $('r48Go').disabled=!ready;
  if(!ready)$('r48Status').textContent=c.rows?.length?'請選擇「近月連續」合約。':'請先載入行情（建議五年）。';
@@ -22,7 +22,7 @@ const numeric=id=>Number($(id).value);
 function inputs(){
  if(!context?.rows?.length)throw Error('尚未載入行情');
  if(context.contract!=='near')throw Error('請選擇「近月連續」');
- const start=$('actStart').value,end=$('actEnd').value;
+ const start=$('r48Start').value,end=$('r48End').value;
  if(!start||!end||start>end)throw Error('請設定有效的回測起訖日');
  const contractList=[...new Set(context.raw.map(b=>b.contract))];
  const rows=contractList.flatMap(c=>TWTaiexFutures.series(context.raw,{session:context.session,contract:c}));
@@ -53,7 +53,7 @@ function card(title,item){
  return article;
 }
 $('r48Cancel').addEventListener('click',()=>{token++;$('r48Cancel').disabled=true;$('r48Status').textContent='搜尋已停止。';});
-for(const id of ['r48Side','r48Objective','r48MinTrades','r48Cost','r48Depth'])$(id).addEventListener('change',wipe);
+for(const id of ['r48Side','r48Objective','r48MinTrades','r48Cost','r48Depth','r48Start','r48End'])$(id).addEventListener('change',wipe);
 $('r48Go').addEventListener('click',async()=>{
  const task=++token;$('r48Cancel').disabled=false;
  $('r48Results').replaceChildren();$('r48BySide').replaceChildren();$('r48Headline').textContent='';
