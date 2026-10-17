@@ -243,7 +243,7 @@ function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
  const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),grid=candidateGridMulti(p),top=[];
  let eligible=0,maxTrades=0;
  for(let i=0;i<grid.length;i++){
-  const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.signalTradeCount);
+  const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.trades.length);
   if(result.trades.length>=minTrades){
    eligible++;const signature=tradeSignature(result),existing=top.findIndex(v=>v.signature===signature);
    const item={config,result,signature};
@@ -368,7 +368,7 @@ function* optimizeMultiR44(rows,input={},sarConfig={},range={},minTrades=20,trai
  const grid=candidateGridMulti(p),top=[];let eligible=0,maxTrades=0;
  for(let i=0;i<grid.length;i++){
   const config=grid[i],result=simulateMultiCarry(prepared,config,0,cut-1,trainBase);
-  maxTrades=Math.max(maxTrades,result.trades.length);
+  maxTrades=Math.max(maxTrades,result.signalTradeCount);
   if(result.signalTradeCount>=minTrades){
    eligible++;
    const signature=tradeSignature(result),idx=top.findIndex(x=>x.signature===signature);
