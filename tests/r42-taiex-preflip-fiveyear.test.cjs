@@ -62,11 +62,13 @@ test('five-year multi-month signal history can be backtested without repeated mo
 test('browser splits five-year data requests and displays 5-year K-line option',async()=>{
  const {page}=require('./helpers/detail-page.cjs'),p=page('futures.html');
  await new Promise(resolve=>setImmediate(resolve));
- const rows=[],from=Date.UTC(2021,8,1);
+ const rows=[],from=Date.UTC(2021,8,1);let previousContract=null;
  for(let i=0;i<1830;i+=8){
   const date=new Date(from+i*86400000).toISOString().slice(0,10),contract=A.nextMonth(date);
-  const c=18000+i*3;
-  rows.push({date,contract_date:contract,futures_id:'TX',trading_session:'position',open:c,close:c+5,max:c+30,min:c-30,volume:10000,open_interest:5000});
+  const c=18000+i*3,b={date,contract_date:contract,futures_id:'TX',trading_session:'position',open:c,close:c+5,max:c+30,min:c-30,volume:10000,open_interest:5000};
+  rows.push(b);
+  if(previousContract&&previousContract!==contract)rows.push({...b,contract_date:previousContract});
+  previousContract=contract;
  }
  let calls=0;
  p.ctx.fetch=async url=>{
