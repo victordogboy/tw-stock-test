@@ -12,7 +12,7 @@ function cancel(message){
 function clear(){
  cancel('行情或條件已改變，請重新執行 R46。');
  $('r46Folds').replaceChildren();$('r46Ablation').replaceChildren();$('r46Legs').replaceChildren();
- $('r46Current').textContent='';$('r46Summary').textContent='';
+ $('r46Current').textContent='';$('r46Summary').textContent='';root.TWTaiexR47UI?.clear();
 }
 function render(c){
  const signature=c.raw===context?.raw&&c.contract===context?.contract&&c.session===context?.session&&JSON.stringify(c.sar)===JSON.stringify(context?.sar);
@@ -52,13 +52,14 @@ const line=r=>'策略 '+fmt(r.net)+' 點｜基準 '+fmt(r.benchmarkNet)+' 點｜
 $('r46Run').addEventListener('click',()=>{
  if(!context)return;
  try{
-  const {rows,p,range}=data(),r=E.backtest(rows,p,context.sar,range);
+  const {rows,p,range}=data(),prepared=E.build(rows,p,context.sar,range),r=E.simulate(prepared,p);
   $('r46Current').textContent=r.start+' ～ '+r.end+'｜'+line(r)+
     '｜實際多單 '+r.counts.long+' 次／空單 '+r.counts.short+' 次'+
     '｜ADX 多頭 '+r.regimes.bull+' 日、空頭 '+r.regimes.bear+' 日、盤整 '+r.regimes.range+' 日'+
     '｜起漲 '+r.counts.sar+' 次、趨勢續進 '+r.counts.trend+' 次、通道突破 '+r.counts.breakout+' 次'+
     '｜成本 '+fmt(p.cost)+' 點／合約段'+(p.cost===0?'（未扣成本，偏樂觀）':'');
   $('r46Status').textContent='R46 單組雙向回測完成；此結果尚未進行滾動驗證。';
+  root.TWTaiexR47UI?.showRun(prepared,r);
   $('r46Legs').replaceChildren();
   for(const leg of r.legs){
    const tr=document.createElement('tr');
@@ -118,6 +119,7 @@ $('r46Walk').addEventListener('click',async()=>{
    }
    $('r46Ablation').append(tr);
   }
+  root.TWTaiexR47UI?.showFolds(E.build(rows,p,context.sar,range),final);
  }catch(e){if(owner===job)$('r46Status').textContent='R46 滾動驗證失敗：'+e.message;}
  finally{if(owner===job)$('r46Stop').disabled=true;}
 });
