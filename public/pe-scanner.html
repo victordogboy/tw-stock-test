@@ -34,7 +34,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <label class="field">預估本益比上限<input id="maxpe" type="number" min="0" value="15" step="1"></label>
 <label class="field">市場<select id="market"><option value="all">上市＋上櫃</option><option value="twse">上市</option><option value="tpex">上櫃</option></select></label>
 <label class="field">股票搜尋<input id="search" type="search" placeholder="代號、公司名稱"></label>
-<label class="field">排序<select id="sort"><option value="pe">本益比由低到高</option><option value="eps">預估 EPS 由高到低</option><option value="rev">預估營收成長高到低</option><option value="volume">5 日均量由高到低</option></select></label>
+<label class="field">排序<select id="sort"><option value="pe">本益比由低到高</option><option value="eps">預估 EPS 由高到低</option><option value="rev">近月營收增速高到低</option><option value="volume">5 日均量由高到低</option></select></label>
 </div>
 <div class="actionbar">
 <label class="toggle"><input id="future" type="checkbox" checked> 有股票期貨可豁免股價下限</label>
@@ -56,7 +56,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <div class="toolbar"><strong>預估本益比排行榜</strong><span id="caption" class="hint">尚無資料</span></div>
 <div class="table-wrap">
 <table class="results"><thead><tr>
-<th>股票代號</th><th>名稱／市場</th><th>股價</th><th>5 日均量（張）</th><th>財報累計 EPS</th><th>預估全年 EPS</th><th>預估 PE</th><th>營收增幅推估</th><th>最新月營收（億元）</th><th>財報期／營收月</th><th>期貨</th>
+<th>股票代號</th><th>名稱／市場</th><th>股價</th><th>5 日均量（張）</th><th>財報累計 EPS</th><th>預估全年 EPS</th><th>預估 PE</th><th>近月營收／財報月均</th><th>最新月營收（億元）</th><th>財報期／營收月</th><th>期貨</th>
 </tr></thead><tbody id="tbody"><tr><td colspan="11" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
 </div>
 </section>
@@ -75,7 +75,7 @@ let full=[],volumes={twse:new Map(),tpex:new Map()},volumeDays={twse:[],tpex:[]}
 const f=(n,k=2)=>n===null||n===undefined||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('zh-TW',{maximumFractionDigits:k,minimumFractionDigits:k});
 function setStatus(s){$('status').textContent=s;}
 function num(id,fallback){const v=Number($(id).value);return Number.isFinite(v)&&v>=0?v:fallback;}
-function currentTaiwanDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+function currentTaiwanDate(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function oldDates(n){
  const d=new Date(currentTaiwanDate()+'T00:00:00Z'),out=[];
  for(let i=0;out.length<n&&i<28;i++){
@@ -125,7 +125,7 @@ function eligible(r){
 }
 function render(){
  const m=full.filter(eligible),mode=$('sort').value;
- m.sort((a,b)=>mode==='eps'?b.estimatedEPS-a.estimatedEPS:mode==='volume'?(b.avg5Lots??b.volumeTodayLots)-(a.avg5Lots??a.volumeTodayLots):mode==='rev'?b.annualizationFactor-a.annualizationFactor:a.estimatedPE-b.estimatedPE);
+ m.sort((a,b)=>mode==='eps'?b.estimatedEPS-a.estimatedEPS:mode==='volume'?(b.avg5Lots??b.volumeTodayLots)-(a.avg5Lots??a.volumeTodayLots):mode==='rev'?b.revenueMomentum-a.revenueMomentum:a.estimatedPE-b.estimatedPE);
  shown=m;$('matches').textContent=f(m.length,0);
  $('volDays').textContent=volumeDays.twse.length+' ／ '+volumeDays.tpex.length;
  $('caption').textContent='資料量 '+full.length+' 檔 · 顯示 '+m.length+' 檔 · 5日均量不足時'+($('strict').checked?'排除':'以當日量暫代（非正式5日均量）');
@@ -140,7 +140,7 @@ function render(){
   const tr=document.createElement('tr');
   const v=r.avg5Lots??($('strict').checked?null:r.volumeTodayLots);
   const cells=[r.code,r.name,r.close,v,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,
-   (r.annualizationFactor-1)*100,r.revenueLatest/1e5,
+   r.revenueMomentum*100,r.revenueLatest/1e5,
    String(r.financeQuarter||'')+' / '+String(r.revenueMonth||''),r.hasFutures?'有':'—'];
   cells.forEach((v,i)=>{
    const td=document.createElement('td');
