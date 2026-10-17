@@ -1,4 +1,4 @@
-// R50: three-method transparent forward-EPS screener. Does not change the Action scanner.
+// R51: separate unfiltered single-stock detail from the full-market ABC forward-PE screener. Existing Action scanner unchanged.
 const FIN_TYPES=['ci','basi','fh','ins','bd','mim'];
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
 const number=x=>{
@@ -195,14 +195,44 @@ async function volumeBatch(url){
  return response({ok:true,market,data:output.map((x,i)=>({...x,code:codes[i]}))});
 }
 
+
+// A single-company report never applies screener thresholds, sorting or the
+// chosen PE method. It reuses the official-data snapshot (and its 15-min cache)
+// but checks only that stock's recent trading volume.
+async function singleStockLookup(request,env,fetchExisting,url){
+ const query=(url.searchParams.get('query')||'').trim();
+ if(!query||query.length>40)return response({ok:false,error:'請輸入股票代號或公司名稱（最多40字）'},400);
+ const sourceUrl=url.origin+'/api/pe-screener/data'+(url.searchParams.get('refresh')==='1'?'?refresh=1':'');
+ const allResponse=await forwardPeRoute(new Request(sourceUrl,{headers:request.headers}),env,fetchExisting);
+ let snapshot;
+ try{snapshot=await allResponse.json();}catch{return response({ok:false,error:'行情／財報來源未回傳有效JSON'},502);}
+ if(!allResponse.ok||!snapshot.ok)return response({ok:false,error:'官方行情／財報來源取得失敗',errors:snapshot.errors||[],snapshotTime:snapshot.date||null},502);
+ const entries=Array.isArray(snapshot.rows)?snapshot.rows:[];
+ const q=query.toLowerCase();
+ const matched=entries.filter(r=>String(r.code)===query||String(r.name||'').toLowerCase()===q);
+ const found=matched.length?matched:entries.filter(r=>String(r.code||'').includes(query)||String(r.name||'').toLowerCase().includes(q));
+ if(!found.length)return response({ok:false,error:'未在現有報價清單找到這檔股票（可能停牌、非一般四碼股票或來源未收錄）',
+  searched:query,quotedStockCount:entries.length,sourceErrors:snapshot.errors||[],snapshotTime:snapshot.date||null},404);
+ if(found.length>1)return response({ok:true,ambiguous:true,query,candidates:found.slice(0,25).map(r=>({code:r.code,name:r.name,market:r.market})),
+  truncated:found.length>25,snapshotTime:snapshot.date||null});
+ const stock=found[0];
+ let volume5={ok:false,error:'成交量明細尚未取得'};
+ try{const detail=await yahooFiveDayVolume(stock.code,stock.market);volume5={ok:true,...detail};}
+ catch(err){volume5={ok:false,error:String(err.message||err)};}
+ return response({ok:true,ambiguous:false,query,stock,volume5,
+  snapshotTime:snapshot.date||null,priceBasis:snapshot.priceBasis,
+  sourceErrors:snapshot.errors||[],sources:snapshot.sources||null,
+  note:'單一股票查詢不套用任何股價、成交量、PE或期貨篩選；無法計算的模型會保留缺資料原因。行情屬官方最近日線快照，並非保證盤中即時。'});
+}
 export async function forwardPeRoute(request,env,fetchExisting){
  const url=new URL(request.url);
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
  if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
- if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R50',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
+ if(url.pathname==='/api/pe-screener/stock')return singleStockLookup(request,env,fetchExisting,url);
+ if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R51',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
- const key=new Request(url.origin+'/__cache/eps-forward-r50');
+ const key=new Request(url.origin+'/__cache/eps-forward-r51');
  if(!fresh){const hit=await cache.match(key);if(hit)return hit;}
  const started=Date.now();
  const inputs=[
@@ -261,6 +291,13 @@ export async function forwardPeRoute(request,env,fetchExisting){
   const models=methodModels(share,fin,mon,projected);
   const quoteReportedDate=String(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate||'').trim()||null;
   rows.push({...share,...projected,models,quoteReportedDate,
+   statementBasis:fin?.source??null,
+   revenueBasis:mon?.source??null,
+   revenueLatestRaw:mon?.monthRevenue??null,revenueYtdRaw:mon?.ytd??null,
+   financeGrossProfit:fin?.grossProfit??null,financeOperatingExpenses:fin?.opExpenses??null,
+   financeOtherOperating:fin?.otherOperating??null,financeNonOperating:fin?.nonOperating??null,
+   financeIncomeTax:fin?.incomeTax??null,financePretax:fin?.pretax??null,
+   financeNetIncome:fin?.netIncome??null,financeParentIncome:fin?.parentIncome??null,
    financeIssueDate:fin?.statementIssueDate??null,
    financeQuarter:fin?fin.year+'Q'+fin.quarter:null,
    financeYtdEPS:fin?.reportedYtdEPS??null,financeYtdRevenue:fin?.reportedYtdRevenue??null,
@@ -269,7 +306,7 @@ export async function forwardPeRoute(request,env,fetchExisting){
  }
  rows.sort((a,b)=>(a.estimatedPE??Infinity)-(b.estimatedPE??Infinity));
  const ok=rows.length>0&&financials.size>0&&months.size>0;
- const payload={ok,version:'R50',date:new Date().toISOString(),
+ const payload={ok,version:'R51',date:new Date().toISOString(),
   asOf:{snapshotFetchedAt:new Date().toISOString(),timeZone:'Asia/Taipei',
    quotes:'交易所最新日線快照；若來源未提供交易日則標示「未提供」，不可當作即時報價',
    statements:'每檔 financeQuarter 為財報所屬季；financeIssueDate 為來源出表日期（可能無）',
