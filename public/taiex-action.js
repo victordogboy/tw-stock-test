@@ -63,7 +63,7 @@ function analyze(rows,input={},sarConfig={}){
   const entryParts=[trend,acceleration,sarEntry,volume],holdParts=[trend,momentum,sarHold,volume];
   const entry=clamp(weighted(entryParts,p.entryWeights)-penalty),hold=weighted(holdParts,p.holdWeights);
   return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr,preFlipScore:pre.preFlipScore,
-   evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension,acceleration,volume,trigger:sp.nextTrigger,
+   evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension,acceleration,volume,trigger:sp.nextTrigger-(b.rollOffset||0),
    gap:pre.gap,near:pre.near,kdAgree:pre.kdAgree,priceImproving:pre.priceImproving,k:kd[i].k,dh:kd[i].d}};
  }).map((s,i,all)=>{
   if(!s)return null;const delta=all[i-1]?s.entry-all[i-1].entry:null;
@@ -163,7 +163,7 @@ function prepareMulti(allRows,input={},sarConfig={},range={}){
     adjusted.length=0;offset=0;
    }else offset+=old.open-b.open;
   }
-  adjusted.push({...b,contract:'TX_SIGNAL',open:b.open+offset,high:b.high+offset,low:b.low+offset,close:b.close+offset,volume:normalizedVolume.get(date+':'+contract)});
+  adjusted.push({...b,contract:'TX_SIGNAL',open:b.open+offset,high:b.high+offset,low:b.low+offset,close:b.close+offset,volume:normalizedVolume.get(date+':'+contract),rollOffset:offset});
   if(active)timeline.push(b);
   previous=b;
  }
@@ -202,7 +202,9 @@ function simulateMulti(prepared,p){
 function backtestMulti(rows,input={},sarConfig={},range={}){const p=validate(input);return simulateMulti(prepareMulti(rows,p,sarConfig,range),p);}
 function analyzeMulti(rows,input={},sarConfig={},range={}){
  const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range);
- return {scores:rescore(prepared.features,p),start:prepared.start,end:prepared.end,signalBars:prepared.signalBars};
+ const lookup=new Map(prepared.timeline.map(b=>[b.date,b.contract]));
+ return {scores:rescore(prepared.features,p).map(s=>s?{...s,contract:lookup.get(s.date)||null}:null),
+  start:prepared.start,end:prepared.end,signalBars:prepared.signalBars};
 }
 // More independent profiles, including low-frequency and active-entry variants.
 // Trade count is a constraint, not an objective; identical trade calendars occupy only one finalist.
