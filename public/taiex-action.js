@@ -2,15 +2,17 @@
 (function(root){
 'use strict';
 const sar=typeof module==='object'&&module.exports?require('./parabolic-sar.js'):root.TWParabolicSAR;
-const defaults={direction:'long',entryWeights:[30,30,25,15],holdWeights:[35,25,25,15],delta:10,minEntry:55,exit:45,maxAge:5,cost:0,sarMode:'both',preFlipGap:0.75,preFlipMin:65};
+const defaults={direction:'long',entryWeights:[30,30,25,15],holdWeights:[35,25,25,15],delta:10,minEntry:55,exit:45,maxAge:5,cost:0,sarMode:'both',preFlipGap:0.75,preFlipMin:65,entryType:'hybrid',exitType:'mixed',trendBars:2,breakBars:3,atrMultiple:3.5};
 const clamp=x=>Math.max(0,Math.min(100,x));
 function validate(input={}){
  const p={...defaults,...input};
  if(!['long','short'].includes(p.direction))throw Error('請選擇做多或做空');
  if(!['aligned','anticipate','both'].includes(p.sarMode))throw Error('SAR 進場模式不正確');
+ if(!['early','trend','hybrid'].includes(p.entryType))throw Error('R45 進場策略須為起漲、趨勢或混合');
+ if(!['hold','trend','atr','mixed'].includes(p.exitType))throw Error('R45 出場策略不正確');
  for(const k of ['entryWeights','holdWeights']){if(!Array.isArray(p[k])||p[k].length!==4)throw Error('權重需有四項');if(p[k].some(x=>x===''||x===null))throw Error('權重不可空白');p[k]=p[k].map(Number);if(p[k].some(x=>!Number.isFinite(x)||x<0||x>100)||!p[k].some(x=>x>0))throw Error('權重須為 0～100，且至少一項大於零');}
- for(const [k,min,max] of [['delta',0,100],['minEntry',0,100],['exit',0,100],['maxAge',0,100],['cost',0,10000],['preFlipGap',0.05,3],['preFlipMin',0,100]]){if(p[k]===''||p[k]===null)throw Error('參數不可空白');p[k]=Number(p[k]);if(!Number.isFinite(p[k])||p[k]<min||p[k]>max)throw Error('門檻或成本超出範圍');}
- if(!Number.isInteger(p.maxAge))throw Error('SAR 根數須為整數');return p;
+ for(const [k,min,max] of [['delta',0,100],['minEntry',0,100],['exit',0,100],['maxAge',0,100],['cost',0,10000],['preFlipGap',0.05,3],['preFlipMin',0,100],['trendBars',1,10],['breakBars',1,10],['atrMultiple',1,10]]){if(p[k]===''||p[k]===null)throw Error('參數不可空白');p[k]=Number(p[k]);if(!Number.isFinite(p[k])||p[k]<min||p[k]>max)throw Error('門檻或成本超出範圍');}
+ if(!Number.isInteger(p.maxAge)||!Number.isInteger(p.trendBars)||!Number.isInteger(p.breakBars))throw Error('SAR／趨勢確認根數須為整數');return p;
 }
 const weighted=(v,w)=>v.reduce((s,x,i)=>s+x*w[i],0)/w.reduce((a,b)=>a+b,0);
 // KD 9,3,3: recursively smoothed K and D with no future or next-candle inputs.
@@ -64,7 +66,7 @@ function analyze(rows,input={},sarConfig={}){
   const entry=clamp(weighted(entryParts,p.entryWeights)-penalty),hold=weighted(holdParts,p.holdWeights);
   return {date:b.date,entry,hold,entryParts,holdParts,penalty,age,aligned,atr,preFlipScore:pre.preFlipScore,
    evidence:{trend:[b.close-m20,m5-m20,m20-m60,m20-old20].map(x=>d*x>0),velocity,previous,ratio,move,extension,acceleration,volume,trigger:sp.nextTrigger-(b.rollOffset||0),
-   gap:pre.gap,near:pre.near,kdAgree:pre.kdAgree,priceImproving:pre.priceImproving,k:kd[i].k,dh:kd[i].d}};
+   gap:pre.gap,near:pre.near,kdAgree:pre.kdAgree,priceImproving:pre.priceImproving,k:kd[i].k,dh:kd[i].d,adjustedClose:b.close,ma20:m20,ma60:m60,ma5:m5}};
  }).map((s,i,all)=>{
   if(!s)return null;const delta=all[i-1]?s.entry-all[i-1].entry:null;
   return {...s,delta,enter:delta!==null&&delta>=p.delta&&s.entry>=p.minEntry&&s.hold>=p.exit&&entryGate(s,p),leave:s.hold<p.exit};
@@ -390,5 +392,171 @@ function* optimizeMultiR44(rows,input={},sarConfig={},range={},minTrades=20,trai
  }
 }
 
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth,benchmarkMulti,backtestMultiR44,simulateMultiCarry,objectiveR44,compareR44,optimizeMultiR44};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+
+// R45: separate anticipation, trend continuation and hybrid entry.
+// Every signal below is computable at the CURRENT close. All fills remain next open.
+function simulateMultiR45(prepared,input,first=0,last=prepared.timeline.length-1,baseline=null){
+ const p=validate(input),{timeline,lookup,features}=prepared,scored=new Map();
+ for(const score of rescore(features,p))if(score)scored.set(score.date,score);
+ const d=p.direction==='long'?1:-1,trades=[],episodes=[],months=[...new Set(timeline.slice(first,last+1).map(b=>b.contract))];
+ let position=null,episode=null,pending=null,pendingType=null,pendingReason=null;
+ let net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,carryRolls=0,entrySignals=0,exitSignals=0,preFlipEntries=0;
+ let coveredBars=0,missedUpPoints=0,missedUpDays=0,trendStreak=0,breakStreak=0,trailingPeak=null,priorFlatClose=null;
+ let earlyEntries=0,trendEntries=0,exitTrend=0,exitAtr=0,exitHold=0;
+ const entryTrend=s=>s&&s.evidence.trend[0]&&s.evidence.trend[1]&&s.evidence.trend[2];
+ const brokenTrend=s=>s&&d*(s.evidence.adjustedClose-s.evidence.ma20)<0;
+ const majorBreak=s=>s&&d*(s.evidence.ma20-s.evidence.ma60)<0;
+ function enter(b,date,kind){
+  position={contract:b.contract,date:b.date,price:b.open,signalDate:date,signalType:kind};
+  episode={entryDate:b.date,signalDate:date,signalType:kind,gross:0,net:0,legs:0};
+  trailingPeak=null;breakStreak=0;
+  if(kind==='趨勢重新進場')trendEntries++;else {earlyEntries++;if(kind==='翻向前預判')preFlipEntries++;}
+ }
+ function close(price,date,reason,carrying=false){
+  const gross=d*(price-position.price),value=gross-p.cost;
+  trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,signalType:position.signalType,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});
+  net+=value;episode.gross+=gross;episode.net+=value;episode.legs++;
+  if(!carrying){episodes.push({...episode,exitDate:date,reason});episode=null;trailingPeak=null;}
+  position=null;
+ }
+ for(let i=first;i<=last;i++){
+  const b=timeline[i],roll=i>first&&timeline[i-1].contract!==b.contract;
+  if(roll){
+   rollovers++;
+   if(position){
+    const old=position,exitRequested=pending==='exit';
+    close(lookup.get(b.date+':'+old.contract).open,b.date,exitRequested?pendingReason:'換月舊倉平倉',!exitRequested);
+    if(!exitRequested){
+     position={contract:b.contract,date:b.date,price:b.open,signalDate:old.signalDate,signalType:'續抱換月'};
+     carryRolls++;
+    }
+    if(exitRequested){if(pendingReason==='趨勢確認離場')exitTrend++;else if(pendingReason==='ATR移動停損')exitAtr++;else exitHold++;}
+    pending=null;
+   }
+  }
+  if(pending==='exit'&&position){
+   close(b.open,b.date,pendingReason);
+   if(pendingReason==='趨勢確認離場')exitTrend++;else if(pendingReason==='ATR移動停損')exitAtr++;else exitHold++;
+  }else if(pending==='enter'&&!position)enter(b,timeline[i-1]?.date,pendingType);
+  pending=null;pendingType=null;pendingReason=null;
+  const equity=net+(position?d*(b.close-position.price)-p.cost:0);
+  peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
+  if(position)coveredBars++;
+  const score=scored.get(b.date);
+  if(score)validBars++;
+  if(!position&&i>first&&priorFlatClose!==null){
+   // Positive daily adjusted-close change while flat, for DIAGNOSIS only.
+   // Not a realizable counterfactual P&L; no future prices enter decisions.
+   const missed=Math.max(0,d*(score?.evidence.adjustedClose-priorFlatClose));
+   if(Number.isFinite(missed)&&missed>0){missedUpPoints+=missed;missedUpDays++;}
+  }
+  priorFlatClose=score?.evidence.adjustedClose??null;
+  if(i===last){if(position)close(b.close,b.date,'區間結束平倉');break;}
+  if(!score)continue;
+  trendStreak=entryTrend(score)?trendStreak+1:0;
+  if(position){
+   const price=d*score.evidence.adjustedClose;
+   trailingPeak=trailingPeak===null?price:Math.max(trailingPeak,price);
+   breakStreak=brokenTrend(score)?breakStreak+1:0;
+   const trendExit=majorBreak(score)||breakStreak>=p.breakBars;
+   const atrExit=trailingPeak-price>=p.atrMultiple*score.atr;
+   const holdExit=score.leave;
+   let reason=null;
+   if(p.exitType==='hold'&&holdExit)reason='續抱低於門檻';
+   if(p.exitType==='trend'&&trendExit)reason='趨勢確認離場';
+   if(p.exitType==='atr'&&atrExit)reason='ATR移動停損';
+   if(p.exitType==='mixed'&&(trendExit||atrExit))reason=trendExit?'趨勢確認離場':'ATR移動停損';
+   if(reason){pending='exit';pendingReason=reason;exitSignals++;}
+  }else{
+   const early=(p.entryType==='early'||p.entryType==='hybrid')&&score.enter;
+   const trend=(p.entryType==='trend'||p.entryType==='hybrid')&&trendStreak>=p.trendBars;
+   if(early||trend){
+    pending='enter';pendingType=early?(score.aligned?'已翻向':'翻向前預判'):'趨勢重新進場';entrySignals++;
+   }
+  }
+ }
+ let evaluated=0,within2=0;
+ for(let i=first;i<=last-2;i++){
+  const ss=scored.get(timeline[i].date);
+  if(!ss?.enter||ss.aligned)continue;
+  const a=scored.get(timeline[i+1].date),b=scored.get(timeline[i+2].date);
+  if(!a||!b)continue;evaluated++;if(a.aligned||b.aligned)within2++;
+ }
+ const wins=episodes.filter(e=>e.net>0),gain=episodes.reduce((v,t)=>v+Math.max(0,t.net),0),loss=episodes.reduce((v,t)=>v+Math.max(0,-t.net),0);
+ const totalBars=last-first+1;
+ const result={trades,signalTrades:episodes,signalTradeCount:episodes.length,net,gross:trades.reduce((v,t)=>v+t.gross,0),
+ winRate:episodes.length?wins.length/episodes.length*100:null,
+ maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,
+ validBars,totalBars,warmupBars:totalBars-validBars,start:timeline[first].date,end:timeline[last].date,months,
+ rollovers,carryRolls,entrySignals,exitSignals,preFlipEntries,
+ preFlipCheck:{evaluated,within2,percent:evaluated?within2/evaluated*100:null},signalBars:prepared.signalBars,
+ exposure:{coveredBars,totalBars,percent:coveredBars/totalBars*100,missedUpPoints,missedUpDays},
+ actions:{earlyEntries,trendEntries,exitTrend,exitAtr,exitHold}};
+ return withBenchmark(result,baseline||benchmarkMulti(prepared,p,first,last));
+}
+function backtestMultiR45(rows,input={},sarConfig={},range={}){
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range);
+ return simulateMultiR45(prepared,p);
+}
+function candidateGridR45(input={}){
+ const p=validate(input),set=new Map(),add=x=>set.set(JSON.stringify(x),x);
+ add(p);
+ const profiles=[p.entryWeights,[25,30,20,25],[40,20,25,15]];
+ const holdProfiles=[p.holdWeights,[45,20,20,15]];
+ for(const entryType of ['early','trend','hybrid'])
+ for(const exitType of ['trend','atr','mixed'])
+ for(const trendBars of [2,4])
+ for(const breakBars of [2,4])
+ for(const atrMultiple of [2.5,4.5])
+ for(const delta of [5,15])
+ for(const entryWeights of profiles)
+ for(const holdWeights of holdProfiles){
+   // For trend-only mode, early-entry weights and delta do not change orders.
+   if(entryType==='trend'&&(delta!==5||entryWeights!==profiles[0]||holdWeights!==holdProfiles[0]))continue;
+   if(exitType==='atr'&&breakBars!==2)continue;
+   if(exitType==='trend'&&atrMultiple!==2.5)continue;
+   add({...p,entryType,exitType,trendBars,breakBars,atrMultiple,delta,entryWeights,holdWeights});
+ }
+ return [...set.values()];
+}
+function objectiveR45(result){
+ // Same one-lot futures benchmark; constant benchmark within each training interval.
+ // Explicitly penalize max drawdown and excessive time absent on positive days.
+ return result.excessNet-0.7*result.maxDrawdown-0.1*result.exposure.missedUpPoints;
+}
+function compareR45(a,b){return objectiveR45(b.result)-objectiveR45(a.result)||b.result.net-a.result.net||a.result.maxDrawdown-b.result.maxDrawdown;}
+function* optimizeMultiR45(rows,input={},sarConfig={},range={},minTrades=10,trainShare=0.7){
+ if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最低交易筆數須為 1～10000');
+ if(![0.6,0.7,0.8].includes(trainShare))throw Error('訓練比例需為 60%、70% 或 80%');
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),n=prepared.timeline.length;
+ if(n<120)throw Error('資料少於 120 根日 K，無法區分訓練與驗證');
+ const cut=Math.max(60,Math.min(n-30,Math.floor(n*trainShare)));
+ const baselineTrain=benchmarkMulti(prepared,p,0,cut-1),baselineTest=benchmarkMulti(prepared,p,cut,n-1);
+ const grid=candidateGridR45(p),top=[],byMode=new Map();let eligible=0,maxTrades=0;
+ const signature=r=>r.signalTrades.map(t=>t.entryDate+':'+t.exitDate).join('|');
+ for(let i=0;i<grid.length;i++){
+  const config=grid[i],result=simulateMultiR45(prepared,config,0,cut-1,baselineTrain);
+  maxTrades=Math.max(maxTrades,result.signalTradeCount);
+  if(result.signalTradeCount>=minTrades){
+   eligible++;const sig=signature(result),existing=top.findIndex(x=>x.sig===sig);
+   const item={config,result,sig};
+   if(existing>=0){if(compareR45(item,top[existing])<0)top[existing]=item;}
+   else top.push(item);
+   top.sort(compareR45);top.length=Math.min(5,top.length);
+   const mode=config.entryType,prev=byMode.get(mode);
+   if(!prev||compareR45(item,prev)<0)byMode.set(mode,item);
+  }
+  if((i+1)%25===0||i===grid.length-1){
+   const final=i===grid.length-1;
+   const mapItem=x=>({config:x.config,result:x.result,...(final?{validation:simulateMultiR45(prepared,x.config,cut,n-1,baselineTest)}:{})});
+   yield {done:i+1,total:grid.length,eligible,maxTrades,top:top.map(mapItem),
+    modes:final?['early','trend','hybrid'].map(mode=>({mode,choice:byMode.has(mode)?mapItem(byMode.get(mode)):null})):[],
+    start:prepared.start,end:prepared.end,trainStart:prepared.timeline[0].date,trainEnd:prepared.timeline[cut-1].date,
+    validationStart:prepared.timeline[cut].date,validationEnd:prepared.timeline[n-1].date,
+    baseline:{full:benchmarkMulti(prepared,p),train:baselineTrain,test:baselineTest},totalBars:n};
+  }
+ }
+}
+
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth,benchmarkMulti,backtestMultiR44,simulateMultiCarry,objectiveR44,compareR44,optimizeMultiR44,simulateMultiR45,backtestMultiR45,candidateGridR45,compareR45,optimizeMultiR45};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
