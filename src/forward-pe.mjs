@@ -1,4 +1,4 @@
-// R49: free, full-market forward-EPS screener. Does not change the existing scanner.
+// R50: three-method transparent forward-EPS screener. Does not change the Action scanner.
 const FIN_TYPES=['ci','basi','fh','ins','bd','mim'];
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
 const number=x=>{
@@ -62,13 +62,23 @@ function readMonth(r){
  if(!year||month<1||month>12||monthRevenue===null||ytd===null||monthRevenue<0||ytd<=0)return null;
  return {year,month,monthRevenue,prevMonth,ytd,source:'TWSE/MOPS monthly disclosure'};
 }
+const field=(r,keys)=>{for(const key of keys){if(Object.prototype.hasOwnProperty.call(r,key)){const v=number(r[key]);if(v!==null)return v;}}return null;};
 function readFin(r,type){
  const year=rocYear(r['年度']),q=number(r['季別']);
  const eps=number(r['基本每股盈餘（元）']||r['基本每股盈餘(元)']);
  const revenue=number(r['營業收入']);
  if(!year||![1,2,3,4].includes(q)||eps===null)return null;
  return {year,quarter:q,reportedYtdEPS:eps,reportedYtdRevenue:revenue,
-  sector:type,source:'TWSE/MOPS income statement (YTD)'};
+  sector:type,source:'TWSE/MOPS income statement (YTD)',statementIssueDate:String(r['出表日期']||'').trim()||null,
+  grossProfit:field(r,['營業毛利（毛損）淨額','營業毛利(毛損)淨額','營業毛利（毛損）','營業毛利(毛損)']),
+  opExpenses:field(r,['營業費用','營業費用合計']),
+  otherOperating:field(r,['其他收益及費損淨額','其他收益及費損淨額（損失）']),
+  nonOperating:field(r,['營業外收入及支出','營業外損益']),
+  pretax:field(r,['稅前淨利（淨損）','稅前淨利(淨損)']),
+  incomeTax:field(r,['所得稅費用（利益）','所得稅費用(利益)']),
+  netIncome:field(r,['本期淨利（淨損）','本期淨利(淨損)']),
+  parentIncome:field(r,['淨利（淨損）歸屬於母公司業主','淨利（損）歸屬於母公司業主','淨利歸屬於母公司業主(淨損)','淨利歸屬於母公司業主（淨損）']),
+  sourceColumns:Object.keys(r).length};
 }
 function choose(old,next){
  if(!old)return next;
@@ -111,6 +121,51 @@ function forecast(share,fin,month){
  };
 }
 
+
+// C uses the disclosed YTD EPS as the actual starting point. Future revenue is
+// modelled using the last disclosed YTD gross margin and monthly fixed expenses.
+// No historical non-operating baseline is available from this bulk endpoint, so
+// the forward portion deliberately assumes zero non-operating gains/losses.
+function forecastC(share,fin,month,a){
+ const fail=status=>({status,eps:null,pe:null,pressurePE:null});
+ if(a.status!=='ok')return fail('A 無法計算：'+a.status);
+ if(!fin||fin.sector!=='ci')return fail('非一般產業或財報未取得');
+ const required=['grossProfit','opExpenses','pretax','incomeTax','netIncome','parentIncome'];
+ const missing=required.filter(k=>fin[k]===null||!Number.isFinite(fin[k]));
+ if(missing.length)return fail('缺損益表欄位：'+missing.join('、'));
+ const rev=fin.reportedYtdRevenue,elapsed=fin.quarter*3,remaining=12-elapsed;
+ if(!(rev>0)||!(fin.reportedYtdEPS>0)||!(fin.parentIncome>0)||!(fin.netIncome>0)||!(fin.pretax>0)||remaining<0)
+  return fail('稅前損益／歸母淨利／股數無法合理反推');
+ const shares=fin.parentIncome/fin.reportedYtdEPS;
+ const margin=fin.grossProfit/rev;
+ const ratio=fin.parentIncome/fin.netIncome;
+ const taxRate=fin.incomeTax/fin.pretax;
+ if(!(shares>0)||margin< -0.5||margin>1.5||ratio<=0||ratio>1.2||taxRate<0||taxRate>0.5||fin.opExpenses<0)
+  return fail('損益率／稅率／股數異常，停止計算');
+ const additionalRevenue=a.projectedYearRevenue-rev;
+ if(additionalRevenue<0)return fail('全年營收小於已公告財報營收');
+ const otherOp=fin.otherOperating??0;
+ const gross=additionalRevenue*margin;
+ const operatingProfit=gross-fin.opExpenses/elapsed*remaining+otherOp/elapsed*remaining;
+ const aftertax=operatingProfit>0?operatingProfit*(1-taxRate):operatingProfit;
+ const additionalParent=aftertax*Math.min(1,ratio);
+ const eps=fin.reportedYtdEPS+additionalParent/shares;
+ if(!Number.isFinite(eps)||eps<=0||eps>1000)return fail('C 預估 EPS 非正值或異常');
+ return {status:'ok',eps,pe:share.close/eps,pressurePE:share.close/(eps*0.8),
+  basis:'已公告累積EPS＋未揭露期間毛利－按月固定營業費用＋其他營業收益；未來業外設0',
+  assumptions:'固定已公告毛利率、月營業費用、有效稅率；股數由歸母淨利÷EPS反推；未來業外=0',
+  grossMargin:margin,expenseMonthly:fin.opExpenses/elapsed,taxRate,
+  inferredSharesThousands:shares,nonOperatingBaseline:'0（缺跨季資料，非歷史正常化）'};
+}
+function methodModels(share,fin,month,a){
+ const A=a.status==='ok'?{status:'ok',eps:a.estimatedEPS,pe:a.estimatedPE,
+  pressurePE:share.close/(a.estimatedEPS*0.8),basis:'已公告累積EPS按全年推估營收比例外推'}:
+  {status:a.status,eps:null,pe:null,pressurePE:null};
+ const B={status:'缺最近4～8季歷史損益資料（目前整批官方來源只提供最新財報期）',
+  eps:null,pe:null,pressurePE:null,basis:'歷史淨利率與季節性法；未以A代替'};
+ const C=forecastC(share,fin,month,a);
+ return {A,B,C};
+}
 async function yahooFiveDayVolume(code,market){
  const suffix=market==='tpex'?'.TWO':'.TW';
  const uri='https://query1.finance.yahoo.com/v8/finance/chart/'+code+suffix+'?range=1mo&interval=1d&events=false';
@@ -144,10 +199,10 @@ export async function forwardPeRoute(request,env,fetchExisting){
  const url=new URL(request.url);
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
  if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
- if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R49',method:'Official disclosed YTD EPS/revenue, latest monthly revenue annualization'});
+ if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R50',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
- const key=new Request(url.origin+'/__cache/eps-forward-r49');
+ const key=new Request(url.origin+'/__cache/eps-forward-r50');
  if(!fresh){const hit=await cache.match(key);if(hit)return hit;}
  const started=Date.now();
  const inputs=[
@@ -203,19 +258,31 @@ export async function forwardPeRoute(request,env,fetchExisting){
    close,volumeTodayLots:volume/1000,hasFutures:futures.has(code)};
   const fin=financials.get(code)||null,mon=months.get(code)||null;
   const projected=forecast(share,fin,mon);
-  rows.push({...share,...projected,financeQuarter:fin?fin.year+'Q'+fin.quarter:null,
+  const models=methodModels(share,fin,mon,projected);
+  const quoteReportedDate=String(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate||'').trim()||null;
+  rows.push({...share,...projected,models,quoteReportedDate,
+   financeIssueDate:fin?.statementIssueDate??null,
+   financeQuarter:fin?fin.year+'Q'+fin.quarter:null,
    financeYtdEPS:fin?.reportedYtdEPS??null,financeYtdRevenue:fin?.reportedYtdRevenue??null,
    latestRevenueMonth:mon?mon.year+'-'+String(mon.month).padStart(2,'0'):null,
    sourceStatus:projected.status});
  }
  rows.sort((a,b)=>(a.estimatedPE??Infinity)-(b.estimatedPE??Infinity));
  const ok=rows.length>0&&financials.size>0&&months.size>0;
- const payload={ok,version:'R49',date:new Date().toISOString(),
+ const payload={ok,version:'R50',date:new Date().toISOString(),
+  asOf:{snapshotFetchedAt:new Date().toISOString(),timeZone:'Asia/Taipei',
+   quotes:'交易所最新日線快照；若來源未提供交易日則標示「未提供」，不可當作即時報價',
+   statements:'每檔 financeQuarter 為財報所屬季；financeIssueDate 為來源出表日期（可能無）',
+   revenues:'每檔 latestRevenueMonth 為已公布最新月營收所屬月份',
+   historicalQuarters:'B 需要4–8季，目前尚未取得，絕不混用當季或A模型替代'},
   priceBasis:'latest official daily market snapshot (not guaranteed intraday)',
   epsBasis:'last disclosed cumulative year-to-date EPS, not stand-alone quarter EPS',
   assumptions:'EPS/revenue efficiency held constant; unpublished months held at latest reported month revenue',
   counts:{quotes:quotes.length,stocks:rows.length,eps:financials.size,monthlyRevenue:months.size,
-   projected:rows.filter(x=>x.status==='ok').length},
+   projected:rows.filter(x=>x.status==='ok').length,
+   models:{A:rows.filter(x=>x.models.A.status==='ok').length,
+    B:rows.filter(x=>x.models.B.status==='ok').length,
+    C:rows.filter(x=>x.models.C.status==='ok').length}},
   sources:{twse:top[0].ok,tpex:top[1].ok,futures:top[2].ok,futuresDegraded:!!top[2].data?.degraded},
   errors:[...errors,...top.map((r,i)=>r.ok?null:{market:inputs[i].id,message:r.error}).filter(Boolean)],
   rows,elapsedMs:Date.now()-started};

@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股預估 EPS / 本益比掃描器 R49</title>
+<title>台股預估 EPS / 本益比掃描器 R50 ABC</title>
 <style>
 :root{color-scheme:dark;--bg:#0b1220;--panel:#111d31;--border:#273950;--ink:#edf4ff;--muted:#9caec5;--green:#4de0b0;--yellow:#edc47c;--blue:#6faafa}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,#14243a,#0b1220 65%);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:14px}
@@ -14,7 +14,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 .field{display:flex;flex-direction:column;gap:7px;color:var(--muted);font-size:12px}.field input,.field select{width:100%;background:#0b1627;border:1px solid #34506b;border-radius:9px;color:var(--ink);padding:10px 11px;min-height:42px;font-size:15px;outline-offset:2px}
 .field input:focus{border-color:var(--blue)}.toggle{display:flex;gap:9px;align-items:center;color:var(--ink);font-size:13px;padding-top:12px}.toggle input{accent-color:var(--green);width:17px;height:17px}
 .actionbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px}button{background:#22649c;color:#fff;border:1px solid #357fbb;border-radius:9px;padding:11px 15px;cursor:pointer;font-size:14px;font-weight:650}button.primary{background:#147a64;border-color:#2ba48b}button:disabled{opacity:.45;cursor:not-allowed}.light{background:#21344b;border-color:#35536d}#status{color:var(--muted);font-size:12px;line-height:1.5}.warning{color:var(--yellow);font-size:12px;line-height:1.7}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.stat{background:#111d31;border:1px solid var(--border);border-radius:12px;padding:15px}.stat .v{font-size:25px;font-weight:750;font-variant-numeric:tabular-nums}.stat .k{font-size:12px;color:var(--muted);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-bottom:16px}.stat{background:#111d31;border:1px solid var(--border);border-radius:12px;padding:15px}.stat .v{font-size:25px;font-weight:750;font-variant-numeric:tabular-nums}.stat .k{font-size:12px;color:var(--muted);margin-top:4px}
 .toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.hint{color:var(--muted);font-size:12px}
 .table-wrap{overflow:auto;max-height:68vh;border:1px solid var(--border);border-radius:12px}.results{border-collapse:separate;border-spacing:0;width:100%;min-width:1100px}.results th{background:#1a2b43;color:#bccde4;position:sticky;top:0;z-index:1;text-align:right;font-weight:600;white-space:nowrap;padding:12px;border-bottom:1px solid var(--border);cursor:pointer}.results td{padding:11px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid #26374a;font-variant-numeric:tabular-nums}.results tr:hover{background:#1b3046}.results th:first-child,.results td:first-child,.results th:nth-child(2),.results td:nth-child(2){text-align:left}
 .company{font-weight:650;color:#e8f5ff}.minor{font-size:11px;color:var(--muted)}.up{color:var(--green)}.chip{font-size:11px;padding:3px 7px;border:1px solid #356d5b;border-radius:6px;color:#b4f8dd}.empty{padding:35px;color:var(--muted);text-align:center}
@@ -24,19 +24,21 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 </head>
 <body>
 <main>
-<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R49 · Forward EPS / PE</span></nav>
-<h1>台股預估 EPS × 低本益比掃描器</h1>
+<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R50 · ABC / 資料時間稽核</span></nav>
+<h1>台股A／B／C 預估 EPS × 本益比掃描器</h1>
 <div class="lead">全上市＋上櫃普通股 • 用最新已公告的累計 EPS 與財報營收，搭配最新月營收，假設尚未公布的月份保持最近月營收水準，推算全年 EPS；再以最近成交價計算「預估本益比」。預設嚴格使用 5 日平均成交量，不以單日量冒充。</div>
 <section class="panel">
 <div class="controls">
 <label class="field">最低股價（元）<input id="minprice" type="number" min="0" value="30" step="1"></label>
 <label class="field">5 日均量至少（張）<input id="minvol" type="number" min="0" value="1000" step="100"></label>
-<label class="field">預估本益比上限<input id="maxpe" type="number" min="0" value="15" step="1"></label>
+<label class="field">預估本益比上限<input id="maxpe" type="number" min="0" value="35" step="1"></label>
 <label class="field">市場<select id="market"><option value="all">上市＋上櫃</option><option value="twse">上市</option><option value="tpex">上櫃</option></select></label>
 <label class="field">股票搜尋<input id="search" type="search" placeholder="代號、公司名稱"></label>
 <label class="field">排序<select id="sort"><option value="pe">本益比由低到高</option><option value="eps">預估 EPS 由高到低</option><option value="rev">近月營收增速高到低</option><option value="volume">5 日均量由高到低</option></select></label>
 </div>
 <div class="actionbar">
+<label class="field" style="min-width:185px">排名策略<select id="strategy"><option value="A">A｜營收比例法</option><option value="B">B｜4～8季歷史淨利率法</option><option value="C">C｜毛利費用拆解法</option></select></label>
+<label class="field" style="max-width:170px">壓力 EPS 下修（%）<input id="stress" type="number" value="20" min="0" max="80" step="5"></label>
 <label class="toggle"><input id="future" type="checkbox" checked> 有股票期貨可豁免股價下限</label>
 <label class="toggle"><input id="strict" type="checkbox" checked> 嚴格採用 5 日均量（資料不足不放行）</label>
 </div>
@@ -48,19 +50,25 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 </section>
 <section class="stats">
 <div class="stat"><div id="total" class="v">—</div><div class="k">取得普通股報價</div></div>
-<div class="stat"><div id="eligible" class="v">—</div><div class="k">可計算預估 EPS</div></div>
+<div class="stat"><div id="eligible" class="v">—</div><div class="k">A｜可計算</div></div>
+<div class="stat"><div id="bCount" class="v">—</div><div class="k">B｜可計算</div></div>
+<div class="stat"><div id="cCount" class="v">—</div><div class="k">C｜可計算</div></div>
 <div class="stat"><div id="matches" class="v">—</div><div class="k">符合篩選條件</div></div>
 <div class="stat"><div id="volDays" class="v">—</div><div class="k">整批成交量日數（上市／上櫃）</div></div>
 </section>
+<section class="panel"><strong>資料時點（台灣時間）</strong><div id="audit" class="details">尚未抓取。取得時間並不等於報價交易日。</div></section>
 <section class="panel">
-<div class="toolbar"><strong>預估本益比排行榜</strong><span id="caption" class="hint">尚無資料</span></div>
+<div class="toolbar"><strong>A／B／C 本益比排行榜（最多 500 檔）</strong><span id="caption" class="hint">尚無資料</span></div>
 <div class="table-wrap">
 <table class="results"><thead><tr>
-<th>股票代號</th><th>名稱／市場</th><th>股價</th><th>5 日均量（張）</th><th>財報累計 EPS</th><th>預估全年 EPS</th><th>預估 PE</th><th>近月營收／財報月均</th><th>最新月營收（億元）</th><th>財報後3月營收（億元）</th><th>財報期／營收月</th><th>期貨</th>
-</tr></thead><tbody id="tbody"><tr><td colspan="12" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
+<th>股票代號</th><th>名稱</th><th>股價</th><th>5日均量(張)</th><th>A EPS</th><th>A PE</th><th>B EPS</th><th>B PE</th><th>C EPS</th><th>C PE</th><th>C 資料狀態／缺欄位</th><th>壓力PE(選定策略)</th><th>行情交易日</th><th>財報季</th><th>財報出表日</th><th>最新營收月</th><th>均量日期</th><th>期貨</th>
+</tr></thead><tbody id="tbody"><tr><td colspan="18" class="empty">按「一鍵掃描全台股」取得最新資料</td></tr></tbody></table>
 </div>
 </section>
 <section class="panel details">
+<strong>ABC 方法與資料限制</strong>
+<div>A：已公告年度累積 EPS × (全年預估營收 ÷ 財報已公布累積營收)。未公布月份持平最近月營收。B：需要最近 4～8 季淨利率及季節性史料，若只有最近一期官方整批財報，必須顯示缺資料，不能以 A 代算。C：從已公告累積 EPS 出發，用毛利率、營業費用、稅率與反推股數預測尚未公布期間，未來業外假設 0；C 只在所需欄位齊全時提供估值。</div>
+<div>壓力 PE = 現價 ÷ (選定策略 EPS × (1 − EPS下修百分比))。出表日期不同於財報所屬季；抓取快照時間不同於行情交易日。資料來源為 TWSE/TPEx 日線快照與 TWSE/MOPS 月營收和財報；5 日均量以官方歷史或 Yahoo 日線補齊。</div>
 <strong>計算方法與限制</strong>
 <div>全年營收預測＝最新已公告當年累積營收＋（12－已公告月份）×最近月營收。</div>
 <div>全年 EPS 預測＝最新財報當年累積 EPS ×（全年營收預測 ÷ 最新財報當年累積營收）；預估 PE＝最新報價 ÷ 全年 EPS 預測。</div>
@@ -71,7 +79,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let full=[],volumes={twse:new Map(),tpex:new Map()},volumeDays={twse:[],tpex:[]},shown=[];
+let full=[],volumes={twse:new Map(),tpex:new Map()},volumeDays={twse:[],tpex:[]},shown=[],sourceMeta=null;
 const f=(n,k=2)=>n===null||n===undefined||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('zh-TW',{maximumFractionDigits:k,minimumFractionDigits:k});
 function setStatus(s){$('status').textContent=s;}
 function num(id,fallback){const v=Number($(id).value);return Number.isFinite(v)&&v>=0?v:fallback;}
@@ -115,8 +123,8 @@ async function buildVolumes(market){
 async function fallbackVolume(warnings){
  const missingMarkets=['twse','tpex'].filter(m=>volumeDays[m].length<5);
  if(!missingMarkets.length)return;
- const candidates=full.filter(x=>x.status==='ok'&&missingMarkets.includes(x.market)&&
-   x.estimatedPE<=num('maxpe',15)&&
+ const candidates=full.filter(x=>chosen(x).status==='ok'&&missingMarkets.includes(x.market)&&
+   chosen(x).pe<=num('maxpe',35)&&
    (x.close>=num('minprice',30)||($('future').checked&&x.hasFutures)));
  const groups=[];
  for(const market of missingMarkets){
@@ -135,7 +143,7 @@ async function fallbackVolume(warnings){
     if(!r.ok||!j.ok)throw Error(j.error||'batch failed');
     for(const v of j.data||[]){
      if(v.ok&&Number.isFinite(Number(v.avg5Lots))){
-      volumes[item.market].set(String(v.code),Number(v.avg5Lots));received++;
+      volumes[item.market].set(String(v.code),Number(v.avg5Lots));const rr=full.find(x=>x.market===item.market&&x.code===String(v.code));if(rr&&Array.isArray(v.dates))rr.volumeDates=v.dates;received++;
      }else failed++;
     }
    }catch{failed+=item.codes.length;}
@@ -149,54 +157,50 @@ async function fallbackVolume(warnings){
  }));
  warnings.push('部分交易所整批歷史資料不可得；已逐股補量 '+received+' 檔，失敗 '+failed+' 檔。缺量者仍依嚴格模式排除。');
 }
+
+function chosen(r){return r.models?.[$('strategy').value]||{status:'缺策略資料',eps:null,pe:null};}
+function pressure(r){const e=chosen(r).eps,p=Math.min(80,Math.max(0,num('stress',20)));return e>0?r.close/(e*(1-p/100)):null;}
+function twTime(v){if(!v)return '未提供';const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false});}
+function volRange(r){const d=r.volumeDates||volumeDays[r.market]||[];return d.length?d.slice().sort().filter((v,i,a)=>i===0||i===a.length-1).join('～'):'未驗證';}
 function eligible(r){
- if(r.status!=='ok'||!(r.estimatedPE>0)||r.estimatedPE>num('maxpe',15))return false;
+ const m=chosen(r);if(m.status!=='ok'||!(m.pe>0)||m.pe>num('maxpe',35))return false;
  if($('market').value!=='all'&&r.market!==$('market').value)return false;
  const term=$('search').value.trim().toLowerCase();
  if(term&&!String(r.code).includes(term)&&!String(r.name).toLowerCase().includes(term))return false;
  if(r.close<num('minprice',30)&&!($('future').checked&&r.hasFutures))return false;
- if($('strict').checked && r.avg5Lots===null)return false;
- const basis=r.avg5Lots===null?r.volumeTodayLots:r.avg5Lots;
- if(!(basis>=num('minvol',1000)))return false;
- return true;
+ if($('strict').checked&&r.avg5Lots===null)return false;
+ return (r.avg5Lots??r.volumeTodayLots)>=num('minvol',1000);
 }
 function render(){
  const m=full.filter(eligible),mode=$('sort').value;
- m.sort((a,b)=>mode==='eps'?b.estimatedEPS-a.estimatedEPS:mode==='volume'?(b.avg5Lots??b.volumeTodayLots)-(a.avg5Lots??a.volumeTodayLots):mode==='rev'?b.revenueMomentum-a.revenueMomentum:a.estimatedPE-b.estimatedPE);
+ m.sort((a,b)=>mode==='eps'?chosen(b).eps-chosen(a).eps:mode==='volume'?(b.avg5Lots??b.volumeTodayLots)-(a.avg5Lots??a.volumeTodayLots):mode==='rev'?b.revenueMomentum-a.revenueMomentum:chosen(a).pe-chosen(b).pe);
  shown=m;$('matches').textContent=f(m.length,0);
  $('volDays').textContent=volumeDays.twse.length+' ／ '+volumeDays.tpex.length;
- $('caption').textContent='資料量 '+full.length+' 檔 · 顯示 '+m.length+' 檔 · 5日均量不足時'+($('strict').checked?'排除':'以當日量暫代（非正式5日均量）');
+ $('caption').textContent='策略 '+$('strategy').value+' 可計算：'+full.filter(r=>r.models?.[$('strategy').value]?.status==='ok').length+' 檔｜篩選後 '+m.length+' 檔｜顯示 '+Math.min(500,m.length)+' 檔';
  const body=$('tbody');body.textContent='';
- if(!m.length){
-  const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=12;td.className='empty';
-  td.textContent=full.length?'目前沒有符合條件的股票；若歷史成交量來源失效，請檢查上方警告或暫時取消嚴格模式。':'尚無資料';
-  tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;
- }
+ if(!m.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=18;td.className='empty';td.textContent=full.length?($('strategy').value==='B'?'B 尚未取得 4～8 季歷史損益資料，不顯示虛構的 B 估值。':'目前沒有符合該策略與量價門檻的股票。'):'尚無資料';tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;}
  const frag=document.createDocumentFragment();
- for(const r of m.slice(0,600)){
+ for(const r of m.slice(0,500)){
   const tr=document.createElement('tr');
-  const v=r.avg5Lots??($('strict').checked?null:r.volumeTodayLots);
-  const cells=[r.code,r.name,r.close,v,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,
-   r.revenueMomentum*100,r.revenueLatest/1e5,r.revenue3moProxy===null?null:r.revenue3moProxy/1e5,
-   String(r.financeQuarter||'')+' / '+String(r.revenueMonth||''),r.hasFutures?'有':'—'];
-  cells.forEach((v,i)=>{
-   const td=document.createElement('td');
-   td.textContent=i===0||i===1||i===10||i===11?String(v):i===7?f(v,1)+'%':f(v,i===3?0:2);
-   if(i===1)td.className='company';if(i===6)td.className='up';if(i===11&&r.hasFutures)td.className='up';
-   if(i===3&&r.avg5Lots===null)td.title='非正式5日均量：此欄暫以當日成交量替代';
-   tr.appendChild(td);
-  });
+  function put(v,tip='',cls=''){const td=document.createElement('td');td.textContent=v;td.title=tip;td.className=cls;tr.appendChild(td);}
+  put(r.code);put(r.name,'','company');put(f(r.close));put(f(r.avg5Lots??($('strict').checked?null:r.volumeTodayLots),0),r.avg5Lots===null?'未驗證5日均量':'已取得5個交易日');
+  for(const method of ['A','B','C']){const mod=r.models?.[method];for(const key of ['eps','pe'])put(mod?.status==='ok'?f(mod[key]):'—',mod?.status==='ok'?(mod.assumptions||mod.basis||'已取得'):mod?.status||'來源無法提供',key==='pe'&&method===$('strategy').value?'up':'');}
+  put(r.models?.C?.status==='ok'?'可計算（未來業外0）':(r.models?.C?.status||'無 C 資料'),'C 資料完整性原因');
+  put(f(pressure(r)),'選定策略 EPS 壓力下修 '+num('stress',20)+'%','up');
+  put(r.quoteReportedDate||'未提供',r.quoteReportedDate?'行情來源交易日':'行情來源未提供交易日，不能用抓取時間代替');
+  put(r.financeQuarter||'—');put(r.financeIssueDate||'未提供');put(r.latestRevenueMonth||'—');put(volRange(r));put(r.hasFutures?'有':'—','','');
   frag.appendChild(tr);
  }
  body.appendChild(frag);$('csv').disabled=false;
 }
 function exportCsv(){
  if(!shown.length)return;
- const cols=['代號','名稱','市場','最新股價','5日均量張','近一日張','已公告累積EPS','預估全年EPS','預估PE','最近月營收億元','財報期','營收月','股票期貨','量能來源'];
- const clean=x=>'"'+String(x??'').replace(/"/g,'""')+'"';
- const rows=shown.map(r=>[r.code,r.name,r.market,r.close,r.avg5Lots??'',r.volumeTodayLots,r.epsDisclosed,r.estimatedEPS,r.estimatedPE,r.revenueLatest/1e5,r.financeQuarter,r.revenueMonth,r.hasFutures?'Y':'N',r.avg5Lots===null?'僅當日':'已驗證5日']);
- const csv='\uFEFF'+[cols,...rows].map(x=>x.map(clean).join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
- const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='forward_pe_'+currentTaiwanDate()+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ const cols=['代號','名稱','市場','股價','行情來源交易日','5日均量張','均量日期','已公告累積EPS','A EPS','A PE','A狀態','B EPS','B PE','B狀態','C EPS','C PE','C狀態','選定策略壓力PE','EPS壓力下修％','財報季','出表日','最新營收月','最近月營收億元','資料抓取台灣時間','期貨'];
+ const val=(r,m,k)=>r.models?.[m]?.[k]??'';
+ const rows=shown.map(r=>[r.code,r.name,r.market,r.close,r.quoteReportedDate||'未提供',r.avg5Lots??'',volRange(r),r.epsDisclosed,...['A','B','C'].flatMap(m=>[val(r,m,'eps'),val(r,m,'pe'),val(r,m,'status')]),pressure(r)??'',num('stress',20),r.financeQuarter,r.financeIssueDate,r.latestRevenueMonth,r.revenueLatest==null?'':r.revenueLatest/1e5,twTime(sourceMeta?.date),r.hasFutures?'Y':'N']);
+ const clean=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+ const csv='\uFEFF'+[cols,...rows].map(row=>row.map(clean).join(',')).join('\r\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+ const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='ABC_forwardPE_'+currentTaiwanDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
 }
 async function scan(refresh=false){
  $('scan').disabled=true;$('refresh').disabled=true;$('warning').textContent='';
@@ -205,9 +209,13 @@ async function scan(refresh=false){
   const r=await fetch('/api/pe-screener/data'+(refresh?'?refresh=1':''),{cache:'no-store'});
   const j=await r.json();
   if(!r.ok||!j.ok)throw Error(j.error||j.errors?.map(x=>x.message).join('；')||'來源失敗');
-  full=(j.rows||[]).map(x=>({...x,avg5Lots:null}));
+  full=(j.rows||[]).map(x=>({...x,avg5Lots:null}));sourceMeta=j;
+  const quarters=[...new Set(full.map(x=>x.financeQuarter).filter(Boolean))].sort();
+  const months=[...new Set(full.map(x=>x.latestRevenueMonth).filter(Boolean))].sort();
+  $('audit').textContent='取得時間：'+twTime(j.date)+'（UTC+8）｜行情交易日：'+(full.filter(x=>x.quoteReportedDate).length?'個股欄有部分來源交易日':'來源未提供，勿誤認為今日即時價')+'｜財報所屬季度：'+(quarters.join('、')||'缺')+'｜月營收所屬月份：'+(months.join('、')||'缺')+'｜5日均量日期：待完成掃描';
   $('total').textContent=f(j.counts.stocks,0);
-  $('eligible').textContent=f(j.counts.projected,0);
+  $('eligible').textContent=f(j.counts.models?.A??j.counts.projected,0);
+  $('bCount').textContent=f(j.counts.models?.B??0,0);$('cCount').textContent=f(j.counts.models?.C??0,0);
   const warnings=[];
   if(j.errors?.length)warnings.push('官方資料部分來源失敗 '+j.errors.length+' 項，結果可能不完整：'+j.errors.slice(0,2).map(x=>x.market+'/'+x.type).join('、'));
   if(!j.sources?.futures||j.sources.futuresDegraded)warnings.push('期貨名單採用備份或不可驗證，請確認最新標的。');
@@ -219,6 +227,7 @@ async function scan(refresh=false){
    if(res.dates.length<5)warnings.push(res.market.toUpperCase()+' 歷史成交量只取得 '+res.dates.length+'/5 日；缺量股票不會通過嚴格篩選。'+(res.fails.length?'來源錯誤：'+res.fails[0]:''));
   }
   full.forEach(x=>x.avg5Lots=volumes[x.market]?.get(x.code)??null);
+  $('audit').textContent+='｜上市均量日：'+(volumeDays.twse.slice().sort().join('、')||'缺')+'｜上櫃均量日：'+(volumeDays.tpex.slice().sort().join('、')||'缺');
   render();
   await fallbackVolume(warnings);
   $('warning').textContent=warnings.join('\n');
@@ -229,7 +238,7 @@ async function scan(refresh=false){
   setStatus('失敗：請查看上游資料或再試一次');
  }finally{$('scan').disabled=false;$('refresh').disabled=false;}
 }
-['minprice','minvol','maxpe','market','search','sort','future','strict'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
+['minprice','minvol','maxpe','market','search','sort','future','strict','strategy','stress'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',render));
 $('scan').addEventListener('click',()=>scan(false));
 $('refresh').addEventListener('click',()=>scan(true));
 $('csv').addEventListener('click',exportCsv);
