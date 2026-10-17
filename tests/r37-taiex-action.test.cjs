@@ -35,8 +35,8 @@ test('page wires local settings, fixed-contract backtest, audit independence and
  let calls=0;const data=bars().map(b=>({...b,futures_id:'TX',contract_date:b.contract,trading_session:'position',max:b.high,min:b.low,open_interest:1000}));
  p.ctx.fetch=async()=>{calls++;return new Response(JSON.stringify({ok:true,data,source:'fixture'}));};
  const fire=(id,event='click')=>p.events.find(e=>e[0]===id&&e[1]===event)[2]();
- p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';await fire('txLoad');assert.equal(p.nodes.get('actRun').disabled,false);assert.match(p.nodes.get('actScores').textContent,/進場 Action/);
- p.nodes.get('txContract').value='202612';fire('txContract','change');assert.equal(p.nodes.get('actRun').disabled,false);
+ p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';await fire('txLoad');assert.equal(p.nodes.get('actRun').disabled,false);
+ p.nodes.get('txContract').value='202612';fire('txContract','change');assert.match(p.nodes.get('actScores').textContent,/進場 Action/);assert.equal(p.nodes.get('actRun').disabled,false);
  for(const [id,v]of [['actDelta','0'],['actMinimum','0'],['actAge','0']])p.nodes.get(id).value=v;
  fire('actApply');fire('actRun');assert.match(p.nodes.get('actResult').textContent,/淨損益/);assert(p.nodes.get('actTrades').children.length>0);
  p.nodes.get('txAudit').value='120';fire('txAudit','input');assert.match(p.nodes.get('actResult').textContent,/淨損益/);fire('actRun');for(const tr of p.nodes.get('actTrades').children)assert(tr.children[4].textContent<=data.at(-1).date);
