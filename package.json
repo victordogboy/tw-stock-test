@@ -18,6 +18,6 @@
     "test:stock-backtest:browser": "node --test tests/r32-stock-backtest-browser.test.cjs",
     "test:sar": "node --test tests/parabolic-sar.test.cjs tests/r35-sar.test.cjs",
     "test:sar:browser": "node --test tests/r35-sar-browser.test.cjs",
-    "test:taiex": "node --test tests/r36-taiex-futures.test.cjs tests/r36-taiex-api.test.mjs tests/r36-taiex-ui.test.cjs tests/r37-taiex-action.test.cjs tests/r38-taiex-optimizer.test.cjs tests/r39-taiex-controls.test.cjs tests/r40-taiex-multimonth.test.cjs tests/r41-taiex-sample-diversity.test.cjs tests/r42-taiex-preflip-fiveyear.test.cjs tests/r43-taiex-action-buttons.test.cjs tests/r44-taiex-benchmark-oos.test.cjs tests/r45-taiex-regime-strategies.test.cjs tests/r46-dual-regime-walkforward.test.cjs"
+    "test:taiex": "node --test tests/r36-taiex-futures.test.cjs tests/r36-taiex-api.test.mjs tests/r36-taiex-ui.test.cjs tests/r37-taiex-action.test.cjs tests/r38-taiex-optimizer.test.cjs tests/r39-taiex-controls.test.cjs tests/r40-taiex-multimonth.test.cjs tests/r41-taiex-sample-diversity.test.cjs tests/r42-taiex-preflip-fiveyear.test.cjs tests/r43-taiex-action-buttons.test.cjs tests/r44-taiex-benchmark-oos.test.cjs tests/r45-taiex-regime-strategies.test.cjs tests/r46-dual-regime-walkforward.test.cjs tests/r47-pnl-attribution.test.cjs"
   }
 }
