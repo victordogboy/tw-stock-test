@@ -2,7 +2,7 @@
 'use strict';
 const $=id=>document.getElementById(id),A=TWTaiexAction,key='twq_taiex_action_r37',names=['趨勢','動能','SAR','量價'];
 const f=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('zh-TW',{maximumFractionDigits:n}):'—';
-let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null;
+let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0,multiScores=null,autoStart='',autoEnd=';
 try{config=A.validate(JSON.parse(localStorage.getItem(key)||'{}'));}catch{}
 const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin'};
 function fill(){for(const [k,id]of Object.entries(fields))$(id).value=config[k];for(const group of ['entryWeights','holdWeights'])config[group].forEach((v,i)=>$(group+i).value=v);}
@@ -10,6 +10,7 @@ function cancel(message='條件已變更，請重新搜尋。'){job++;$('actCanc
 function clearResult(){cancel(); $('actResult').textContent='參數、SAR、合約或時段變更後，請重新執行回測。';$('actTrades').replaceChildren();}
 function render(ctx){
  const signature=JSON.stringify({session:ctx.session,contract:ctx.contract,sar:ctx.sar,config});
+ const newMarket=ctx.raw!==lastRaw;
  if(signature!==lastSignature||ctx.raw!==lastRaw){clearResult();multiScores=null;}lastSignature=signature;lastRaw=ctx.raw;
  context=ctx;$('actComposition').replaceChildren();$('actSignal').textContent='';$('actScope').textContent='';
  const b=ctx.rows[ctx.index];
@@ -30,7 +31,13 @@ function render(ctx){
   historyCount=history.length;s=A.analyze(history,config,ctx.sar).at(-1);
  }
  $('actRun').disabled=dirty;$('actOptimize').disabled=$('actRun').disabled;
- if(!$('actStart').value)$('actStart').value=ctx.rows[0].date;if(!$('actEnd').value)$('actEnd').value=ctx.rows.at(-1).date;
+ if(newMarket){
+  if(!$('actStart').value||$('actStart').value===autoStart)$('actStart').value=ctx.rows[0].date;
+  if(!$('actEnd').value||$('actEnd').value===autoEnd)$('actEnd').value=ctx.rows.at(-1).date;
+  autoStart=ctx.rows[0].date;autoEnd=ctx.rows.at(-1).date;
+ }
+ if(!$('actStart').value)$('actStart').value=ctx.rows[0].date;
+ if(!$('actEnd').value)$('actEnd').value=ctx.rows.at(-1).date;
  updateScope();
  if(!s){$('actScores').textContent=scoreError||('審計日 '+b.date+'：'+(ctx.contract==='near'?'連續跨月訊號尚未暖機 61 根或資料不足':'同月份目前 '+historyCount+' 根，需至少 61 根才能計分')+'；下方回測仍使用自訂日期。');$('actParts').textContent='';return;}
  $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold)+(s.contract?'｜策略合約 '+s.contract:'');
