@@ -243,7 +243,7 @@ function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
  const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),grid=candidateGridMulti(p),top=[];
  let eligible=0,maxTrades=0;
  for(let i=0;i<grid.length;i++){
-  const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.trades.length);
+  const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.signalTradeCount);
   if(result.trades.length>=minTrades){
    eligible++;const signature=tradeSignature(result),existing=top.findIndex(v=>v.signature===signature);
    const item={config,result,signature};
@@ -290,12 +290,19 @@ function withBenchmark(result,baseline){
 function simulateMultiCarry(prepared,p,first=0,last=prepared.timeline.length-1,baseline=null){
  const {timeline,lookup,features}=prepared,scores=new Map();
  for(const s of rescore(features,p))if(s)scores.set(s.date,s);
- const d=p.direction==='long'?1:-1,trades=[],months=[...new Set(timeline.slice(first,last+1).map(b=>b.contract))];
- let position=null,pending=null,pendingType=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,carryRolls=0,entrySignals=0,exitSignals=0,preFlipEntries=0;
- function close(price,date,reason){
+ const d=p.direction==='long'?1:-1,trades=[],episodes=[],months=[...new Set(timeline.slice(first,last+1).map(b=>b.contract))];
+ let position=null,episode=null,pending=null,pendingType=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,carryRolls=0,entrySignals=0,exitSignals=0,preFlipEntries=0;
+ function enter(b,signalDate,signalType){
+  position={contract:b.contract,date:b.date,price:b.open,signalDate,signalType};
+  episode={entryDate:b.date,signalDate,signalType,gross:0,net:0,legs:0};
+ }
+ function close(price,date,reason,carrying=false){
   const gross=d*(price-position.price),value=gross-p.cost;
   trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,signalType:position.signalType,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});
-  net+=value;position=null;
+  net+=value;
+  episode.gross+=gross;episode.net+=value;episode.legs++;
+  if(!carrying){episodes.push({...episode,exitDate:date,reason});episode=null;}
+  position=null;
  }
  for(let i=first;i<=last;i++){
   const b=timeline[i],roll=i>first&&timeline[i-1].contract!==b.contract;
@@ -303,7 +310,7 @@ function simulateMultiCarry(prepared,p,first=0,last=prepared.timeline.length-1,b
    rollovers++;
    if(position){
     const old=position,exitRequested=pending==='exit';
-    close(lookup.get(b.date+':'+old.contract).open,b.date,'換月舊倉平倉');
+    close(lookup.get(b.date+':'+old.contract).open,b.date,'換月舊倉平倉',!exitRequested);
     if(!exitRequested){
      position={contract:b.contract,date:b.date,price:b.open,signalDate:old.signalDate,signalType:'續抱換月'};
      carryRolls++;
@@ -311,7 +318,7 @@ function simulateMultiCarry(prepared,p,first=0,last=prepared.timeline.length-1,b
    }
   }
   if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
-  else if(pending==='enter'&&!position)position={contract:b.contract,date:b.date,price:b.open,signalDate:timeline[i-1]?.date,signalType:pendingType};
+  else if(pending==='enter'&&!position)enter(b,timeline[i-1]?.date,pendingType);
   pending=null;pendingType=null;
   const equity=net+(position?d*(b.close-position.price)-p.cost:0);
   peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
@@ -330,9 +337,9 @@ function simulateMultiCarry(prepared,p,first=0,last=prepared.timeline.length-1,b
   if(!a||!b)continue;
   evaluated++;if(a.aligned||b.aligned)within2++;
  }
- const gain=trades.reduce((n,t)=>n+Math.max(0,t.net),0),loss=trades.reduce((n,t)=>n+Math.max(0,-t.net),0);
- const result={trades,net,gross:trades.reduce((n,t)=>n+t.gross,0),
- winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,
+ const wins=episodes.filter(t=>t.net>0),gain=episodes.reduce((n,t)=>n+Math.max(0,t.net),0),loss=episodes.reduce((n,t)=>n+Math.max(0,-t.net),0);
+ const result={trades,signalTrades:episodes,signalTradeCount:episodes.length,
+ net,gross:trades.reduce((n,t)=>n+t.gross,0),winRate:episodes.length?wins.length/episodes.length*100:null,
  maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,
  validBars,totalBars:last-first+1,warmupBars:last-first+1-validBars,
  start:timeline[first].date,end:timeline[last].date,months,rollovers,carryRolls,entrySignals,exitSignals,preFlipEntries,
@@ -362,7 +369,7 @@ function* optimizeMultiR44(rows,input={},sarConfig={},range={},minTrades=20,trai
  for(let i=0;i<grid.length;i++){
   const config=grid[i],result=simulateMultiCarry(prepared,config,0,cut-1,trainBase);
   maxTrades=Math.max(maxTrades,result.trades.length);
-  if(result.trades.length>=minTrades){
+  if(result.signalTradeCount>=minTrades){
    eligible++;
    const signature=tradeSignature(result),idx=top.findIndex(x=>x.signature===signature);
    const current={config,result,signature};
