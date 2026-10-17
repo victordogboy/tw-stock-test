@@ -78,6 +78,7 @@ test('browser splits five-year data requests and displays 5-year K-line option',
  await fire('txLoad');
  assert(calls>=4,'five-year history should use bounded request chunks');
  assert.match(p.nodes.get('txStatus').textContent,/共 [45] 段/);
+ assert.match(p.nodes.get('actScores').textContent,/進場 Action/,'near-mode score must agree with continuous backtest instead of showing a same-month 61-bar error');
  p.nodes.get('txChartBars').value='1250';fire('txChartBars','change');
  assert.equal(JSON.parse(p.storage.get('twq_taiex_view_r36')).chartBars,'1250');
  fire('actAllDates');
