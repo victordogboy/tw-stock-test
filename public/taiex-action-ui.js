@@ -51,7 +51,7 @@ function backtestData(){
  }
  return {rows:TWTaiexFutures.series(context.raw,{session:context.session,contract:context.contract}),contract:context.contract,dates,multi:false};
 }
-function updateScope(){try{const data=backtestData();$('actScope').textContent=data.multi?'跨月份回測：使用所選起訖期間，每月交易次月合約，換月日開盤平掉舊合約。訊號使用逐次換月當日已知價差校正的連續 K 線計算 MA60、SAR、動能，避免每個月份重新暖機；實際進出場仍用各合約原價，價差不計損益。上方近月圖未做價差校正，兩者分數可能不同。':'回測合約 '+data.contract+'，僅測試此月份自身歷史。回測日期獨立於審計游標。';}catch(e){$('actScope').textContent=e.message;}}
+function updateScope(){try{const data=backtestData();$('actScope').textContent=data.multi?'跨月份回測：使用所選起訖期間，每月交易次月合約，換月日開盤平掉舊合約。訊號使用逐次換月當日已知價差校正的連續 K 線計算 MA60、SAR、動能，避免每個月份重新暖機；量能先依各合約當時可知的過去成交量基準標準化，再接續計分；實際進出場仍用各合約原價，價差不計損益。上方近月圖未做價差校正，兩者分數可能不同。':'回測合約 '+data.contract+'，僅測試此月份自身歷史。回測日期獨立於審計游標。';}catch(e){$('actScope').textContent=e.message;}}
 
 function persist(){try{localStorage.setItem(key,JSON.stringify(config));}catch{}}
 fill();
