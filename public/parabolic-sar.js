@@ -51,7 +51,15 @@
     let extreme = rising ? Math.max(prices[0].high, prices[1].high)
                          : Math.min(prices[0].low, prices[1].low);
     let af = start;
-    result[1] = { value: sar, rising, af, reversal: false };
+    // At close of each session, derive tomorrow's SAR reversal threshold from
+    // information available up to TODAY only (AF, extreme and last two candles).
+    const nextTrigger=i=>{
+      const prior=prices[i-1],today=prices[i];
+      const projected=sar+af*(extreme-sar);
+      return rising?Math.min(projected,prior.low,today.low)
+                   :Math.max(projected,prior.high,today.high);
+    };
+    result[1] = { value: sar, rising, af, reversal: false, nextTrigger: nextTrigger(1) };
 
     for (let i = 2; i < prices.length; i++) {
       const today = prices[i], previous = prices[i - 1], before = prices[i - 2];
@@ -90,7 +98,7 @@
           }
         }
       }
-      result[i] = { value: sar, rising, af, reversal };
+      result[i] = { value: sar, rising, af, reversal, nextTrigger: nextTrigger(i) };
     }
     return result;
   }
