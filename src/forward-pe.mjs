@@ -107,7 +107,7 @@ function forecast(share,fin,month){
  if(inferredRevenue< -fin.reportedYtdRevenue*0.08)return {status:'月營收／財報口徑不一致'};
  return {
   status:'ok',estimatedEPS:projectedEPS,
-  estimatedPE:share.close/projectedEPS,
+  estimatedPE:share.close>0?share.close/projectedEPS:null,
   epsDisclosed:fin.reportedYtdEPS,
   quarter:fin.year+'Q'+fin.quarter,
   revenueDisclosed:fin.reportedYtdRevenue,
@@ -115,7 +115,7 @@ function forecast(share,fin,month){
   revenueYtd:month.ytd,revenueLatest:month.monthRevenue,
   revenue3moProxy:elapsedMonths===3?inferredRevenue:null,
   projectedYearRevenue,unreportedRevenue,
-  earningsYield:projectedEPS/share.close*100,
+  earningsYield:share.close>0?projectedEPS/share.close*100:null,
   annualizationFactor:projectedYearRevenue/fin.reportedYtdRevenue,
   revenueMomentum:month.monthRevenue/(fin.reportedYtdRevenue/(fin.quarter*3))-1
  };
@@ -151,7 +151,7 @@ function forecastC(share,fin,month,a){
  const additionalParent=aftertax*Math.min(1,ratio);
  const eps=fin.reportedYtdEPS+additionalParent/shares;
  if(!Number.isFinite(eps)||eps<=0||eps>1000)return fail('C 預估 EPS 非正值或異常');
- return {status:'ok',eps,pe:share.close/eps,pressurePE:share.close/(eps*0.8),
+ return {status:'ok',eps,pe:share.close>0?share.close/eps:null,pressurePE:share.close>0?share.close/(eps*0.8):null,
   basis:'已公告累積EPS＋未揭露期間毛利－按月固定營業費用＋其他營業收益；未來業外設0',
   assumptions:'固定已公告毛利率、月營業費用、有效稅率；股數由歸母淨利÷EPS反推；未來業外=0',
   grossMargin:margin,expenseMonthly:fin.opExpenses/elapsed,taxRate,
@@ -159,7 +159,7 @@ function forecastC(share,fin,month,a){
 }
 function methodModels(share,fin,month,a){
  const A=a.status==='ok'?{status:'ok',eps:a.estimatedEPS,pe:a.estimatedPE,
-  pressurePE:share.close/(a.estimatedEPS*0.8),basis:'已公告累積EPS按全年推估營收比例外推'}:
+  pressurePE:share.close>0?share.close/(a.estimatedEPS*0.8):null,basis:'已公告累積EPS按全年推估營收比例外推'}:
   {status:a.status,eps:null,pe:null,pressurePE:null};
  const B={status:'缺最近4～8季歷史損益資料（目前整批官方來源只提供最新財報期）',
   eps:null,pe:null,pressurePE:null,basis:'歷史淨利率與季節性法；未以A代替'};
@@ -216,6 +216,8 @@ async function singleStockLookup(request,env,fetchExisting,url){
  if(found.length>1)return response({ok:true,ambiguous:true,query,candidates:found.slice(0,25).map(r=>({code:r.code,name:r.name,market:r.market})),
   truncated:found.length>25,snapshotTime:snapshot.date||null});
  const stock=found[0];
+ // An inactive or suspended four-digit stock may have no usable quote.
+ // Keep its official financials visible rather than screening it away.
  let volume5={ok:false,error:'成交量明細尚未取得'};
  try{const detail=await yahooFiveDayVolume(stock.code,stock.market);volume5={ok:true,...detail};}
  catch(err){volume5={ok:false,error:String(err.message||err)};}
@@ -282,10 +284,10 @@ export async function forwardPeRoute(request,env,fetchExisting){
  const rows=[],unique=new Set();
  for(const stock of quotes){
   const code=String(stock.code||'').trim(),close=number(stock.close),volume=number(stock.volume_shares);
-  if(!stockCode(code)||unique.has(code)||!(close>0)||volume===null||volume<0)continue;
+  if(!stockCode(code)||unique.has(code))continue;
   unique.add(code);
   const share={code,name:String(stock.name||code),market:stock.market||'',
-   close,volumeTodayLots:volume/1000,hasFutures:futures.has(code)};
+   close:close>0?close:null,volumeTodayLots:volume!==null&&volume>=0?volume/1000:null,hasFutures:futures.has(code)};
   const fin=financials.get(code)||null,mon=months.get(code)||null;
   const projected=forecast(share,fin,mon);
   const models=methodModels(share,fin,mon,projected);
