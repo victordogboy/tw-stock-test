@@ -98,8 +98,16 @@ function nextMonth(date){const y=Number(date.slice(0,4)),m=Number(date.slice(5,7
 // Roll spread is observed on the rollover morning; it never enters P&L or selects a contract.
 function prepareMulti(allRows,input={},sarConfig={},range={}){
  const p=validate(input),sorted=[...allRows].sort((a,b)=>a.date.localeCompare(b.date)||a.contract.localeCompare(b.contract));
- const selected=selectRange(sorted,range),lookup=new Map();
- for(const b of selected.rows)lookup.set(b.date+':'+b.contract,b);
+ const selected=selectRange(sorted,range),lookup=new Map(),volumes=new Map(),normalizedVolume=new Map();
+ // Normalize only against previously observed volume of the SAME contract.
+ // Otherwise jumping from an active to an illiquid next-month contract creates fake volume signals.
+ for(const b of selected.rows){
+  lookup.set(b.date+':'+b.contract,b);
+  let prior=volumes.get(b.contract);if(!prior){prior=[];volumes.set(b.contract,prior);}
+  const baseline=prior.length?prior.reduce((v,n)=>v+n,0)/prior.length:0;
+  normalizedVolume.set(b.date+':'+b.contract,baseline>0?10000*Math.min(5,Math.max(0,b.volume/baseline)):10000);
+  prior.push(b.volume);if(prior.length>20)prior.shift();
+ }
  const dates=[...new Set(selected.rows.map(b=>b.date))],timeline=[],adjusted=[];
  let previous=null,offset=0;
  for(const date of dates){
@@ -115,7 +123,7 @@ function prepareMulti(allRows,input={},sarConfig={},range={}){
     adjusted.length=0;offset=0;
    }else offset+=old.open-b.open;
   }
-  adjusted.push({...b,contract:'TX_SIGNAL',open:b.open+offset,high:b.high+offset,low:b.low+offset,close:b.close+offset});
+  adjusted.push({...b,contract:'TX_SIGNAL',open:b.open+offset,high:b.high+offset,low:b.low+offset,close:b.close+offset,volume:normalizedVolume.get(date+':'+contract)});
   if(active)timeline.push(b);
   previous=b;
  }
