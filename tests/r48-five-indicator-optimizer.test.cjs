@@ -102,6 +102,31 @@ test('Sixth-factor group must have actual foreign, trust and dealer entries on a
  const falseInstitutional=R.test(noTrust,{cost:4,entry:12});
  assert.equal(falseInstitutional.tradeCount,0);
 });
+test('TX institutional API uses the true FinMind dataset and rejects fabricated zero or other symbols',async()=>{
+ const {taiexFuturesRoute}=await import('../src/taiex-futures.mjs');
+ const native=global.fetch,seen=[];
+ const endpoint='https://example.test/api/futures/taiex/institutional?start_date=2025-10-01&end_date=2025-10-06';
+ global.fetch=async(url)=>{
+  seen.push(String(url));
+  return new Response(JSON.stringify({status:200,data:[
+   inst[0],inst[1],inst[2],
+   {...inst[0],name:'MTX'}, // never mix mini and large contracts
+   {...inst[0],date:'2025-10-03',short_deal_volume:''}, // missing values must not be invented as 0
+  ]}),{status:200,headers:{'content-type':'application/json'}});
+ };
+ try{
+  const response=await taiexFuturesRoute(new Request(endpoint),{});
+  const payload=await response.json();
+  assert.equal(response.status,200);assert.equal(payload.data.length,3);
+  assert.equal(payload.kind,'institutional');
+  assert.equal(payload.data[0].institutional_investors,'外資');
+  assert(seen[0].includes('TaiwanFuturesInstitutionalInvestors'));
+  assert(seen[0].includes('data_id=TX'));
+  assert(!seen[0].includes('token='));
+  const bad=await taiexFuturesRoute(new Request(endpoint.replace('2025-10-01','bad-date')),{});
+  assert.equal(bad.status,400);
+ }finally{global.fetch=native;}
+});
 test('R48 page browser buttons and five-indicator result display',async()=>{
  const {page}=require('./helpers/detail-page.cjs');
  const p=page('futures.html');
