@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台指期分析｜V1.17.0-R47</title>
+<title>台指期分析｜V1.17.0-R48</title>
 <link rel="stylesheet" href="/taiex-futures.css?r42">
 </head><body><main>
 <nav><a href="/scanner.html?restore=1">← 全市場掃描</a><a href="/detail.html">個股分析</a><span>TX・台指期</span></nav>
-<header><div><h1>台指期分析 <small>R47</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
+<header><div><h1>台指期分析 <small>R48</small></h1><p>日 K、均線、SAR 與量價觀察</p></div><span class="badge">期貨專用｜價格：點・成交量：口</span></header>
 <section class="panel">
 <div class="controls">
 <label>歷史範圍<select id="txYears"><option value="1">近 1 年＋暖機</option><option value="3">近 3 年＋暖機</option><option value="5">近 5 年＋暖機</option></select></label>
@@ -44,6 +44,23 @@
 <div class="chart"><canvas id="txChart" aria-label="台指期日 K、均線、SAR、成交量圖"></canvas></div>
 <label class="cursor">歷史審計<input type="range" id="txAudit" min="0" max="0" value="0" aria-label="選擇審計日"><span id="txAuditDate">—</span></label>
 <p id="txOhlc" class="muted">—</p><p id="txRollNote" class="warning"></p>
+</section>
+<section class="panel" id="r48Panel">
+<h2>R48｜一鍵找 MACD、KD、SAR、均線、量能最佳組合</h2>
+<p class="muted">只需載入五年行情、選擇多空方向與交易成本，再按一次。程式會同時調整五元素的比例、各自的技術參數和進出場門檻。優先找訓練期最高勝率，並顯示後段 30% 未參與選參數的驗證績效。</p>
+<div class="controls">
+<label>多空方向<select id="r48Side"><option value="both" selected>多空雙向</option><option value="long">只做多</option><option value="short">只做空</option></select></label>
+<label>最佳化目標<select id="r48Objective"><option value="win" selected>最高勝率（兼顧淨利／回撤）</option><option value="net">最大淨獲利－回撤</option></select></label>
+<label>訓練期最低獨立交易筆數<input id="r48MinTrades" type="number" min="1" max="1000" step="1" value="10"></label>
+<label>每段合約完整交易成本（點）<input id="r48Cost" type="number" min="0" max="10000" step="1" value="0"></label>
+<label>搜尋深度<select id="r48Depth"><option value="fast" selected>快速搜尋（手機建議）</option><option value="deep">較完整搜尋</option></select></label>
+</div>
+<div class="controls"><button id="r48Go">一鍵找五指標最佳組合</button><button id="r48Cancel" class="secondary" disabled>停止搜尋</button></div>
+<p id="r48Status" role="status">等待載入近月連續行情。使用上方回測起訖日期。</p>
+<div id="r48Headline"></div>
+<h3>最高勝率前五名：進出場權重與指標參數</h3><div id="r48Results" class="composition"></div>
+<h3>分別只做多／只做空／雙向的最佳組合</h3><div id="r48BySide" class="composition"></div>
+<p class="warning">權重合計 100%。搜尋只使用前 70% 資料，後 30% 才計算樣本外績效；用同一段歷史反覆重調參數，仍會造成過度擬合。日 K 收盤發訊號、次日開盤模擬，換月會計入成本；0 點成本偏樂觀。勝率最高不等於報酬最高，也不保證超越買進持有或達兩倍目標。</p>
 </section>
 <section class="panel" id="actionPanel"><h2>台指期進場／續抱 Action・SAR 預判試驗版</h2>
 <p class="muted">權重自動按比例換算；預設僅供試驗，尚未經樣本外驗證。沿用上方 SAR 三參數；隱藏 SAR 圖點不會關閉策略計算。未平倉量不作方向加分。</p>
@@ -122,4 +139,4 @@
 </section>
 <section class="panel"><h2>技術觀察</h2><p id="txAnalysis">載入後顯示均線位置、SAR 方向與量能。</p><div id="txMaTable" class="ma-grid"></div><p class="muted">此頁使用期貨價格與口數，不套用股票的融資、持股或 Action 分數。R45 基準是 1 口台指期按完全相同合約月曆轉倉的買進持有，不是加權現貨指數含股息的報酬；策略與基準均以點數而非保證金 ROI 比較。近月連續線未還原轉倉價差，換月可能影響均線與 SAR；可改選指定月份核對。未平倉總量本身不代表法人偏多或偏空。</p></section>
 <footer>資料：FinMind TaiwanFuturesDaily／taiwan_futures_snapshot・不替換為加權現貨指數</footer>
-</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r42"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r46"></script><script src="/taiex-action-ui.js?r45"></script><script src="/taiex-r46.js?r47"></script><script src="/taiex-r46-ui.js?r47"></script><script src="/taiex-r47.js?r47"></script><script src="/taiex-r47-ui.js?r47"></script><script src="/taiex-futures-ui.js?r47"></script></body></html>
+</main><script src="/finmind-token-manager.js"></script><script src="/parabolic-sar.js?r42"></script><script src="/taiex-futures-core.js?r36"></script><script src="/taiex-action.js?r46"></script><script src="/taiex-action-ui.js?r45"></script><script src="/taiex-r46.js?r47"></script><script src="/taiex-r46-ui.js?r47"></script><script src="/taiex-r47.js?r47"></script><script src="/taiex-r47-ui.js?r47"></script><script src="/taiex-r48.js?r48"></script><script src="/taiex-r48-ui.js?r48"></script><script src="/taiex-futures-ui.js?r48"></script></body></html>
