@@ -255,5 +255,140 @@ function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
    yield {done:i+1,total:grid.length,eligible,maxTrades,validBars:result.validBars,totalBars:result.totalBars,top:top.map(({config,result})=>({config,result})),start:prepared.start,end:prepared.end,months:[...new Set(prepared.timeline.map(b=>b.contract))]};
  }
 }
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+
+// R44: points-based, one-contract, one-lot buy-and-roll benchmark, using the same
+// next-month calendar and the exact same old/new open prices as the Action strategy.
+// Cost means total points per closed contract leg, including scheduled rolls.
+function benchmarkMulti(prepared,p,first=0,last=prepared.timeline.length-1){
+ const {timeline,lookup}=prepared,legs=[];let net=0,position=null,peak=0,maxDrawdown=0;
+ const close=(price,date,reason)=>{
+  const gross=price-position.price,value=gross-p.cost;
+  legs.push({contract:position.contract,entryDate:position.date,exitDate:date,gross,net:value,reason});
+  net+=value;position=null;
+ };
+ for(let i=first;i<=last;i++){
+  const b=timeline[i],roll=i>first&&timeline[i-1].contract!==b.contract;
+  if(roll){
+   close(lookup.get(b.date+':'+position.contract).open,b.date,'基準換月');
+  }
+  if(!position)position={contract:b.contract,date:b.date,price:b.open};
+  const equity=net+b.close-position.price-p.cost;
+  peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
+  if(i===last)close(b.close,b.date,'基準期末');
+ }
+ return {net,maxDrawdown,trades:legs,rolls:Math.max(0,legs.length-1),start:timeline[first]?.date,end:timeline[last]?.date,cost:p.cost};
+}
+function withBenchmark(result,baseline){
+ const ratio=baseline.net>0?result.net/baseline.net:null;
+ return {...result,benchmark:{net:baseline.net,maxDrawdown:baseline.maxDrawdown,rolls:baseline.rolls,tradeLegs:baseline.trades.length},
+ excessNet:result.net-baseline.net,versusBenchmark:ratio,
+ target2x:baseline.net>0?result.net>=2*baseline.net:null};
+}
+// New engine: economic position continues through a roll if the HOLD condition
+// has not requested an exit. P&L always closes old at its open and opens new at its open.
+// No cross-contract price gap enters P&L; each leg incurs one configured round-trip cost.
+function simulateMultiCarry(prepared,p,first=0,last=prepared.timeline.length-1,baseline=null){
+ const {timeline,lookup,features}=prepared,scores=new Map();
+ for(const s of rescore(features,p))if(s)scores.set(s.date,s);
+ const d=p.direction==='long'?1:-1,trades=[],episodes=[],months=[...new Set(timeline.slice(first,last+1).map(b=>b.contract))];
+ let position=null,episode=null,pending=null,pendingType=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,carryRolls=0,entrySignals=0,exitSignals=0,preFlipEntries=0;
+ function enter(b,signalDate,signalType){
+  position={contract:b.contract,date:b.date,price:b.open,signalDate,signalType};
+  episode={entryDate:b.date,signalDate,signalType,gross:0,net:0,legs:0};
+ }
+ function close(price,date,reason,carrying=false){
+  const gross=d*(price-position.price),value=gross-p.cost;
+  trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,signalType:position.signalType,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});
+  net+=value;
+  episode.gross+=gross;episode.net+=value;episode.legs++;
+  if(!carrying){episodes.push({...episode,exitDate:date,reason});episode=null;}
+  position=null;
+ }
+ for(let i=first;i<=last;i++){
+  const b=timeline[i],roll=i>first&&timeline[i-1].contract!==b.contract;
+  if(roll){
+   rollovers++;
+   if(position){
+    const old=position,exitRequested=pending==='exit';
+    close(lookup.get(b.date+':'+old.contract).open,b.date,'換月舊倉平倉',!exitRequested);
+    if(!exitRequested){
+     position={contract:b.contract,date:b.date,price:b.open,signalDate:old.signalDate,signalType:'續抱換月'};
+     carryRolls++;
+    }
+   }
+  }
+  if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
+  else if(pending==='enter'&&!position)enter(b,timeline[i-1]?.date,pendingType);
+  pending=null;pendingType=null;
+  const equity=net+(position?d*(b.close-position.price)-p.cost:0);
+  peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
+  const score=scores.get(b.date);if(score)validBars++;
+  if(i===last){if(position)close(b.close,b.date,'區間結束平倉');break;}
+  if(score){
+   if(position){if(score.leave){pending='exit';exitSignals++;}}
+   else if(score.enter){pending='enter';pendingType=score.aligned?'已翻向':'翻向前預判';entrySignals++;if(!score.aligned)preFlipEntries++;}
+  }
+ }
+ let evaluated=0,within2=0;
+ for(let i=first;i<=last-2;i++){
+  const s=scores.get(timeline[i].date);
+  if(!s?.enter||s.aligned)continue;
+  const a=scores.get(timeline[i+1].date),b=scores.get(timeline[i+2].date);
+  if(!a||!b)continue;
+  evaluated++;if(a.aligned||b.aligned)within2++;
+ }
+ const wins=episodes.filter(t=>t.net>0),gain=episodes.reduce((n,t)=>n+Math.max(0,t.net),0),loss=episodes.reduce((n,t)=>n+Math.max(0,-t.net),0);
+ const result={trades,signalTrades:episodes,signalTradeCount:episodes.length,
+ net,gross:trades.reduce((n,t)=>n+t.gross,0),winRate:episodes.length?wins.length/episodes.length*100:null,
+ maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,
+ validBars,totalBars:last-first+1,warmupBars:last-first+1-validBars,
+ start:timeline[first].date,end:timeline[last].date,months,rollovers,carryRolls,entrySignals,exitSignals,preFlipEntries,
+ preFlipCheck:{evaluated,within2,percent:evaluated?within2/evaluated*100:null},signalBars:prepared.signalBars};
+ return withBenchmark(result,baseline||benchmarkMulti(prepared,p,first,last));
+}
+function backtestMultiR44(rows,input={},sarConfig={},range={}){
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range);
+ return simulateMultiCarry(prepared,p);
+}
+function objectiveR44(result){
+ // Net benchmark beat is essential, but unlimited drawdown is not rewarded.
+ // A fixed 0.7 drawdown penalty makes the training metric explicit and stable.
+ return result.excessNet-0.7*result.maxDrawdown;
+}
+function compareR44(a,b){
+ return objectiveR44(b.result)-objectiveR44(a.result)||b.result.net-a.result.net||a.result.maxDrawdown-b.result.maxDrawdown||b.result.trades.length-a.result.trades.length;
+}
+function* optimizeMultiR44(rows,input={},sarConfig={},range={},minTrades=20,trainShare=0.7){
+ if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最低交易筆數須為 1～10000');
+ if(![0.6,0.7,0.8].includes(trainShare))throw Error('訓練比例需為 60%、70% 或 80%');
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),n=prepared.timeline.length;
+ if(n<120)throw Error('樣本不足 120 根 K 線，無法進行分離式訓練與驗證');
+ const cut=Math.max(60,Math.min(n-30,Math.floor(n*trainShare)));
+ const trainBase=benchmarkMulti(prepared,p,0,cut-1),testBase=benchmarkMulti(prepared,p,cut,n-1);
+ const grid=candidateGridMulti(p),top=[];let eligible=0,maxTrades=0;
+ for(let i=0;i<grid.length;i++){
+  const config=grid[i],result=simulateMultiCarry(prepared,config,0,cut-1,trainBase);
+  maxTrades=Math.max(maxTrades,result.signalTradeCount);
+  if(result.signalTradeCount>=minTrades){
+   eligible++;
+   const signature=tradeSignature(result),idx=top.findIndex(x=>x.signature===signature);
+   const current={config,result,signature};
+   if(idx>=0){if(compareR44(current,top[idx])<0)top[idx]=current;}
+   else top.push(current);
+   top.sort(compareR44);top.length=Math.min(5,top.length);
+  }
+  if((i+1)%25===0||i===grid.length-1){
+   const done=i+1,total=grid.length;
+   const terminal=done===total;
+   yield {done,total,eligible,maxTrades,top:top.map(({config,result})=>({config,result,
+     ...(terminal?{validation:simulateMultiCarry(prepared,config,cut,n-1,testBase)}:{})})),
+     start:prepared.start,end:prepared.end,trainStart:prepared.timeline[0].date,
+     trainEnd:prepared.timeline[cut-1].date,validationStart:prepared.timeline[cut].date,
+     validationEnd:prepared.timeline[n-1].date,baseline:{full:benchmarkMulti(prepared,p),train:trainBase,test:testBase},
+     months:[...new Set(prepared.timeline.map(b=>b.contract))],totalBars:n};
+  }
+ }
+}
+
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,analyzeMulti,optimizeMulti,nextMonth,benchmarkMulti,backtestMultiR44,simulateMultiCarry,objectiveR44,compareR44,optimizeMultiR44};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
