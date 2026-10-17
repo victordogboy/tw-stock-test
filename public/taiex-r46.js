@@ -167,6 +167,7 @@ function simulate(prep,input,first=0,last=prep.timeline.length-1,filtersOverride
  return {start:timeline[first].date,end:timeline[last].date,net,benchmarkNet:bench.net,
  excessNet:net-bench.net,benchmarkMaxDrawdown:bench.maxDrawdown,
  ratio:bench.net>0?net/bench.net:null,target2x:bench.net>0?net>=2*bench.net:null,
+ targetShortfall:bench.net>0?Math.max(0,2*bench.net-net):null,
  maxDrawdown:dd,winRate:episodes.length?100*win/episodes.length:null,
  signalTradeCount:episodes.length,legCount:legs.length,legs,episodes,
  profitFactor:loss?gain/loss:null,coveredBars:covered,coverage:covered/total*100,
@@ -189,7 +190,13 @@ function candidates(p){
  add({...p,sideMode,entryType,exitType,adxMin,breakoutDays,atrMultiple});
  return out;
 }
-function objective(r){return r.excessNet-0.7*r.maxDrawdown;}
+function objective(r){
+ // A fixed benchmark subtraction alone cannot alter candidate order.
+ // Explicitly penalize being BELOW the 2x training benchmark goal, while
+ // retaining the drawdown guard. This is deliberately piecewise, not a promise.
+ const shortfall=r.targetShortfall??0;
+ return r.excessNet-0.7*r.maxDrawdown-0.5*shortfall;
+}
 function* walkForward(rows,input={},sarConfig={},range={},minTrades=4){
  if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最少訓練交易數不正確');
  const p=validate(input),prep=build(rows,p,sarConfig,range),n=prep.timeline.length;
