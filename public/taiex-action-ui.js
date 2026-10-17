@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id),A=TWTaiexAction,key='twq_taiex_action_r3
 const f=(v,n=1)=>Number.isFinite(v)?v.toLocaleString('zh-TW',{maximumFractionDigits:n}):'—';
 let config=A.validate(),context=null,dirty=false,lastSignature='',lastRaw=null,job=0;
 try{config=A.validate(JSON.parse(localStorage.getItem(key)||'{}'));}catch{}
-const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost'};
+const fields={direction:'actDirection',delta:'actDelta',minEntry:'actMinimum',exit:'actExit',maxAge:'actAge',cost:'actCost',sarMode:'actSarMode',preFlipGap:'actPreGap',preFlipMin:'actPreMin'};
 function fill(){for(const [k,id]of Object.entries(fields))$(id).value=config[k];for(const group of ['entryWeights','holdWeights'])config[group].forEach((v,i)=>$(group+i).value=v);}
 function cancel(message='條件已變更，請重新搜尋。'){job++;$('actCancel').disabled=true;$('actOptStatus').textContent=message;$('actOptResults').replaceChildren();}
 function clearResult(){cancel(); $('actResult').textContent='參數、SAR、合約或時段變更後，請重新執行回測。';$('actTrades').replaceChildren();}
@@ -22,16 +22,19 @@ function render(ctx){
  updateScope();
  if(!s){$('actScores').textContent='審計日 '+b.date+'：同月份目前 '+history.length+' 根，需至少 61 根才能計分。可按「查看最新分數」；下方回測仍使用自訂日期。';$('actParts').textContent='';return;}
  $('actScores').textContent=(config.direction==='long'?'做多':'做空')+'｜進場 Action '+f(s.entry)+'｜變化 '+(s.delta>0?'+':'')+f(s.delta)+'｜續抱 Action '+f(s.hold);
- $('actParts').textContent=names.map((name,i)=>name+'：進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i])).join('；')+'。追價扣分 '+f(s.penalty)+'；SAR 同方向 '+(s.aligned?'是':'否')+'；距最近翻向 '+(s.age===null?'尚未觀察到':s.age+' 根')+'。';
+ $('actParts').textContent=names.map((name,i)=>name+'：進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i])).join('；')+'。追價扣分 '+f(s.penalty)+'；SAR 同向 '+(s.aligned?'是':'否')+'；下一根預估翻向觸發價 '+f(s.evidence.trigger,2)+'；距離 '+f(s.evidence.gap,2)+' ATR；KD K/D '+f(s.evidence.k,1)+'/'+f(s.evidence.dh,1)+'；翻向前分數 '+f(s.preFlipScore)+'；距最近翻向 '+(s.age===null?'尚未觀察到':s.age+' 根')+'。';
  composition(s);
- $('actSignal').textContent='空手：'+(s.enter?'符合進場條件，下一根開盤模擬進場':'等待')+'；持倉：'+(s.leave?'續抱低於門檻，下一根開盤模擬離場':'續抱分數尚未低於門檻')+'。';
+ $('actSignal').textContent='空手：'+(s.enter?'符合'+(s.aligned?'已翻向確認':'SAR 翻向前預判')+'進場，下一根開盤模擬進場':'等待')+'；持倉：'+(s.leave?'續抱低於門檻，下一根開盤模擬離場':'續抱分數尚未低於門檻')+'。';
 }
 function composition(s){
  const e=s.evidence,pass=e.trend.map(v=>v?'符合 +25':'不符合 +0'),dir=config.direction==='long'?'大於':'小於';
  const details=[
  ['收盤 '+dir+' MA20：'+pass[0],'MA5 '+dir+' MA20：'+pass[1],'MA20 '+dir+' MA60：'+pass[2],'MA20 '+(config.direction==='long'?'上升':'下降')+'：'+pass[3]],
  ['14 根平均真實波幅：'+f(s.atr)+' 點','最近 3 根方向速度 v：'+f(e.velocity,3)+'；前段 vp：'+f(e.previous,3),'進場＝限制至 0～100 的 [50＋50×(v−vp)]','續抱＝限制至 0～100 的 [50＋35×v]；速度以波幅標準化'],
- ['SAR 與交易方向：'+(s.aligned?'相同':'不同'),'距最近翻向：'+(s.age===null?'尚未觀察到':s.age+' 根')+'；限制 '+(config.maxAge===0?'不限':config.maxAge+' 根'),'進場同向時隨根數遞減：100−根數×100/(限制+1)，最低 0；不限且已觀察到翻向為 100','續抱同向 100／反向 0；未觀察到翻向不給初期加分'],
+ ['SAR 與交易方向：'+(s.aligned?'相同':'不同'),'距最近翻向：'+(s.age===null?'尚未觀察到':s.age+' 根')+'；限制 '+(config.maxAge===0?'不限':config.maxAge+' 根'),'預判：下一日 SAR 翻向觸發價 '+f(e.trigger,2)+'；當前距離 '+f(e.gap,2)+' ATR；門檻 ≤ '+f(config.preFlipGap,2)+' ATR',
+  'KD(9,3,3)：K '+f(e.k,1)+'／D '+f(e.dh,1)+'；K/D 同向＋K 動能改善 '+(e.kdAgree?'符合':'不符合')+'；收盤沿方向改善 '+(e.priceImproving?'是':'否'),
+  '翻向前預判＝SAR 距離 35%＋動能加速度 30%＋KD 25%＋量價 10%；目前 '+f(s.preFlipScore)+' 分；門檻 '+config.preFlipMin+' 分',
+  '已翻向進場隨根數遞減 100−根數×100/(限制+1)，續抱同向 100／反向 0；進場模式 '+(config.sarMode==='both'?'混合':config.sarMode==='anticipate'?'僅預判':'僅已翻向')],
  ['當根量／前 20 根均量：'+f(e.ratio,2)+' 倍（均量不含當根）','方向漲跌／平均真實波幅：'+f(e.move,3),'進場與續抱＝限制至 0～100 的 [50＋25×方向漲跌/波幅×min(2,量比)]','不以總未平倉增加判斷偏多或偏空']
  ];
  details.forEach((lines,i)=>{const card=document.createElement('article'),title=document.createElement('h3');title.textContent=names[i]+'｜進場 '+f(s.entryParts[i])+'／續抱 '+f(s.holdParts[i]);card.append(title);const ew=config.entryWeights[i]/config.entryWeights.reduce((a,b)=>a+b,0),hw=config.holdWeights[i]/config.holdWeights.reduce((a,b)=>a+b,0);lines.push('權重換算：進場 '+f(ew*100)+'% → '+f(s.entryParts[i]*ew)+' 分；續抱 '+f(hw*100)+'% → '+f(s.holdParts[i]*hw)+' 分');for(const line of lines){const p=document.createElement('p');p.textContent=line;card.append(p);}$('actComposition').append(card);});
@@ -80,7 +83,7 @@ $('actOptimize').addEventListener('click',async()=>{
  for(const [i,item]of last.top.entries()){
  const card=document.createElement('article'),label=document.createElement('p'),params=document.createElement('p'),button=document.createElement('button'),p=item.config,r=item.result;
  label.textContent='第 '+(i+1)+' 名｜勝率 '+f(r.winRate)+'%（'+r.trades.filter(t=>t.net>0).length+'勝／'+r.trades.length+'筆）｜淨 '+f(r.net)+' 點｜回撤 '+f(r.maxDrawdown)+' 點';
- params.textContent='進場權重 '+p.entryWeights.join('/')+'；續抱權重 '+p.holdWeights.join('/')+'；變化 ≥ '+p.delta+'；最低分 ≥ '+p.minEntry+'；離場 < '+p.exit+'；SAR 根數 '+(p.maxAge||'不限')+'；成本 '+p.cost+' 點';
+ params.textContent='SAR 進場 '+(p.sarMode==='both'?'混合':p.sarMode==='anticipate'?'翻向前預判':'已翻向')+'（距離 ≤ '+p.preFlipGap+' ATR、預判 ≥ '+p.preFlipMin+' 分）；進場權重 '+p.entryWeights.join('/')+'；續抱權重 '+p.holdWeights.join('/')+'；變化 ≥ '+p.delta+'；最低分 ≥ '+p.minEntry+'；離場 < '+p.exit+'；SAR 根數 '+(p.maxAge||'不限')+'；成本 '+p.cost+' 點';
  button.textContent='套用此組並回測';button.addEventListener('click',()=>{config=A.validate(p);dirty=false;fill();persist();$('actError').textContent='已套用樣本內候選參數；請另換區間驗證。';render(context);run();});
  card.append(label,params,button);$('actOptResults').append(card);
  }
