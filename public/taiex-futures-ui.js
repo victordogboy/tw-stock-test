@@ -98,6 +98,11 @@
     view.forEach((b,i)=>{const xx=x(i),color=b.close>b.open?'#ff7585':b.close<b.open?'#3fd5a5':'#f4c95d';ctx.fillStyle=color;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(xx,y(b.high));ctx.lineTo(xx,y(b.low));ctx.stroke();ctx.fillRect(xx-width/2,Math.min(y(b.open),y(b.close)),width,Math.max(1,Math.abs(y(b.open)-y(b.close))));ctx.globalAlpha=.55;const vh=b.volume/vmax*65;ctx.fillRect(xx-width/2,h-bottom-vh,width,vh);ctx.globalAlpha=1;if(b.rollover){ctx.strokeStyle='#ad935f';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,priceBottom);ctx.stroke();ctx.setLineDash([]);}});
     ['#f4c95d','#67a5ff','#bd8cff','#35d6a0'].forEach((color,j)=>{ctx.strokeStyle=color;ctx.lineWidth=1.4;ctx.beginPath();let begun=false;maValues[j].forEach((v,i)=>{if(!Number.isFinite(v))return;if(!begun){ctx.moveTo(x(i),y(v));begun=true;}else ctx.lineTo(x(i),y(v));});ctx.stroke();});
     points.forEach((p,i)=>{if(!p)return;ctx.beginPath();ctx.fillStyle=p.rising?'#ffa94d':'#63c9f4';ctx.arc(x(i),y(p.value),Math.max(1.5,Math.min(3,(w-left-right)/n*.3)),0,2*Math.PI);ctx.fill();});
+    // A five-year candle range needs yearly separators, not just first/last labels.
+    if(n>250)for(let i=1;i<n;i++)if(view[i].date.slice(0,4)!==view[i-1].date.slice(0,4)){
+      const xx=x(i);ctx.strokeStyle='#30415a';ctx.setLineDash([2,5]);ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,priceBottom);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#9bacc7';ctx.fillText(view[i].date.slice(0,4),xx+3,h-5);
+    }
     ctx.fillStyle='#9bacc7';ctx.fillText(view[0].date,left,h-5);ctx.fillText(view.at(-1).date,w-right-62,h-5);
     canvasView={left,right,w,n,offset};wrapper.scrollLeft=priorScroll;
   }
