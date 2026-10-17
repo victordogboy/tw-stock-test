@@ -84,20 +84,27 @@ function backtest(rows,input={},sarConfig={},range={}){
 }
 function simulate(rows,p,scores,first=0){
  const d=p.direction==='long'?1:-1,trades=[];
- let position=null,pending=null,realized=0,peak=0,maxDrawdown=0;
- const close=(price,date,reason)=>{const gross=d*(price-position.price),net=gross-p.cost;trades.push({entryDate:position.date,signalDate:position.signalDate,exitDate:date,entry:position.price,exit:price,gross,net,reason});realized+=net;position=null;};
+ let position=null,pending=null,pendingSignalType=null,realized=0,peak=0,maxDrawdown=0;
+ const close=(price,date,reason)=>{const gross=d*(price-position.price),net=gross-p.cost;trades.push({entryDate:position.date,signalDate:position.signalDate,signalType:position.signalType,exitDate:date,entry:position.price,exit:price,gross,net,reason});realized+=net;position=null;};
  for(let i=first;i<rows.length;i++){
   const b=rows[i];
   if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
-  else if(pending==='enter'&&!position)position={price:b.open,date:b.date,signalDate:rows[i-1].date};
-  pending=null;
+  else if(pending==='enter'&&!position)position={price:b.open,date:b.date,signalDate:rows[i-1].date,signalType:pendingSignalType};
+  pending=null;pendingSignalType=null;
   const equity=realized+(position?d*(b.close-position.price)-p.cost:0);peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
   if(i===rows.length-1){if(position)close(b.close,b.date,'區間結束平倉');break;}
   const s=scores[i];if(!s)continue;
-  if(position){if(s.leave)pending='exit';}else if(s.enter)pending='enter';
+  if(position){if(s.leave)pending='exit';}else if(s.enter){pending='enter';pendingSignalType=s.aligned?'已翻向':'翻向前預判';}
  }
+ let evaluated=0,within2=0;
+ for(let i=first;i<scores.length-2;i++){
+  if(!scores[i]?.enter||scores[i].aligned||!scores[i+1]||!scores[i+2])continue;
+  evaluated++;if(scores[i+1].aligned||scores[i+2].aligned)within2++;
+ }
+ const preFlipCheck={evaluated,within2,percent:evaluated?within2/evaluated*100:null};
+ const preFlipEntries=trades.filter(t=>t.signalType==='翻向前預判').length;
  const wins=trades.filter(t=>t.net>0),gain=wins.reduce((s,t)=>s+t.net,0),loss=-trades.filter(t=>t.net<0).reduce((s,t)=>s+t.net,0);
- return {trades,net:realized,gross:trades.reduce((s,t)=>s+t.gross,0),winRate:trades.length?wins.length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars:scores.slice(first).filter(Boolean).length,start:rows[first]?.date,end:rows.at(-1)?.date};
+ return {trades,preFlipCheck,preFlipEntries,net:realized,gross:trades.reduce((s,t)=>s+t.gross,0),winRate:trades.length?wins.length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars:scores.slice(first).filter(Boolean).length,start:rows[first]?.date,end:rows.at(-1)?.date};
 }
 // Reuse observed features for the grid; never recompute SAR/ATR for each candidate.
 function rescore(features,p){
