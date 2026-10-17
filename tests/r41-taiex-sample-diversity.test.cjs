@@ -45,7 +45,7 @@ test('search returns distinct trade calendars, respects minimum samples and dire
  assert.equal(output.top.length,5);
  const ids=output.top.map(({result})=>result.trades.map(t=>[t.contract,t.entryDate,t.exitDate].join(':')).join('|'));
  assert.equal(new Set(ids).size,ids.length,'top five may not repeat identical entry/exit dates');
- for(const {config:p,result}of output){
+ for(const {config:p,result}of output.top){
   assert(result.trades.length>=5);
   assert.deepEqual(result,A.backtestMulti(rows,p,{},range));
  }
