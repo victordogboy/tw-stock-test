@@ -149,7 +149,7 @@ async function buildVolumes(market){
 async function fallbackVolume(warnings){
  const missingMarkets=['twse','tpex'].filter(m=>volumeDays[m].length<5);
  if(!missingMarkets.length)return;
- const candidates=full.filter(x=>chosen(x).status==='ok'&&missingMarkets.includes(x.market)&&
+ const candidates=full.filter(x=>chosen(x).status==='ok'&&chosen(x).pe>0&&missingMarkets.includes(x.market)&&
    chosen(x).pe<=num('maxpe',35)&&
    (x.close>=num('minprice',30)||($('future').checked&&x.hasFutures)) &&
    (num('maxprice',0)===0||x.close<=num('maxprice',0)));
