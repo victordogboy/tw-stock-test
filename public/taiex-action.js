@@ -103,7 +103,7 @@ function simulate(rows,p,scores,first=0){
 function rescore(features,p){
  const scored=features.map(s=>{
   if(!s)return null;
-  const e=s.evidence,preFlipScore=clamp((100-100*Math.max(0,e.gap)/p.preFlipGap)*0.35+
+  const e=s.evidence,preFlipScore=clamp(clamp(100-100*Math.max(0,e.gap)/p.preFlipGap)*0.35+
     e.acceleration*0.3+(e.kdAgree?100:0)*0.25+e.volume*0.1);
   const entryParts=[...s.entryParts];
   entryParts[2]=s.aligned&&s.age!==null?(p.maxAge===0?100:clamp(100-s.age*100/(p.maxAge+1))):s.aligned?0:preFlipScore;
@@ -174,21 +174,30 @@ function simulateMulti(prepared,p){
  const {timeline,lookup,features}=prepared,scores=new Map();
  for(const s of rescore(features,p))if(s)scores.set(s.date,s);
  const d=p.direction==='long'?1:-1,trades=[],months=[...new Set(timeline.map(b=>b.contract))];
- let position=null,pending=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,entrySignals=0,exitSignals=0;
- function close(price,date,reason){const gross=d*(price-position.price),value=gross-p.cost;trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});net+=value;position=null;}
+ let position=null,pending=null,pendingSignalType=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,entrySignals=0,exitSignals=0,preFlipEntries=0;
+ function close(price,date,reason){const gross=d*(price-position.price),value=gross-p.cost;trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,signalType:position.signalType,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});net+=value;position=null;}
  for(let i=0;i<timeline.length;i++){
   const b=timeline[i],roll=i>0&&timeline[i-1].contract!==b.contract;
-  if(roll){rollovers++;if(position)close(lookup.get(b.date+':'+position.contract).open,b.date,'換月平倉');pending=null;}
+  if(roll){rollovers++;if(position)close(lookup.get(b.date+':'+position.contract).open,b.date,'換月平倉');pending=null;pendingSignalType=null;}
   if(pending==='exit'&&position)close(b.open,b.date,'續抱低於門檻');
-  else if(pending==='enter'&&!position)position={contract:b.contract,date:b.date,price:b.open,signalDate:timeline[i-1].date};
-  pending=null;
+  else if(pending==='enter'&&!position)position={contract:b.contract,date:b.date,price:b.open,signalDate:timeline[i-1].date,signalType:pendingSignalType};
+  pending=null;pendingSignalType=null;
   const equity=net+(position?d*(b.close-position.price)-p.cost:0);peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
   const s=scores.get(b.date);if(s)validBars++;
   if(i===timeline.length-1){if(position)close(b.close,b.date,'區間結束平倉');break;}
-  if(s){if(position){if(s.leave){pending='exit';exitSignals++;}}else if(s.enter){pending='enter';entrySignals++;}}
+  if(s){if(position){if(s.leave){pending='exit';exitSignals++;}}else if(s.enter){pending='enter';pendingSignalType=s.aligned?'已翻向':'翻向前預判';entrySignals++;if(!s.aligned)preFlipEntries++;}}
+ }
+ // Future observations only measure prediction accuracy; never alter historical entries.
+ let evaluated=0,within2=0;
+ for(let i=0;i<timeline.length-2;i++){
+  const current=scores.get(timeline[i].date);
+  if(!current?.enter||current.aligned)continue;
+  const next=scores.get(timeline[i+1].date),after=scores.get(timeline[i+2].date);
+  if(!next||!after)continue;
+  evaluated++;if(next.aligned||after.aligned)within2++;
  }
  const gain=trades.reduce((v,t)=>v+Math.max(0,t.net),0),loss=trades.reduce((v,t)=>v+Math.max(0,-t.net),0);
- return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers,entrySignals,exitSignals,signalBars:prepared.signalBars};
+ return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers,entrySignals,exitSignals,preFlipEntries,preFlipCheck:{evaluated,within2,percent:evaluated?within2/evaluated*100:null},signalBars:prepared.signalBars};
 }
 function backtestMulti(rows,input={},sarConfig={},range={}){const p=validate(input);return simulateMulti(prepareMulti(rows,p,sarConfig,range),p);}
 // More independent profiles, including low-frequency and active-entry variants.
