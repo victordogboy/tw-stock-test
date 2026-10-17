@@ -94,19 +94,39 @@ function* optimize(rows,input={},sarConfig={},range={},minTrades=5){
 }
 // Calendar-defined next-month contract: known before the session, not chosen by future prices.
 function nextMonth(date){const y=Number(date.slice(0,4)),m=Number(date.slice(5,7));return String(y+(m===12?1:0))+String(m===12?1:m+1).padStart(2,'0');}
+// Make one point-in-time, roll-adjusted signal history rather than resetting MA60/SAR every month.
+// Roll spread is observed on the rollover morning; it never enters P&L or selects a contract.
 function prepareMulti(allRows,input={},sarConfig={},range={}){
  const p=validate(input),sorted=[...allRows].sort((a,b)=>a.date.localeCompare(b.date)||a.contract.localeCompare(b.contract));
- const selection=selectRange(sorted,range),groups=new Map(),lookup=new Map();
- for(const b of selection.rows){if(!groups.has(b.contract))groups.set(b.contract,[]);groups.get(b.contract).push(b);lookup.set(b.date+':'+b.contract,b);}
- const dates=[...new Set(selection.rows.filter(b=>b.date>=selection.start).map(b=>b.date))];
- const timeline=dates.map(date=>{const contract=nextMonth(date),b=lookup.get(date+':'+contract);if(!b)throw Error(date+' 缺少次月合約 '+contract+' 行情，無法完整跨月回測；請調整區間或重新載入。');return b;});
- for(let i=1;i<timeline.length;i++)if(timeline[i].contract!==timeline[i-1].contract&&!lookup.has(timeline[i].date+':'+timeline[i-1].contract))throw Error(timeline[i].date+' 缺少舊合約開盤價，無法計算換月平倉。');
- const features=new Map();for(const contract of new Set(timeline.map(b=>b.contract)))features.set(contract,analyze(groups.get(contract),p,sarConfig));
- return {timeline,lookup,features,start:timeline[0].date,end:timeline.at(-1).date};
+ const selected=selectRange(sorted,range),lookup=new Map();
+ for(const b of selected.rows)lookup.set(b.date+':'+b.contract,b);
+ const dates=[...new Set(selected.rows.map(b=>b.date))],timeline=[],adjusted=[];
+ let previous=null,offset=0;
+ for(const date of dates){
+  const contract=nextMonth(date),b=lookup.get(date+':'+contract),active=date>=selected.start;
+  if(!b){
+   if(active)throw Error(date+' 缺少次月合約 '+contract+' 行情，無法完整跨月回測；請調整區間或重新載入。');
+   adjusted.length=0;previous=null;offset=0;continue;
+  }
+  if(previous&&previous.contract!==contract){
+   const old=lookup.get(date+':'+previous.contract);
+   if(!old){
+    if(active&&timeline.length)throw Error(date+' 缺少舊合約開盤價，無法計算換月平倉。');
+    adjusted.length=0;offset=0;
+   }else offset+=old.open-b.open;
+  }
+  adjusted.push({...b,contract:'TX_SIGNAL',open:b.open+offset,high:b.high+offset,low:b.low+offset,close:b.close+offset});
+  if(active)timeline.push(b);
+  previous=b;
+ }
+ if(!timeline.length)throw Error('所選區間沒有可回測的次月合約資料');
+ return {timeline,lookup,features:analyze(adjusted,p,sarConfig),start:timeline[0].date,end:timeline.at(-1).date,signalBars:adjusted.length};
 }
 function simulateMulti(prepared,p){
- const {timeline,lookup,features}=prepared,scores=new Map();for(const [contract,list]of features)for(const s of rescore(list,p))if(s)scores.set(s.date+':'+contract,s);
- const d=p.direction==='long'?1:-1,trades=[],months=[...new Set(timeline.map(b=>b.contract))];let position=null,pending=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0;
+ const {timeline,lookup,features}=prepared,scores=new Map();
+ for(const s of rescore(features,p))if(s)scores.set(s.date,s);
+ const d=p.direction==='long'?1:-1,trades=[],months=[...new Set(timeline.map(b=>b.contract))];
+ let position=null,pending=null,net=0,peak=0,maxDrawdown=0,validBars=0,rollovers=0,entrySignals=0,exitSignals=0;
  function close(price,date,reason){const gross=d*(price-position.price),value=gross-p.cost;trades.push({contract:position.contract,entryDate:position.date,signalDate:position.signalDate,exitDate:date,entry:position.price,exit:price,gross,net:value,reason});net+=value;position=null;}
  for(let i=0;i<timeline.length;i++){
   const b=timeline[i],roll=i>0&&timeline[i-1].contract!==b.contract;
@@ -115,22 +135,44 @@ function simulateMulti(prepared,p){
   else if(pending==='enter'&&!position)position={contract:b.contract,date:b.date,price:b.open,signalDate:timeline[i-1].date};
   pending=null;
   const equity=net+(position?d*(b.close-position.price)-p.cost:0);peak=Math.max(peak,equity);maxDrawdown=Math.max(maxDrawdown,peak-equity);
-  const s=scores.get(b.date+':'+b.contract);if(s)validBars++;
+  const s=scores.get(b.date);if(s)validBars++;
   if(i===timeline.length-1){if(position)close(b.close,b.date,'區間結束平倉');break;}
-  if(s){if(position){if(s.leave)pending='exit';}else if(s.enter)pending='enter';}
+  if(s){if(position){if(s.leave){pending='exit';exitSignals++;}}else if(s.enter){pending='enter';entrySignals++;}}
  }
  const gain=trades.reduce((v,t)=>v+Math.max(0,t.net),0),loss=trades.reduce((v,t)=>v+Math.max(0,-t.net),0);
- return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers};
+ return {trades,net,gross:trades.reduce((v,t)=>v+t.gross,0),winRate:trades.length?trades.filter(t=>t.net>0).length/trades.length*100:null,maxDrawdown,profitFactor:loss?gain/loss:null,noLoss:loss===0&&gain>0,validBars,totalBars:timeline.length,warmupBars:timeline.length-validBars,start:prepared.start,end:prepared.end,months,rollovers,entrySignals,exitSignals,signalBars:prepared.signalBars};
 }
 function backtestMulti(rows,input={},sarConfig={},range={}){const p=validate(input);return simulateMulti(prepareMulti(rows,p,sarConfig,range),p);}
+// More independent profiles, including low-frequency and active-entry variants.
+// Trade count is a constraint, not an objective; identical trade calendars occupy only one finalist.
+function candidateGridMulti(input){
+ const p=validate(input),unique=a=>[...new Map(a.map(v=>[JSON.stringify(v),v])).values()];
+ const profiles=[[25,25,25,25],[40,20,25,15],[20,40,25,15],[20,20,45,15],[45,35,10,10]];
+ const entryProfiles=unique([p.entryWeights,...profiles]),holdProfiles=unique([p.holdWeights,...profiles]);
+ const grid=[p];
+ for(const entryWeights of entryProfiles)for(const holdWeights of holdProfiles)
+ for(const delta of [0,3,7,12,20])for(const minEntry of [30,45,60])
+ for(const exit of [30,45,60])for(const maxAge of [0,5,12])
+ grid.push({...p,entryWeights,holdWeights,delta,minEntry,exit,maxAge});
+ return unique(grid);
+}
+function tradeSignature(result){return result.trades.map(t=>[t.contract,t.entryDate,t.exitDate].join(':')).join('|');}
 function* optimizeMulti(rows,input={},sarConfig={},range={},minTrades=5){
  if(!Number.isInteger(minTrades)||minTrades<1||minTrades>10000)throw Error('最低交易筆數須為 1～10000 的整數');
- const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),grid=candidateGrid(p),top=[];let eligible=0,maxTrades=0;
+ const p=validate(input),prepared=prepareMulti(rows,p,sarConfig,range),grid=candidateGridMulti(p),top=[];
+ let eligible=0,maxTrades=0;
  for(let i=0;i<grid.length;i++){
   const config=grid[i],result=simulateMulti(prepared,config);maxTrades=Math.max(maxTrades,result.trades.length);
-  if(result.trades.length>=minTrades){eligible++;top.push({config,result});top.sort(compare);top.length=Math.min(5,top.length);}
-  if((i+1)%10===0||i===grid.length-1)yield {done:i+1,total:grid.length,eligible,maxTrades,validBars:result.validBars,totalBars:result.totalBars,top:[...top],start:prepared.start,end:prepared.end,months:[...new Set(prepared.timeline.map(b=>b.contract))]};
+  if(result.trades.length>=minTrades){
+   eligible++;const signature=tradeSignature(result),existing=top.findIndex(v=>v.signature===signature);
+   const item={config,result,signature};
+   if(existing>=0){if(compare(item,top[existing])<0)top[existing]=item;}
+   else top.push(item);
+   top.sort(compare);top.length=Math.min(5,top.length);
+  }
+  if((i+1)%25===0||i===grid.length-1)
+   yield {done:i+1,total:grid.length,eligible,maxTrades,validBars:result.validBars,totalBars:result.totalBars,top:top.map(({config,result})=>({config,result})),start:prepared.start,end:prepared.end,months:[...new Set(prepared.timeline.map(b=>b.contract))]};
  }
 }
-const api={defaults,validate,analyze,backtest,optimize,candidateGrid,compare,backtestMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
+const api={defaults,validate,analyze,backtest,optimize,candidateGrid,candidateGridMulti,compare,backtestMulti,optimizeMulti,nextMonth};if(typeof module==='object'&&module.exports)module.exports=api;root.TWTaiexAction=api;
 })(typeof window==='object'?window:globalThis);
