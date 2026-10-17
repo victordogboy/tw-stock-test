@@ -141,7 +141,7 @@ test('R48 page browser buttons and five-indicator result display',async()=>{
  assert.match(p.nodes.get('r48Status').textContent,/完成/);
  assert(p.nodes.get('r48Results').children.length>0);
  assert.equal(p.nodes.get('r48BySide').children.length,3);
- assert.match(p.nodes.get('r48Results').children[0].children[3].textContent,/六元素比例/);
+ assert.match(p.nodes.get('r48Results').children[0].children[3].textContent,/六欄位權重/);
  fire('r48Cancel');
  assert.match(p.nodes.get('r48Status').textContent,/停止/);
 });
