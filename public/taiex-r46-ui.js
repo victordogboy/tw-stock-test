@@ -32,11 +32,11 @@ function data(){
  const rows=contracts.flatMap(contract=>TWTaiexFutures.series(context.raw,{session:context.session,contract}));
  const numeric=(id)=>Number($(id).value);
  const p=E.validate({
-  sideMode:$('r46Side').value,entryType:$('r46Entry').value,exitType:$('r46Exit').value,
-  adxMin:numeric('r46Adx'),breakoutDays:numeric('r46Breakout'),atrMultiple:numeric('r46Atr'),cost:numeric('r46Cost'),
+  sideMode:$('r46Side').value||'both',entryType:$('r46Entry').value||'hybrid',exitType:$('r46Exit').value||'mixed',
+  adxMin:numeric('r46Adx'),breakoutDays:numeric('r46Breakout')||20,atrMultiple:numeric('r46Atr'),cost:numeric('r46Cost'),
   trendBars:numeric('actTrendBars'),breakBars:numeric('actBreakBars'),
   delta:numeric('actDelta'),minEntry:numeric('actMinimum'),exit:numeric('actExit'),maxAge:numeric('actAge'),
-  preFlipGap:numeric('actPreGap'),preFlipMin:numeric('actPreMin'),sarMode:$('actSarMode').value,
+  preFlipGap:numeric('actPreGap'),preFlipMin:numeric('actPreMin'),sarMode:$('actSarMode').value||'both',
   entryWeights:[0,1,2,3].map(i=>numeric('entryWeights'+i)),
   holdWeights:[0,1,2,3].map(i=>numeric('holdWeights'+i))
  });
