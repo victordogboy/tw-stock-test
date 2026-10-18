@@ -1,4 +1,4 @@
-// R52: preserve stocks even when the OTC quote feed is unavailable; give company lookup a quote fallback.
+// R53: revenue month-on-month forward PE repricing, ABC comparison and stable source-date audit.
 const FIN_TYPES=['ci','basi','fh','ins','bd','mim'];
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
 const number=x=>{
@@ -173,6 +173,61 @@ function methodModels(share,fin,month,a){
  const C=forecastC(share,fin,month,a);
  return {A,B,C};
 }
+
+// Reprice the same stock at its CURRENT price and the SAME disclosed financial
+// statement. The only variable is the month's newly published revenue.
+// Previous scenario = last month YTD + latest month and all future months
+// assumed at prior month's run rate. Current scenario = actual latest YTD +
+// remaining months held at this month's run rate.
+// This is a pair of same-baseline counterfactuals, NOT historical PE or a
+// realized earnings announcement return.
+function revenuePeShift(share,fin,mon,latestModels){
+ const fail=status=>({status,monthlyGrowthPct:null,previousPE:null,currentPE:null,
+  peDropPct:null,previousEPS:null,currentEPS:null});
+ if(!mon||!fin)return fail('月營收或財報未取得');
+ if(mon.month<=1||!(mon.prevMonth>0))return fail('缺上月營收或上月非正值');
+ if(mon.year!==fin.year)return fail('財報與月營收年度不一致');
+ const prevMonthNumber=mon.month-1,financeEnd=fin.quarter*3;
+ if(prevMonthNumber<financeEnd)return fail('上月營收早於同基準財報截止月份，無法做可比情境');
+ const latestRevenue=mon.monthRevenue,prevRevenue=mon.prevMonth;
+ if(!(latestRevenue>=0&&mon.ytd>=latestRevenue))return fail('累計月營收與當月營收不一致');
+ const priorYtd=mon.ytd-latestRevenue;
+ const priorAnnual=priorYtd+(12-prevMonthNumber)*prevRevenue;
+ const latestAnnual=mon.ytd+(12-mon.month)*latestRevenue;
+ if(!(priorAnnual>0&&latestAnnual>0)||priorAnnual<fin.reportedYtdRevenue*0.92)
+  return fail('上期情境營收低於最新財報同基準，無法比較');
+ const previousA=forecast(share,fin,{
+  ...mon,month:prevMonthNumber,monthRevenue:prevRevenue,
+  ytd:priorYtd,prevMonth:null
+ });
+ const currentA=latestModels?.A;
+ const previousC=forecastC(share,fin,mon,{
+  status:previousA.status,projectedYearRevenue:priorAnnual
+ });
+ const currentC=latestModels?.C;
+ const pePair=(before,now)=>{
+  if(before?.status!=='ok'||now?.status!=='ok'||!(before.eps>0&&now.eps>0))
+   return {status:'缺可比 EPS 計算：'+(before?.status||'上期缺資料')+' / '+(now?.status||'本期缺資料'),
+    previousEPS:null,currentEPS:null,previousPE:null,currentPE:null,peDropPct:null};
+  if(!(share.close>0))return {status:'缺最新有效股價，無法計算 PE',
+   previousEPS:before.eps,currentEPS:now.eps,previousPE:null,currentPE:null,peDropPct:null};
+  const oldPE=share.close/before.eps,newPE=share.close/now.eps;
+  return {status:'ok',previousEPS:before.eps,currentEPS:now.eps,
+   previousPE:oldPE,currentPE:newPE,peDropPct:(oldPE-newPE)/oldPE*100,
+   projectedRevenueBefore:priorAnnual,projectedRevenueAfter:latestAnnual};
+ };
+ const growthPct=(latestRevenue/prevRevenue-1)*100;
+ return {status:'ok',monthlyGrowthPct:growthPct,
+  previousMonth:mon.year+'-'+String(prevMonthNumber).padStart(2,'0'),
+  currentMonth:mon.year+'-'+String(mon.month).padStart(2,'0'),
+  previousMonthlyRevenue:prevRevenue,currentMonthlyRevenue:latestRevenue,
+  previousYtdRevenue:priorYtd,currentYtdRevenue:mon.ytd,
+  samePrice:share.close,sameFinancialQuarter:fin.year+'Q'+fin.quarter,
+  assumption:'上期以當時累積月營收＋本月起沿用上月營收；本期以最新累積月營收＋未公布月份沿用本月營收；兩期使用同份已公告財報及最新股價',
+  A:pePair(previousA.status==='ok'?{status:'ok',eps:previousA.estimatedEPS}:previousA,currentA),
+  B:{status:'B需要4～8季歷史資料',previousEPS:null,currentEPS:null,previousPE:null,currentPE:null,peDropPct:null},
+  C:pePair(previousC,currentC)};
+}
 async function yahooFiveDayVolume(code,market){
  const suffix=market==='tpex'?'.TWO':'.TW';
  const uri='https://query1.finance.yahoo.com/v8/finance/chart/'+code+suffix+'?range=1mo&interval=1d&events=false';
@@ -301,10 +356,10 @@ export async function forwardPeRoute(request,env,fetchExisting){
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
  if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
  if(url.pathname==='/api/pe-screener/stock')return singleStockLookup(request,env,fetchExisting,url);
- if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R52',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
+ if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R53',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
- const key=new Request(url.origin+'/__cache/eps-forward-r52');
+ const key=new Request(url.origin+'/__cache/eps-forward-r53');
  if(!fresh){const hit=await cache.match(key);if(hit)return hit;}
  const started=Date.now();
  const inputs=[
@@ -396,8 +451,9 @@ export async function forwardPeRoute(request,env,fetchExisting){
   const fin=financials.get(code)||null,mon=months.get(code)||null;
   const projected=forecast(share,fin,mon);
   const models=methodModels(share,fin,mon,projected);
+  const peShift=revenuePeShift(share,fin,mon,models);
   const quoteReportedDate=quoteDateISO(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate)||null;
-  rows.push({...share,...projected,models,quoteReportedDate,
+  rows.push({...share,...projected,models,peShift,quoteReportedDate,
    statementBasis:fin?.source??null,
    revenueBasis:mon?.source??null,
    revenueLatestRaw:mon?.monthRevenue??null,revenueYtdRaw:mon?.ytd??null,
@@ -414,6 +470,7 @@ export async function forwardPeRoute(request,env,fetchExisting){
  rows.sort((a,b)=>(a.estimatedPE??Infinity)-(b.estimatedPE??Infinity));
  const ok=rows.length>0&&financials.size>0&&months.size>0;
  const payload={ok,version:'R52',date:new Date().toISOString(),
+  repricing:{comparisonBasis:'Latest same price and latest same released financial quarter in both scenarios; previous versus current monthly-revenue run-rate',monthlyThresholdDefaultPct:10,comparableA:rows.filter(x=>x.peShift.A?.status==='ok').length,comparableC:rows.filter(x=>x.peShift.C?.status==='ok').length},
   coverage:{officialQuotes:quotes.length,listedQuotes:quotes.filter(x=>x.market==='twse').length,
    otcQuotes:quotes.filter(x=>x.market==='tpex').length,
    universeCount:rows.length,listedUniverse:rows.filter(x=>x.market==='twse').length,
