@@ -239,7 +239,17 @@ async function volumeBatch(url){
  const codes=(url.searchParams.get('codes')||'').split(',').filter(stockCode);
  if(!['twse','tpex'].includes(market)||codes.length<1||codes.length>10||new Set(codes).size!==codes.length)
   return response({ok:false,error:'需提供同市場1～10個不同的四碼股票代號'},400);
- const output=await parallel(codes,3,async c=>({ok:true,...await yahooFiveDayVolume(c,market)}));
+ const output=await parallel(codes,3,async c=>{
+  // Successful 5-session volume only; failures are never cached.
+  const tw=new Date(Date.now()+8*3600000),phase=tw.getUTCHours()*60+tw.getUTCMinutes()>=820?'closed':'before-close';
+  const key=new Request(url.origin+'/__cache/pe-volume-r532/'+market+'/'+c+'/'+tw.toISOString().slice(0,10)+'/'+phase);
+  const cache=globalThis.caches?.default;
+  const hit=cache?await cache.match(key):null;
+  if(hit)return {...await hit.json(),cacheHit:true};
+  const detail={ok:true,...await yahooFiveDayVolume(c,market)};
+  if(cache)try{await cache.put(key,new Response(JSON.stringify(detail),{headers:{'content-type':'application/json','cache-control':'public,max-age=900'}}));}catch{}
+  return detail;
+ });
  return response({ok:true,market,data:output.map((x,i)=>({...x,code:codes[i]}))});
 }
 
