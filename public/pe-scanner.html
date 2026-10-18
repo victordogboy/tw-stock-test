@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股預估 EPS / 本益比掃描器 R53 ABC</title>
+<title>台股預估 EPS / 本益比掃描器 R53.1 ABC</title>
 <style>
 :root{color-scheme:dark;--bg:#0b1220;--panel:#111d31;--border:#273950;--ink:#edf4ff;--muted:#9caec5;--green:#4de0b0;--yellow:#edc47c;--blue:#6faafa}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,#14243a,#0b1220 65%);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;font-size:14px}
@@ -39,7 +39,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 </head>
 <body>
 <main>
-<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R53 · 月營收 PE 降幅 / 個股連動</span></nav>
+<nav><a href="/scanner">← 返回原本策略掃描器</a><span class="tag">R53.1 · 月營收 PE 降幅 / 個股連動</span></nav>
 <h1>台股A／B／C 預估 EPS × 本益比掃描器</h1>
 <div class="lead">單一股票查詢不受股價、量能、本益比等篩選限制，完整呈現 A／B／C 與最新取得的原始財報、營收資料；全市場掃描才套用下方的篩選條件。行情採交易所最近日線快照，不保證盤中即時。</div>
 <section class="panel" id="singlePanel">
@@ -106,7 +106,7 @@ nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-let lastSingleReply=null;
+let lastSingleReply=null,scanBusy=false;
 let full=[],volumes={twse:new Map(),tpex:new Map()},volumeDays={twse:[],tpex:[]},shown=[],sourceMeta=null;
 const f=(n,k=2)=>n===null||n===undefined||!Number.isFinite(Number(n))?'—':Number(n).toLocaleString('zh-TW',{maximumFractionDigits:k,minimumFractionDigits:k});
 function setStatus(s){$('status').textContent=s;}
@@ -122,34 +122,35 @@ function oldDates(n){
  return out;
 }
 async function buildVolumes(market){
- const dates=oldDates(12);const sums=new Map(),validDates=[],fails=[];
+ const dates=oldDates(12);const sums=new Map(),validDates=[],fails=[];let consecutiveFailures=0;
  for(const date of dates){
   if(validDates.length===5)break;
   try{
    const u='/api/research/market-day?market='+market+'&date='+date;
-   const r=await fetch(u,{method:'POST'}),j=await r.json();
+   const r=await fetch(u,{method:'POST',signal:AbortSignal.timeout(20000)}),j=await r.json();
    if(!r.ok||!j.ok){
     const reason=String(j.error||'HTTP '+r.status);
     fails.push(date+':'+reason.slice(0,90));
-    if(j.code==='SOURCE_BLOCKED')break;
+    if(j.code==='SOURCE_BLOCKED'||++consecutiveFailures>=2)break;
     continue;
    }
    if(j.closed||!Array.isArray(j.rows)||j.rows.length<100)continue;
-   validDates.push(date);
+   consecutiveFailures=0;validDates.push(date);
    for(const x of j.rows){
     if(!/^[1-9]\d{3}$/.test(String(x.code))||!Number.isFinite(Number(x.volume)))continue;
     const c=String(x.code),z=sums.get(c)||{sum:0,count:0};
     z.sum+=Number(x.volume)/1000;z.count++;sums.set(c,z);
    }
-   setStatus('已取得 '+market.toUpperCase()+' '+validDates.length+'/5 個交易日的成交量');
-  }catch(e){fails.push(date+':'+String(e.message||e).slice(0,90));}
+   volumeDays[market]=validDates.slice();render();
+   setStatus('掃描中｜已取得 '+market.toUpperCase()+' '+validDates.length+'/5 個交易日的成交量');
+  }catch(e){fails.push(date+':'+String(e.message||e).slice(0,90));if(++consecutiveFailures>=2)break;}
  }
  const avg=new Map();
  for(const [c,x] of sums)if(x.count===5)avg.set(c,x.sum/5);
  return {market,avg,dates:validDates,fails};
 }
-async function fallbackVolume(warnings){
- const missingMarkets=['twse','tpex'].filter(m=>volumeDays[m].length<5);
+async function fallbackVolume(warnings,markets=['twse','tpex']){
+ const missingMarkets=markets.filter(m=>volumeDays[m].length<5);
  if(!missingMarkets.length)return;
  const candidates=full.filter(x=>chosen(x).status==='ok'&&chosen(x).pe>0&&missingMarkets.includes(x.market)&&
    chosen(x).pe<=num('maxpe',35)&&
@@ -168,7 +169,7 @@ async function fallbackVolume(warnings){
    const item=groups[next++];
    try{
     const p='/api/pe-screener/volume-batch?market='+item.market+'&codes='+item.codes.join(',');
-    const r=await fetch(p),j=await r.json();
+    const r=await fetch(p,{signal:AbortSignal.timeout(35000)}),j=await r.json();
     if(!r.ok||!j.ok)throw Error(j.error||'batch failed');
     for(const v of j.data||[]){
      if(v.ok&&Number.isFinite(Number(v.avg5Lots))){
@@ -215,7 +216,7 @@ function render(){
  $('volDays').textContent=volumeDays.twse.length+' ／ '+volumeDays.tpex.length;
  $('caption').textContent='策略 '+$('strategy').value+' 可計算：'+full.filter(r=>r.models?.[$('strategy').value]?.status==='ok').length+' 檔｜篩選後 '+m.length+' 檔｜顯示 '+Math.min(500,m.length)+' 檔';
  const body=$('tbody');body.textContent='';
- if(!m.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=headers.length;td.className='empty';td.textContent=full.length?($('strategy').value==='B'?'B 尚未取得 4～8 季歷史損益資料，不顯示虛構的 B 估值。':'目前沒有符合該策略與量價門檻的股票。'):'尚無資料';tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;}
+ if(!m.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=headers.length;td.className='empty';td.textContent=scanBusy?'掃描尚未完成：正在取得及驗證5日均量，完成的市場將立即顯示。':full.length?($('strategy').value==='B'?'B 尚未取得 4～8 季歷史損益資料，不顯示虛構的 B 估值。':(full.some(r=>r.avg5Lots!==null)?'目前沒有符合該策略與量價門檻的股票。':'5日均量尚未取得，嚴格模式排除缺量股票。請查看來源錯誤；不是全市場沒有低本益比股票。')):'尚無資料';tr.appendChild(td);body.appendChild(tr);$('csv').disabled=true;return;}
  const frag=document.createDocumentFragment();
  for(const r of m.slice(0,500)){
   const tr=document.createElement('tr');
@@ -247,6 +248,7 @@ function exportCsv(){
  const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='ABC_forwardPE_'+currentTaiwanDate()+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
 }
 async function scan(refresh=false){
+ if(scanBusy)return;scanBusy=true;
  $('scan').disabled=true;$('refresh').disabled=true;$('warning').textContent='';
  setStatus('下載官方全市場報價、財報 EPS、月營收與期貨名單中…');
  try{
@@ -277,22 +279,23 @@ async function scan(refresh=false){
   if(!j.sources?.futures||j.sources.futuresDegraded)warnings.push('期貨名單採用備份或不可驗證，請確認最新標的。');
   setStatus('已取得 '+full.length+' 檔，開始驗證上市／上櫃各最近 5 個交易日成交量…');
   volumeDays={twse:[],tpex:[]};volumes={twse:new Map(),tpex:new Map()};render();
-  const results=await Promise.all(['twse','tpex'].map(buildVolumes));
-  for(const res of results){
-   volumes[res.market]=res.avg;volumeDays[res.market]=res.dates;
-   if(res.dates.length<5)warnings.push(res.market.toUpperCase()+' 歷史成交量只取得 '+res.dates.length+'/5 日；缺量股票不會通過嚴格篩選。'+(res.fails.length?'來源錯誤：'+res.fails[0]:''));
-  }
-  full.forEach(x=>x.avg5Lots=volumes[x.market]?.get(x.code)??null);
-  $('audit').textContent+='｜上市均量日：'+(volumeDays.twse.slice().sort().join('、')||'缺')+'｜上櫃均量日：'+(volumeDays.tpex.slice().sort().join('、')||'缺');
-  render();
-  await fallbackVolume(warnings);
+  await Promise.all(['twse','tpex'].map(async market=>{
+   const res=await buildVolumes(market);
+   volumes[market]=res.avg;volumeDays[market]=res.dates;
+   full.forEach(x=>{if(x.market===market)x.avg5Lots=res.avg.get(x.code)??null;});
+   if(res.dates.length<5)warnings.push(market.toUpperCase()+' 歷史成交量只取得 '+res.dates.length+'/5 日，已轉逐股補量。'+(res.fails[0]||''));
+   $('warning').textContent=warnings.join('\n');
+   render();
+   await fallbackVolume(warnings,[market]);
+  }));
+  $('audit').textContent+='｜上市均量日：'+(volumeDays.twse.slice().sort().join('、')||'缺')+'｜上櫃均量日：'+(volumeDays.tpex.slice().sort().join('、')||'缺')+'｜已驗證個股5日均量 '+full.filter(r=>r.avg5Lots!==null).length+' 檔';
   $('warning').textContent=warnings.join('\n');
   $('warning').style.whiteSpace='pre-line';
   setStatus('已完成 · '+new Date(j.date).toLocaleString('zh-TW',{timeZone:'Asia/Taipei'})+' 取得財報快照；股價不保證為盤中即時');
  }catch(e){
   $('warning').textContent='掃描失敗：'+String(e.message||e);
   setStatus('失敗：請查看上游資料或再試一次');
- }finally{$('scan').disabled=false;$('refresh').disabled=false;}
+ }finally{scanBusy=false;render();$('scan').disabled=false;$('refresh').disabled=false;}
 }
 ['minprice','maxprice','minvol','maxpe','market','sort','future','strict','strategy','stress','momMin'].forEach(id=>$(id).addEventListener('change',()=>{render();if(lastSingleReply)displayStockReply(lastSingleReply);}));
 
