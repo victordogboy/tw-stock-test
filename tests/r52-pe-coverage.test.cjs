@@ -58,7 +58,7 @@ test('when all OTC quotes fail, stock directory preserves three OTC stocks and c
  const res=await run('data');
  assert.equal(res.status,200);
  const data=await res.json();
- assert.equal(data.version,'R52');
+ assert.equal(data.version,'R53');
  assert.equal(data.coverage.otcQuotes,0);
  assert.equal(data.coverage.otcUniverse,3);
  assert.equal(data.coverage.missingQuotes,3);
@@ -91,7 +91,7 @@ test('unfiltered Chinese-name stock search repairs missing quote using labeled d
  assert.equal(data.stock.code,'3264');
  assert.equal(data.stock.close,230);
  assert.match(data.stock.priceSource,/Yahoo/);
- assert.equal(data.stock.models.A.pe,23);
+ assert.equal(data.stock.models.A.pe,230/10.5);
  assert.match(data.stock.models.B.status,/4～8/);
  assert.equal(data.volume5.ok,true);
 });

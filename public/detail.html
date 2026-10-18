@@ -361,6 +361,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th,td{padding:9px 7px;b
   </div>
 </div>
 
+<script src="/forward-pe-detail.js?r53"></script>
 <script src="/finmind-token-manager.js"></script>
 <script src="/dual-action.js?r31"></script>
 <script src="/dual-action-ui.js?r26"></script>
@@ -1967,7 +1968,7 @@ async function openScanStock(id){$('stockInput').value=id;await analyze();window
 
 async function analyze(){
   if(ANALYSIS_BUSY||CHIP_REFRESH_BUSY)return false;
-  const q=$('stockInput').value.trim(); if(!q){setBanner('請輸入股票代號或中文名稱。','warn');return}
+  const q=$('stockInput').value.trim(); window.loadForwardPE?.(q); if(!q){setBanner('請輸入股票代號或中文名稱。','warn');return}
   if(/^(TX|TXF|台指期|臺指期|台指期貨|臺指期貨)$/i.test(q)){location.href='/futures.html';return;}
   ANALYSIS_BUSY=true;
   FORCE_ANALYSIS_REFRESH=true;

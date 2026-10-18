@@ -1,4 +1,4 @@
-// R52: preserve stocks even when the OTC quote feed is unavailable; give company lookup a quote fallback.
+// R53: preserve stocks even when the OTC quote feed is unavailable; give company lookup a quote fallback.
 const FIN_TYPES=['ci','basi','fh','ins','bd','mim'];
 const JSON_HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
 const number=x=>{
@@ -173,6 +173,39 @@ function methodModels(share,fin,month,a){
  const C=forecastC(share,fin,month,a);
  return {A,B,C};
 }
+// Restate both revenue vintages using the same financial statement and quote.
+function revenueRevision(share,fin,mon,current){
+ const fail=status=>({status,models:{}});
+ if(!mon)return fail('缺月營收');
+ if(mon.month===1)return fail('跨年缺前年度累計營收，不比較不同年度EPS');
+ if(!(mon.prevMonth>0))return fail('上月營收缺漏或非正值');
+ const previous={...mon,month:mon.month-1,ytd:mon.ytd-mon.monthRevenue,monthRevenue:mon.prevMonth};
+ if(!(previous.ytd>0))return fail('前期累計營收無法還原');
+ const a=forecast(share,fin,previous),old=methodModels(share,fin,previous,a);
+ const models={};
+ for(const key of ['A','B','C']){
+  const before=old[key],after=current[key];
+  if(before.status!=='ok'||after.status!=='ok'||!(before.eps>0)||!(after.eps>0)){
+   models[key]={status:before.status!=='ok'?'前期：'+before.status:after.status};continue;
+  }
+  const previousPE=share.close>0?share.close/before.eps:null;
+  const currentPE=share.close>0?share.close/after.eps:null;
+  models[key]={status:previousPE>0?'ok':'缺有效股價',previousEPS:before.eps,currentEPS:after.eps,
+   previousPE,currentPE,peDrop:previousPE>0?previousPE-currentPE:null,
+   peDropPct:previousPE>0?(1-before.eps/after.eps)*100:null,epsGrowthPct:(after.eps/before.eps-1)*100};
+ }
+ return {status:'ok',previousMonth:mon.year+'-'+String(mon.month-1).padStart(2,'0'),
+  currentMonth:mon.year+'-'+String(mon.month).padStart(2,'0'),previousRevenue:mon.prevMonth,
+  currentRevenue:mon.monthRevenue,momPct:(mon.monthRevenue/mon.prevMonth-1)*100,
+  basis:'同一最新股價、同一最新財報重算；前期累計＝本期累計－本月營收，非歷史當時估值快照',models};
+}
+function repriceRevision(revision,price){
+ if(!revision||!(price>0))return;
+ for(const m of Object.values(revision.models||{}))if(m.previousEPS>0&&m.currentEPS>0){
+  m.previousPE=price/m.previousEPS;m.currentPE=price/m.currentEPS;
+  m.peDrop=m.previousPE-m.currentPE;m.peDropPct=(1-m.previousEPS/m.currentEPS)*100;m.status='ok';
+ }
+}
 async function yahooFiveDayVolume(code,market){
  const suffix=market==='tpex'?'.TWO':'.TW';
  const uri='https://query1.finance.yahoo.com/v8/finance/chart/'+code+suffix+'?range=1mo&interval=1d&events=false';
@@ -289,6 +322,7 @@ async function singleStockLookup(request,env,fetchExisting,url){
     if(m?.status==='ok'&&m.eps>0){m.pe=stock.close/m.eps;m.pressurePE=stock.close/(m.eps*0.8);}
    }
    if(stock.estimatedEPS>0)stock.estimatedPE=stock.close/stock.estimatedEPS;
+   repriceRevision(stock.revenueRevision,stock.close);
   }
  }catch(err){volume5={ok:false,error:String(err.message||err)};}
  return response({ok:true,ambiguous:false,query,stock,volume5,
@@ -301,10 +335,10 @@ export async function forwardPeRoute(request,env,fetchExisting){
  if(request.method!=='GET')return response({ok:false,error:'GET only'},405);
  if(url.pathname==='/api/pe-screener/volume-batch')return volumeBatch(url);
  if(url.pathname==='/api/pe-screener/stock')return singleStockLookup(request,env,fetchExisting,url);
- if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R52',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
+ if(url.pathname==='/api/pe-screener/health')return response({ok:true,version:'R53',method:'A revenue ratio; B needs 4-8 quarterly history; C cumulative gross-profit expense bridge'});
  if(url.pathname!=='/api/pe-screener/data')return response({ok:false,error:'Not found'},404);
  const fresh=url.searchParams.get('refresh')==='1',cache=caches.default;
- const key=new Request(url.origin+'/__cache/eps-forward-r52');
+ const key=new Request(url.origin+'/__cache/eps-forward-r53');
  if(!fresh){const hit=await cache.match(key);if(hit)return hit;}
  const started=Date.now();
  const inputs=[
@@ -397,7 +431,7 @@ export async function forwardPeRoute(request,env,fetchExisting){
   const projected=forecast(share,fin,mon);
   const models=methodModels(share,fin,mon,projected);
   const quoteReportedDate=quoteDateISO(stock.raw?.Date||stock.raw?.日期||stock.raw?.資料日期||stock.raw?.TradeDate)||null;
-  rows.push({...share,...projected,models,quoteReportedDate,
+  rows.push({...share,...projected,models,quoteReportedDate,revenueRevision:revenueRevision(share,fin,mon,models),
    statementBasis:fin?.source??null,
    revenueBasis:mon?.source??null,
    revenueLatestRaw:mon?.monthRevenue??null,revenueYtdRaw:mon?.ytd??null,
@@ -413,7 +447,7 @@ export async function forwardPeRoute(request,env,fetchExisting){
  }
  rows.sort((a,b)=>(a.estimatedPE??Infinity)-(b.estimatedPE??Infinity));
  const ok=rows.length>0&&financials.size>0&&months.size>0;
- const payload={ok,version:'R52',date:new Date().toISOString(),
+ const payload={ok,version:'R53',date:new Date().toISOString(),
   coverage:{officialQuotes:quotes.length,listedQuotes:quotes.filter(x=>x.market==='twse').length,
    otcQuotes:quotes.filter(x=>x.market==='tpex').length,
    universeCount:rows.length,listedUniverse:rows.filter(x=>x.market==='twse').length,
