@@ -12,7 +12,7 @@ test('R49 live canvas overlay: US prev-close and TW same-day source switch, curs
   const url=new URL(String(path),'https://test.local');calls.push(url.pathname);
   if(url.pathname.endsWith('/vix')){
     const market=url.searchParams.get('market');
-    const data=market==='us'?[{date:'2026-10-09',value:17.3},{date:'2026-10-10',value:99.1}]:
+    const data=market==='us'?[{date:'2026-10-09',value:17.3},{date:'2026-10-12',value:99.1}]:
       [{date:'2026-10-12',value:20.75,time:'13:44:45'}];
     return Response.json({ok:true,data,source:'fixture'});
   }
