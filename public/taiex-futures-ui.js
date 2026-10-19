@@ -6,6 +6,14 @@
   const sessionNames={position:'日盤',after_market:'夜盤',combined:'夜盤＋日盤'};
   let raw=[],rows=[],index=0,config={...TWParabolicSAR.defaults},controller,canvasView=null;
   function text(id,value){$(id).textContent=value;}
+  // An optional overlay must never stop TX initialization, metrics or canvas updates.
+  function vix(method,...args){
+    try{
+      const result=window.TWTaiexVixOverlay?.[method]?.(...args);
+      if(result?.catch)result.catch(()=>text('txVixStatus','VIX 載入失敗；台指期行情保留。'));
+      return result;
+    }catch{ text('txVixStatus','VIX 顯示異常；台指期行情保留，可按更新 VIX 重試。'); }
+  }
   function save(){try{localStorage.setItem(key,JSON.stringify({session:$('txSession').value,years:$('txYears').value,chartBars:$('txChartBars').value,sar:config}));}catch{}}
   function fillSar(){ $('txSarEnabled').checked=config.enabled;for(const [id,k] of [['txSarStart','start'],['txSarStep','step'],['txSarMax','max']])$(id).value=String(config[k]); }
   try{
@@ -19,7 +27,32 @@
   async function get(path,signal){
     const response=await fetch(path,{headers:TWFinMindTokens.headers(),cache:'no-store',signal});
     const data=await response.json().catch(()=>null);
-    if(!response.ok||!data?.ok)throw new Error(data?.error||'資料服務暫時無法使用');return data;
+    if(!response.ok||!data?.ok){
+      const error=new Error((data?.error||'資料服務暫時無法使用')+'（HTTP '+response.status+(data?.upstream_status?'／來源 '+data.upstream_status:'')+'）');
+      error.status=response.status;error.upstreamStatus=data?.upstream_status;throw error;
+    }
+    return data;
+  }
+  async function history(period,active,force,depth=0){
+    const request=()=>get('/api/futures/taiex/history?'+new URLSearchParams({...period,...(force?{refresh:'1'}:{})}),active.signal);
+    const retryable=e=>!active.signal.aborted&&e.name!=='AbortError'&&
+      ![401,402,403,429].includes(Number(e.upstreamStatus||e.status))&&
+      (!e.status||e.status>=500||e.status===400);
+    try{return await request();}catch(first){
+      if(!retryable(first))throw first;
+      text('txStatus','重試台指期 '+period.start_date+' ～ '+period.end_date+'…');
+      try{return await request();}catch(second){
+        const day=86400000,from=Date.parse(period.start_date),to=Date.parse(period.end_date);
+        if(!retryable(second)||depth>=2||to-from<90*day)throw second;
+        // Bounded fallback for oversized responses: preserve a complete period,
+        // never silently join prices across a missing date interval.
+        const middle=from+Math.floor((to-from)/day/2)*day;
+        text('txStatus','縮小台指期查詢區段：'+period.start_date+' ～ '+period.end_date+'…');
+        const newer=await history({start_date:new Date(middle+day).toISOString().slice(0,10),end_date:period.end_date},active,force,depth+1);
+        const older=await history({start_date:period.start_date,end_date:new Date(middle).toISOString().slice(0,10)},active,force,depth+1);
+        return {data:[...older.data,...newer.data],source:newer.source,cache_hit:older.cache_hit&&newer.cache_hit};
+      }
+    }
   }
   async function load(force=false){
     controller?.abort();controller=new AbortController();const active=controller;
@@ -35,10 +68,17 @@
        const until=Math.min(to,cursor+(chunkDays-1)*day);
        periods.push({start_date:new Date(cursor).toISOString().slice(0,10),end_date:new Date(until).toISOString().slice(0,10)});
       }
-      let combined=[],allCached=true,source='';
+      periods.reverse(); // Recent history remains usable if an older segment fails.
+      let combined=[],allCached=true,source='',failure='';
       for(let j=0;j<periods.length;j++){
        text('txStatus','正在載入歷史日 K：第 '+(j+1)+'／'+periods.length+' 段（'+periods[j].start_date+' ～ '+periods[j].end_date+'）…');
-       const result=await get('/api/futures/taiex/history?'+new URLSearchParams({...periods[j],...(force?{refresh:'1'}:{})}),active.signal);
+       let result;
+       try{result=await history(periods[j],active,force);}catch(e){
+         if(active.signal.aborted||active!==controller)return;
+         failure=periods[j].start_date+' ～ '+periods[j].end_date+'：'+e.message;
+         if(raw.length||!combined.length)throw new Error(failure);
+         break; // Only the contiguous successful suffix is eligible for analysis.
+       }
        if(active!==controller)return;
        combined.push(...result.data);source=result.source;allCached=allCached&&result.cache_hit;
       }
@@ -49,10 +89,14 @@
       for(const value of ['near',...contracts]){const option=document.createElement('option');option.value=value;option.textContent=value==='near'?'近月連續（未還原價差）':value.slice(0,4)+'年'+value.slice(4)+'月';$('txContract').append(option);}
       $('txContract').value=contracts.includes(selected)?selected:'near';
       selectSeries();save();
-      window.TWTaiexVixOverlay?.setRange(raw[0].date,raw.at(-1).date,force);
-      text('txStatus',source+'｜資料交易日 '+raw[0].date+' ～ '+raw.at(-1).date+'｜'+(allCached?'快取':'已更新')+'｜共 '+periods.length+' 段｜非即時日 K'+(normalized.rejected?'｜已排除 '+normalized.rejected+' 筆非月份合約或無效資料':''));
+      text('txStatus',source+'｜資料交易日 '+raw[0].date+' ～ '+raw.at(-1).date+'｜'+(allCached?'快取':'已更新')+'｜非即時日 K'+(failure?'｜歷史未完整：'+failure+'；僅顯示上述連續區間，回測非完整五年':'｜共 '+periods.length+' 段')+(normalized.rejected?'｜已排除 '+normalized.rejected+' 筆非月份合約或無效資料':''));
     }catch(e){if(e.name!=='AbortError'&&active===controller)text('txStatus','載入失敗：'+e.message+(raw.length?'；下方保留上次成功資料。':''));}
-    finally{if(active===controller)for(const id of ['txLoad','txRefresh'])$(id).disabled=false;}
+    finally{if(active===controller){
+      for(const id of ['txLoad','txRefresh'])$(id).disabled=false;
+      // Run after TX attempts to avoid competing for FinMind quota. Even a failed
+      // TX request must leave VIX's reload button with a usable requested range.
+      vix('setRange',start,end,force);
+    }}
   }
   function selectSeries(){rows=core.series(raw,{session:$('txSession').value,contract:$('txContract').value});index=Math.max(0,rows.length-1);$('txAudit').max=String(index);$('txAudit').value=String(index);$('txAudit').disabled=!rows.length;render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;}
   function render(){
@@ -60,9 +104,9 @@
     window.TWTaiexR46UI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     window.TWTaiexR48UI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     const prefix=rows.slice(0,index+1),s=core.summary(prefix),sar=config.enabled?TWParabolicSAR.calculate(prefix,config):[],point=sar.at(-1);
-    if(!s){for(const id of ['txClose','txChange','txVolume','txVolumeRatio','txOi','txOiChange','txSar','txSarAf','txOhlc','txAuditDate','txAnalysis','txRollNote'])text(id,'—');text('txChartTitle','所選時段或合約沒有資料');window.TWTaiexVixOverlay?.summary(null);$('txMaTable').replaceChildren();draw([],[]);return;}
+    if(!s){for(const id of ['txClose','txChange','txVolume','txVolumeRatio','txOi','txOiChange','txSar','txSarAf','txOhlc','txAuditDate','txAnalysis','txRollNote'])text(id,'—');text('txChartTitle','所選時段或合約沒有資料');vix('summary',null);$('txMaTable').replaceChildren();draw([],[]);return;}
     const b=s.bar;
-    text('txChartTitle','台指期 '+b.contract+'｜'+sessionNames[$('txSession').value]+'｜'+b.date);text('txAuditDate',b.date);window.TWTaiexVixOverlay?.summary(b);
+    text('txChartTitle','台指期 '+b.contract+'｜'+sessionNames[$('txSession').value]+'｜'+b.date);text('txAuditDate',b.date);vix('summary',b);
     text('txClose',fmt(b.close));$('txClose').className=s.change>0?'up':s.change<0?'down':'';
     text('txChange',b.rollover?'換月：不計跨合約漲跌':s.change===null?'尚無前一日資料':signed(s.change)+' 點（'+signed(s.changePercent,2)+'%）');
     text('txVolume',fmt(b.volume));text('txVolumeRatio','較前 20 日均量 '+fmt(s.volumeRatio,2)+' 倍');
@@ -90,7 +134,7 @@
     const w=canvas.clientWidth,h=canvas.clientHeight,dpr=window.devicePixelRatio||1;
     canvas.width=w*dpr;canvas.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     if(!n){ctx.fillStyle='#9bacc7';ctx.fillText('尚無可顯示的 K 線',20,30);return;}
-    const left=62,right=window.TWTaiexVixOverlay?.isEnabled()?52:12,top=18,bottom=24,priceBottom=h-104;
+    const left=62,right=vix('isEnabled')?52:12,top=18,bottom=24,priceBottom=h-104;
     const maValues=[5,10,20,60].map(period=>view.map((_,i)=>core.sma(prefix,period,offset+i)));
     const points=sar.slice(-n),values=[...view.flatMap(b=>[b.low,b.high]),...maValues.flat().filter(Number.isFinite),...points.filter(Boolean).map(p=>p.value)];
     const min=Math.min(...values),max=Math.max(...values),pad=(max-min)*.07||1,lo=min-pad,hi=max+pad;
@@ -101,7 +145,7 @@
     view.forEach((b,i)=>{const xx=x(i),color=b.close>b.open?'#ff7585':b.close<b.open?'#3fd5a5':'#f4c95d';ctx.fillStyle=color;ctx.strokeStyle=color;ctx.beginPath();ctx.moveTo(xx,y(b.high));ctx.lineTo(xx,y(b.low));ctx.stroke();ctx.fillRect(xx-width/2,Math.min(y(b.open),y(b.close)),width,Math.max(1,Math.abs(y(b.open)-y(b.close))));ctx.globalAlpha=.55;const vh=b.volume/vmax*65;ctx.fillRect(xx-width/2,h-bottom-vh,width,vh);ctx.globalAlpha=1;if(b.rollover){ctx.strokeStyle='#ad935f';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,priceBottom);ctx.stroke();ctx.setLineDash([]);}});
     ['#f4c95d','#67a5ff','#bd8cff','#35d6a0'].forEach((color,j)=>{ctx.strokeStyle=color;ctx.lineWidth=1.4;ctx.beginPath();let begun=false;maValues[j].forEach((v,i)=>{if(!Number.isFinite(v))return;if(!begun){ctx.moveTo(x(i),y(v));begun=true;}else ctx.lineTo(x(i),y(v));});ctx.stroke();});
     points.forEach((p,i)=>{if(!p)return;ctx.beginPath();ctx.fillStyle=p.rising?'#ffa94d':'#63c9f4';ctx.arc(x(i),y(p.value),Math.max(1.5,Math.min(3,(w-left-right)/n*.3)),0,2*Math.PI);ctx.fill();});
-    window.TWTaiexVixOverlay?.draw(ctx,{view,w,top,priceBottom,right,x});
+    ctx.save();try{vix('draw',ctx,{view,w,top,priceBottom,right,x});}finally{ctx.restore();}
     // A five-year candle range needs yearly separators, not just first/last labels.
     if(n>250)for(let i=1;i<n;i++)if(view[i].date.slice(0,4)!==view[i-1].date.slice(0,4)){
       const xx=x(i);ctx.strokeStyle='#30415a';ctx.setLineDash([2,5]);ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,priceBottom);ctx.stroke();ctx.setLineDash([]);
@@ -110,7 +154,7 @@
     ctx.fillStyle='#9bacc7';ctx.fillText(view[0].date,left,h-5);ctx.fillText(view.at(-1).date,w-right-62,h-5);
     canvasView={left,right,w,n,offset};wrapper.scrollLeft=priorScroll;
   }
-  window.TWTaiexVixOverlay?.init(()=>render());
+  vix('init',()=>render());
   $('txLoad').addEventListener('click',()=>load());$('txRefresh').addEventListener('click',()=>load(true));
   for(const id of ['txSession','txContract'])$(id).addEventListener('change',()=>{selectSeries();save();});
   $('txYears').addEventListener('change',()=>save());

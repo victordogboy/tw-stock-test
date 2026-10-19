@@ -4,6 +4,9 @@ const fixture=()=>Array.from({length:80},(_,i)=>{const date=new Date(Date.UTC(20
 test('futures page loads data, redraws SAR/audit locally, handles empty night and keeps last good history after failure',async()=>{
  const p=page('futures.html');await new Promise(r=>setImmediate(r));
  const data=fixture();let calls=0;
+ // This legacy test exercises TX only; optional VIX has separate regression tests.
+ p.nodes.get('txVixEnabled').checked=false;
+ p.events.find(e=>e[0]==='txVixEnabled'&&e[1]==='change')[2]();
  p.ctx.fetch=async()=>{calls++;return new Response(JSON.stringify({ok:true,data,source:'fixture',cache_hit:false}));};
  p.nodes.get('txSession').value='position';p.nodes.get('txYears').value='1';
  const fire=(id,name='click')=>p.events.find(e=>e[0]===id&&e[1]===name)[2]();

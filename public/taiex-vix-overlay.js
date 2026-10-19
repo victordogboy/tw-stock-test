@@ -91,7 +91,7 @@
    const localMarket=market;
    const effectiveStart=localMarket==='tw'&&from<'2026-03-01'?'2026-03-01':from;
    const key=effectiveStart+'|'+to;
-   if(cache[localMarket]?.key===key&&!force){status(cache[localMarket].status);redraw();return;}
+   if(cache[localMarket]?.key===key&&cache[localMarket].data.length&&!force){status(cache[localMarket].status);redraw();return;}
    const run=++generation;controller?.abort();controller=new AbortController();
    const signal=controller.signal;
    if(to<effectiveStart){cache[localMarket]={key,data:[],status:'台灣 VIX 歷史自 2026-03 起，選擇區間沒有資料'};status(cache[localMarket].status);redraw();return;}
@@ -125,7 +125,7 @@
  function setRange(from,to,force=false){
    const changed=from!==viewStart||to!==viewEnd;
    viewStart=from;viewEnd=to;
-   if(enabled&&(changed||force||!cache[market]))load(from,to,force);
+   if(enabled&&(changed||force||!cache[market]?.data.length))load(from,to,force);
  }
  function init(cb){
    redraw=typeof cb==='function'?cb:()=>{};
