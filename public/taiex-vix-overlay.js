@@ -98,20 +98,20 @@
    status('載入 '+(localMarket==='tw'?'台灣':'美國')+' VIX 中…');
    try{
      const periods=localMarket==='tw'?chunks(effectiveStart,to):[[effectiveStart,to]];
-     let results=[];
+     let results=[],sourceName='';
      for(let i=0;i<periods.length;i+=3){
        if(run!==generation)return;
        status('VIX 下載 '+Math.min(i+3,periods.length)+'／'+periods.length+' 段…（不影響原台指期 K 線）');
        const group=await Promise.all(periods.slice(i,i+3).map(([start,end])=>
          get('/api/futures/taiex/vix?'+new URLSearchParams({market:localMarket,start_date:start,end_date:end,...(force?{refresh:'1'}:{})}),signal)
        ));
-       for(const item of group)results.push(...item.data);
+       for(const item of group){results.push(...item.data);sourceName=item.source||sourceName;}
      }
      if(run!==generation)return;
      const data=normalize(results),name=localMarket==='tw'?'台灣 VIX':'美國 VIX';
      const message=data.length?
        name+'｜'+data[0].date+'～'+data.at(-1).date+'｜'+data.length+' 日｜'+
-       (localMarket==='tw'?'FinMind 日盤最後有效值（需 Backer；2026/03 起）':'Cboe 官方日收盤（美國交易日）') :
+       (localMarket==='tw'?'FinMind 日盤最後有效值（需 Backer；2026/03 起）':(sourceName||'Cboe')+'｜美國交易日收盤；最新資料日以上方為準') :
        name+' 在所選時間內沒有資料；不使用推算值';
      cache[localMarket]={key,data,status:message};
      status(message);redraw();

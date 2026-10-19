@@ -25,7 +25,8 @@
   function tokenStatus(){text('txTokenStatus','目前選用：'+TWFinMindTokens.masked(TWFinMindTokens.activeToken())+'；變更後按「載入分析」。');}
   TWFinMindTokens.bind({onChange:tokenStatus});tokenStatus();
   async function get(path,signal){
-    const response=await fetch(path,{headers:TWFinMindTokens.headers(),cache:'no-store',signal});
+    const publicHistory=new URL(path,location.href).searchParams.get('auth')==='public';
+    const response=await fetch(path,{headers:publicHistory?{}:TWFinMindTokens.headers(),cache:'no-store',signal});
     const data=await response.json().catch(()=>null);
     if(!response.ok||!data?.ok){
       const error=new Error((data?.error||'資料服務暫時無法使用')+'（HTTP '+response.status+(data?.upstream_status?'／來源 '+data.upstream_status:'')+'）');
@@ -34,7 +35,7 @@
     return data;
   }
   async function history(period,active,force,depth=0){
-    const request=()=>get('/api/futures/taiex/history?'+new URLSearchParams({...period,...(force?{refresh:'1'}:{})}),active.signal);
+    const request=()=>get('/api/futures/taiex/history?'+new URLSearchParams({...period,auth:$('txHistoryAuth').value==='token'?'token':'public',...(force?{refresh:'1'}:{})}),active.signal);
     const retryable=e=>!active.signal.aborted&&e.name!=='AbortError'&&
       ![401,402,403,429].includes(Number(e.upstreamStatus||e.status))&&
       (!e.status||e.status>=500||e.status===400);
@@ -89,7 +90,7 @@
       for(const value of ['near',...contracts]){const option=document.createElement('option');option.value=value;option.textContent=value==='near'?'近月連續（未還原價差）':value.slice(0,4)+'年'+value.slice(4)+'月';$('txContract').append(option);}
       $('txContract').value=contracts.includes(selected)?selected:'near';
       selectSeries();save();
-      text('txStatus',source+'｜資料交易日 '+raw[0].date+' ～ '+raw.at(-1).date+'｜'+(allCached?'快取':'已更新')+'｜非即時日 K'+(failure?'｜歷史未完整：'+failure+'；僅顯示上述連續區間，回測非完整五年':'｜共 '+periods.length+' 段')+(normalized.rejected?'｜已排除 '+normalized.rejected+' 筆非月份合約或無效資料':''));
+      text('txStatus',source+($('txHistoryAuth').value==='token'?'｜Token 模式':'｜公開模式（免 Token）')+'｜資料交易日 '+raw[0].date+' ～ '+raw.at(-1).date+'｜'+(allCached?'快取':'已更新')+'｜非即時日 K'+(failure?'｜歷史未完整：'+failure+'；僅顯示上述連續區間，回測非完整五年':'｜共 '+periods.length+' 段')+(normalized.rejected?'｜已排除 '+normalized.rejected+' 筆非月份合約或無效資料':''));
     }catch(e){if(e.name!=='AbortError'&&active===controller)text('txStatus','載入失敗：'+e.message+(raw.length?'；下方保留上次成功資料。':''));}
     finally{if(active===controller){
       for(const id of ['txLoad','txRefresh'])$(id).disabled=false;
