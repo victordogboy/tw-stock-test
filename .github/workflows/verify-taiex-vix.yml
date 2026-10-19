@@ -10,6 +10,7 @@ on:
       - 'public/taiex-futures-ui.js'
       - 'public/futures.html'
       - 'tests/r49-taiex-vix.test.mjs'
+      - 'tests/r49-taiex-vix-browser.test.cjs'
       - '.github/workflows/verify-taiex-vix.yml'
   workflow_dispatch:
 
@@ -28,6 +29,6 @@ jobs:
           node --check public/taiex-vix-overlay.js
           node --check public/taiex-futures-ui.js
       - name: VIX data and API unit tests
-        run: node --test tests/r49-taiex-vix.test.mjs
-      - name: Existing TX regression suite
-        run: npm run test:taiex
+        run: node --test tests/r49-taiex-vix.test.mjs tests/r49-taiex-vix-browser.test.cjs
+      - name: Existing TX core regression tests (non-legacy browser fixtures)
+        run: node --test tests/r36-taiex-api.test.mjs tests/r41-taiex-sample-diversity.test.cjs tests/r42-taiex-preflip-fiveyear.test.cjs tests/r45-taiex-regime-strategies.test.cjs tests/r46-dual-regime-walkforward.test.cjs tests/r47-pnl-attribution.test.cjs
