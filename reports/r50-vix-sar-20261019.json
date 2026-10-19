@@ -1,0 +1,248 @@
+{
+  "source": "Cboe VIX_History.csv",
+  "assumptions": "US prior-date close; same-day crossing AND SAR; next-open long entry/exit; calendar next-month futures with causal roll-adjusted SAR; 0 costs; forced terminal exits excluded from win rate",
+  "sources": [
+    {
+      "name": "tx0.json",
+      "sha256": "e8c51bdd21b9cbe8e295ae7b7d082361fcc026c07087d3bcbbf8bac10743eba5"
+    },
+    {
+      "name": "tx1.json",
+      "sha256": "b565c908e06bffe8adafa689cd212dc47ecb4c55422b8f7cb339a749af5904fd"
+    },
+    {
+      "name": "tx2.json",
+      "sha256": "17211e960125f2f4cb48c159e84b429439e4403721fcbf6565b48ca13aa2aef3"
+    },
+    {
+      "name": "tx3.json",
+      "sha256": "3128e197199d3476e580d3fdaee6992a80950920e43d73d02e971c6f1ad0ac33"
+    },
+    {
+      "name": "tx4.json",
+      "sha256": "819922fa70d4d83333676bf13f36ee446f61d6531d219179adc4d7ae184a02fb"
+    },
+    {
+      "name": "vix.json",
+      "sha256": "b6e189ea13a4af1c5102e8ec1376eb980eaa0b346daa2f005bbcba0a970b13e7"
+    }
+  ],
+  "results": [
+    {
+      "sar": {
+        "start": 0.01,
+        "step": 0.1,
+        "max": 0.2
+      },
+      "start": "2021-10-19",
+      "end": "2026-10-16",
+      "net": 13952,
+      "maxDrawdown": 8333,
+      "winRate": 71.42857142857143,
+      "wins": 5,
+      "losses": 2,
+      "flats": 0,
+      "tradeCount": 7,
+      "forcedCount": 0,
+      "forcedNet": 0,
+      "trades": [
+        {
+          "entryDate": "2021-12-10",
+          "signalDate": "2021-12-09",
+          "entryVix": 19.9,
+          "vixDate": "2021-12-08",
+          "net": 297,
+          "legs": 20,
+          "exitSignalDate": "2023-07-07",
+          "exitVix": 15.44,
+          "exitVixDate": "2023-07-06",
+          "exitDate": "2023-07-10",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2024-08-15",
+          "signalDate": "2024-08-14",
+          "entryVix": 18.12,
+          "vixDate": "2024-08-13",
+          "net": -664,
+          "legs": 2,
+          "exitSignalDate": "2024-09-03",
+          "exitVix": 15.55,
+          "exitVixDate": "2024-09-02",
+          "exitDate": "2024-09-04",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2024-10-16",
+          "signalDate": "2024-10-15",
+          "entryVix": 19.7,
+          "vixDate": "2024-10-14",
+          "net": -326,
+          "legs": 2,
+          "exitSignalDate": "2024-11-18",
+          "exitVix": 16.14,
+          "exitVixDate": "2024-11-15",
+          "exitDate": "2024-11-19",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2024-12-24",
+          "signalDate": "2024-12-23",
+          "entryVix": 18.36,
+          "vixDate": "2024-12-20",
+          "net": 24,
+          "legs": 3,
+          "exitSignalDate": "2025-02-18",
+          "exitVix": 15.37,
+          "exitVixDate": "2025-02-17",
+          "exitDate": "2025-02-19",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2025-03-21",
+          "signalDate": "2025-03-20",
+          "entryVix": 19.9,
+          "vixDate": "2025-03-19",
+          "net": 1471,
+          "legs": 5,
+          "exitSignalDate": "2025-07-29",
+          "exitVix": 15.03,
+          "exitVixDate": "2025-07-28",
+          "exitDate": "2025-07-30",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2025-10-15",
+          "signalDate": "2025-10-14",
+          "entryVix": 19.03,
+          "vixDate": "2025-10-13",
+          "net": 794,
+          "legs": 3,
+          "exitSignalDate": "2025-12-15",
+          "exitVix": 15.74,
+          "exitVixDate": "2025-12-12",
+          "exitDate": "2025-12-16",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2026-01-23",
+          "signalDate": "2026-01-22",
+          "entryVix": 16.9,
+          "vixDate": "2026-01-21",
+          "net": 12356,
+          "legs": 8,
+          "exitSignalDate": "2026-08-21",
+          "exitVix": 16.01,
+          "exitVixDate": "2026-08-20",
+          "exitDate": "2026-08-24",
+          "reason": "策略出場",
+          "forced": false
+        }
+      ],
+      "rolls": 36,
+      "validDays": 1213,
+      "totalDays": 1213,
+      "entrySignals": 26,
+      "exitSignals": 17,
+      "params": {
+        "entry": 20,
+        "exit": 15,
+        "exitDirection": "up",
+        "cost": 0
+      }
+    },
+    {
+      "sar": {
+        "start": 0.01,
+        "step": 0.1,
+        "max": 0.2
+      },
+      "start": "2021-10-19",
+      "end": "2026-10-16",
+      "net": 21317,
+      "maxDrawdown": 8333,
+      "winRate": 100,
+      "wins": 4,
+      "losses": 0,
+      "flats": 0,
+      "tradeCount": 4,
+      "forcedCount": 0,
+      "forcedNet": 0,
+      "trades": [
+        {
+          "entryDate": "2021-12-10",
+          "signalDate": "2021-12-09",
+          "entryVix": 19.9,
+          "vixDate": "2021-12-08",
+          "net": 343,
+          "legs": 20,
+          "exitSignalDate": "2023-07-10",
+          "exitVix": 14.83,
+          "exitVixDate": "2023-07-07",
+          "exitDate": "2023-07-11",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2024-08-15",
+          "signalDate": "2024-08-14",
+          "entryVix": 18.12,
+          "vixDate": "2024-08-13",
+          "net": 1424,
+          "legs": 7,
+          "exitSignalDate": "2025-02-17",
+          "exitVix": 14.77,
+          "exitVixDate": "2025-02-14",
+          "exitDate": "2025-02-18",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2025-03-21",
+          "signalDate": "2025-03-20",
+          "entryVix": 19.9,
+          "vixDate": "2025-03-19",
+          "net": 2365,
+          "legs": 6,
+          "exitSignalDate": "2025-08-25",
+          "exitVix": 14.22,
+          "exitVixDate": "2025-08-22",
+          "exitDate": "2025-08-26",
+          "reason": "策略出場",
+          "forced": false
+        },
+        {
+          "entryDate": "2025-10-15",
+          "signalDate": "2025-10-14",
+          "entryVix": 19.03,
+          "vixDate": "2025-10-13",
+          "net": 17185,
+          "legs": 11,
+          "exitSignalDate": "2026-08-20",
+          "exitVix": 14.89,
+          "exitVixDate": "2026-08-19",
+          "exitDate": "2026-08-21",
+          "reason": "策略出場",
+          "forced": false
+        }
+      ],
+      "rolls": 40,
+      "validDays": 1213,
+      "totalDays": 1213,
+      "entrySignals": 26,
+      "exitSignals": 7,
+      "params": {
+        "entry": 20,
+        "exit": 15,
+        "exitDirection": "down",
+        "cost": 0
+      }
+    }
+  ]
+}
