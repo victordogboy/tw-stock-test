@@ -101,6 +101,7 @@
   }
   function selectSeries(){rows=core.series(raw,{session:$('txSession').value,contract:$('txContract').value});index=Math.max(0,rows.length-1);$('txAudit').max=String(index);$('txAudit').value=String(index);$('txAudit').disabled=!rows.length;render();if($('txChart').parentElement)$('txChart').parentElement.scrollLeft=$('txChart').scrollWidth;}
   function render(){
+    window.TWTaiexVixSarUI?.render({raw,rows,session:$('txSession').value,sar:config});
     window.TWTaiexActionUI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     window.TWTaiexR46UI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
     window.TWTaiexR48UI?.render({raw,rows,index,session:$('txSession').value,contract:$('txContract').value,sar:config});
