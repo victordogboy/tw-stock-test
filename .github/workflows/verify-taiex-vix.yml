@@ -1,0 +1,33 @@
+name: Verify TX VIX overlay
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/taiex-vix.mjs'
+      - 'src/worker.mjs'
+      - 'public/taiex-vix-overlay.js'
+      - 'public/taiex-futures-ui.js'
+      - 'public/futures.html'
+      - 'tests/r49-taiex-vix.test.mjs'
+      - '.github/workflows/verify-taiex-vix.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax checks
+        run: |
+          node --check src/taiex-vix.mjs
+          node --check src/worker.mjs
+          node --check public/taiex-vix-overlay.js
+          node --check public/taiex-futures-ui.js
+      - name: VIX data and API unit tests
+        run: node --test tests/r49-taiex-vix.test.mjs
+      - name: Existing TX regression suite
+        run: npm run test:taiex
