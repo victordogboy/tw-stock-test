@@ -77,7 +77,7 @@ export async function taiexVixRoute(request,env={}){
            {headers:{accept:'text/csv,text/plain'},signal:AbortSignal.timeout(25000)});
          if(!response.ok){lastError='HTTP '+response.status;continue;}
          csv=await response.text();
-         if(csv.length<100||!csv.slice(0,300).toUpperCase().includes('CLOSE')){csv='';lastError='資料格式錯誤';continue;}
+         if(csv.length<30||!csv.slice(0,300).toUpperCase().includes('CLOSE')){csv='';lastError='資料格式錯誤';continue;}
          break;
        }catch(e){lastError=e?.message||'連線失敗';}
      }
