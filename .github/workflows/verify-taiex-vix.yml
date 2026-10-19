@@ -7,6 +7,9 @@ on:
     branches: [main]
     paths:
       - 'src/taiex-vix.mjs'
+      - 'src/taiex-futures.mjs'
+      - 'tests/r492-sources.test.mjs'
+      - 'tests/r492-public-mode.test.cjs'
       - 'src/worker.mjs'
       - 'public/taiex-vix-overlay.js'
       - 'public/taiex-futures-ui.js'
@@ -32,6 +35,6 @@ jobs:
           node --check public/taiex-vix-overlay.js
           node --check public/taiex-futures-ui.js
       - name: VIX data and API unit tests
-        run: node --test tests/r49-taiex-vix.test.mjs tests/r49-taiex-vix-browser.test.cjs tests/r491-taiex-loading.test.cjs tests/r36-taiex-ui.test.cjs
+        run: node --test tests/r49-taiex-vix.test.mjs tests/r49-taiex-vix-browser.test.cjs tests/r491-taiex-loading.test.cjs tests/r36-taiex-ui.test.cjs tests/r492-sources.test.mjs tests/r492-public-mode.test.cjs
       - name: Existing TX core regression tests (non-legacy browser fixtures)
         run: node --test tests/r36-taiex-api.test.mjs tests/r41-taiex-sample-diversity.test.cjs tests/r42-taiex-preflip-fiveyear.test.cjs tests/r45-taiex-regime-strategies.test.cjs tests/r46-dual-regime-walkforward.test.cjs tests/r47-pnl-attribution.test.cjs

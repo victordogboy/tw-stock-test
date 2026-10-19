@@ -7,7 +7,8 @@ export async function taiexFuturesRoute(request,env={}){
   if(request.method!=='GET')return json({ok:false,error:'僅支援 GET'},405);
   const url=new URL(request.url),kind=url.pathname.split('/').at(-1);
   if(!['history','quote','institutional'].includes(kind))return json({ok:false,error:'找不到台指期功能'},404);
-  const token=(request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]||env.FINMIND_TOKEN||'').trim();
+  const publicHistory=kind==='history'&&url.searchParams.get('auth')==='public';
+  const token=publicHistory?'':(request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]||env.FINMIND_TOKEN||'').trim();
   let upstream;
   if(kind==='history'||kind==='institutional'){
     const start=url.searchParams.get('start_date')||'',end=url.searchParams.get('end_date')||'';
@@ -27,6 +28,8 @@ export async function taiexFuturesRoute(request,env={}){
     const raw=await response.json().catch(()=>null);
     if(!response.ok||!raw||Number(raw.status)!==200||!Array.isArray(raw.data)){
       const code=Number(raw?.status)||response.status;
+      const invalidToken=code===400&&/token.*(illegal|invalid|expired)|(illegal|invalid|expired).*token/i.test(String(raw?.msg||''));
+      if(invalidToken)return json({ok:false,code:'INVALID_TOKEN',upstream_status:code,error:'FinMind 拒絕此 Token（無效或已失效）；日 K 可改選公開模式，或更新目前使用的 Token。'},401);
       const error=[401,402,403].includes(code)?'FinMind 權限不足或 Token 無效；請確認帳號權限與目前選用 Token。':code===429?'FinMind 請求額度已達上限，請稍後再試。':'FinMind 暫時未提供有效台指期資料，請稍後再試。';
       return json({ok:false,error,upstream_status:code},[401,402,403,429].includes(code)?code:502);
     }

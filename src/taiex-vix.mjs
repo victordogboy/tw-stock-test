@@ -23,6 +23,19 @@ export function parseCboeVixCsv(csv,start,end){
  return [...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
 }
 
+export function parseFredVixCsv(csv,start,end){
+ const lines=String(csv||'').replace(/^\uFEFF/,'').trim().split(/\r?\n/);
+ const head=(lines.shift()||'').replace(/"/g,'').split(',').map(s=>s.trim().toUpperCase());
+ const di=head.indexOf('OBSERVATION_DATE')>=0?head.indexOf('OBSERVATION_DATE'):head.indexOf('DATE'),vi=head.indexOf('VIXCLS');
+ if(di<0||vi<0)throw Error('FRED CSV 缺少日期／VIXCLS 欄位');
+ const data=new Map();
+ for(const line of lines){
+   const fields=line.replace(/"/g,'').split(','),date=(fields[di]||'').trim(),value=Number(fields[vi]);
+   if(dateOK(date)&&date>=start&&date<=end&&finitePositive(value))data.set(date,{date,value});
+ }
+ return [...data.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+
 export function latestTaiwanVixByDay(rows,start,end){
  const byDate=new Map();
  for(const row of rows||[]){
@@ -49,7 +62,7 @@ export async function taiexVixRoute(request,env={}){
  if(market==='tw'&&!token)return json({ok:false,code:'TOKEN_REQUIRED',error:'臺灣 VIX 需要 FinMind Backer／Sponsor Token，請先在上方設定。可切換美國 VIX（免 Token）。'},401);
  try{
    const digest=market==='us'?'public':Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))),b=>b.toString(16).padStart(2,'0')).join('');
-   const key=new Request(url.origin+'/__tx_vix/r49/'+market+'/'+digest+'?'+new URLSearchParams({start_date:start,end_date:end}).toString());
+   const key=new Request(url.origin+'/__tx_vix/r492/'+market+'/'+digest+'?'+new URLSearchParams({start_date:start,end_date:end}).toString());
    const cache=globalThis.caches?.default;
    if(url.searchParams.get('refresh')!=='1'&&cache){
      const hit=await cache.match(key);
@@ -69,21 +82,22 @@ export async function taiexVixRoute(request,env={}){
      source='FinMind TaiwanOptionVix';
      coverage='日盤最後有效觀測值（不等於官方收盤前一分鐘平均值）';
    }else{
-     // Public Cboe daily close CSV; try the two Cboe official CDN hosts.
-     let csv='',lastError='';
-     for(const host of ['https://cdn-api.cboe.com','https://cdn.cboe.com']){
+     // Independent delivery paths for the same US VIX daily-close series.
+     const sources=[
+       {url:'https://cdn-api.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv',name:'Cboe VIX_History.csv',parse:parseCboeVixCsv},
+       {url:'https://cdn.cboe.com/api/global/us_indices/daily_prices/VIX_History.csv',name:'Cboe VIX_History.csv',parse:parseCboeVixCsv},
+       {url:'https://fred.stlouisfed.org/graph/fredgraph.csv?'+new URLSearchParams({id:'VIXCLS',cosd:start,coed:end}),name:'FRED VIXCLS（原始來源 Cboe；備援）',parse:parseFredVixCsv}
+     ];
+     for(const candidate of sources){
        try{
-         const response=await fetch(host+'/api/global/us_indices/daily_prices/VIX_History.csv',
-           {headers:{accept:'text/csv,text/plain'},signal:AbortSignal.timeout(25000)});
-         if(!response.ok){lastError='HTTP '+response.status;continue;}
-         csv=await response.text();
-         if(csv.length<30||!csv.slice(0,300).toUpperCase().includes('CLOSE')){csv='';lastError='資料格式錯誤';continue;}
-         break;
-       }catch(e){lastError=e?.message||'連線失敗';}
+         const response=await fetch(candidate.url,{headers:{accept:'text/csv,text/plain'},signal:AbortSignal.timeout(12000)});
+         if(!response.ok)continue;
+         const parsed=candidate.parse(await response.text(),start,end);
+         if(!parsed.length)continue;
+         data=parsed;source=candidate.name;break;
+       }catch{}
      }
-     if(!csv)return json({ok:false,error:'Cboe 美國 VIX 官方 CSV 無法取得（'+lastError+'）。'},502);
-     data=parseCboeVixCsv(csv,start,end);
-     source='Cboe VIX_History.csv';
+     if(!data.length)return json({ok:false,error:'Cboe 與 FRED 均未取得所選區間的有效美國 VIX；請稍後重試或確認日期。'},502);
      coverage='美國交易日收盤值；繪圖採嚴格早於臺指期交易日之最新美國收盤，避免同日先看未公布資訊';
    }
    const payload={ok:true,kind:'vix',market,data,source,coverage,
