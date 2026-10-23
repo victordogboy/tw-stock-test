@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark">
+<title>台指期 1 分 K 雲端下載｜FinMind</title>
+<style>
+:root{font:15px system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#e7f3fd;background:#0a1320}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 95% -5%,#1f4351,transparent 40%),#0a1320;min-height:100vh}main{max-width:900px;margin:auto;padding:33px 16px 70px}a{color:#91e3de}nav{font-size:13px;color:#a1b6c7}h1{font-size:clamp(27px,6vw,42px);margin:9px 0 10px;letter-spacing:-.035em;line-height:1.2}h2{font-size:18px;margin:0 0 17px}p{line-height:1.7;color:#adbed0}small,.small{color:#92a8bd;font-size:12px;line-height:1.6}.eyebrow{font-size:11px;letter-spacing:.16em;color:#83e6d8;font-weight:800;margin-top:27px}section{background:#19293b;border:1px solid #34516a;padding:22px;border-radius:18px;margin:20px 0;box-shadow:0 9px 30px #0309163d}.chips{display:flex;flex-wrap:wrap;gap:7px;margin:18px 0}.chip{background:#163744;color:#b0efdc;border:1px solid #376177;border-radius:40px;padding:7px 11px;font-size:12px}label{display:block;font-size:13px;font-weight:700;margin:10px 0 8px}input{width:100%;background:#101e30;border:1px solid #3f5670;border-radius:11px;color:#eaf9ff;font:inherit;padding:12px;min-width:0}input:focus{border-color:#81e7dd;outline:2px solid #277a7c66}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:530px){.grid{grid-template-columns:1fr}}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:18px}button,.download{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;padding:11px 15px;background:#5cddd2;color:#08262e;font:700 13px system-ui;text-decoration:none;cursor:pointer}.secondary{background:#2a4059;color:#e3f2fc;border:1px solid #4d6681}.danger{background:#513039;color:#ffd5d5;border:1px solid #765761}button:disabled{opacity:.34;cursor:not-allowed}.note{padding:13px;background:#12313a;border-radius:11px;color:#b8e9e7;margin-top:17px;font-size:13px;line-height:1.65}.hidden{display:none}.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.pill{background:#204750;border-radius:20px;padding:6px 10px;font-size:12px;color:#baf1d3}progress{appearance:none;width:100%;height:14px;margin:22px 0 12px}progress::-webkit-progress-bar{background:#101c2a;border-radius:14px}progress::-webkit-progress-value{background:linear-gradient(90deg,#249dc1,#63e8b5);border-radius:14px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:17px 0}.stat{background:#102336;text-align:center;border-radius:12px;padding:11px 7px}.stat b{display:block;font-size:clamp(16px,4vw,22px)}.stat small{display:block;margin-top:3px;font-size:11px}.year{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid #354a60;padding:14px 0}.year strong{font-size:17px}.year small{display:block;margin-top:5px}.year .download{white-space:nowrap}details{margin-top:16px}summary{cursor:pointer;color:#a0e3ec;font-size:13px}#errors{white-space:pre-line;max-height:200px;overflow:auto;font-size:12px;color:#ffd0ba;margin-top:12px}footer{line-height:1.7;font-size:12px;color:#809cb0;margin-top:25px}
+</style></head><body><main>
+<nav><a href="/futures.html">← 返回台指期分析</a>　/　下載歷史分 K</nav>
+<div class="eyebrow">FINMIND · CLOUD BACKGROUND DOWNLOADER</div>
+<h1>台指期 1 分 K<br>雲端資料下載</h1>
+<p>2021 年至今的 TX 日盤＋夜盤，保留所有到期月份。使用 Cloudflare 背景任務，不需要開電腦；啟動後關閉手機螢幕也會繼續。</p>
+<div class="chips"><span class="chip">大台 TX</span><span class="chip">日盤＋夜盤</span><span class="chip">五年歷史資料</span><span class="chip">雲端自動續傳</span></div>
+<section><h2>建立任務</h2>
+<div class="grid"><div><label for="start">起始日期</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">結束日期</label><input id="end" type="date"></div></div>
+<label for="token">FinMind S 級會員 Token</label><input id="token" type="password" placeholder="在這裡輸入，僅用於啟動驗證" autocomplete="off" spellcheck="false">
+<div class="small">與 Cloudflare 內設定的 FINMIND_TOKEN 必須一致。Token 不會寫進 GitHub 或下載檔案。</div>
+<div class="actions"><button id="startBtn">▶ 開始雲端下載</button><button id="refreshBtn" class="secondary">更新狀態</button></div>
+<div class="note">任務啟動後可以直接離開網頁。下次用相同瀏覽器重新開啟，即可查看進度與下載 CSV。請不要使用無痕模式，以免遺失工作識別 Cookie。</div>
+</section>
+<section id="statusCard" class="hidden"><div class="top"><h2 style="margin:0">下載進度</h2><span class="pill" id="phase">準備中</span></div>
+<progress id="prog" max="100" value="0"></progress><div class="top"><b id="percentage">0%</b><small id="range">—</small></div>
+<div class="stats"><div class="stat"><b id="days">0</b><small>已處理／總天數</small></div><div class="stat"><b id="count">0</b><small>1 分 K 筆數</small></div><div class="stat"><b id="night">0</b><small>夜盤筆數</small></div></div>
+<p id="message">—</p><small id="extra"></small>
+<div class="actions"><button id="pause" class="secondary">暫停</button><button id="resume" class="secondary">繼續</button><button id="retry" class="secondary">補抓失敗日期</button><button id="refresh2" class="secondary">刷新</button></div>
+<details><summary>顯示錯誤日期</summary><div id="errors">目前沒有錯誤</div></details>
+</section>
+<section id="downloadCard" class="hidden"><h2>下載 CSV</h2><p style="font-size:13px">建議等任務完成後再下載年度檔。任務進行中也能下載已完成的部分資料；請留意是否為完整年份。</p>
+<div id="years"></div><details><summary>展開每月 CSV（檔案較小，適合手機）</summary><div id="months"></div></details>
+<div class="note">保留 date、minute、session、contract_date、OHLC、volume。夜盤跨午夜之交易日歸屬、近月轉倉應在回測時處理，這裡不任意修改原始價格。</div>
+</section>
+<section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；依官方限制一天查一次。Cloudflare 私有背景儲存暫存 30 天，到期刪除。原始行情及 Token 不會提交到公開 GitHub。</p>
+<button id="deleteBtn" class="danger">刪除目前雲端資料</button>
+</section><footer>僅供會員個人研究使用。資料來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Derivative/" target="_blank" rel="noopener">FinMind 官方文件</a>。</footer>
+</main>
+<script>
+(function(){
+ "use strict";
+ const $=id=>document.getElementById(id),number=x=>Number(x||0).toLocaleString("zh-TW");
+ $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ let current=null,busy=false;
+ async function api(path,options){let r;try{r=await fetch(path,{cache:"no-store",credentials:"same-origin",...(options||{})})}catch{throw Error("網路中斷；背景工作仍會繼續")};const j=await r.json().catch(()=>({error:"無法解析伺服器回應"}));if(!r.ok||j.ok===false)throw Error(j.error||"HTTP "+r.status);return j}
+ function row(parent,label,info,href){
+  const d=document.createElement("div");d.className="year";const left=document.createElement("div"),name=document.createElement("strong"),detail=document.createElement("small");
+  name.textContent=label;detail.textContent=info;left.append(name,detail);d.append(left);
+  const a=document.createElement("a");a.className="download secondary";a.textContent="下載 CSV";a.href=href;a.setAttribute("download","");d.append(a);parent.append(d);
+ }
+ function render(s){
+  current=s;$("statusCard").classList.remove("hidden");$("startBtn").disabled=true;
+  let pct=s.total?Math.min(100,s.processed/s.total*100):0;$("prog").value=pct;$("percentage").textContent=pct.toFixed(1)+"%";
+  $("phase").textContent=({running:"背景下載中",paused:"暫停",error:"資料源錯誤",done:"已完成"})[s.phase]||s.phase;
+  $("days").textContent=number(s.processed)+" / "+number(s.total);$("count").textContent=number(s.rows);$("night").textContent=number(s.nightRows);
+  $("range").textContent=s.start+" → "+s.end;$("message").textContent=s.message||"—";
+  $("extra").textContent="日盤："+number(s.dayRows)+"　無資料日："+number(s.empty)+"　失敗："+number(s.failed)+"　更新："+new Date(s.updatedAt).toLocaleString("zh-TW");
+  $("pause").disabled=s.phase!=="running";$("resume").disabled=!["paused","error"].includes(s.phase);
+  $("retry").disabled=!s.failed||!["done","paused","error"].includes(s.phase);
+  $("errors").textContent=(s.errors||[]).map(x=>x.date+" : "+x.error).join("\n")||"目前沒有錯誤";
+  const groups={};for(const [month,v] of Object.entries(s.months||{})){const y=month.slice(0,4);(groups[y]??=[]).push({month,...v})}
+  $("downloadCard").classList.toggle("hidden",!Object.keys(groups).length);
+  $("years").replaceChildren();$("months").replaceChildren();
+  for(const year of Object.keys(groups).sort()){
+   const a=groups[year],d=a.reduce((n,x)=>n+x.days,0),r=a.reduce((n,x)=>n+x.rows,0);
+   row($("years"),year+" 年",number(d)+" 天 · "+number(r)+" 筆"+(s.phase==="running"?"（下載中，尚未完整）":""),"/api/tx-download/export?year="+year);
+   for(const x of a.sort((a,b)=>a.month.localeCompare(b.month)))row($("months"),x.month,number(x.days)+" 天 · "+number(x.rows)+" 筆","/api/tx-download/export?month="+x.month);
+  }
+ }
+ async function refresh(){try{render(await api("/api/tx-download/status"))}catch(e){if(current)$("message").textContent=e.message}}
+ async function act(name){
+  if(busy)return;busy=true;try{const r=await api("/api/tx-download/"+name,{method:"POST"});
+   if(name==="delete"){$("statusCard").classList.add("hidden");$("downloadCard").classList.add("hidden");$("startBtn").disabled=false;current=null;alert("下載暫存已刪除")}
+   else render(r)
+  }catch(e){alert(e.message)}finally{busy=false}
+ }
+ $("startBtn").onclick=async function(){
+  if(busy)return;const token=$("token").value.trim();if(!token){alert("請輸入 FinMind Token");return}
+  busy=true;this.disabled=true;try{
+   const s=await api("/api/tx-download/start",{method:"POST",headers:{"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value})});
+   $("token").value="";render(s);$("statusCard").scrollIntoView({behavior:"smooth"});
+  }catch(e){alert(e.message);this.disabled=false}finally{busy=false}
+ };
+ $("refreshBtn").onclick=$("refresh2").onclick=refresh;
+ $("pause").onclick=()=>act("pause");$("resume").onclick=()=>act("resume");$("retry").onclick=()=>act("retry");
+ $("deleteBtn").onclick=()=>{if(current&&confirm("確定刪除此任務及所有下載資料？"))act("delete")};
+ refresh();setInterval(()=>{if(!document.hidden&&current?.phase==="running")refresh()},12000);
+})();
+</script></body></html>
