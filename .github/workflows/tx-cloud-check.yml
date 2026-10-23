@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'src/tx-download.mjs'
+      - 'tests/tx-download-token.test.mjs'
       - 'src/worker.mjs'
       - 'public/tx-download.html'
       - 'wrangler.jsonc'
@@ -36,3 +37,5 @@ jobs:
           if(!json.migrations.some(x=>x.new_sqlite_classes?.includes('TxDownloadJob')))throw Error('Missing DO migration');
           console.log('Cloud downloader checked successfully');
           NODE
+      - name: Test Token reuse and cloud execution
+        run: node --test tests/tx-download-token.test.mjs
