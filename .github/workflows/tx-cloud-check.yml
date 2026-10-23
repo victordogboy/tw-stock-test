@@ -1,0 +1,38 @@
+name: TX cloud downloader checks
+on:
+  pull_request:
+    paths:
+      - 'src/tx-download.mjs'
+      - 'src/worker.mjs'
+      - 'public/tx-download.html'
+      - 'wrangler.jsonc'
+      - '.github/workflows/tx-cloud-check.yml'
+  push:
+    paths:
+      - 'src/tx-download.mjs'
+      - 'src/worker.mjs'
+      - 'public/tx-download.html'
+      - 'wrangler.jsonc'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and binding verification
+        run: |
+          node --check src/tx-download.mjs
+          node --check src/worker.mjs
+          node - <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          const html=fs.readFileSync('public/tx-download.html','utf8');
+          const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]);
+          if(scripts.length!==1) throw Error('Expected exactly one dashboard script');
+          new vm.Script(scripts[0]);
+          const json=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8'));
+          if(!json.durable_objects.bindings.some(x=>x.name==='TX_DOWNLOAD_JOBS'&&x.class_name==='TxDownloadJob'))throw Error('Missing DO binding');
+          if(!json.migrations.some(x=>x.new_sqlite_classes?.includes('TxDownloadJob')))throw Error('Missing DO migration');
+          console.log('Cloud downloader checked successfully');
+          NODE
