@@ -8,7 +8,6 @@ const nDays=(a,b)=>{let n=0;for(let d=a;d<=b;d=nxt(d))if(weekday(d))n++;return n
 const twtoday=()=>new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const cookie=req=>(req.headers.get("cookie")||"").split(";").map(x=>x.trim()).find(x=>x.startsWith(CK+"="))?.slice(CK.length+1)||"";
 const ident=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,"0")).join("");
-const tokenEqual=async(a,b)=>{if(!a||!b||a.length>4096)return false;const e=new TextEncoder(),[x,y]=await Promise.all([crypto.subtle.digest("SHA-256",e.encode(a)),crypto.subtle.digest("SHA-256",e.encode(b))]);const aa=new Uint8Array(x),bb=new Uint8Array(y);let n=0;for(let i=0;i<aa.length;i++)n|=aa[i]^bb[i];return n===0};
 const gzip=async s=>new Uint8Array(await new Response(new Blob([s]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
 const gunzip=async b=>new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
 const field=x=>{let s=String(x??"");if(/^[=+@]/.test(s))s="'"+s;return /[,"\r\n]/.test(s)?'"'+s.replaceAll('"','""')+'"':s};
@@ -19,16 +18,16 @@ export async function txDownloadRoute(req,env){
  if(!["GET","POST"].includes(m))return J({ok:false,error:"Method not allowed"},405);
  if(m==="POST"&&req.headers.get("origin")&&req.headers.get("origin")!==u.origin)return J({ok:false,error:"來源不符"},403);
  if(p==="/api/tx-download/start"&&m==="POST"){
-  if(!env.FINMIND_TOKEN)return J({ok:false,error:"請先在 Cloudflare 設定 FINMIND_TOKEN Secret"},503);
+  // This user's own browser Token is used for the background task. No Cloudflare Secret setup needed.
   const t=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
-  if(!await tokenEqual(t,String(env.FINMIND_TOKEN).trim()))return J({ok:false,error:"Token 與 Cloudflare FINMIND_TOKEN Secret 不符"},403);
+  if(!t||t.length>4096||/[\r\n]/.test(t))return J({ok:false,error:"請先在原本個股分析設定 FinMind Token，或在本頁輸入 Token"},401);
   const body=await req.text();if(body.length>2048)return J({ok:false,error:"設定長度不正確"},400);
   let opt;try{opt=JSON.parse(body)}catch{return J({ok:false,error:"格式無效"},400)}
   const {start,end}=opt||{};
   if(!okdate(start)||!okdate(end)||start<"2021-01-01"||end>twtoday()||end<start||nDays(start,end)>2200)return J({ok:false,error:"日期不正確（2021-01-01 至今日）"},400);
   let id=cookie(req);if(!/^[a-f0-9]{64}$/.test(id))id=ident();
   const stub=env.TX_DOWNLOAD_JOBS.get(env.TX_DOWNLOAD_JOBS.idFromName(id));
-  const result=await stub.fetch(new Request("https://job.local/start",{method:"POST",body:JSON.stringify({start,end})}));
+  const result=await stub.fetch(new Request("https://job.local/start",{method:"POST",headers:{"authorization":"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end})}));
   return new Response(result.body,{status:result.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":CK+"="+id+"; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Strict"}});
  }
  const id=cookie(req);if(!/^[a-f0-9]{64}$/.test(id))return J({ok:false,error:"尚未建立下載工作"},401);
@@ -40,7 +39,11 @@ export async function txDownloadRoute(req,env){
   return stub.fetch("https://job.local/export?"+new URLSearchParams(month?{month}:{year}));
  }
  const action=p.split("/").at(-1);
- if(m==="POST"&&["pause","resume","retry","delete"].includes(action))return stub.fetch(new Request("https://job.local/"+action,{method:"POST"}));
+ if(m==="POST"&&["pause","resume","retry","delete"].includes(action)){
+  const bearer=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+  const headers=action!=="delete"&&bearer&&bearer.length<=4096&&!/[\r\n]/.test(bearer)?{"authorization":"Bearer "+bearer}:{};
+  return stub.fetch(new Request("https://job.local/"+action,{method:"POST",headers}));
+ }
  return J({ok:false,error:"找不到 API"},404);
 }
 export class TxDownloadJob{
@@ -49,7 +52,16 @@ export class TxDownloadJob{
  async fetch(req){
   const st=this.ctx.storage,url=new URL(req.url),p=url.pathname;
   if(p==="/start"&&req.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
-   const old=await st.get("state");if(old)return J({ok:true,existing:true,...this.summary(old)});
+   const token=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+   if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,error:"缺少有效 FinMind Token"},401);
+   const old=await st.get("state");
+   // Store only inside this browser's private Durable Object. The token is never returned in a response.
+   await st.put("finmind-token",token);
+   if(old){
+    if(old.phase==="error"){old.phase="running";old.retries=0;old.message="已更新 Token，恢復雲端下載";old.updatedAt=Date.now();await st.put("state",old)}
+    if(old.phase==="running")await st.setAlarm(Date.now()+100);
+    return J({ok:true,existing:true,...this.summary(old)});
+   }
    const {start,end}=await req.json();
    const s={start,end,phase:"running",current:start,total:nDays(start,end),processed:0,filled:0,empty:0,failed:0,rows:0,dayRows:0,nightRows:0,retries:0,errors:[],months:{},createdAt:Date.now(),expiresAt:Date.now()+30*DAY,updatedAt:Date.now(),message:"已建立背景下載工作"};
    await st.put("state",s);await st.setAlarm(Date.now()+100);return J({ok:true,...this.summary(s)},202)
@@ -60,6 +72,10 @@ export class TxDownloadJob{
   if(req.method!=="POST")return J({ok:false,error:"不支援操作"},405);
   return this.ctx.blockConcurrencyWhile(async()=>{
    s=await st.get("state");
+   if(p!=="/delete"){
+    const token=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+    if(token&&token.length<=4096&&!/[\r\n]/.test(token))await st.put("finmind-token",token);
+   }
    if(p==="/delete"){await st.deleteAll();await st.deleteAlarm();return J({ok:true,deleted:true})}
    if(p==="/pause"&&s.phase==="running"){s.phase="paused";s.message="已暫停";await st.put("state",s);await st.setAlarm(s.expiresAt)}
    if(p==="/resume"&&["paused","error"].includes(s.phase)){s.phase="running";s.retries=0;s.message="恢復背景下載";await st.put("state",s);await st.setAlarm(Date.now()+100)}
@@ -69,9 +85,16 @@ export class TxDownloadJob{
  }
  async download(date){
   const endpoint="https://api.finmindtrade.com/api/v4/data?"+new URLSearchParams({dataset:"TaiwanFuturesKBar",data_id:"TX",start_date:date});
-  const r=await fetch(endpoint,{headers:{"Authorization":"Bearer "+String(this.env.FINMIND_TOKEN||""),"Accept":"application/json"},signal:AbortSignal.timeout(30000)});
+  const token=String((await this.ctx.storage.get("finmind-token"))||this.env.FINMIND_TOKEN||"").trim();
+  if(!token){const error=new Error("背景任務沒有 FinMind Token，請重新按開始");error.code=401;throw error}
+  const r=await fetch(endpoint,{headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},signal:AbortSignal.timeout(30000)});
   const j=await r.json().catch(()=>null),code=Number(j?.status)||r.status;
-  if(!r.ok||code!==200||!Array.isArray(j?.data)){const e=new Error("FinMind "+code+" "+String(j?.msg||"API error").slice(0,90));e.code=code;throw e}
+  if(!r.ok||code!==200||!Array.isArray(j?.data)){
+   const message=String(j?.msg||"API error").slice(0,90);
+   const e=new Error("FinMind "+code+" "+message);
+   e.code=code===400&&/token|sponsor|permission|api.key|invalid|unauthoriz|權限|會員|過期|無效/i.test(message)?403:code;
+   throw e;
+  }
   const lines=[],n={rows:0,dayRows:0,nightRows:0};
   for(const raw of j.data){if(String(raw.futures_id||"").toUpperCase()!=="TX")continue;const v=row(raw);lines.push(v.line);n.rows++;if(v.session==="day")n.dayRows++;if(v.session==="night")n.nightRows++}
   const bytes=await gzip(new TextEncoder().encode(lines.join(""))),MAX=512*1024,chunks=Math.ceil(bytes.length/MAX);
