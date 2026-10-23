@@ -11,8 +11,8 @@
 <div class="chips"><span class="chip">大台 TX</span><span class="chip">日盤＋夜盤</span><span class="chip">五年歷史資料</span><span class="chip">雲端自動續傳</span></div>
 <section><h2>建立任務</h2>
 <div class="grid"><div><label for="start">起始日期</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">結束日期</label><input id="end" type="date"></div></div>
-<label for="token">FinMind S 級會員 Token</label><input id="token" type="password" placeholder="在這裡輸入，僅用於啟動驗證" autocomplete="off" spellcheck="false">
-<div class="small">與 Cloudflare 內設定的 FINMIND_TOKEN 必須一致。Token 不會寫進 GitHub 或下載檔案。</div>
+<label for="token">FinMind S 級會員 Token（可自動沿用個股分析設定）</label><input id="token" type="password" placeholder="如果原本已設定 Token，這裡留空即可" autocomplete="off" spellcheck="false">
+<div class="small" id="tokenHint">正在檢查這個瀏覽器已儲存的 FinMind Token…</div>
 <div class="actions"><button id="startBtn">▶ 開始雲端下載</button><button id="refreshBtn" class="secondary">更新狀態</button></div>
 <div class="note">任務啟動後可以直接離開網頁。下次用相同瀏覽器重新開啟，即可查看進度與下載 CSV。請不要使用無痕模式，以免遺失工作識別 Cookie。</div>
 </section>
@@ -27,7 +27,7 @@
 <div id="years"></div><details><summary>展開每月 CSV（檔案較小，適合手機）</summary><div id="months"></div></details>
 <div class="note">保留 date、minute、session、contract_date、OHLC、volume。夜盤跨午夜之交易日歸屬、近月轉倉應在回測時處理，這裡不任意修改原始價格。</div>
 </section>
-<section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；依官方限制一天查一次。Cloudflare 私有背景儲存暫存 30 天，到期刪除。原始行情及 Token 不會提交到公開 GitHub。</p>
+<section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；依官方限制一天查一次。啟動下載時，Token 會安全傳給本站 Cloudflare 背景任務，保存在該任務的私有儲存中，最多 30 天後與資料一併刪除。Token 不會出現在網址、公開 GitHub 或下載的 CSV 中。不需要另外設定 Cloudflare Secret。</p>
 <button id="deleteBtn" class="danger">刪除目前雲端資料</button>
 </section><footer>僅供會員個人研究使用。資料來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Derivative/" target="_blank" rel="noopener">FinMind 官方文件</a>。</footer>
 </main>
@@ -37,6 +37,16 @@
  const $=id=>document.getElementById(id),number=x=>Number(x||0).toLocaleString("zh-TW");
  $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
  let current=null,busy=false;
+ // Read the same local browser storage as the existing stock / futures pages.
+ function savedToken(){
+  try{
+   const saved=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");
+   const active=Number(saved?.active)===1?1:0;
+   return String(saved?.tokens?.[active]||localStorage.getItem("twq_finmind_token_v1")||"").trim();
+  }catch{return ""}
+ }
+ const existing=savedToken();
+ $("tokenHint").textContent=existing?"已找到個股分析共用的 FinMind Token（尾碼 "+existing.slice(-4)+"）。直接按「開始雲端下載」，不必再輸入。":"這個瀏覽器尚未找到已儲存的 Token。可以在上方貼入一次，不必設定 Cloudflare。";
  async function api(path,options){let r;try{r=await fetch(path,{cache:"no-store",credentials:"same-origin",...(options||{})})}catch{throw Error("網路中斷；背景工作仍會繼續")};const j=await r.json().catch(()=>({error:"無法解析伺服器回應"}));if(!r.ok||j.ok===false)throw Error(j.error||"HTTP "+r.status);return j}
  function row(parent,label,info,href){
   const d=document.createElement("div");d.className="year";const left=document.createElement("div"),name=document.createElement("strong"),detail=document.createElement("small");
@@ -64,13 +74,15 @@
  }
  async function refresh(){try{render(await api("/api/tx-download/status"))}catch(e){if(current)$("message").textContent=e.message}}
  async function act(name){
-  if(busy)return;busy=true;try{const r=await api("/api/tx-download/"+name,{method:"POST"});
+  if(busy)return;busy=true;try{
+   const token=(name==="resume"||name==="retry")?($("token").value.trim()||savedToken()):"";
+   const r=await api("/api/tx-download/"+name,{method:"POST",...(token?{headers:{authorization:"Bearer "+token}}:{})});
    if(name==="delete"){$("statusCard").classList.add("hidden");$("downloadCard").classList.add("hidden");$("startBtn").disabled=false;current=null;alert("下載暫存已刪除")}
    else render(r)
   }catch(e){alert(e.message)}finally{busy=false}
  }
  $("startBtn").onclick=async function(){
-  if(busy)return;const token=$("token").value.trim();if(!token){alert("請輸入 FinMind Token");return}
+  if(busy)return;const token=$("token").value.trim()||savedToken();if(!token){alert("尚未找到 FinMind Token。請在上方貼入 Token，或先在個股分析頁儲存 Token。");return}
   busy=true;this.disabled=true;try{
    const s=await api("/api/tx-download/start",{method:"POST",headers:{"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value})});
    $("token").value="";render(s);$("statusCard").scrollIntoView({behavior:"smooth"});
