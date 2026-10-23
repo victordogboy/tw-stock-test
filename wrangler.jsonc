@@ -17,6 +17,10 @@
       {
         "name": "SCAN_JOBS",
         "class_name": "ScanJob"
+      },
+      {
+        "name": "TX_DOWNLOAD_JOBS",
+        "class_name": "TxDownloadJob"
       }
     ]
   },
@@ -25,6 +29,12 @@
       "tag": "r23-scan-jobs-v1",
       "new_sqlite_classes": [
         "ScanJob"
+      ]
+    },
+    {
+      "tag": "r50-tx-download-v1",
+      "new_sqlite_classes": [
+        "TxDownloadJob"
       ]
     }
   ]
