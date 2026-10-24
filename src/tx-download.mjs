@@ -222,14 +222,14 @@ export class TxDownloadJob{
     const active=await st.get("state");if(!active||active.phase!=="running")return;
     if(!old){const m=date.slice(0,7);s.months[m]??={days:0,rows:0,dayRows:0,nightRows:0};const g=s.months[m];g.days++;g.rows+=n.rows;g.dayRows+=n.dayRows;g.nightRows+=n.nightRows;s.filled+=Number(n.rows>0);s.empty+=Number(n.rows===0);s.rows+=n.rows;s.dayRows+=n.dayRows;s.nightRows+=n.nightRows;
      s.saturdayEarlyRows=(s.saturdayEarlyRows||0)+(n.saturdayEarlyRows||0);s.rejectedOther=(s.rejectedOther||0)+(n.rejectedOther||0);s.rejectedSpread=(s.rejectedSpread||0)+(n.rejectedSpread||0);s.duplicates=(s.duplicates||0)+(n.duplicates||0)}
-    if(repair){s.repairQueue.shift();s.processed++}else if(repair){s.repairQueue.shift();s.processed++}else if(fixing)s.retryQueue.shift();else{s.current=nxt(date);s.processed++}
+    if(repair){s.repairQueue.shift();s.processed++}else if(fixing)s.retryQueue.shift();else{s.current=nxt(date);s.processed++}
     s.retries=0;s.message="已查詢 "+s.processed+"/"+s.total+" 個日曆日（含星期六），TX "+s.rows+" 根";
    }catch(e){
     s.retries++;const c=Number(e.code||0);
     if([401,402,403].includes(c)){s.phase="error";s.message="FinMind Token／會員權限錯誤";break}
     if(s.retries<4){s.message=date+" 暫時失敗，稍後重試";s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(Date.now()+[5000,15000,60000][s.retries-1]);return}
     s.errors.push({date,error:String(e.message||e).slice(0,100)});s.errors=s.errors.slice(-200);s.failed++;s.retries=0;
-    if(fixing)s.retryQueue.shift();else{s.current=nxt(date);s.processed++}
+    if(repair){s.repairQueue.shift();s.processed++}else if(fixing)s.retryQueue.shift();else{s.current=nxt(date);s.processed++}
     s.message=date+" 失敗，之後可補抓";
    }
    s.updatedAt=Date.now();await st.put("state",s);
