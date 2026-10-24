@@ -99,22 +99,111 @@ export class TxDownloadJob{
   })
  }
  async download(date){
+  // Sponsor endpoint fetches one calendar day. Keep only outright TX month contracts.
   const endpoint="https://api.finmindtrade.com/api/v4/data?"+new URLSearchParams({dataset:"TaiwanFuturesKBar",data_id:"TX",start_date:date});
   const token=String((await this.ctx.storage.get("finmind-token"))||this.env.FINMIND_TOKEN||"").trim();
   if(!token){const error=new Error("背景任務沒有 FinMind Token，請重新按開始");error.code=401;throw error}
-  const r=await fetch(endpoint,{headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},signal:AbortSignal.timeout(30000)});
-  const j=await r.json().catch(()=>null),code=Number(j?.status)||r.status;
-  if(!r.ok||code!==200||!Array.isArray(j?.data)){
-   const message=String(j?.msg||"API error").slice(0,90);
-   const e=new Error("FinMind "+code+" "+message);
-   e.code=code===400&&/token|sponsor|permission|api.key|invalid|unauthoriz|權限|會員|過期|無效/i.test(message)?403:code;
-   throw e;
+  const response=await fetch(endpoint,{headers:{"Authorization":"Bearer "+token,"Accept":"application/json"},signal:AbortSignal.timeout(30000)});
+  const raw=await response.json().catch(()=>null),code=Number(raw?.status)||response.status;
+  if(!response.ok||code!==200||!Array.isArray(raw?.data)){
+   const msg=String(raw?.msg||"API error").slice(0,90),e=new Error("FinMind "+code+" "+msg);
+   e.code=code===400&&/token|sponsor|permission|api.key|invalid|unauthoriz|權限|會員|過期|無效/i.test(msg)?403:code;
+   throw e
   }
-  const lines=[],n={rows:0,dayRows:0,nightRows:0};
-  for(const raw of j.data){if(String(raw.futures_id||"").toUpperCase()!=="TX")continue;const v=row(raw);lines.push(v.line);n.rows++;if(v.session==="day")n.dayRows++;if(v.session==="night")n.nightRows++}
-  const bytes=await gzip(new TextEncoder().encode(lines.join(""))),MAX=512*1024,chunks=Math.ceil(bytes.length/MAX);
+  const seen=new Map(),lines=[],n={rows:0,dayRows:0,nightRows:0,saturdayEarlyRows:0,rejectedOther:0,rejectedSpread:0,duplicates:0,dayContract:{}};
+  for(const item of raw.data){
+   if(String(item.futures_id??"").trim().toUpperCase()!=="TX"){n.rejectedOther++;continue}
+   // Spread combinations such as 202610/202611 are not individual monthly futures contracts.
+   const contract=String(item.contract_date??"").trim();
+   if(!/^\d{6}$/.test(contract)||Number(contract.slice(4,6))<1||Number(contract.slice(4,6))>12){n.rejectedSpread++;continue}
+   const minute=String(item.minute??"").trim(),match=/^(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(minute);
+   const d=String(item.date??"").slice(0,10);
+   if(!match||d!==date){n.rejectedOther++;continue}
+   const clock=Number(match[1])*60+Number(match[2]);
+   const session=(clock>=900||clock<=300)?"night":clock>=525&&clock<=825?"day":null;
+   if(!session){n.rejectedOther++;continue}
+   const prices=["open","high","low","close"].map(k=>Number(item[k])),volume=Number(item.volume);
+   if(!prices.every(Number.isFinite)||!Number.isFinite(volume)||volume<0){n.rejectedOther++;continue}
+   const [open,high,low,close]=prices;
+   if(high<Math.max(open,close,low)||low>Math.min(open,close,high)){n.rejectedOther++;continue}
+   const key=d+"|"+minute+"|"+contract,signature=[...prices,volume].join("/");
+   if(seen.has(key)){
+    if(seen.get(key)!==signature){const e=new Error(date+" 同月份同分鐘出現互相矛盾的 K 線，拒絕寫入");e.code=422;throw e}
+    n.duplicates++;continue
+   }
+   seen.set(key,signature);
+   const v=row({...item,date:d,minute,contract_date:contract,futures_id:"TX",volume});
+   lines.push({minute,contract,line:v.line});
+   n.rows++;if(session==="day"){n.dayRows++;n.dayContract[contract]=(n.dayContract[contract]||0)+volume}else n.nightRows++;
+   if(weekday(date)===6&&clock<=300)n.saturdayEarlyRows++
+  }
+  if(raw.data.length>0&&!n.rows){const e=new Error(date+" API 有資料但未找到有效 TX 單式合約，請核對回傳格式");e.code=422;throw e}
+  lines.sort((a,b)=>a.minute.localeCompare(b.minute)||a.contract.localeCompare(b.contract));
+  const bytes=await gzip(new TextEncoder().encode(lines.map(x=>x.line).join("")));
+  // 512 KiB fits current Cloudflare SQLite-backed Durable Object's 2 MiB key/value limit.
+  const MAX=512*1024,chunks=Math.ceil(bytes.length/MAX);
   for(let i=0;i<chunks;i++)await this.ctx.storage.put("data:"+date+":"+i,bytes.slice(i*MAX,(i+1)*MAX));
-  await this.ctx.storage.put("meta:"+date,{...n,chunks});return n
+  await this.ctx.storage.put("meta:"+date,{...n,chunks});return n;
+ }
+ async readDay(date){
+  const meta=await this.ctx.storage.get("meta:"+date);
+  if(!meta||!meta.chunks)return "";
+  const blocks=[];for(let i=0;i<meta.chunks;i++){
+   const part=await this.ctx.storage.get("data:"+date+":"+i);
+   if(!part)throw Error("缺少 "+date+" 的資料區塊 "+i);
+   blocks.push(new Uint8Array(part))
+  }
+  const total=blocks.reduce((v,b)=>v+b.byteLength,0),all=new Uint8Array(total);let offset=0;
+  for(const block of blocks){all.set(block,offset);offset+=block.byteLength}
+  return new TextDecoder().decode(await gunzip(all))
+ }
+ // Per-calendar-day export; no look-ahead to tomorrow's close or dynamic per-minute month hopping.
+ selectCsv(text,mode){
+  const rows=text.trim().split("\n").filter(Boolean).map(line=>{
+   const c=line.split(",");
+   if(c.length<10||c[3]!=="TX"||!/^\d{6}$/.test(c[4]))return null;
+   const minute=c[1],hh=Number(minute.slice(0,2)),block=hh<=5?"early":hh>=15?"evening":"day";
+   return {line,month:c[4],minute,block,key:c[0]+"|"+minute+"|"+c[4]}
+  }).filter(Boolean);
+  // Older cached files might contain duplicate/spread data, so sanitize exports too.
+  const unique=new Map();
+  for(const v of rows)if(!unique.has(v.key))unique.set(v.key,v);
+  const list=[...unique.values()];
+  if(mode==="all")return list.sort((a,b)=>a.minute.localeCompare(b.minute)||a.month.localeCompare(b.month)).map(r=>r.line).join("\n")+(list.length?"\n":"");
+  const monthPerBlock=new Map();
+  for(const item of list){
+   const old=monthPerBlock.get(item.block);
+   if(!old||item.month<old)monthPerBlock.set(item.block,item.month)
+  }
+  return list.filter(v=>v.month===monthPerBlock.get(v.block)).sort((a,b)=>a.minute.localeCompare(b.minute)||a.month.localeCompare(b.month)).map(r=>r.line).join("\n")+(list.length?"\n":"");
+ }
+ async auditDay(date,s){
+  if(!okdate(date)||date<s.start||date>s.end)return J({ok:false,error:"稽核日期超出下載範圍"},400);
+  const cached=await this.ctx.storage.get("audit:"+date);
+  if(cached)return J({ok:true,cached:true,...cached});
+  const csv=await this.readDay(date);
+  if(!csv)return J({ok:false,error:"該日期尚無日盤 TX 分K 資料；請選已完成下載的交易日"},400);
+  const volumeByContract={};
+  for(const line of csv.split("\n")){
+   if(!line)continue;const f=line.split(",");
+   if(f[3]!=="TX"||!/^\d{6}$/.test(f[4])||f[2]!=="day")continue;
+   const volume=Number(f[9]);if(Number.isFinite(volume))volumeByContract[f[4]]=(volumeByContract[f[4]]||0)+volume
+  }
+  const token=String((await this.ctx.storage.get("finmind-token"))||this.env.FINMIND_TOKEN||"").trim();
+  if(!token)return J({ok:false,error:"請重新按「開始」以更新 FinMind Token"},401);
+  const endpoint="https://api.finmindtrade.com/api/v4/data?"+new URLSearchParams({dataset:"TaiwanFuturesDaily",data_id:"TX",start_date:date,end_date:nxt(date)});
+  const res=await fetch(endpoint,{headers:{authorization:"Bearer "+token,accept:"application/json"},signal:AbortSignal.timeout(30000)});
+  const payload=await res.json().catch(()=>null);
+  if(!res.ok||Number(payload?.status)!==200||!Array.isArray(payload?.data))return J({ok:false,error:"無法取得 FinMind TaiwanFuturesDaily 官方日盤量做對帳"},502);
+  const rows=payload.data.filter(v=>String(v.futures_id).trim().toUpperCase()==="TX"&&String(v.date)===date&&String(v.trading_session)==="position"&&/^\d{6}$/.test(String(v.contract_date))).map(v=>{
+   const contract=String(v.contract_date),official=Number(v.volume),raw=volumeByContract[contract]||0,ratio=official>0?raw/official:null;
+   return {contract,raw,official,ratio:ratio===null?null:Math.round(ratio*1000)/1000};
+  }).filter(v=>v.raw>0&&v.official>0).sort((a,b)=>b.official-a.official);
+  const head=rows[0],r=head?.ratio;
+  const verdict=!head?"樣本不足，無法判斷":r>=1.85&&r<=2.15?"接近 2 倍：分K量可能是雙邊量":r>=0.85&&r<=1.15?"接近 1 倍：分K量可能是單邊量":"兩者不一致：需核對價差成交及鉅額交易";
+  const out={date,verdict,rows:rows.slice(0,12),method:"同日 08:45–13:45 TX 單式合約分K raw volume 加總 / TaiwanFuturesDaily position 同合約成交量；僅診斷近似值，價差、鉅額與缺漏可能造成偏差。"};
+  await this.ctx.storage.put("audit:"+date,out);
+  return J({ok:true,...out});
  }
  async alarm(){
   const st=this.ctx.storage;let s=await st.get("state");if(!s)return;
