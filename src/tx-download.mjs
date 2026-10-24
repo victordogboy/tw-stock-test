@@ -168,23 +168,72 @@ export class TxDownloadJob{
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Date.now()+1800:s.expiresAt)
  }
- async exportData(month,year,s){
-  if(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return J({ok:false,error:"月份無效"},400);
-  if(!month&&!/^\d{4}$/.test(year||""))return J({ok:false,error:"年份無效"},400);
-  const scope=month||year,dates=[];let d=month?month+"-01":year+"-01-01";
-  while(d.startsWith(scope)){if(d>=s.start&&d<=s.end&&weekday(d))dates.push(d);d=nxt(d)}
-  if(!Object.entries(s.months).some(([m,v])=>m.startsWith(scope)&&v.days))return J({ok:false,error:"尚無可下載資料"},404);
-  const st=this.ctx.storage,enc=new TextEncoder();let index=-1;
+ async auditVolume(date,s){
+  // Only compare same-day DAY session. Futures NIGHT session belongs to the next
+  // trading day, and holidays/weekends break naive calendar joins.
+  if(!okdate(date)||date<s.start||date>s.end)return J({ok:false,error:"日期不在下載範圍內"},400);
+  const meta=await this.ctx.storage.get("meta:"+date);
+  if(!meta)return J({ok:false,error:"當日尚未下載，無法核對"},404);
+  const token=String(await this.ctx.storage.get("finmind-token")||"").trim();
+  if(!token)return J({ok:false,error:"找不到 FinMind Token"},401);
+  const u="https://api.finmindtrade.com/api/v4/data?"+new URLSearchParams({dataset:"TaiwanFuturesDaily",data_id:"TX",start_date:date,end_date:date});
+  let raw;
+  try{
+   const response=await fetch(u,{headers:{"Authorization":"Bearer "+token,Accept:"application/json"},signal:AbortSignal.timeout(30000)});
+   raw=await response.json();if(!response.ok||Number(raw.status)!==200||!Array.isArray(raw.data))throw Error("日成交 API "+(raw.msg||response.status));
+  }catch(e){return J({ok:false,error:"核對失敗："+String(e.message||e).slice(0,120)},502)}
+  const daily=new Map();
+  for(const r of raw.data){
+   const contract=String(r.contract_date||""),v=Number(r.volume);
+   if(r.futures_id==="TX"&&r.date===date&&r.trading_session==="position"&&/^\d{6}$/.test(contract)&&Number.isFinite(v)&&v>0)daily.set(contract,v);
+  }
+  const rows=Object.entries(meta.dayVol||{}).map(([contract,kbarVolume])=>{
+   const dailyVolume=daily.get(contract)||null;
+   return {contract,minute_volume_raw:kbarVolume,daily_volume_one_side:dailyVolume,ratio_to_daily:dailyVolume?Number((kbarVolume/dailyVolume).toFixed(4)):null};
+  }).sort((a,b)=>b.minute_volume_raw-a.minute_volume_raw);
+  return J({ok:true,date,metric:"KBar 原始成交量 / TaiwanFuturesDaily 單邊成交量（同交易日一般盤、同合約月份）",rows,note:"接近 2 與雙邊口徑相符，但價差與鉅額交易可能影響比值；不能把所有分鐘量直接除以 2。夜盤涉及下一交易日，本次核對限日盤。"})
+ }
+ async exportData(month,year,s,all=false){
+  if(!all&&month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return J({ok:false,error:"月份無效"},400);
+  if(!all&&!month&&!/^\d{4}$/.test(year||""))return J({ok:false,error:"年份無效"},400);
+  const scope=all?"full":month||year,dates=[];
+  let d=all?s.start:month?month+"-01":year+"-01-01";
+  while(all?d<=s.end:d.startsWith(scope)){if(d>=s.start&&d<=s.end)dates.push(d);d=nxt(d)}
+  if(!Object.entries(s.months).some(([m,v])=>(all||m.startsWith(scope))&&v.rows))return J({ok:false,error:"尚無可下載資料"},404);
+  const st=this.ctx.storage,enc=new TextEncoder();let index=-1,header=null;
+  // Concatenated gzip streams are valid RFC 1952. Member one = CSV header;
+  // subsequent members = each day's compressed CSV. This avoids buffering
+  // six years of data or recompressing a huge file in Cloudflare.
+  if(all)header=await gzip(enc.encode(H));
+  let chunk=0,meta=null;
   const stream=new ReadableStream({async pull(c){
    try{
-    if(index===-1){index=0;c.enqueue(enc.encode(H));return}
-    if(index>=dates.length){c.close();return}
-    const date=dates[index++],meta=await st.get("meta:"+date);if(!meta||!meta.chunks)return;
-    const chunks=[];for(let i=0;i<meta.chunks;i++){const b=await st.get("data:"+date+":"+i);if(!b)throw Error("缺少 "+date+" 的資料片段");chunks.push(new Uint8Array(b))}
-    const size=chunks.reduce((v,b)=>v+b.byteLength,0),all=new Uint8Array(size);let off=0;for(const b of chunks){all.set(b,off);off+=b.byteLength}
-    c.enqueue(await gunzip(all));
+    if(index===-1){index=0;c.enqueue(all?header:enc.encode(H));return}
+    while(index<dates.length){
+     const date=dates[index];
+     if(!meta){meta=await st.get("meta:"+date);chunk=0}
+     if(!meta||!meta.chunks){index++;meta=null;continue}
+     if(chunk>=meta.chunks){index++;meta=null;continue}
+     if(all){
+      const b=await st.get("data:"+date+":"+(chunk++));
+      if(!b)throw Error("缺少 "+date+" 的資料片段");
+      c.enqueue(new Uint8Array(b));return
+     }
+     // Reassemble all gzip chunks for a single calendar date before decompression.
+     const parts=[];
+     while(chunk<meta.chunks){
+      const b=await st.get("data:"+date+":"+(chunk++));
+      if(!b)throw Error("缺少 "+date+" 的資料片段");
+      parts.push(new Uint8Array(b))
+     }
+     const total=parts.reduce((a,v)=>a+v.byteLength,0),combined=new Uint8Array(total);
+     let off=0;for(const part of parts){combined.set(part,off);off+=part.byteLength}
+     index++;meta=null;c.enqueue(await gunzip(combined));return
+    }
+    c.close();
    }catch(e){c.error(e)}
   }});
-  return new Response(stream,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":'attachment; filename="FinMind_TX_1min_'+scope+'.csv"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
+  const name=all?"FinMind_TX_1min_"+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-")+".csv.gz":"FinMind_TX_1min_"+scope+".csv";
+  return new Response(stream,{headers:{"content-type":all?"application/gzip":"text/csv; charset=utf-8","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
  }
 }
