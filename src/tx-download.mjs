@@ -65,8 +65,13 @@ export async function txDownloadRoute(req,env){
  if(p==="/api/tx-download/status"&&m==="GET")return stub.fetch("https://job.local/status");
  if(p==="/api/tx-download/export"&&m==="GET"){
   const month=u.searchParams.get("month"),year=u.searchParams.get("year");
-  if(!/^\d{4}-\d{2}$/.test(month||"")&&!/^\d{4}$/.test(year||""))return J({ok:false,error:"月份／年份無效"},400);
-  return stub.fetch("https://job.local/export?"+new URLSearchParams(month?{month}:{year}));
+  if(!/^\d{4}-\d{2}$/.test(month||"")&&!/^\d{4}$/.test(year||"")&&u.searchParams.get("all")!=="1")return J({ok:false,error:"月份／年份無效"},400);
+  return stub.fetch("https://job.local/export?"+new URLSearchParams(u.searchParams.get("all")==="1"?{all:"1"}:month?{month}:{year}));
+ }
+ if(p==="/api/tx-download/audit"&&m==="GET"){
+  const date=u.searchParams.get("date")||"";
+  if(!okdate(date))return J({ok:false,error:"請選擇有效日期"},400);
+  return stub.fetch("https://job.local/audit?date="+date);
  }
  const action=p.split("/").at(-1);
  if(m==="POST"&&["pause","resume","retry","delete"].includes(action)){
@@ -78,13 +83,15 @@ export async function txDownloadRoute(req,env){
 }
 export class TxDownloadJob{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
- summary(s){return {start:s.start,end:s.end,phase:s.phase,current:s.current,total:s.total,processed:s.processed,filled:s.filled,empty:s.empty,failed:s.failed,rows:s.rows,dayRows:s.dayRows,nightRows:s.nightRows,errors:s.errors.slice(-20),months:s.months,updatedAt:s.updatedAt,message:s.message}}
+ summary(s){return {version:s.version||1,start:s.start,end:s.end,phase:s.phase,current:s.current,total:s.total,processed:s.processed,filled:s.filled,empty:s.empty,failed:s.failed,rows:s.rows,dayRows:s.dayRows,nightRows:s.nightRows,rejectedProducts:s.rejectedProducts||0,rejectedContracts:s.rejectedContracts||0,rejectedInvalid:s.rejectedInvalid||0,duplicates:s.duplicates||0,volumeRaw:s.volumeRaw||0,saturdaysWithData:s.saturdaysWithData||0,errors:s.errors.slice(-20),months:s.months,updatedAt:s.updatedAt,message:s.message}}
  async fetch(req){
   const st=this.ctx.storage,url=new URL(req.url),p=url.pathname;
   if(p==="/start"&&req.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,error:"缺少有效 FinMind Token"},401);
-   const old=await st.get("state");
+   const {start,end,reset=false}=await req.json();
+   let old=await st.get("state");
+   if(reset){await st.deleteAll();await st.deleteAlarm();old=null;}
    // Store only inside this browser's private Durable Object. The token is never returned in a response.
    await st.put("finmind-token",token);
    if(old){
@@ -92,13 +99,13 @@ export class TxDownloadJob{
     if(old.phase==="running")await st.setAlarm(Date.now()+100);
     return J({ok:true,existing:true,...this.summary(old)});
    }
-   const {start,end}=await req.json();
-   const s={start,end,phase:"running",current:start,total:nDays(start,end),processed:0,filled:0,empty:0,failed:0,rows:0,dayRows:0,nightRows:0,retries:0,errors:[],months:{},createdAt:Date.now(),expiresAt:Date.now()+30*DAY,updatedAt:Date.now(),message:"已建立背景下載工作"};
+   const s={version:2,start,end,phase:"running",current:start,total:nDays(start,end),processed:0,filled:0,empty:0,failed:0,rows:0,dayRows:0,nightRows:0,rejectedProducts:0,rejectedContracts:0,rejectedInvalid:0,duplicates:0,volumeRaw:0,saturdaysWithData:0,retries:0,errors:[],months:{},createdAt:Date.now(),expiresAt:Date.now()+30*DAY,updatedAt:Date.now(),message:"已建立全日曆下載工作（包含週六凌晨）"};
    await st.put("state",s);await st.setAlarm(Date.now()+100);return J({ok:true,...this.summary(s)},202)
   });
   let s=await st.get("state");if(!s)return J({ok:false,error:"找不到下載工作"},404);
   if(p==="/status")return J({ok:true,...this.summary(s)});
-  if(p==="/export")return this.exportData(url.searchParams.get("month"),url.searchParams.get("year"),s);
+  if(p==="/export")return this.exportData(url.searchParams.get("month"),url.searchParams.get("year"),s,url.searchParams.get("all")==="1");
+  if(p==="/audit")return this.auditVolume(url.searchParams.get("date"),s);
   if(req.method!=="POST")return J({ok:false,error:"不支援操作"},405);
   return this.ctx.blockConcurrencyWhile(async()=>{
    s=await st.get("state");
@@ -141,7 +148,10 @@ export class TxDownloadJob{
    try{
     const old=await st.get("meta:"+date),n=old||await this.download(date);
     const active=await st.get("state");if(!active||active.phase!=="running")return;
-    if(!old){const m=date.slice(0,7);s.months[m]??={days:0,rows:0,dayRows:0,nightRows:0};const g=s.months[m];g.days++;g.rows+=n.rows;g.dayRows+=n.dayRows;g.nightRows+=n.nightRows;s.filled+=Number(n.rows>0);s.empty+=Number(n.rows===0);s.rows+=n.rows;s.dayRows+=n.dayRows;s.nightRows+=n.nightRows}
+    if(!old){const m=date.slice(0,7);s.months[m]??={days:0,rows:0,dayRows:0,nightRows:0};const g=s.months[m];g.days++;g.rows+=n.rows;g.dayRows+=n.dayRows;g.nightRows+=n.nightRows;s.filled+=Number(n.rows>0);s.empty+=Number(n.rows===0);s.rows+=n.rows;s.dayRows+=n.dayRows;s.nightRows+=n.nightRows;
+      for(const k of ["rejectedProducts","rejectedContracts","rejectedInvalid","duplicates","volumeRaw"])s[k]=(s[k]||0)+(n[k]||0);
+      if(isSaturday(date)&&n.nightRows>0)s.saturdaysWithData=(s.saturdaysWithData||0)+1;
+    }
     if(fixing)s.retryQueue.shift();else{s.current=nxt(date);s.processed++}
     s.retries=0;s.message="已下載 "+s.processed+"/"+s.total+" 天，共 "+s.rows+" 筆";
    }catch(e){
