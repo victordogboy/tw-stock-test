@@ -25,7 +25,7 @@ export async function txDownloadRoute(req,env){
   const body=await req.text();if(body.length>2048)return J({ok:false,error:"設定長度不正確"},400);
   let opt;try{opt=JSON.parse(body)}catch{return J({ok:false,error:"格式無效"},400)}
   const {start,end}=opt||{};
-  if(!okdate(start)||!okdate(end)||start<"2021-01-01"||end>twtoday()||end<start||nDays(start,end)>2200)return J({ok:false,error:"日期不正確（2021-01-01 至今日）"},400);
+  if(!okdate(start)||!okdate(end)||start<"2021-01-01"||end>twtoday()||end<start)return J({ok:false,error:"日期不正確（2021-01-01 至今日）"},400);
   let id=cookie(req);if(!/^[a-f0-9]{64}$/.test(id))id=ident();
   const stub=env.TX_DOWNLOAD_JOBS.get(env.TX_DOWNLOAD_JOBS.idFromName(id));
   const result=await stub.fetch(new Request("https://job.local/start",{method:"POST",headers:{"authorization":"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end})}));
