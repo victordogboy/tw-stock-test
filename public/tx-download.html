@@ -8,26 +8,36 @@
 <div class="eyebrow">FINMIND · CLOUD BACKGROUND DOWNLOADER</div>
 <h1>台指期 1 分 K<br>雲端資料下載</h1>
 <p>2021 年至今的 TX 日盤＋夜盤，保留所有到期月份。使用 Cloudflare 背景任務，不需要開電腦；啟動後關閉手機螢幕也會繼續。</p>
-<div class="chips"><span class="chip">大台 TX</span><span class="chip">日盤＋夜盤</span><span class="chip">五年歷史資料</span><span class="chip">雲端自動續傳</span></div>
+<div class="chips"><span class="chip">嚴格限定 TX</span><span class="chip">星期六凌晨納入</span><span class="chip">2021/01/01 起</span><span class="chip">全期間合併檔</span></div>
 <section><h2>建立任務</h2>
 <div class="grid"><div><label for="start">起始日期</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">結束日期</label><input id="end" type="date"></div></div>
 <label for="token">FinMind S 級會員 Token（可自動沿用個股分析設定）</label><input id="token" type="password" placeholder="如果原本已設定 Token，這裡留空即可" autocomplete="off" spellcheck="false">
 <div class="small" id="tokenHint">正在檢查這個瀏覽器已儲存的 FinMind Token…</div>
 <div class="actions"><button id="startBtn">▶ 開始雲端下載</button><button id="refreshBtn" class="secondary">更新狀態</button></div>
+<div class="note">本版按日曆日查詢，週五 15:00 至週六 05:00 的資料不再因「星期六」而被跳過。2021/01/01 起是查詢範圍，休市日可能是零筆。</div>
 <div class="note">任務啟動後可以直接離開網頁。下次用相同瀏覽器重新開啟，即可查看進度與下載 CSV。請不要使用無痕模式，以免遺失工作識別 Cookie。</div>
 </section>
 <section id="statusCard" class="hidden"><div class="top"><h2 style="margin:0">下載進度</h2><span class="pill" id="phase">準備中</span></div>
 <progress id="prog" max="100" value="0"></progress><div class="top"><b id="percentage">0%</b><small id="range">—</small></div>
-<div class="stats"><div class="stat"><b id="days">0</b><small>已處理／總天數</small></div><div class="stat"><b id="count">0</b><small>1 分 K 筆數</small></div><div class="stat"><b id="night">0</b><small>夜盤筆數</small></div></div>
+<div class="stats"><div class="stat"><b id="days">0</b><small>已檢查／總日曆日</small></div><div class="stat"><b id="count">0</b><small>TX 1 分 K</small></div><div class="stat"><b id="night">0</b><small>夜盤筆數</small></div><div class="stat"><b id="saturday">0</b><small>週六凌晨筆數</small></div><div class="stat"><b id="reject">0</b><small>排除不符 TX／價差列</small></div><div class="stat"><b id="duplicates">0</b><small>完全重複列</small></div></div>
 <p id="message">—</p><small id="extra"></small>
-<div class="actions"><button id="pause" class="secondary">暫停</button><button id="resume" class="secondary">繼續</button><button id="retry" class="secondary">補抓失敗日期</button><button id="refresh2" class="secondary">刷新</button></div>
+<div class="actions"><button id="pause" class="secondary">暫停</button><button id="resume" class="secondary">繼續</button><button id="retry" class="secondary">補抓失敗日期</button><button id="repair" class="secondary">補抓舊版漏掉的週六／休市日</button><button id="refresh2" class="secondary">刷新</button></div>
+<p class="small">如果已用舊版下載過，請按「補抓舊版漏掉的週六／休市日」。它會保留已有資料，僅查詢尚未取得的日曆日期。</p>
 <details><summary>顯示錯誤日期</summary><div id="errors">目前沒有錯誤</div></details>
 </section>
-<section id="downloadCard" class="hidden"><h2>下載 CSV</h2><p style="font-size:13px">建議等任務完成後再下載年度檔。任務進行中也能下載已完成的部分資料；請留意是否為完整年份。</p>
-<div id="years"></div><details><summary>展開每月 CSV（檔案較小，適合手機）</summary><div id="months"></div></details>
-<div class="note">保留 date、minute、session、contract_date、OHLC、volume。夜盤跨午夜之交易日歸屬、近月轉倉應在回測時處理，這裡不任意修改原始價格。</div>
+<section id="downloadCard" class="hidden"><h2>下載完整 TX 1 分 K</h2>
+<label for="exportMode">選擇下載的合約類型</label>
+<select id="exportMode" style="background:#101e30;color:#eaf9ff;border:1px solid #45657a;border-radius:10px;padding:12px;width:100%;font:inherit"><option value="front">每個交易時段的最近到期月份（預設供回測）</option><option value="all">大台 TX 所有單式到期月份（不含價差與其他期貨）</option></select>
+<p class="small">「所有月份」仍只有大台 TX，不包含小台 MTX、微台 TMF 或其他商品。不同到期月份的 TX 不應在回測中直接混為一條價格線。</p>
+<a id="fullArchive" class="download" style="width:100%;margin:14px 0 6px" href="#">⬇ 下載 2021 年起全部資料（單一 CSV.gz）</a>
+<p class="small">這是一個真正的合併 CSV 壓縮檔（.csv.gz），不是把各月價格簡單拼接；手機若無法直接解壓，可使用支援 GZIP 的檔案管理工具。等下載完成後再抓能避免內容不完整。</p>
+<h2 style="margin-top:24px">按年度分別下載</h2><div id="years"></div><details><summary>展開每月 CSV（檔案較小，適合手機）</summary><div id="months"></div></details>
+<div class="note">欄位 date、minute、session、futures_id、contract_date、open、high、low、close、volume。<strong>volume 為 FinMind 原始值，沒有乘二或除二。</strong>夜盤交易日歸屬與換月價差，應在回測時處理。</div>
 </section>
-<section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；依官方限制一天查一次。啟動下載時，Token 會安全傳給本站 Cloudflare 背景任務，保存在該任務的私有儲存中，最多 30 天後與資料一併刪除。Token 不會出現在網址、公開 GitHub 或下載的 CSV 中。不需要另外設定 Cloudflare Secret。</p>
+<section id="auditCard" class="hidden"><h2>成交量 ×2 對帳</h2><p class="small">直接對照 FinMind 官方 TaiwanFuturesDaily 同日同月份的日盤成交量，顯示「分K加總 / 日K官方成交量」。接近 2 倍是疑似雙邊計量，不等於所有日期都能直接除以二。</p>
+<div class="grid"><div><label for="auditDate">要驗證的已下載交易日</label><input type="date" id="auditDate" value="2024-01-02"></div><div style="align-self:end"><button id="auditBtn" style="width:100%">查核原始成交量</button></div></div>
+<div id="auditResults" class="small" style="margin-top:16px;white-space:pre-line">尚未對帳。請選一個已下載完成且有日盤成交的日期。</div></section>
+<section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；每天向 API 查詢一次（含星期六）。啟動時 Token 會傳至 Cloudflare 私有背景儲存，資料最多保留 30 天。Token 不會放入公開 GitHub 或 CSV，不需要另外設定 Cloudflare Secret。</p>
 <button id="deleteBtn" class="danger">刪除目前雲端資料</button>
 </section><footer>僅供會員個人研究使用。資料來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Derivative/" target="_blank" rel="noopener">FinMind 官方文件</a>。</footer>
 </main>
@@ -58,18 +68,24 @@
   let pct=s.total?Math.min(100,s.processed/s.total*100):0;$("prog").value=pct;$("percentage").textContent=pct.toFixed(1)+"%";
   $("phase").textContent=({running:"背景下載中",paused:"暫停",error:"資料源錯誤",done:"已完成"})[s.phase]||s.phase;
   $("days").textContent=number(s.processed)+" / "+number(s.total);$("count").textContent=number(s.rows);$("night").textContent=number(s.nightRows);
+  $("saturday").textContent=number(s.saturdayEarlyRows);$("reject").textContent=number((s.rejectedOther||0)+(s.rejectedSpread||0));$("duplicates").textContent=number(s.duplicates);
   $("range").textContent=s.start+" → "+s.end;$("message").textContent=s.message||"—";
   $("extra").textContent="日盤："+number(s.dayRows)+"　無資料日："+number(s.empty)+"　失敗："+number(s.failed)+"　更新："+new Date(s.updatedAt).toLocaleString("zh-TW");
   $("pause").disabled=s.phase!=="running";$("resume").disabled=!["paused","error"].includes(s.phase);
   $("retry").disabled=!s.failed||!["done","paused","error"].includes(s.phase);
+  $("repair").disabled=!["done","paused","error"].includes(s.phase);
   $("errors").textContent=(s.errors||[]).map(x=>x.date+" : "+x.error).join("\n")||"目前沒有錯誤";
   const groups={};for(const [month,v] of Object.entries(s.months||{})){const y=month.slice(0,4);(groups[y]??=[]).push({month,...v})}
   $("downloadCard").classList.toggle("hidden",!Object.keys(groups).length);
+  $("auditCard").classList.toggle("hidden",!Object.keys(groups).length);
+  const mode=$("exportMode").value;
+  $("fullArchive").href="/api/tx-download/export?all=1&mode="+mode;
+  $("fullArchive").textContent="⬇ "+s.start+" ～ "+s.end+" 一包下載（CSV.gz）";
   $("years").replaceChildren();$("months").replaceChildren();
   for(const year of Object.keys(groups).sort()){
    const a=groups[year],d=a.reduce((n,x)=>n+x.days,0),r=a.reduce((n,x)=>n+x.rows,0);
-   row($("years"),year+" 年",number(d)+" 天 · "+number(r)+" 筆"+(s.phase==="running"?"（下載中，尚未完整）":""),"/api/tx-download/export?year="+year);
-   for(const x of a.sort((a,b)=>a.month.localeCompare(b.month)))row($("months"),x.month,number(x.days)+" 天 · "+number(x.rows)+" 筆","/api/tx-download/export?month="+x.month);
+   row($("years"),year+" 年",number(d)+" 天 · "+number(r)+" 筆"+(s.phase==="running"?"（下載中，尚未完整）":""),"/api/tx-download/export?year="+year+"&mode="+mode);
+   for(const x of a.sort((a,b)=>a.month.localeCompare(b.month)))row($("months"),x.month,number(x.days)+" 天 · "+number(x.rows)+" 筆","/api/tx-download/export?month="+x.month+"&mode="+mode);
   }
  }
  async function refresh(){try{render(await api("/api/tx-download/status"))}catch(e){if(current)$("message").textContent=e.message}}
@@ -90,6 +106,18 @@
  };
  $("refreshBtn").onclick=$("refresh2").onclick=refresh;
  $("pause").onclick=()=>act("pause");$("resume").onclick=()=>act("resume");$("retry").onclick=()=>act("retry");
+ $("repair").onclick=()=>{if(confirm("只補查所有日曆缺口，包括舊版漏掉的星期六凌晨與休市日期；已有資料保留。確定開始？"))act("repair")};
+ $("exportMode").onchange=()=>{if(current)render(current)};
+ $("auditBtn").onclick=async()=>{
+  const date=$("auditDate").value;
+  $("auditResults").textContent="正在比對官方日K成交量…";$("auditBtn").disabled=true;
+  try{
+   const x=await api("/api/tx-download/audit?date="+encodeURIComponent(date));
+   const lines=[x.date+"　"+x.verdict,x.method,""];
+   for(const z of x.rows)lines.push(z.contract+"：分K原始量 "+number(z.raw)+"／官方日K單邊量 "+number(z.official)+"＝"+z.ratio+" 倍");
+   $("auditResults").textContent=lines.join("\n");
+  }catch(e){$("auditResults").textContent="對帳未完成："+e.message}finally{$("auditBtn").disabled=false}
+ };
  $("deleteBtn").onclick=()=>{if(current&&confirm("確定刪除此任務及所有下載資料？"))act("delete")};
  refresh();setInterval(()=>{if(!document.hidden&&current?.phase==="running")refresh()},12000);
 })();
