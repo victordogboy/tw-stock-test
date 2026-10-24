@@ -238,23 +238,32 @@ export class TxDownloadJob{
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Date.now()+1800:s.expiresAt)
  }
- async exportData(month,year,s){
+ async exportData(month,year,all,mode,s){
   if(month&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return J({ok:false,error:"月份無效"},400);
-  if(!month&&!/^\d{4}$/.test(year||""))return J({ok:false,error:"年份無效"},400);
-  const scope=month||year,dates=[];let d=month?month+"-01":year+"-01-01";
-  while(d.startsWith(scope)){if(d>=s.start&&d<=s.end&&weekday(d))dates.push(d);d=nxt(d)}
-  if(!Object.entries(s.months).some(([m,v])=>m.startsWith(scope)&&v.days))return J({ok:false,error:"尚無可下載資料"},404);
-  const st=this.ctx.storage,enc=new TextEncoder();let index=-1;
-  const stream=new ReadableStream({async pull(c){
+  if(!month&&!all&&!/^\d{4}$/.test(year||""))return J({ok:false,error:"年份無效"},400);
+  const scope=all?"full":month||year,dates=[];
+  for(let d=s.start;d<=s.end;d=nxt(d))if(all||d.startsWith(scope))dates.push(d);
+  if(!dates.length)return J({ok:false,error:"沒有在指定日期範圍內的資料"},404);
+  if(!all&&!Object.entries(s.months).some(([m,v])=>m.startsWith(scope)&&v.days))return J({ok:false,error:"尚無可下載資料"},404);
+  const self=this,enc=new TextEncoder();let index=-1;
+  // Each pull reads one day's compressed storage; never join five years in memory.
+  const stream=new ReadableStream({async pull(controller){
    try{
-    if(index===-1){index=0;c.enqueue(enc.encode(H));return}
-    if(index>=dates.length){c.close();return}
-    const date=dates[index++],meta=await st.get("meta:"+date);if(!meta||!meta.chunks)return;
-    const chunks=[];for(let i=0;i<meta.chunks;i++){const b=await st.get("data:"+date+":"+i);if(!b)throw Error("缺少 "+date+" 的資料片段");chunks.push(new Uint8Array(b))}
-    const size=chunks.reduce((v,b)=>v+b.byteLength,0),all=new Uint8Array(size);let off=0;for(const b of chunks){all.set(b,off);off+=b.byteLength}
-    c.enqueue(await gunzip(all));
-   }catch(e){c.error(e)}
+    if(index===-1){index=0;controller.enqueue(enc.encode(H));return}
+    if(index>=dates.length){controller.close();return}
+    const day=dates[index++],text=await self.readDay(day);
+    if(!text)return;
+    const result=self.selectCsv(text,mode);
+    if(result)controller.enqueue(enc.encode(result));
+   }catch(e){controller.error(e)}
   }});
-  return new Response(stream,{headers:{"content-type":"text/csv; charset=utf-8","content-disposition":'attachment; filename="FinMind_TX_1min_'+scope+'.csv"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
+  const compressed=all,body=compressed?stream.pipeThrough(new CompressionStream("gzip")):stream;
+  const filename=all?"FinMind_TX_"+s.start+"_"+s.end+"_"+mode+".csv.gz":"FinMind_TX_1min_"+scope+"_"+mode+".csv";
+  return new Response(body,{headers:{
+   "content-type":compressed?"application/gzip":"text/csv; charset=utf-8",
+   "content-disposition":'attachment; filename="'+filename+'"',
+   "cache-control":"private, no-store","x-content-type-options":"nosniff"
+  }})
  }
+
 }
