@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/tx-download.mjs'
       - 'tests/tx-download-token.test.mjs'
+      - 'tests/tx-download-completeness.test.mjs'
       - 'src/worker.mjs'
       - 'public/tx-download.html'
       - 'wrangler.jsonc'
@@ -38,4 +39,4 @@ jobs:
           console.log('Cloud downloader checked successfully');
           NODE
       - name: Test Token reuse and cloud execution
-        run: node --test tests/tx-download-token.test.mjs
+        run: node --test tests/tx-download-token.test.mjs tests/tx-download-completeness.test.mjs
