@@ -198,7 +198,7 @@ test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and ex
   const output=await stockFuturesRoute(new Request(host+"/api/stock-kbar/export?code=2330",{headers:{cookie}}),x.env,"stocks");
   assert.equal(output.status,200);
   const csv=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
-  assert.match(csv,/date,minute,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_lots/);
+  assert.match(csv,/date,minute,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_raw/);
   assert.match(csv,/2021-01-04,09:00:00,2330,.*QFF,100,102,99,101,1.5/);
   assert.ok(!csv.includes("contract_date"));
   assert.ok(!csv.includes(",2303,"));
