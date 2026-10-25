@@ -190,7 +190,7 @@ export class StockFuturesBatch{
  shardFor(s,code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(s.shardKey+":"+code))}
  async alarm(){
   const st=this.ctx.storage,s=await st.get("state");if(!s)return;
-  if(Date.now()>=s.expiresAt){s.phase="expired";s.message="任務已到期，請先匯出已完成資料";await st.put("state",s);return}
+  if(Date.now()>=s.expiresAt){await st.deleteAll();await st.deleteAlarm();return}
   if(s.phase!=="running"){await st.setAlarm(s.expiresAt);return}
   await st.setAlarm(Date.now()+120000);
   const token=await st.get("token");if(!token){s.phase="error";s.lastError="缺少 Token";await st.put("state",s);return}
@@ -227,6 +227,11 @@ export class StockFuturesBatch{
    else s.message="FinMind 暫時失敗，雲端正在退避重試"
   }else{s.retries=0;s.message="已檢查 "+s.processed+"/"+s.total+" 個商品／日，累計 "+s.rows+" 根分K"}
   if(s.date>s.end&&s.phase==="running"){s.phase="done";s.message="已完成全清單請求；可按年度下載"}
+  const latest=await st.get("state");
+  if(!latest||latest.shardKey!==s.shardKey)return;
+  // Do not undo a user pause/delete performed while this background batch was downloading.
+  if(latest.phase==="paused")s.phase="paused";
+  if(latest.phase==="error"&&s.phase==="running")s.phase="error";
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Date.now()+(firstFailure?Math.min(300000,15000*2**s.retries):4000):s.expiresAt)
  }
