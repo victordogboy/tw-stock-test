@@ -233,7 +233,7 @@ export class TxDownloadJob{
     c.close();
    }catch(e){c.error(e)}
   }});
-  const name=all?"FinMind_TX_1min_"+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-")+".csv.gz":"FinMind_TX_1min_"+scope+".csv";
+  const name=all?"FinMind_TX_1min_"+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-","")+".csv.gz":"FinMind_TX_1min_"+scope+".csv";
   return new Response(stream,{headers:{"content-type":all?"application/gzip":"text/csv; charset=utf-8","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
  }
 }
