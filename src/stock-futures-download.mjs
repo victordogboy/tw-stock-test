@@ -33,25 +33,48 @@ export function parseStockFutureUniverse(html){
  if(a.length<100)throw Error("期交所名單不完整，僅辨識到 "+a.length+" 個股期貨代碼");
  return a.sort((x,y)=>x.code.localeCompare(y.code));
 }
+// One underlying stock = one download instrument. When a 100-share contract exists,
+// it replaces the 2,000-share contract; never merge volumes between sizes.
+export function preferMiniStockFutures(list){
+ const stocks=new Map();
+ for(const c of list){
+  const previous=stocks.get(c.stock);
+  if(!previous||c.units<previous.units||(c.units===previous.units&&c.code<previous.code))stocks.set(c.stock,c)
+ }
+ return [...stocks.values()].sort((a,b)=>a.stock.localeCompare(b.stock,"en"));
+}
 export function filterStockFutureBars(list,symbol,date,meta){
  if(!Array.isArray(list))throw Error("FinMind 格式錯誤：未取得 K 棒陣列");
- const seen=new Map(),items=[],audit={rows:0,day:0,night:0,rawVolume:0,rejectedProduct:0,rejectedContract:0,rejectedInvalid:0,duplicates:0};
+ const seen=new Map(),candidates=[],nearest=new Map(),items=[];
+ const audit={rows:0,day:0,night:0,rawVolume:0,rejectedProduct:0,rejectedContract:0,rejectedInvalid:0,rejectedFarMonth:0,duplicates:0};
+ const monthFloor=date.slice(0,4)+date.slice(5,7);
  for(const r of list){
   if(String(r?.futures_id||"").trim()!==symbol){audit.rejectedProduct++;continue}
   const contract=String(r.contract_date||"").trim(),minute=String(r.minute||"").trim(),d=String(r.date||"").slice(0,10);
-  if(!/^\d{6}$/.test(contract)||+contract.slice(4)<1||+contract.slice(4)>12){audit.rejectedContract++;continue}
+  // Exclude calendar spreads, malformed months, and expired contract months.
+  if(!/^\d{6}$/.test(contract)||+contract.slice(4)<1||+contract.slice(4)>12||contract<monthFloor){audit.rejectedContract++;continue}
   const m=/^(\d{2}):(\d{2}):(\d{2})$/.exec(minute);
   if(!m||d!==date||+m[1]>23||+m[2]>59||+m[3]>59){audit.rejectedInvalid++;continue}
   const clock=+m[1]*60+(+m[2]),day=clock>=525&&clock<=825,night=clock>=1045||clock<=300;
-  if(!day&&!night){audit.rejectedInvalid++;continue}
-  if(night&&!meta.night){audit.rejectedInvalid++;continue}
+  if(!day&&!night||night&&!meta.night){audit.rejectedInvalid++;continue}
   const v=Number(r.volume),prices=[r.open,r.high,r.low,r.close].map(Number);
-  if(!Number.isSafeInteger(v)||v<0||!prices.every(z=>Number.isFinite(z)&&z>0)||prices[1]<Math.max(prices[0],prices[3])||prices[2]>Math.min(prices[0],prices[3])){audit.rejectedInvalid++;continue}
+  if(!Number.isSafeInteger(v)||v<0||!prices.every(z=>Number.isFinite(z)&&z>0)||prices[1]<Math.max(prices[0],prices[3])||prices[2]>Math.min(prices[0],prices[3])||prices[1]<prices[2]){audit.rejectedInvalid++;continue}
   const key=contract+"|"+minute,signature=prices.join(",")+","+v;
   if(seen.has(key)){if(seen.get(key)!==signature)throw Error("同分鐘、同月份期貨 OHLC/成交量相互矛盾");audit.duplicates++;continue}
-  seen.set(key,signature);audit.rows++;audit.rawVolume+=v;
-  if(day)audit.day++;else audit.night++;
-  items.push({key:minute+"|"+contract,line:[d,minute,day?"day":"night",symbol,meta.stock,meta.units,contract,...prices,v].map(column).join(",")+"\n"});
+  seen.set(key,signature);
+  // The calendar day has three distinct sessions: previous-night 00:00–05:00,
+  // daytime, and next-night 17:25–23:59. Expiration can roll between sessions.
+  const sessionKey=day?"day":clock<=300?"nightEarly":"nightLate";
+  if(!nearest.has(sessionKey)||contract<nearest.get(sessionKey))nearest.set(sessionKey,contract);
+  candidates.push({minute,contract,sessionKey,day,prices,v,d});
+ }
+ for(const r of candidates){
+  // Strictly keep the nearest available expiry for this session.
+  // Never substitute a far-month quote for a missing minute of near month.
+  if(r.contract!==nearest.get(r.sessionKey)){audit.rejectedFarMonth++;continue}
+  audit.rows++;audit.rawVolume+=r.v;
+  if(r.day)audit.day++;else audit.night++;
+  items.push({key:r.minute+"|"+r.contract,line:[r.d,r.minute,r.day?"day":"night",symbol,meta.stock,meta.units,r.contract,...r.prices,r.v].map(column).join(",")+"\n"});
  }
  items.sort((a,b)=>a.key.localeCompare(b.key));
  return {csv:items.map(x=>x.line).join(""),audit};
@@ -77,8 +100,9 @@ export async function stockFuturesRoute(request,env){
   try{
    const r=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
    if(!r.ok)throw Error("TAIFEX HTTP "+r.status);
-   const catalog=parseStockFutureUniverse(await r.text());
-   return respond({ok:true,source:"TAIFEX 股票期貨/選擇權交易標的",asOf:new Date().toISOString(),count:catalog.length,catalog});
+   const all=parseStockFutureUniverse(await r.text());
+   const catalog=preferMiniStockFutures(all);
+   return respond({ok:true,source:"TAIFEX 股票期貨/選擇權交易標的",asOf:new Date().toISOString(),count:catalog.length,rawCount:all.length,miniCount:catalog.filter(x=>x.units===100).length,policy:"one-stock-mini-first-nearest-expiry",catalog});
   }catch(e){return respond({ok:false,error:"取得期交所個股期貨商品清單失敗："+e.message},502)}
  }
  if(path==="/api/stock-futures/start"&&method==="POST"){
@@ -145,7 +169,7 @@ export class StockFuturesData{
 }
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
- summary(s){return {ok:true,phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,errors:s.errors.slice(-30),codes:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:"TAIFEX 當前標的；歷史終止上市契約可能不在清單內",message:s.message,version:1}}
+ summary(s){return {ok:true,phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
  shard(code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(code))}
  async fetch(r){
   const p=new URL(r.url).pathname,st=this.ctx.storage;
@@ -153,21 +177,23 @@ export class StockFuturesBatch{
    const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token)return respond({ok:false,error:"沒有 FinMind Token"},401);
    const q=await r.json();let old=await st.get("state");
-   if(old&&!q.reset){await st.put("token",token);return respond({...this.summary(old),existing:true})}
+   if(old&&!q.reset){await st.put("token",token);return respond({...this.summary(old),existing:true,message:old.version===2?old.message:"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再按『重建小型＋近月任務』重抓。",legacy:old.version!==2})}
    let catalog;
    try{
     const official=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
     if(!official.ok)throw Error("TAIFEX HTTP "+official.status);
-    catalog=parseStockFutureUniverse(await official.text());
+    const rawCatalog=parseStockFutureUniverse(await official.text());
+    const requested=new Set(Array.isArray(q.codes)?q.codes:[]);
+    catalog=preferMiniStockFutures(rawCatalog);
+    // The old UI may send a standard-contract code; map it to the same stock\'s mini.
+    if(requested.size){const stocks=new Set(rawCatalog.filter(x=>requested.has(x.code)).map(x=>x.stock));catalog=catalog.filter(x=>stocks.has(x.stock))}
    }catch(e){return respond({ok:false,error:"不能驗證完整個股期貨商品清單，未啟動下載："+e.message},502)}
-   const selected=new Set(Array.isArray(q.codes)?q.codes:[]);
-   if(selected.size)catalog=catalog.filter(x=>selected.has(x.code));
    if(!catalog.length)return respond({ok:false,error:"沒有符合的個股期貨"},400);
    if(old&&q.reset){
     // Each private job has its own randomized shard namespace. Old shards expire after 30 days.
     await st.deleteAll()
    }
-   const s={phase:"running",shardKey:randomId(),start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night})),date:q.start,symbolIndex:0,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,duplicates:0,retries:0,errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:"已建立雲端任務。以固定速率分批下載，手機可離線"};
+   const s={phase:"running",shardKey:randomId(),start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night})),date:q.start,symbolIndex:0,version:2,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,excludedFarMonth:0,duplicates:0,retries:0,errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:"已建立小型優先、各交易時段近月合約的雲端任務。手機可離線"};
    for(let d=q.start;d<=q.end;d=next(d)){const w=dayOf(d);if(w===0)continue;for(const c of catalog)if(w!==6||c.night)s.total++}
    await st.put("token",token);await st.put("state",s);await st.setAlarm(Date.now()+100);
    return respond(this.summary(s),202)
@@ -215,7 +241,7 @@ export class StockFuturesBatch{
   const firstFailure=result.find(x=>!x.success);
   for(let i=0;i<result.length;i++){
    const x=result[i];
-   if(x.success&&(!firstFailure||i<result.indexOf(firstFailure))){s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;s.night+=x.night;s.duplicates+=x.duplicates;s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid}
+   if(x.success&&(!firstFailure||i<result.indexOf(firstFailure))){s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;s.night+=x.night;s.duplicates+=x.duplicates;s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid;s.excludedFarMonth+=x.rejectedFarMonth}
    if(!x.success){s.errors.push({day:x.day,code:x.c.code,error:x.error});s.errors=s.errors.slice(-100)}
   }
   if(firstFailure){
