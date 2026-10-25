@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {gunzipSync} from "node:zlib";
-import {parseStockFutureUniverse,preferMiniStockFutures,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -142,12 +142,27 @@ test("equity 1-minute duplicates with conflicting prices are rejected",()=>{
  assert.throws(()=>filterUnderlyingStockBars([a,{...a,close:1100}],"2330","2026-10-23",{name:"台積電",futureCode:"QFF"}),/矛盾/);
 });
 test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and exports cash-equity OHLCV",async()=>{
- const x=fixture(),orig=globalThis.fetch,queries=[];
+ const x=fixture(),orig=globalThis.fetch,queries=[],metaQueries=[];
  globalThis.fetch=async(url,opt)=>{
   const target=String(url);
   if(target.includes("taifex.com.tw"))return new Response(x.html,{status:200});
-  const u=new URL(target);
-  assert.equal(u.searchParams.get("dataset"),"TaiwanStockKBar");
+  const u=new URL(target),dataset=u.searchParams.get("dataset");
+  if(dataset==="TaiwanStockTradingDate"){
+   const data=[];
+   for(let t=Date.parse("2019-01-01");t<=Date.parse("2022-12-31");t+=86400000){
+    const day=new Date(t).toISOString().slice(0,10),weekday=new Date(t).getUTCDay();
+    if(weekday!==0&&weekday!==6)data.push({date:day});
+   }
+   return Response.json({status:200,data});
+  }
+  if(dataset==="TaiwanStockPrice"){
+   metaQueries.push(u.searchParams.get("data_id"));
+   return Response.json({status:200,data:[
+    {date:"2021-01-01",stock_id:u.searchParams.get("data_id"),close:100},
+    {date:"2021-01-04",stock_id:u.searchParams.get("data_id"),close:101}
+   ]});
+  }
+  assert.equal(dataset,"TaiwanStockKBar");
   const d=u.searchParams.get("start_date"),stock=u.searchParams.get("data_id");
   assert.ok(["2330","2303"].includes(stock));
   assert.equal(opt.headers.authorization,"Bearer test-sponsor-token");
@@ -172,11 +187,14 @@ test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and ex
   const body=await result.json();
   assert.equal(body.mode,"stocks");assert.equal(body.codeCount,2);
   assert.equal(body.total,4); // Jan 1 Friday, Jan 4 Monday, Jan 2/3 weekends skipped
-  await x.job.alarm();
+  await x.job.alarm(); // one official trading-calendar request
+  await x.job.alarm(); // two full-period daily-price probes
+  await x.job.alarm(); // 1-minute download starts
+  assert.deepEqual(metaQueries.sort(),["2303","2330"]);
   assert.deepEqual(queries.sort(),[["2330","2021-01-01"],["2303","2021-01-01"],["2330","2021-01-04"],["2303","2021-01-04"]].sort());
   const status=await (await stockFuturesRoute(new Request(host+"/api/stock-kbar/status",{headers:{cookie}}),x.env,"stocks")).json();
   assert.equal(status.phase,"done");assert.equal(status.rows,4);
-  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");
+  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");assert.equal(status.rateLimitPerHour,4800);assert.equal(status.preflightDone,2);assert.ok(status.calendarVerified);
   const output=await stockFuturesRoute(new Request(host+"/api/stock-kbar/export?code=2330",{headers:{cookie}}),x.env,"stocks");
   assert.equal(output.status,200);
   const csv=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
@@ -186,6 +204,56 @@ test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and ex
   assert.ok(!csv.includes(",2303,"));
   const wrongCookie=await stockFuturesRoute(new Request(host+"/api/stock-kbar/status",{headers:{cookie:cookie.replace("__Host-underlying1m","__Host-sf5y")}}),x.env,"stocks");
   assert.equal(wrongCookie.status,401);
+ }finally{globalThis.fetch=orig}
+});
+test("validated trading calendar requires plausible source data; daily-price metadata cannot invent skips",()=>{
+ const data=[];
+ for(let t=Date.parse("2019-01-01");t<=Date.parse("2025-12-31");t+=86400000){
+  const date=new Date(t).toISOString().slice(0,10),wd=new Date(t).getUTCDay();
+  if(wd!==0&&wd!==6)data.push({date});
+ }
+ const parsed=parseTradingCalendar(data,"2021-01-01","2021-01-10");
+ assert.equal(parsed.dates.length,6);
+ assert.ok(parsed.dates.includes("2021-01-04"));
+ assert.throws(()=>parseTradingCalendar([{date:"2021-01-04"}],"2021-01-01","2021-01-10"),/不完整/);
+ assert.equal(firstDailyPriceDate([{date:"2023-01-05",stock_id:"2330"},{date:"2022-01-04",stock_id:"2330"}],"2330","2021-01-01","2024-01-01"),"2022-01-04");
+ assert.equal(firstDailyPriceDate([{date:"2022-01-04",stock_id:"2317"}],"2330","2021-01-01","2024-01-01"),"");
+});
+test("existing in-flight cash-equity job keeps all downloaded rows and is upgraded in-place",async()=>{
+ const x=fixture(),orig=globalThis.fetch,requests=[];
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url),dataset=u.searchParams.get("dataset");
+  if(dataset==="TaiwanStockTradingDate"){
+   // Failure must conservatively fall back to querying weekdays, never falsely skip.
+   return Response.json({status:400,msg:"calendar unavailable",data:[]},{status:400});
+  }
+  if(dataset==="TaiwanStockPrice"){
+   const stock=u.searchParams.get("data_id");
+   return Response.json({status:200,data:[{stock_id:stock,date:"2024-01-02",close:100}]});
+  }
+  assert.equal(dataset,"TaiwanStockKBar");
+  requests.push([u.searchParams.get("data_id"),u.searchParams.get("start_date")]);
+  return Response.json({status:200,data:[{stock_id:u.searchParams.get("data_id"),date:u.searchParams.get("start_date"),minute:"09:00:00",open:100,high:100,low:100,close:100,volume:10}]});
+ };
+ try{
+  const old={phase:"running",shardKey:"existing-shard",mode:"stocks",version:3,
+   start:"2023-12-29",end:"2024-01-04",date:"2024-01-02",symbolIndex:0,
+   catalog:[{code:"2330",stock:"2330",futureCode:"QFF",name:"台積電",night:false}],
+   codes:[{code:"2330",stock:"2330",name:"台積電"}],total:5,processed:1,rows:270,
+   night:0,nonempty:1,empty:0,duplicates:0,rejected:0,errors:[],queries:1,retries:0,
+   createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+3600000};
+  await x.ctx.storage.put("state",old);await x.ctx.storage.put("token","test-sponsor-token");
+  await x.job.alarm(); // calendar fails, no skipped dates
+  await x.job.alarm(); // daily-price IPO hint
+  await x.job.alarm(); // remaining 3 trading dates
+  const state=await x.ctx.storage.get("state");
+  assert.equal(state.shardKey,"existing-shard");
+  assert.equal(state.phase,"done");
+  assert.equal(state.rows,273);
+  assert.equal(state.processed,4);
+  assert.equal(state.skipped||0,0);
+  assert.deepEqual(requests.map(x=>x[1]),["2024-01-02","2024-01-03","2024-01-04"]);
  }finally{globalThis.fetch=orig}
 });
 test("new main page calls stock KBar API while archived futures downloader keeps original endpoint",()=>{
