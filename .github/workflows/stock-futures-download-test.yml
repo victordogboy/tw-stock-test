@@ -1,0 +1,43 @@
+name: Stock futures five-year cloud checks
+on:
+  push:
+    paths:
+      - "src/stock-futures-download.mjs"
+      - "tests/stock-futures-download.test.mjs"
+      - "public/stock-futures-download.html"
+      - "src/worker.mjs"
+      - "wrangler.jsonc"
+      - ".github/workflows/stock-futures-download-test.yml"
+  pull_request:
+    paths:
+      - "src/stock-futures-download.mjs"
+      - "tests/stock-futures-download.test.mjs"
+      - "public/stock-futures-download.html"
+      - "src/worker.mjs"
+      - "wrangler.jsonc"
+      - ".github/workflows/stock-futures-download-test.yml"
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax check
+        run: |
+          node --check src/stock-futures-download.mjs
+          node --check src/worker.mjs
+          node - <<'NODE'
+          const fs=require('node:fs'),vm=require('node:vm');
+          const html=fs.readFileSync('public/stock-futures-download.html','utf8');
+          const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
+          if(scripts.length!==1) throw Error('Expected one dashboard script');
+          new vm.Script(scripts[0]);
+          const config=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8'));
+          for(const c of ['StockFuturesBatch','StockFuturesData']) {
+            if(!config.durable_objects.bindings.find(b=>b.class_name===c))throw Error('Missing Durable Object '+c);
+          }
+          NODE
+      - name: API and data integrity tests
+        run: node --test tests/stock-futures-download.test.mjs
