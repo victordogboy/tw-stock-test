@@ -110,7 +110,7 @@ test("S tier uses explicit one-code one-day FinMind calls; Saturday 00-05 and an
   await x.job.alarm();
   assert.deepEqual(queries.sort(),[["CCF","2021-01-01"],["CCF","2021-01-02"],["QFF","2021-01-01"],["QFF","2021-01-02"]].sort());
   const state=await (await stockFuturesRoute(new Request(host+"/api/stock-futures/status",{headers:{cookie}}),x.env)).json();
-  assert.equal(state.phase,"done");assert.equal(state.processed,4);assert.equal(state.rows,4);assert.equal(state.night,4);
+  assert.equal(state.phase,"done");assert.equal(state.processed,5);assert.equal(state.rows,4);assert.equal(state.night,4);
   const output=await stockFuturesRoute(new Request(host+"/api/stock-futures/export?year=2021",{headers:{cookie}}),x.env);
   assert.equal(output.status,200);
   const plain=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
@@ -219,6 +219,42 @@ test("validated trading calendar requires plausible source data; daily-price met
  assert.equal(firstDailyPriceDate([{date:"2023-01-05",stock_id:"2330"},{date:"2022-01-04",stock_id:"2330"}],"2330","2021-01-01","2024-01-01"),"2022-01-04");
  assert.equal(firstDailyPriceDate([{date:"2022-01-04",stock_id:"2317"}],"2330","2021-01-01","2024-01-01"),"");
 });
+test("skips verified holidays and dates before the first observed trade, without fabricated K-bars",async()=>{
+ const x=fixture(),orig=globalThis.fetch,queries=[];
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url),dataset=u.searchParams.get("dataset");
+  if(dataset==="TaiwanStockTradingDate"){
+   const list=[];
+   for(let t=Date.parse("2019-01-01");t<=Date.parse("2026-12-31");t+=86400000){
+    const date=new Date(t).toISOString().slice(0,10),wd=new Date(t).getUTCDay();
+    if(wd!==0&&wd!==6&&date!=="2024-01-03")list.push({date});
+   }
+   return Response.json({status:200,data:list});
+  }
+  if(dataset==="TaiwanStockPrice"){
+   return Response.json({status:200,data:[{stock_id:"2330",date:"2024-01-04",close:100}]});
+  }
+  assert.equal(dataset,"TaiwanStockKBar");
+  queries.push(u.searchParams.get("start_date"));
+  return Response.json({status:200,data:[{stock_id:"2330",date:u.searchParams.get("start_date"),
+   minute:"09:00:00",open:100,high:101,low:99,close:101,volume:10}]});
+ };
+ try{
+  const resp=await stockFuturesRoute(new Request(host+"/api/stock-kbar/start",{method:"POST",
+   headers:{authorization:"Bearer test-sponsor-token",origin:host},
+   body:JSON.stringify({start:"2024-01-01",end:"2024-01-05",codes:["2330"]})}),x.env,"stocks");
+  assert.equal(resp.status,202);
+  await x.job.alarm();await x.job.alarm();await x.job.alarm();
+  const state=await x.ctx.storage.get("state");
+  assert.equal(state.phase,"done");
+  assert.deepEqual(queries,["2024-01-04","2024-01-05"]);
+  assert.equal(state.skipped,3);
+  assert.equal(state.processed,5);
+  assert.equal(state.rows,2);
+  assert.equal(state.total,5);
+ }finally{globalThis.fetch=orig}
+});
 test("existing in-flight cash-equity job keeps all downloaded rows and is upgraded in-place",async()=>{
  const x=fixture(),orig=globalThis.fetch,requests=[];
  globalThis.fetch=async(url)=>{
@@ -240,7 +276,7 @@ test("existing in-flight cash-equity job keeps all downloaded rows and is upgrad
   const old={phase:"running",shardKey:"existing-shard",mode:"stocks",version:3,
    start:"2023-12-29",end:"2024-01-04",date:"2024-01-02",symbolIndex:0,
    catalog:[{code:"2330",stock:"2330",futureCode:"QFF",name:"台積電",night:false}],
-   codes:[{code:"2330",stock:"2330",name:"台積電"}],total:5,processed:1,rows:270,
+   codes:[{code:"2330",stock:"2330",name:"台積電"}],total:5,processed:2,rows:270,
    night:0,nonempty:1,empty:0,duplicates:0,rejected:0,errors:[],queries:1,retries:0,
    createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+3600000};
   await x.ctx.storage.put("state",old);await x.ctx.storage.put("token","test-sponsor-token");
