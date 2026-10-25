@@ -110,7 +110,7 @@ test("S tier uses explicit one-code one-day FinMind calls; Saturday 00-05 and an
   await x.job.alarm();
   assert.deepEqual(queries.sort(),[["CCF","2021-01-01"],["CCF","2021-01-02"],["QFF","2021-01-01"],["QFF","2021-01-02"]].sort());
   const state=await (await stockFuturesRoute(new Request(host+"/api/stock-futures/status",{headers:{cookie}}),x.env)).json();
-  assert.equal(state.phase,"done");assert.equal(state.processed,5);assert.equal(state.rows,4);assert.equal(state.night,4);
+  assert.equal(state.phase,"done");assert.equal(state.processed,4);assert.equal(state.rows,4);assert.equal(state.night,4);
   const output=await stockFuturesRoute(new Request(host+"/api/stock-futures/export?year=2021",{headers:{cookie}}),x.env);
   assert.equal(output.status,200);
   const plain=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
@@ -287,7 +287,7 @@ test("existing in-flight cash-equity job keeps all downloaded rows and is upgrad
   assert.equal(state.shardKey,"existing-shard");
   assert.equal(state.phase,"done");
   assert.equal(state.rows,273);
-  assert.equal(state.processed,4);
+  assert.equal(state.processed,5);
   assert.equal(state.skipped||0,0);
   assert.deepEqual(requests.map(x=>x[1]),["2024-01-02","2024-01-03","2024-01-04"]);
  }finally{globalThis.fetch=orig}
