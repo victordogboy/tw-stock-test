@@ -31,7 +31,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <div class="eyebrow">FINMIND · FUTURES-ELIGIBLE STOCKS · BACKGROUND</div>
 <h1>有個股期貨的股票<br>現股 1 分 K 下載</h1>
 <p>只使用期交所個股期貨清單<strong>篩選有哪些股票</strong>，真正下載的是這些股票的<strong>現股 1 分鐘 K 線（TaiwanStockKBar）</strong>，例如台積電只抓 2330。不是股票期貨行情，不需要大小合約、近月換月或夜盤。沿用 FinMind Sponsor Token，手機鎖螢幕後仍可雲端下載。</p>
-<div class="chips"><span class="chip">有期貨的股票才下載</span><span class="chip">現股 1 分 K</span><span class="chip">每檔股票一份</span><span class="chip">2021 年起</span><span class="chip">原始量（張）</span><span class="chip">安全高速模式</span></div>
+<div class="chips"><span class="chip">有期貨的股票才下載</span><span class="chip">現股 1 分 K</span><span class="chip">每檔股票一份</span><span class="chip">2021 年起</span><span class="chip">原始成交量</span><span class="chip">安全高速模式</span></div>
 <section class="card"><h2>下載範圍</h2>
 <div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
 <label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
@@ -61,7 +61,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <h3>單一股票：整段期間</h3>
 <label for="oneSymbol">股票</label><select id="oneSymbol"></select>
 <div class="actions"><a id="oneFile" class="file" href="#">下載這檔全部已取得資料（CSV.gz）</a></div>
-<details><summary>展開下載規格</summary><p class="minor">CSV：date、minute、stock_id、stock_name、qualifying_futures_id（僅標示入選原因）、open、high、low、close、volume_lots。全部 OHLCV 來自 FinMind TaiwanStockKBar 現股資料；成交量上市／上櫃股票原始單位為張。保留延後收盤 13:33、盤後定價 14:30 分 K；休市日沒有資料。不作除權息價格還原，不使用期貨報價。</p></details>
+<details><summary>展開下載規格</summary><p class="minor">CSV：date、minute、stock_id、stock_name、qualifying_futures_id（僅標示入選原因）、open、high、low、close、volume_raw。全部 OHLCV 來自 FinMind TaiwanStockKBar；成交量保留來源原始單位：上市／上櫃為張、曾為興櫃時可能為股，未做換算，回測前請按歷史市場別處理。保留延後收盤 13:33、盤後定價 14:30 分 K；休市日沒有資料。不作除權息價格還原，不使用期貨報價。</p></details>
 </section>
 <section class="card"><h2>關於下載速度與費用</h2>
 <p>新版將雲端請求節奏提高至<strong>最多約 4,800 次／小時</strong>（FinMind Sponsor 上限 6,000 次／小時），並用官方交易日曆排除休市日、參考現股日線確認最早可用交易日，避免多年無效請求。第一次啟動／舊任務升級時，會先做一次這兩項預檢；既有已下載分 K 不會清除。速度仍受 FinMind 回應、雲端延遲和你同一 Token 的其他程式使用額度影響。</p>
