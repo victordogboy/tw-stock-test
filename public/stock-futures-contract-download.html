@@ -1,0 +1,156 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark"><title>個股期貨｜小型優先・近月 1 分 K 雲端下載</title>
+<style>
+:root{font:15px/1.55 system-ui,"Noto Sans TC",sans-serif;background:#0a1422;color:#e9f2fe}*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 98% 0,#16464f66,transparent 48%),#0a1422;min-height:100vh}
+main{max-width:950px;margin:auto;padding:28px 16px 85px}h1{font-size:clamp(29px,6vw,46px);line-height:1.15;margin:18px 0}h2{font-size:20px;margin:0 0 14px}h3{font-size:15px;margin:20px 0 9px}
+p{color:#a9bbd0;line-height:1.7}a{color:#8bdfd9}nav{display:flex;flex-wrap:wrap;gap:17px;font-size:13px}
+.card{background:#142438;border:1px solid #304b63;padding:21px;border-radius:17px;margin:19px 0;box-shadow:0 10px 26px #0003}
+.eyebrow{font-size:12px;letter-spacing:.16em;color:#78dccb;font-weight:800;margin-top:32px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:17px 0}.chip{font-size:12px;background:#1a3a46;border:1px solid #335d68;border-radius:20px;color:#c2f8e1;padding:5px 10px}
+label{display:block;font-size:13px;font-weight:650;margin:12px 0 7px}
+input,select{width:100%;font:inherit;color:inherit;background:#0d1c2e;border:1px solid #405b77;border-radius:10px;padding:12px;min-width:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:530px){.grid{grid-template-columns:1fr}}
+button,.file{display:inline-flex;align-items:center;justify-content:center;font:700 13px system-ui;cursor:pointer;border:0;border-radius:11px;padding:12px 15px;text-decoration:none;background:#5edcce;color:#0b2d36}
+button:disabled{opacity:.4;cursor:not-allowed}.secondary,.file{background:#294258;color:#e3f4fb;border:1px solid #3d5a75}.danger{background:#5a3138;color:#ffd8dc;border:1px solid #a15d68}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.actions button{flex:1 1 130px}
+small,.minor{font-size:12px;color:#93a9be;line-height:1.6}.note{background:#103039;color:#b5e5e4;border-radius:10px;padding:13px;font-size:13px;line-height:1.65;margin:16px 0}
+.warn{background:#382c29;color:#f9d1aa;border:1px solid #745441}.hidden{display:none}
+.bar{height:16px;width:100%;background:#0d1c29;border-radius:12px;overflow:hidden;margin:20px 0 10px}#fill{height:100%;width:0%;background:linear-gradient(90deg,#2c9eac,#66dfad);transition:width .4s}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:18px 0}.stat{background:#102035;border-radius:11px;padding:13px 5px;text-align:center}
+.stat b{font-size:clamp(16px,3.8vw,23px);display:block}.stat small{display:block}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:center}.status{border-radius:30px;background:#245157;padding:6px 11px;font-size:12px}
+.catalog{height:210px;overflow:auto;background:#0d1c2d;border-radius:11px;border:1px solid #30485d;margin-top:10px;padding:4px}
+.catalogrow{display:flex;gap:12px;align-items:center;border-bottom:1px solid #26394f;padding:9px 12px}.catalogrow input{width:auto}.catalogrow .grow{flex:1}.catalogrow .minor{display:block}
+.catalogrow span{font-size:12px;color:#85e3d3}.fileline{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #344961;padding:13px 1px;gap:10px}
+.fileline b{font-size:16px}.fileline small{display:block}.fileline a{white-space:nowrap}
+#errors{white-space:pre-wrap;max-height:190px;overflow:auto;color:#ffd0be;font-size:12px}details{margin-top:13px}summary{cursor:pointer;color:#a3e2dd}
+footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
+</style></head><body><main>
+<nav><a href="/tx-download.html">← 台指期 1 分 K</a><a href="/futures.html">台指期分析</a><a href="/scanner.html">個股分析</a></nav>
+<div class="eyebrow">FINMIND · STOCK FUTURES · BACKGROUND</div>
+<h1>所有個股期貨<br>近月 1 分 K 下載</h1>
+<p>與台指期下載器共用 FinMind Token。依期交所普通股期貨清單，每檔股票只選一種合約：<strong>有 100 股小型期貨就取代大型</strong>；每個交易時段只保留<strong>最近到期月份（近月）</strong>，排除遠月與跨月價差。手機離線仍可背景下載。</p>
+<div class="chips"><span class="chip">只收個股期貨</span><span class="chip">排除 ETF / 指數</span><span class="chip">小型期貨優先</span><span class="chip">嚴格近月單一月份</span><span class="chip">包含有夜盤的商品</span><span class="chip">原始成交量不調整</span></div>
+<section class="card"><h2>下載範圍</h2>
+<div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
+<label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
+<div class="minor" id="tokenStatus">正在檢查 Token…</div>
+<h3>個股期貨商品清單</h3>
+<div class="actions"><button id="loadCatalog" class="secondary">更新期交所名單</button><button id="allBtn" class="secondary">全選</button><button id="noneBtn" class="secondary">全不選</button></div>
+<label for="filter">搜尋代碼、標的股票名稱或股票代號</label><input id="filter" placeholder="例如 2330、台積電、CDF">
+<div class="minor" style="margin-top:8px" id="catalogStatus">準備取得期交所名單…</div>
+<div class="catalog" id="catalog"></div>
+<div class="note warn">「全部」指期交所目前有掛牌的普通股期貨股票，每股票僅選一種合約。若小型期貨晚於 2021 年才上市，上市前不拿大型合約補資料（避免不同規格混合）；歷年已下市商品亦不包含。近月以每個日／夜交易時段最早有效到期月份認定，缺 K 不使用遠月填補。</div>
+<div class="actions"><button id="startBtn" disabled>▶ 啟動雲端背景下載</button></div>
+<p class="minor">此功能不需要另外設定 Cloudflare Secret。按下開始後，Token 僅傳送到你自己的雲端私有下載工作，不寫入 GitHub 或 CSV。</p>
+</section>
+<section class="card hidden" id="progressCard">
+<div class="top"><h2 style="margin:0">雲端下載進度</h2><span class="status" id="phase">—</span></div>
+<div class="bar"><div id="fill"></div></div>
+<div class="top"><b id="percent">0%</b><small id="count">0/0 商品×日期</small></div>
+<div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="night">0</b><small>夜盤 K 棒</small></div></div>
+<p id="message">—</p><div class="minor" id="cursor"></div>
+<div class="actions"><button id="pauseBtn" class="secondary">暫停</button><button id="resumeBtn" class="secondary">繼續下載</button><button id="refreshBtn" class="secondary">更新狀態</button><button id="resetBtn" class="secondary">重建小型＋近月任務</button></div>
+<details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
+</section>
+<section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
+<p>每個年度一包，包內是<strong>小型優先、只保留近月的個股期貨</strong> 1 分 K。適合手機分年下載，也可選單一股票的全期間資料。</p>
+<div class="note warn" id="exportNote">任務尚未完成，年度檔可能只有部分資料。請核對下方進度。</div>
+<h3>各年度：每檔股票一種期貨・只保留近月</h3><div id="years"></div>
+<h3>單一商品：整段五年</h3>
+<label for="oneSymbol">商品</label><select id="oneSymbol"></select>
+<div class="actions"><a id="oneFile" class="file" href="#">下載這檔全部已取得資料（CSV.gz）</a></div>
+<details><summary>展開下載規格</summary><p class="minor">欄位：date、minute、session、futures_id、underlying_stock、contract_size、contract_date、open、high、low、close、volume。價格、成交量使用 FinMind TaiwanFuturesKBar 原始值，不乘二、不除二。每個日曆日依凌晨夜盤／日盤／傍晚夜盤分別決定近月，遠月不補缺 K；跨午夜請按交易規則重建 trading_date。近月換月有價差，不應直接視為價格跳空獲利。</p></details>
+</section>
+<section class="card"><h2>關於下載速度與費用</h2>
+<p>FinMind Sponsor 必須按「一商品 × 一日期」查詢，無法一次抓全市場。程式限制請求頻率，盡量避免觸發會員額度；全部商品五年可能需要大量請求、數日雲端執行及雲端儲存空間。</p>
+<p>如果 FinMind 回傳超額或無效 Token，背景工作會顯示錯誤並暫停，不會假裝已完成。完成的資料先保存在雲端私有儲存，請下載備份。</p>
+<div class="actions"><button id="deleteBtn" class="danger">清除這次的全部雲端資料</button></div>
+</section>
+<footer>資料來源：<a href="https://www.taifex.com.tw/cht/2/stockLists">臺灣期貨交易所商品清單</a>、<a href="https://finmind.github.io/tutor/TaiwanMarket/Derivative/">FinMind TaiwanFuturesKBar</a>。僅供個人研究，不得公開重散布 FinMind 原始資料。</footer>
+</main>
+<script>
+(function(){
+ "use strict";const $=id=>document.getElementById(id),fmt=x=>Number(x||0).toLocaleString("zh-TW");
+ const savedToken=()=>{try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");return String(s?.tokens?.[Number(s?.active)===1?1:0]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}};
+ let catalog=[],selected=new Set(),job=null,busy=false,rawCount=0,miniCount=0;
+ $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+ const t=savedToken();$("tokenStatus").textContent=t?"✓ 已找到個股分析使用的 Token（尾碼 "+t.slice(-4)+"），直接按開始即可":"這個瀏覽器沒有已儲存的 Token，請在上方輸入一次";
+ async function call(path,init){let response;try{response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(init||{})})}catch{throw Error("網路連線失敗，背景任務不受影響")};let data=await response.json().catch(()=>({error:"伺服器未回傳 JSON"}));if(!response.ok||data.ok===false)throw Error(data.error||"HTTP "+response.status);return data}
+ function catalogRender(){
+  const filter=$("filter").value.trim().toLowerCase();$("catalog").replaceChildren();
+  const arr=catalog.filter(x=>[x.code,x.stock,x.name].some(t=>String(t).toLowerCase().includes(filter)));
+  const f=document.createDocumentFragment();
+  for(const x of arr){
+   const line=document.createElement("label");line.className="catalogrow";
+   const ch=document.createElement("input");ch.type="checkbox";ch.checked=selected.has(x.code);ch.onchange=()=>{if(ch.checked)selected.add(x.code);else selected.delete(x.code);updateCount()};
+   const txt=document.createElement("div");txt.className="grow";txt.textContent=x.code+" · "+x.name;
+   const detail=document.createElement("small");detail.textContent=x.stock+" · "+fmt(x.units)+" 股"+(x.units===100?" · 小型優先":" · 標準型")+(x.night?" · 有夜盤":"")+" · 近月";
+   txt.append(detail);line.append(ch,txt);f.append(line);
+  }
+  $("catalog").append(f);updateCount();
+ }
+ function updateCount(){
+  $("catalogStatus").textContent=catalog.length?"已驗證 "+rawCount+" 種合約，依小型優先收斂為 "+catalog.length+" 檔股票（小型 "+miniCount+" 檔），已選 "+selected.size+" 檔":"尚未取得可驗證的期交所名單";
+  $("startBtn").disabled=selected.size===0||busy||!!job;
+ }
+ async function loadCatalog(){
+  $("loadCatalog").disabled=true;$("catalogStatus").textContent="正在取得期交所官方名單…";
+  try{const x=await call("/api/stock-futures/catalog");catalog=x.catalog;rawCount=x.rawCount||x.count;miniCount=x.miniCount||0;selected=new Set(catalog.map(x=>x.code));catalogRender()}
+  catch(e){$("catalogStatus").textContent=e.message}
+  finally{$("loadCatalog").disabled=false}
+ }
+ $("filter").oninput=catalogRender;$("loadCatalog").onclick=loadCatalog;
+ $("allBtn").onclick=()=>{selected=new Set(catalog.map(x=>x.code));catalogRender()};
+ $("noneBtn").onclick=()=>{selected.clear();catalogRender()};
+ function fileRow(where,label,desc,href){
+  const line=document.createElement("div");line.className="fileline";
+  const left=document.createElement("div"),b=document.createElement("b"),sm=document.createElement("small");b.textContent=label;sm.textContent=desc;left.append(b,sm);
+  const a=document.createElement("a");a.className="file";a.href=href;a.textContent="下載";a.setAttribute("download","");
+  line.append(left,a);where.append(line)
+ }
+ function render(s){
+  job=s;$("progressCard").classList.remove("hidden");$("exports").classList.remove("hidden");$("startBtn").disabled=true;
+  $("phase").textContent=({running:"下載中",paused:"已暫停",error:"需要處理",done:"已完成",expired:"已到期"})[s.phase]||s.phase;
+  const pct=s.total?Math.min(100,100*s.processed/s.total):0;$("fill").style.width=pct+"%";$("percent").textContent=pct.toFixed(2)+"%";
+  $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+" 商品×日期";
+  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("night").textContent=fmt(s.night);
+  $("message").textContent=(s.legacy?"⚠ 舊版任務非近月限定，請先備份後按『重建小型＋近月任務』。 ":"")+s.message;$("cursor").textContent="目前："+(s.currentDate||"—")+" · "+(s.currentCode||"—")+" · "+s.codeCount+" 檔股票（小型優先、近月）。資料範圍 "+s.start+" 至 "+s.end;
+  $("errors").textContent=(s.errors||[]).slice(-15).map(x=>x.day+" "+x.code+" "+x.error).join("\n")||"沒有紀錄錯誤";
+  $("pauseBtn").disabled=s.phase!=="running";$("resumeBtn").disabled=!["paused","error"].includes(s.phase);
+  $("exportNote").textContent=s.phase==="done"?"✓ 雲端已查詢完指定商品與日期，請立即備份年度檔。":"⚠ 工作尚未全部完成，目前匯出的檔案僅包含已成功下載的日期。";
+  $("years").replaceChildren();const sy=Number(s.start.slice(0,4)),ey=Number(s.end.slice(0,4));
+  for(let year=sy;year<=ey;year++)fileRow($("years"),year+" 年","所有已取得商品，CSV.gz","/api/stock-futures/export?year="+year);
+  $("oneSymbol").replaceChildren();for(const c of s.codes){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.code+" "+c.name+"（"+c.stock+" · "+(c.units===100?"小型":"標準")+"）";$("oneSymbol").append(opt)}
+  updateOne();
+ }
+ function updateOne(){$("oneFile").href="/api/stock-futures/export?code="+encodeURIComponent($("oneSymbol").value)}
+ $("oneSymbol").onchange=updateOne;
+ async function refresh(){try{const s=await call("/api/stock-futures/status");render(s)}catch(e){if(job)$("message").textContent=e.message}}
+ $("refreshBtn").onclick=refresh;
+ async function startJob(reset){
+  if(busy||!selected.size)return;const token=$("token").value.trim()||savedToken();if(!token){alert("需要 FinMind Sponsor Token");return}
+  const question=reset?"這會替換舊雲端資料，請先下載備份。確定重建小型優先、近月單一合約的任務？":"確認下載 "+selected.size+" 檔股票，從 "+$("start").value+" 到 "+$("end").value+"？（小型優先、只保留近月）";
+  if(!confirm(question))return;
+  busy=true;$("startBtn").disabled=true;
+  try{
+   const x=await call("/api/stock-futures/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value,codes:[...selected],reset:!!reset})});
+   $("token").value="";render(x);$("progressCard").scrollIntoView({behavior:"smooth"})
+  }catch(e){alert(e.message);updateCount()}finally{busy=false}
+ }
+ $("startBtn").onclick=()=>startJob(false);
+ $("resetBtn").onclick=()=>startJob(true);
+ async function action(action){
+  if(busy)return;busy=true;
+  try{const x=await call("/api/stock-futures/"+action,{method:"POST"});
+   if(x.deleted){job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");updateCount()}
+   else render(x)
+  }catch(e){alert(e.message)}finally{busy=false}
+ }
+ $("pauseBtn").onclick=()=>action("pause");$("resumeBtn").onclick=()=>action("resume");
+ $("deleteBtn").onclick=()=>{if(job&&confirm("確定刪除這次雲端資料？已下載至手機的檔案不受影響。"))action("delete")};
+ Promise.all([loadCatalog(),refresh()]).then(()=>{});
+ setInterval(()=>{if(!document.hidden&&job?.phase==="running")refresh()},14000);
+})();
+</script></body></html>
