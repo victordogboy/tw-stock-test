@@ -14,7 +14,7 @@ const SOURCE="https://www.taifex.com.tw/cht/2/stockLists";
 export function parseStockFutureUniverse(html){
  const a=[],seen=new Set();
  for(const t of String(html).matchAll(/<table\b[^>]*>([\s\S]*?)<\/table>/gi)){
-  const headers=[...t[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(m=>decode(m[1]));
+  const headers=[...t[1].matchAll(/<th\b[^>]*>([\s\S]*?)<\/th>/gi)].map(m=>decode(m[1]).replace(/\s+/g,""));
   const idx={symbol:headers.findIndex(s=>s.includes("商品代碼")),stock:headers.findIndex(s=>s.includes("證券代號")),short:headers.findIndex(s=>s.includes("簡稱")),future:headers.findIndex(s=>s.includes("是否為股票期貨")),listed:headers.findIndex(s=>s.includes("上市普通股")),otc:headers.findIndex(s=>s.includes("上櫃普通股")),units:headers.findIndex(s=>s.includes("標準型")),night:headers.findIndex(s=>s.includes("盤後交易"))};
   if(Object.values(idx).some(i=>i<0))continue;
   for(const tr of t[1].matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)){
@@ -114,6 +114,9 @@ export class StockFuturesData{
    const size=500*1024,parts=Math.ceil(bytes.length/size);
    for(let i=0;i<parts;i++)await this.ctx.storage.put("day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
    await this.ctx.storage.put("meta:"+day,{parts,bytes:bytes.byteLength});
+   const expires=Date.now()+30*DAY;
+   await this.ctx.storage.put("expiresAt",expires);
+   await this.ctx.storage.setAlarm(expires);
    return respond({ok:true});
   }
   if(p==="/get"){
@@ -135,9 +138,10 @@ export class StockFuturesData{
    }});
    return new Response(stream,{headers:{"content-type":"application/gzip","cache-control":"private, no-store"}});
   }
-  if(p==="/delete"&&request.method==="POST"){await this.ctx.storage.deleteAll();return respond({ok:true})}
+  if(p==="/delete"&&request.method==="POST"){await this.ctx.storage.deleteAll();await this.ctx.storage.deleteAlarm();return respond({ok:true})}
   return respond({ok:false,error:"資料節點不存在"},404)
  }
+ async alarm(){const expiry=await this.ctx.storage.get("expiresAt");if(expiry&&Date.now()>=expiry)await this.ctx.storage.deleteAll();else if(expiry)await this.ctx.storage.setAlarm(expiry)}
 }
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
@@ -160,12 +164,10 @@ export class StockFuturesBatch{
    if(selected.size)catalog=catalog.filter(x=>selected.has(x.code));
    if(!catalog.length)return respond({ok:false,error:"沒有符合的個股期貨"},400);
    if(old&&q.reset){
-    // Data sharding is keyed per browser/Job using the private stable cookie identifier!
-    // Old shards are deleted explicitly before reuse. Nothing changes other users' objects.
-    for(const c of old.catalog){const target=this.shardFor(old,c.code);await target.fetch(new Request("https://private/delete",{method:"POST"}))}
+    // Each private job has its own randomized shard namespace. Old shards expire after 30 days.
     await st.deleteAll()
    }
-   const s={phase:"running",start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night})),date:q.start,symbolIndex:0,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,duplicates:0,retries:0,errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:"已建立雲端任務。以固定速率分批下載，手機可離線"};
+   const s={phase:"running",shardKey:randomId(),start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night})),date:q.start,symbolIndex:0,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,duplicates:0,retries:0,errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:"已建立雲端任務。以固定速率分批下載，手機可離線"};
    for(let d=q.start;d<=q.end;d=next(d)){const w=dayOf(d);if(w===0)continue;for(const c of catalog)if(w!==6||c.night)s.total++}
    await st.put("token",token);await st.put("state",s);await st.setAlarm(Date.now()+100);
    return respond(this.summary(s),202)
@@ -177,7 +179,7 @@ export class StockFuturesBatch{
   return this.ctx.blockConcurrencyWhile(async()=>{
    s=await st.get("state");
    if(p==="/delete"){
-    for(const c of s.catalog)await this.shardFor(s,c.code).fetch(new Request("https://private/delete",{method:"POST"}));
+    for(let i=0;i<s.catalog.length;i+=20)await Promise.all(s.catalog.slice(i,i+20).map(c=>this.shardFor(s,c.code).fetch(new Request("https://private/delete",{method:"POST"}))));
     await st.deleteAll();await st.deleteAlarm();return respond({ok:true,deleted:true})
    }
    if(p==="/pause"&&s.phase==="running"){s.phase="paused";s.message="已暫停";await st.put("state",s);await st.setAlarm(s.expiresAt)}
@@ -185,7 +187,7 @@ export class StockFuturesBatch{
    return respond(this.summary(s))
   })
  }
- shardFor(s,code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(s.createdAt+":"+code))}
+ shardFor(s,code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(s.shardKey+":"+code))}
  async alarm(){
   const st=this.ctx.storage,s=await st.get("state");if(!s)return;
   if(Date.now()>=s.expiresAt){s.phase="expired";s.message="任務已到期，請先匯出已完成資料";await st.put("state",s);return}
@@ -211,9 +213,10 @@ export class StockFuturesBatch{
   }));
   s.queries+=tasks.length;
   const firstFailure=result.find(x=>!x.success);
-  for(const x of result){
-   if(x.success){s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;s.night+=x.night;s.duplicates+=x.duplicates;s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid}
-   else{s.errors.push({day:x.day,code:x.c.code,error:x.error});s.errors=s.errors.slice(-100)}
+  for(let i=0;i<result.length;i++){
+   const x=result[i];
+   if(x.success&&(!firstFailure||i<result.indexOf(firstFailure))){s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;s.night+=x.night;s.duplicates+=x.duplicates;s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid}
+   if(!x.success){s.errors.push({day:x.day,code:x.c.code,error:x.error});s.errors=s.errors.slice(-100)}
   }
   if(firstFailure){
    // Rewind the cursor to the first failing task, and skip already successful chunks via storage
