@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {gunzipSync} from "node:zlib";
-import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -292,6 +292,82 @@ test("existing in-flight cash-equity job keeps all downloaded rows and is upgrad
   assert.deepEqual(requests.map(x=>x[1]),["2024-01-02","2024-01-03","2024-01-04"]);
  }finally{globalThis.fetch=orig}
 });
+test("daily 2000+ windows are contiguous and every FinMind call covers at most 8 years",()=>{
+ assert.deepEqual(dailyPriceWindows("2000-01-01","2026-10-27"),[
+  {start:"2000-01-01",end:"2007-12-31"},
+  {start:"2008-01-01",end:"2015-12-31"},
+  {start:"2016-01-01",end:"2023-12-31"},
+  {start:"2024-01-01",end:"2026-10-27"}
+ ]);
+ assert.deepEqual(dailyPriceWindows("2021-01-01","2026-10-27"),[
+  {start:"2021-01-01",end:"2026-10-27"}
+ ]);
+ assert.deepEqual(dailyPriceWindows("2000-07-01","2001-01-31"),[
+  {start:"2000-07-01",end:"2001-01-31"}
+ ]);
+});
+test("2000-era daily dates allowed, minute and futures remain restricted to 2021",async()=>{
+ const x=fixture(),orig=globalThis.fetch;
+ globalThis.fetch=async()=>new Response(x.html,{status:200});
+ try{
+  const payload={start:"2000-01-01",end:"2000-12-31",codes:["2330"]};
+  const day=await stockFuturesRoute(new Request(host+"/api/stock-daily/start",{
+   method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},body:JSON.stringify(payload)
+  }),x.env,"daily");
+  assert.equal(day.status,202);
+  const json=await day.json();assert.equal(json.start,"2000-01-01");assert.equal(json.mode,"daily");
+  const min=await stockFuturesRoute(new Request(host+"/api/stock-kbar/start",{
+   method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},body:JSON.stringify(payload)
+  }),x.env,"stocks");
+  assert.equal(min.status,400);
+  const old=await stockFuturesRoute(new Request(host+"/api/stock-daily/start",{
+   method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},body:JSON.stringify({...payload,start:"1999-12-31"})
+  }),x.env,"daily");
+  assert.equal(old.status,400);
+ }finally{globalThis.fetch=orig}
+});
+test("2000-to-2026 real daily workflow uses four 8-year requests per stock, retains 2000 CSV and 2026 CSV",async()=>{
+ const x=fixture(),orig=globalThis.fetch,calls=[];
+ globalThis.fetch=async(url,opt)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url),id=u.searchParams.get("data_id"),start=u.searchParams.get("start_date"),end=u.searchParams.get("end_date");
+  assert.equal(u.searchParams.get("dataset"),"TaiwanStockPrice");assert.ok(["2330","2303"].includes(id));
+  calls.push([id,start,end]);
+  const year=start.slice(0,4),date=year+"-01-04";
+  return Response.json({status:200,data:[{date,stock_id:id,open:100,max:103,min:99,close:102,
+   Trading_Volume:1000,Trading_money:103000,Trading_turnover:20,spread:2}]});
+ };
+ try{
+  const start=await stockFuturesRoute(new Request(host+"/api/stock-daily/start",{method:"POST",
+   headers:{origin:host,authorization:"Bearer test-sponsor-token"},
+   body:JSON.stringify({start:"2000-01-01",end:"2026-10-27",codes:["2330","2303"]})}),x.env,"daily");
+  assert.equal(start.status,202);
+  const cookie=start.headers.get("set-cookie").split(";")[0];
+  await x.job.alarm();await x.job.alarm();
+  const status=await(await stockFuturesRoute(new Request(host+"/api/stock-daily/status",{headers:{cookie}}),x.env,"daily")).json();
+  assert.equal(status.phase,"done");assert.equal(status.codeCount,2);
+  assert.equal(status.queries,8);assert.equal(status.rows,8);
+  assert.equal(calls.filter(c=>c[0]==="2330").length,4);
+  assert.deepEqual(calls.filter(c=>c[0]==="2330").map(c=>c.slice(1)),[
+   ["2000-01-01","2007-12-31"],["2008-01-01","2015-12-31"],
+   ["2016-01-01","2023-12-31"],["2024-01-01","2026-10-27"]
+  ]);
+  const fetchCSV=async(year)=>{
+   const response=await stockFuturesRoute(new Request(host+"/api/stock-daily/export?year="+year,{headers:{cookie}}),x.env,"daily");
+   assert.equal(response.status,200);return gunzipSync(Buffer.from(await response.arrayBuffer())).toString()
+  };
+  const y2000=await fetchCSV(2000);
+  assert.ok(y2000.includes("date,stock_id"));
+  assert.match(y2000,/2000-01-04,2330/);assert.match(y2000,/2000-01-04,2303/);
+  const y2024=await fetchCSV(2024);
+  assert.match(y2024,/2024-01-04,2330/);
+  assert.ok(!y2024.includes("2000-01-04"));
+  const all=await stockFuturesRoute(new Request(host+"/api/stock-daily/export?code=2330",{headers:{cookie}}),x.env,"daily");
+  const data=gunzipSync(Buffer.from(await all.arrayBuffer())).toString();
+  assert.equal(data.trim().split("\n").length,5);
+  assert.match(data,/2000-01-04,2330/);assert.match(data,/2024-01-04,2330/);
+ }finally{globalThis.fetch=orig}
+});
 test("daily OHLCV follows TaiwanStockPrice field names, raw shares, all years, and emerging open exceptions",()=>{
  const meta={name:"台積電",futureCode:"QFF"};
  const bar=(date,close,stock_id="2330")=>({date,stock_id,open:98,max:102,min:99,close,Trading_Volume:12345,Trading_money:1234500,Trading_turnover:250,spread:-1});
@@ -355,6 +431,8 @@ test("daily-mode main UI defaults to daily and retains separate minute API and p
  const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  assert.match(html,/<option value="day" selected>/);
  assert.match(html,/<option value="minute">/);
+ assert.match(html,/value="2000-01-01" min="2000-01-01"/);
+ assert.match(html,/2021-01-01/);
  assert.match(html,/api\/stock-daily/);
  assert.match(html,/api\/stock-kbar/);
  assert.match(html,/granularity/);
