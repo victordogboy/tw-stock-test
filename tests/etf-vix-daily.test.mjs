@@ -61,6 +61,9 @@ test('Downloaded page batches 2000-2026 stock range and VIX to 14 days max',asyn
     const data=ds==='TaiwanOptionVix'
       ?[{date:from,time:'09:00:00',vix:28.4},{date:from,time:'13:30:00',vix:25.1}]
       :[{date:from,open:100,max:103,min:99,close:102,trading_volume:100000,trading_money:10300000,trading_turnover:100}];
+    if(from<='2026-10-01'&&to>='2026-10-01'){
+      data.push(ds==='TaiwanOptionVix'?{date:'2026-10-01',time:'13:30:00',vix:26}:{date:'2026-10-01',open:101,max:105,min:100,close:103,trading_volume:200000,trading_money:20600000,trading_turnover:200});
+    }
     return {ok:true,status:200,json:async()=>({status:200,msg:'success',data})};
   };
   const ctx=vm.createContext({
