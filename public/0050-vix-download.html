@@ -14,7 +14,7 @@
 <h2>1. 下載設定</h2>
 <p class="sub"><a href="/tx-download.html">返回台指期下載器</a>　·　<a href="/scanner.html">股票掃描器</a></p>
 <div class="fields"><div class="field"><label for="start">起始日期</label><input type="date" id="start" value="2021-01-01"/></div><div class="field"><label for="end">結束日期</label><input type="date" id="end" value="2026-10-26"/></div><div class="field token"><label for="token">手動 FinMind API Token（僅選「手動輸入」才使用）</label><input type="password" id="token" placeholder="只填 API Token，不需提供帳號密碼；可留空" autocomplete="off" spellcheck="false" /></div><div class="field token"><label for="credentialMode">FinMind 認證來源（可切換排除失效 Token）</label><select id="credentialMode" style="width:100%;min-height:43px;color:var(--txt);background:#0d1728;border:1px solid #405674;border-radius:10px;padding:9px 11px;font:inherit"><option value="cloud">Cloudflare 雲端 Token（優先）</option><option value="browser">原網站已儲存的 Token</option><option value="manual">使用上方手動輸入的 Token</option><option value="anonymous">匿名下載（僅適合 0050）</option></select></div></div>
-<div id="credHint" class="sub" style="margin-top:10px">正在檢查伺服器是否有設定 Token；此資訊不會顯示實際金鑰。</div>
+<div id="credHint" class="sub" style="margin-top:10px">正在檢查 FinMind Token。官方 ETF 配息不使用 FinMind Token。</div>
 <div class="buttons"><button id="testStock" class="secondary">測試 0050 認證</button><button id="testVix" class="secondary">測試台灣 VIX 權限</button><button id="detectSource" class="outline">重新偵測 Token 來源</button></div>
 <div class="buttons"><button id="getBoth">取得 0050 ＋ VIX</button><button class="secondary" id="get0050">只取 0050</button><button class="secondary" id="getVix">只取台灣 VIX</button><button class="outline" id="clear">清除資料</button></div>
 <div class="hint"><strong>重要：</strong>FinMind 0050 日價可查多年，但 <code>TaiwanOptionVix</code> 官方文件標示從 <strong>2026-03-01</strong> 起，且需 <strong>Backer / Sponsor</strong>。不會把缺少的 VIX 日資料補 0、推測或冒充五年完整資料。</div>
@@ -32,7 +32,7 @@
 <section class="card full">
 <h2>3. 下載進度與資料檢查</h2>
 <progress id="prog" max="100" value="0"></progress><div id="status" class="sub">準備就緒；可先只下載 0050。</div>
-<div class="metrics" style="margin:15px 0"><div class="metric"><div class="sub">0050 原始日 K</div><div class="num" id="rawCount">—</div></div><div class="metric"><div class="sub">0050 還原日 K</div><div class="num" id="adjCount">—</div></div><div class="metric"><div class="sub">台灣 VIX 日 K</div><div class="num" id="vixCount">—</div></div><div class="metric"><div class="sub">可配對交易日</div><div class="num" id="matchCount">—</div></div></div>
+<div class="metrics" style="margin:15px 0"><div class="metric"><div class="sub">0050 原始日 K（可拆分調整）</div><div class="num" id="rawCount">—</div></div><div class="metric"><div class="sub">FinMind 還原日 K（需權限）</div><div class="num" id="adjCount">—</div></div><div class="metric"><div class="sub">台灣 VIX 日 K</div><div class="num" id="vixCount">—</div></div><div class="metric"><div class="sub">可配對交易日</div><div class="num" id="matchCount">—</div></div></div>
 <div id="coverage" class="sub" style="margin-bottom:8px"></div>
 <div id="corpAudit" class="hint">資料稽核：等待 0050 原始日 K、除息紀錄與 VIX。歷史價格即使做拆分調整，也不代表已含配息。</div>
 <div class="buttons"><button id="loadDividends" class="secondary">單獨補抓官方 0050 配息</button></div><pre id="log" aria-live="polite">操作紀錄會顯示在這裡。</pre>
