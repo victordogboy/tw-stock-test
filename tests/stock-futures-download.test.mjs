@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {gunzipSync} from "node:zlib";
-import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -292,16 +292,83 @@ test("existing in-flight cash-equity job keeps all downloaded rows and is upgrad
   assert.deepEqual(requests.map(x=>x[1]),["2024-01-02","2024-01-03","2024-01-04"]);
  }finally{globalThis.fetch=orig}
 });
+test("daily OHLCV follows TaiwanStockPrice field names, raw shares, all years, and emerging open exceptions",()=>{
+ const meta={name:"台積電",futureCode:"QFF"};
+ const bar=(date,close,stock_id="2330")=>({date,stock_id,open:98,max:102,min:99,close,Trading_Volume:12345,Trading_money:1234500,Trading_turnover:250,spread:-1});
+ const result=filterUnderlyingDailyBars([
+  bar("2022-01-04",100),bar("2021-01-04",99),bar("2021-01-04",99),
+  bar("2021-01-05",100,"2317"),bar("2020-12-31",100)
+ ],"2330","2021-01-01","2022-12-31",meta);
+ assert.equal(result.audit.rows,2);assert.equal(result.audit.duplicates,1);assert.equal(result.audit.rejectedProduct,1);
+ assert.equal(result.audit.rejectedInvalid,1);assert.equal(result.audit.rawVolume,24690);
+ assert.match(result.csvByYear["2021"],/2021-01-04,2330,台積電,QFF,98,102,99,99,12345,1234500,250,-1/);
+ assert.ok(!result.csvByYear["2021"].includes("2317"));
+ assert.match(result.csvByYear["2022"],/2022-01-04/);
+ const conflict=bar("2021-01-04",100);
+ assert.throws(()=>filterUnderlyingDailyBars([bar("2021-01-04",99),conflict],"2330","2021-01-01","2021-12-31",meta),/矛盾/);
+});
+test("daily job makes one FinMind TaiwanStockPrice call per stock for multiple years and exports by year",async()=>{
+ const x=fixture(),orig=globalThis.fetch,calls=[];
+ const mock=(stock,date,close)=>({date,stock_id:stock,open:98,max:102,min:97,close,Trading_Volume:15000,Trading_money:1500000,Trading_turnover:25,spread:1});
+ globalThis.fetch=async(url,opt)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url);
+  assert.equal(u.searchParams.get("dataset"),"TaiwanStockPrice");
+  assert.equal(u.searchParams.get("start_date"),"2021-01-01");
+  assert.equal(u.searchParams.get("end_date"),"2022-01-15");
+  const stock=u.searchParams.get("data_id");assert.ok(["2330","2303"].includes(stock));
+  assert.equal(opt.headers.authorization,"Bearer test-sponsor-token");
+  calls.push(stock);
+  return Response.json({status:200,data:[
+   mock(stock,"2021-01-04",100),mock(stock,"2021-01-05",101),mock(stock,"2022-01-03",99)]});
+ };
+ try{
+  const catalog=await(await stockFuturesRoute(new Request(host+"/api/stock-daily/catalog"),x.env,"daily")).json();
+  assert.equal(catalog.dataset,"TaiwanStockPrice");assert.equal(catalog.policy,"unique-underlying-cash-stock");
+  const res=await stockFuturesRoute(new Request(host+"/api/stock-daily/start",{method:"POST",
+   headers:{authorization:"Bearer test-sponsor-token",origin:host},
+   body:JSON.stringify({start:"2021-01-01",end:"2022-01-15",codes:["2330","2303"]})}),x.env,"daily");
+  assert.equal(res.status,202);
+  const cookie=res.headers.get("set-cookie").split(";")[0];assert.match(cookie,/__Host-underlying-day=/);
+  const started=await res.json();assert.equal(started.total,2);assert.equal(started.mode,"daily");
+  await x.job.alarm();
+  assert.deepEqual(calls.sort(),["2303","2330"]);
+  const status=await(await stockFuturesRoute(new Request(host+"/api/stock-daily/status",{headers:{cookie}}),x.env,"daily")).json();
+  assert.equal(status.phase,"done");assert.equal(status.processed,2);assert.equal(status.rows,6);assert.equal(status.queries,2);
+  const year=await stockFuturesRoute(new Request(host+"/api/stock-daily/export?year=2021",{headers:{cookie}}),x.env,"daily");
+  assert.equal(year.status,200);
+  const y=gunzipSync(Buffer.from(await year.arrayBuffer())).toString();
+  assert.equal(y.trim().split("\n").length,5); // one header + 2 days x 2 stocks
+  assert.match(y,/volume_shares,trading_money_twd,trading_turnover,spread/);
+  assert.match(y,/2021-01-04,2330,.*QFF,98,102,97,100,15000,1500000,25,1/);
+  assert.ok(!y.includes("2022-01-03"));
+  const one=await stockFuturesRoute(new Request(host+"/api/stock-daily/export?code=2330",{headers:{cookie}}),x.env,"daily");
+  const full=gunzipSync(Buffer.from(await one.arrayBuffer())).toString();
+  assert.equal(full.trim().split("\n").length,4); // one header + three days
+  assert.match(full,/2022-01-03,2330/);
+  assert.equal(full.match(/date,stock_id/g)?.length,1);
+  const wrongCookie=await stockFuturesRoute(new Request(host+"/api/stock-daily/status",{headers:{cookie:cookie.replace("__Host-underlying-day","__Host-underlying1m")}}),x.env,"daily");
+  assert.equal(wrongCookie.status,401);
+ }finally{globalThis.fetch=orig}
+});
+test("daily-mode main UI defaults to daily and retains separate minute API and progress",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/<option value="day" selected>/);
+ assert.match(html,/<option value="minute">/);
+ assert.match(html,/api\/stock-daily/);
+ assert.match(html,/api\/stock-kbar/);
+ assert.match(html,/granularity/);
+});
 test("new main page calls stock KBar API while archived futures downloader keeps original endpoint",()=>{
  const newHtml=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  const oldHtml=readFileSync(new URL("../public/stock-futures-contract-download.html",import.meta.url),"utf8");
- assert.match(newHtml,/TaiwanStockKBar/);assert.match(newHtml,/api\/stock-kbar\/start/);
+ assert.match(newHtml,/TaiwanStockKBar/);assert.match(newHtml,/api\/stock-kbar/);assert.match(newHtml,/root\(\)\+"\/start"/);
  assert.doesNotMatch(newHtml,/api\/stock-futures\/start/);
  assert.match(oldHtml,/api\/stock-futures\/start/);
 });
 test("dashboard uses existing individual-stock FinMind Token and isolated app pathname",()=>{
  const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  assert.match(html,/twq_finmind_tokens_v2/);
- assert.match(html,/stock-kbar\/start/);
+ assert.match(html,/stock-kbar/);assert.match(html,/stock-daily/);
  assert.doesNotMatch(html,/需要先在 Cloudflare 設定/);
 });

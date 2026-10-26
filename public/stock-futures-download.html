@@ -1,5 +1,5 @@
 <!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark"><title>有個股期貨的股票｜現股 1 分 K 雲端下載</title>
+<meta name="color-scheme" content="dark"><title>有個股期貨的股票｜日K／1分K 雲端下載</title>
 <style>
 :root{font:15px/1.55 system-ui,"Noto Sans TC",sans-serif;background:#0a1422;color:#e9f2fe}*{box-sizing:border-box}
 body{margin:0;background:radial-gradient(ellipse at 98% 0,#16464f66,transparent 48%),#0a1422;min-height:100vh}
@@ -29,10 +29,13 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 </style></head><body><main>
 <nav><a href="/tx-download.html">← 台指期 1 分 K</a><a href="/futures.html">台指期分析</a><a href="/scanner.html">個股分析</a></nav>
 <div class="eyebrow">FINMIND · FUTURES-ELIGIBLE STOCKS · BACKGROUND</div>
-<h1>有個股期貨的股票<br>現股 1 分 K 下載</h1>
-<p>只使用期交所個股期貨清單<strong>篩選有哪些股票</strong>，真正下載的是這些股票的<strong>現股 1 分鐘 K 線（TaiwanStockKBar）</strong>，例如台積電只抓 2330。不是股票期貨行情，不需要大小合約、近月換月或夜盤。沿用 FinMind Sponsor Token，手機鎖螢幕後仍可雲端下載。</p>
-<div class="chips"><span class="chip">有期貨的股票才下載</span><span class="chip">現股 1 分 K</span><span class="chip">每檔股票一份</span><span class="chip">2021 年起</span><span class="chip">原始成交量</span><span class="chip">安全高速模式</span></div>
+<h1>有個股期貨的股票<br>現股日 K／1 分 K 下載</h1>
+<p>依期交所個股期貨清單<strong>選出有期貨的股票</strong>，再下載這些股票的現股日 K 或 1 分 K，不是期貨合約行情。<strong>預設日 K：一檔股票一次下載完整期間</strong>，不必像 1 分 K 那樣逐日請求。兩種模式的雲端任務互相獨立；切換日 K 不會刪除正在下載的 1 分 K。</p>
+<div class="chips"><span class="chip">有期貨的股票才下載</span><span class="chip">日K／1分K可切換</span><span class="chip">每檔股票一份</span><span class="chip">2021 年起</span><span class="chip">原始成交量</span><span class="chip">安全高速模式</span></div>
 <section class="card"><h2>下載範圍</h2>
+<label for="granularity">K 線週期</label>
+<select id="granularity"><option value="day" selected>日 K（快速，預設）</option><option value="minute">1 分 K（大量資料，較慢）</option></select>
+<div class="note" id="formatHint">日 K：FinMind TaiwanStockPrice，每檔股票一次查多年；成交量為「股」，不進行除權息還原。原先的 1 分 K 仍在雲端背景下載。</div>
 <div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
 <label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
 <div class="minor" id="tokenStatus">正在檢查 Token…</div>
@@ -41,40 +44,55 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <label for="filter">搜尋股票名稱或代號</label><input id="filter" placeholder="例如 2330、台積電">
 <div class="minor" style="margin-top:8px" id="catalogStatus">準備取得期交所名單…</div>
 <div class="catalog" id="catalog"></div>
-<div class="note warn">選股依期交所<strong>目前</strong>有個股期貨的上市／上櫃普通股名單，同股票不重複。即使股票期貨較晚才上市，只要股票在 2021 年有現股成交資料，就下載該年的現股分 K。過去有期貨但現在已取消掛牌的股票不在此清單內。這是未還原除權息的歷史價格，做長期回測需另處理除權息。</div>
+<div class="note warn">選股依期交所<strong>目前</strong>有個股期貨的上市／上櫃普通股名單，同股票不重複。即使股票期貨較晚才上市，只要股票在 2021 年有現股成交資料，就能下載該年的現股日 K 或分 K。過去有期貨但現在已取消掛牌的股票不在此清單內。這是未還原除權息的歷史價格，做長期回測需另處理除權息。</div>
 <div class="actions"><button id="startBtn" disabled>▶ 啟動雲端背景下載</button></div>
 <p class="minor">此功能不需要另外設定 Cloudflare Secret。按下開始後，Token 僅傳送到你自己的雲端私有下載工作，不寫入 GitHub 或 CSV。</p>
 </section>
 <section class="card hidden" id="progressCard">
 <div class="top"><h2 style="margin:0">雲端下載進度</h2><span class="status" id="phase">—</span></div>
 <div class="bar"><div id="fill"></div></div>
-<div class="top"><b id="percent">0%</b><small id="count">0/0 股票×日期</small></div>
-<div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="nonempty">0</b><small>有資料股票×日</small></div><div class="stat"><b id="speed">—</b><small>近10分鐘換算每小時 K 棒</small></div><div class="stat"><b id="skipped">0</b><small>省下的股票×日請求</small></div><div class="stat"><b id="preflight">—</b><small>歷史有效期預檢</small></div></div>
+<div class="top"><b id="percent">0%</b><small id="count">0/0 股票</small></div>
+<div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="nonempty">0</b><small id="nonemptyLabel">有資料股票數</small></div><div class="stat"><b id="speed">—</b><small id="speedLabel">1 分 K 每小時筆數</small></div><div class="stat"><b id="skipped">0</b><small id="skippedLabel">省下的股票×日請求</small></div><div class="stat"><b id="preflight">—</b><small id="preflightLabel">歷史有效期預檢</small></div></div>
 <p id="message">—</p><div class="minor" id="cursor"></div>
 <div class="actions"><button id="pauseBtn" class="secondary">暫停</button><button id="resumeBtn" class="secondary">繼續下載</button><button id="refreshBtn" class="secondary">更新狀態</button><button id="resetBtn" class="secondary">重新下載現股資料</button></div>
 <details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
 </section>
 <section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
-<p>每年度包含所選股票的<strong>現股 1 分 K</strong>，可分年下載 CSV.gz，或下載單一股票的完整期間。</p>
+<p id="exportIntro">每年度包含所選股票的現股日 K，可分年下載 CSV.gz，或下載單一股票的完整期間。切換週期後會顯示該模式獨立的資料。</p>
 <div class="note warn" id="exportNote">任務尚未完成，年度檔可能只有部分資料。請核對下方進度。</div>
-<h3>各年度：所選股票的現股 1 分 K</h3><div id="years"></div>
+<h3 id="yearTitle">各年度：所選股票的現股日 K</h3><div id="years"></div>
 <h3>單一股票：整段期間</h3>
 <label for="oneSymbol">股票</label><select id="oneSymbol"></select>
 <div class="actions"><a id="oneFile" class="file" href="#">下載這檔全部已取得資料（CSV.gz）</a></div>
-<details><summary>展開下載規格</summary><p class="minor">CSV：date、minute、stock_id、stock_name、qualifying_futures_id（僅標示入選原因）、open、high、low、close、volume_raw。全部 OHLCV 來自 FinMind TaiwanStockKBar；成交量保留來源原始單位：上市／上櫃為張、曾為興櫃時可能為股，未做換算，回測前請按歷史市場別處理。保留延後收盤 13:33、盤後定價 14:30 分 K；休市日沒有資料。不作除權息價格還原，不使用期貨報價。</p></details>
+<details><summary>展開下載規格</summary><p class="minor" id="csvSpec">日 K：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread，來源 TaiwanStockPrice；不作除權息還原。</p></details>
 </section>
 <section class="card"><h2>關於下載速度與費用</h2>
-<p>新版將雲端請求節奏提高至<strong>最多約 4,800 次／小時</strong>（FinMind Sponsor 上限 6,000 次／小時），並用官方交易日曆排除休市日、參考現股日線確認最早可用交易日，避免多年無效請求。第一次啟動／舊任務升級時，會先做一次這兩項預檢；既有已下載分 K 不會清除。速度仍受 FinMind 回應、雲端延遲和你同一 Token 的其他程式使用額度影響。</p>
+<p><strong>日 K：每檔股票一個 FinMind TaiwanStockPrice 查詢，約 249 檔只需約 249 次 API</strong>，不必逐日查詢。1 分 K 則仍採一天一檔的 API，會較慢。兩種模式共用同一 FinMind Token 的會員額度，雲端任務獨立，原本已下載的分 K 絕不清除。</p>
 <p>如果 FinMind 回傳超額或無效 Token，背景工作會顯示錯誤並暫停，不會假裝已完成。完成的資料先保存在雲端私有儲存，請下載備份。</p>
 <div class="actions"><button id="deleteBtn" class="danger">清除這次的全部雲端資料</button></div>
 </section>
-<footer>名單來源：<a href="https://www.taifex.com.tw/cht/2/stockLists">期交所個股期貨標的</a>。行情來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Technical/">FinMind TaiwanStockKBar（現股）</a>。<a href="/stock-futures-contract-download.html">舊個股期貨合約下載器</a>另行保留，兩者背景工作互不干擾。個人研究用途，不得公開重散布原始資料。</footer>
+<footer>名單來源：<a href="https://www.taifex.com.tw/cht/2/stockLists">期交所個股期貨標的</a>。行情來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Technical/">FinMind TaiwanStockPrice（日K）／TaiwanStockKBar（1分K）</a>。<a href="/stock-futures-contract-download.html">舊個股期貨合約下載器</a>另行保留，兩者背景工作互不干擾。個人研究用途，不得公開重散布原始資料。</footer>
 </main>
 <script>
 (function(){
  "use strict";const $=id=>document.getElementById(id),fmt=x=>Number(x||0).toLocaleString("zh-TW");
  const savedToken=()=>{try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");return String(s?.tokens?.[Number(s?.active)===1?1:0]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}};
  let catalog=[],selected=new Set(),job=null,busy=false,rawCount=0,miniCount=0;
+ const isDaily=()=>$("granularity").value==="day",root=()=>isDaily()?"/api/stock-daily":"/api/stock-kbar";
+ const seriesName=()=>isDaily()?"日 K":"1 分 K";
+ function setFormatHelp(){
+  const daily=isDaily();
+  $("formatHint").textContent=daily?"日 K：一檔股票一次下載整段歷史；volume_shares 為成交股數（股）。原本 1 分 K 任務獨立保留。":"1 分 K：依日期逐日下載 TaiwanStockKBar，歷史量較大。原本的任務與進度保留，不會重來。";
+  $("csvSpec").textContent=daily?"日 K CSV：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread；來源 TaiwanStockPrice，未還原除權息。":"1 分 K CSV：date、minute、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_raw；來源 TaiwanStockKBar，成交量保留來源原始單位，不作除權息還原。";
+  $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
+  $("yearTitle").textContent="各年度：所選股票的現股"+seriesName();
+  $("startBtn").textContent="▶ 啟動"+seriesName()+"雲端背景下載";
+  $("resetBtn").textContent="重新下載這次的"+seriesName();
+  $("nonemptyLabel").textContent=daily?"有日 K 的股票數":"有資料股票×日";
+  $("speedLabel").textContent=daily?"速度統計（不適用）":"1 分 K 每小時筆數";
+  $("skippedLabel").textContent=daily?"日 K 無需逐日查詢":"省下的股票×日請求";
+  $("preflightLabel").textContent=daily?"日 K 無需額外預檢":"歷史有效期預檢";
+ }
  $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
  const t=savedToken();$("tokenStatus").textContent=t?"✓ 已找到個股分析使用的 Token（尾碼 "+t.slice(-4)+"），直接按開始即可":"這個瀏覽器沒有已儲存的 Token，請在上方輸入一次";
  async function call(path,init){let response;try{response=await fetch(path,{credentials:"same-origin",cache:"no-store",...(init||{})})}catch{throw Error("網路連線失敗，背景任務不受影響")};let data=await response.json().catch(()=>({error:"伺服器未回傳 JSON"}));if(!response.ok||data.ok===false)throw Error(data.error||"HTTP "+response.status);return data}
@@ -114,28 +132,36 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   job=s;$("progressCard").classList.remove("hidden");$("exports").classList.remove("hidden");$("startBtn").disabled=true;
   $("phase").textContent=({running:"下載中",paused:"已暫停",error:"需要處理",done:"已完成",expired:"已到期"})[s.phase]||s.phase;
   const pct=s.total?Math.min(100,100*s.processed/s.total):0;$("fill").style.width=pct+"%";$("percent").textContent=pct.toFixed(2)+"%";
-  $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+" 股票×日期";
-  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=fmt(s.skipped);$("preflight").textContent=s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
-  $("message").textContent=s.message;$("cursor").textContent="目前："+(s.currentDate||"—")+" · 股票 "+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。資料範圍 "+s.start+" 至 "+s.end;
+  $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+(s.mode==="daily"?" 檔股票":" 股票×日期");
+  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode==="daily"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode==="daily"?"—":fmt(s.skipped);$("preflight").textContent=s.mode==="daily"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
+  $("message").textContent=s.message;$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
   $("errors").textContent=(s.errors||[]).slice(-15).map(x=>x.day+" "+x.code+" "+x.error).join("\n")||"沒有紀錄錯誤";
   $("pauseBtn").disabled=s.phase!=="running";$("resumeBtn").disabled=!["paused","error"].includes(s.phase);
   $("exportNote").textContent=s.phase==="done"?"✓ 雲端已查詢完指定商品與日期，請立即備份年度檔。":"⚠ 工作尚未全部完成，目前匯出的檔案僅包含已成功下載的日期。";
   $("years").replaceChildren();const sy=Number(s.start.slice(0,4)),ey=Number(s.end.slice(0,4));
-  for(let year=sy;year<=ey;year++)fileRow($("years"),year+" 年","所有已取得商品，CSV.gz","/api/stock-kbar/export?year="+year);
-  $("oneSymbol").replaceChildren();for(const c of s.codes){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.stock+" "+c.name+"（現股分 K）";$("oneSymbol").append(opt)}
+  for(let year=sy;year<=ey;year++)fileRow($("years"),year+" 年","所有已取得商品，CSV.gz",root()+"/export?year="+year);
+  $("oneSymbol").replaceChildren();for(const c of s.codes){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.stock+" "+c.name+"（現股"+seriesName()+"）";$("oneSymbol").append(opt)}
   updateOne();
  }
- function updateOne(){$("oneFile").href="/api/stock-kbar/export?code="+encodeURIComponent($("oneSymbol").value)}
+ function updateOne(){$("oneFile").href=root()+"/export?code="+encodeURIComponent($("oneSymbol").value)}
  $("oneSymbol").onchange=updateOne;
- async function refresh(){try{const s=await call("/api/stock-kbar/status");render(s)}catch(e){if(job)$("message").textContent=e.message}}
+ async function refresh(){
+  const expectedMode=isDaily()?"daily":"stocks";
+  try{const s=await call(root()+"/status");if((isDaily()?"daily":"stocks")===expectedMode)render(s)}
+  catch(e){
+   if((isDaily()?"daily":"stocks")!==expectedMode)return;
+   if(job)$("message").textContent=e.message;
+   else {$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");updateCount()}
+  }
+ }
  $("refreshBtn").onclick=refresh;
  async function startJob(reset){
   if(busy||!selected.size)return;const token=$("token").value.trim()||savedToken();if(!token){alert("需要 FinMind Sponsor Token");return}
-  const question=reset?"這會清除本次現股分 K 雲端資料，請先備份。確定重新下載？":"確認下載 "+selected.size+" 檔股票的現股 1 分 K，期間 "+$("start").value+" 到 "+$("end").value+"？";
+  const question=reset?"這只會清除目前「"+seriesName()+"」的雲端資料，不會動到另一種週期。請先備份。確定重新下載？":"確認下載 "+selected.size+" 檔股票的現股"+seriesName()+"，期間 "+$("start").value+" 到 "+$("end").value+"？";
   if(!confirm(question))return;
   busy=true;$("startBtn").disabled=true;
   try{
-   const x=await call("/api/stock-kbar/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value,codes:[...selected],reset:!!reset})});
+   const x=await call(root()+"/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value,codes:[...selected],reset:!!reset})});
    $("token").value="";render(x);$("progressCard").scrollIntoView({behavior:"smooth"})
   }catch(e){alert(e.message);updateCount()}finally{busy=false}
  }
@@ -143,14 +169,18 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  $("resetBtn").onclick=()=>startJob(true);
  async function action(action){
   if(busy)return;busy=true;
-  try{const x=await call("/api/stock-kbar/"+action,{method:"POST"});
+  try{const x=await call(root()+"/"+action,{method:"POST"});
    if(x.deleted){job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");updateCount()}
    else render(x)
   }catch(e){alert(e.message)}finally{busy=false}
  }
  $("pauseBtn").onclick=()=>action("pause");$("resumeBtn").onclick=()=>action("resume");
  $("deleteBtn").onclick=()=>{if(job&&confirm("確定刪除這次雲端資料？已下載至手機的檔案不受影響。"))action("delete")};
- Promise.all([loadCatalog(),refresh()]).then(()=>{});
+ $("granularity").onchange=()=>{
+  job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
+  setFormatHelp();updateCount();refresh();
+ };
+ setFormatHelp();Promise.all([loadCatalog(),refresh()]).then(()=>{});
  setInterval(()=>{if(!document.hidden&&job?.phase==="running")refresh()},14000);
 })();
 </script></body></html>
