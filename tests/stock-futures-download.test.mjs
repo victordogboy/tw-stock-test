@@ -362,13 +362,13 @@ test("daily-mode main UI defaults to daily and retains separate minute API and p
 test("new main page calls stock KBar API while archived futures downloader keeps original endpoint",()=>{
  const newHtml=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  const oldHtml=readFileSync(new URL("../public/stock-futures-contract-download.html",import.meta.url),"utf8");
- assert.match(newHtml,/TaiwanStockKBar/);assert.match(newHtml,/api\/stock-kbar\/start/);
+ assert.match(newHtml,/TaiwanStockKBar/);assert.match(newHtml,/api\/stock-kbar/);assert.match(newHtml,/root\(\)\+"\/start"/);
  assert.doesNotMatch(newHtml,/api\/stock-futures\/start/);
  assert.match(oldHtml,/api\/stock-futures\/start/);
 });
 test("dashboard uses existing individual-stock FinMind Token and isolated app pathname",()=>{
  const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  assert.match(html,/twq_finmind_tokens_v2/);
- assert.match(html,/stock-kbar\/start/);
+ assert.match(html,/stock-kbar/);assert.match(html,/stock-daily/);
  assert.doesNotMatch(html,/需要先在 Cloudflare 設定/);
 });
