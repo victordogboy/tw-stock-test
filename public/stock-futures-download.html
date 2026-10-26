@@ -35,7 +35,12 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <section class="card"><h2>下載範圍</h2>
 <label for="granularity">K 線週期</label>
 <select id="granularity"><option value="day" selected>日 K（快速，預設）</option><option value="minute">1 分 K（大量資料，較慢）</option></select>
-<div class="note" id="formatHint">日 K：從 2000/01/01 起可選，較長歷史每 8 年分段查詢，成交量為「股」。原本 1 分 K 的雲端資料保留。</div>
+<label id="chipsOption" style="margin-top:10px;display:flex;align-items:center;gap:10px">
+ <input id="includeChips" type="checkbox" checked style="width:auto">
+ <span>日 K 一起下載三大法人、融資融券，合併成回測 CSV（建議）</span>
+</label>
+<div class="minor" id="chipsNotice">會同時取得外資／投信／自營商買賣超、融資融券每日餘額與變動。2000 年沒有這些資料時保留空白，不填 0；法人自 2005 年、融資融券自 2001 年。</div>
+<div class="note" id="formatHint">日 K＋籌碼：現股日 K、法人買賣超、融資融券餘額合成同一 CSV；2000–2004 法人欄位空白。資料僅供次一交易時段使用。</div>
 <div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2000-01-01" min="2000-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
 <label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
 <div class="minor" id="tokenStatus">正在檢查 Token…</div>
@@ -58,8 +63,9 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
 </section>
 <section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
-<p id="exportIntro">每年度包含所選股票的現股日 K，可分年下載 CSV.gz，或下載單一股票的完整期間。切換週期後會顯示該模式獨立的資料。</p>
+<p id="exportIntro">每年度包含所選股票的現股日 K＋籌碼，按股票與交易日整合；也可下載單一股票全期間。切換週期或勾選籌碼後顯示對應獨立的任務。</p>
 <div class="note warn" id="exportNote">任務尚未完成，年度檔可能只有部分資料。請核對下方進度。</div>
+<div class="minor" id="chipInfo">重要：法人約在交易日 20:00、融資融券約 21:00 公布。回測不能使用同日法人、融資融券決定同日收盤前的交易；應向後至少移一交易時段。</div>
 <h3 id="yearTitle">各年度：所選股票的現股日 K</h3><div id="years"></div>
 <h3>單一股票：整段期間</h3>
 <label for="oneSymbol">股票</label><select id="oneSymbol"></select>
@@ -67,7 +73,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <details><summary>展開下載規格</summary><p class="minor" id="csvSpec">日 K：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread，來源 TaiwanStockPrice；不作除權息還原。</p></details>
 </section>
 <section class="card"><h2>關於下載速度與費用</h2>
-<p><strong>日 K 開放 2000 年至今</strong>，短區間每檔一次 API；超過 8 年則自動以每 8 年一段請求，以避免 26 年資料一次回傳逾時。例如 2000 年至今每檔約 4 次查詢，仍遠快於逐日抓 1 分 K。兩種模式共用 FinMind Token 額度，任務、資料互相獨立。</p>
+<p>日 K 最早 2000 年。勾選籌碼後會按最多 8 年分段抓 <strong>TaiwanStockPrice、TaiwanStockInstitutionalInvestorsBuySell、TaiwanStockMarginPurchaseShortSale</strong> 三種資料。長歷史每檔約 10–12 次 API，仍遠少於 1 分 K 逐日請求。純日 K、日 K＋籌碼、1 分 K 各自有獨立背景任務，不會清掉原資料。</p>
 <p>如果 FinMind 回傳超額或無效 Token，背景工作會顯示錯誤並暫停，不會假裝已完成。完成的資料先保存在雲端私有儲存，請下載備份。</p>
 <div class="actions"><button id="deleteBtn" class="danger">清除這次的全部雲端資料</button></div>
 </section>
@@ -79,12 +85,17 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  const savedToken=()=>{try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");return String(s?.tokens?.[Number(s?.active)===1?1:0]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}};
  let catalog=[],selected=new Set(),job=null,busy=false,rawCount=0,miniCount=0;
  let previousMode="day";const startDates={day:"2000-01-01",minute:"2021-01-01"};
- const isDaily=()=>$("granularity").value==="day",root=()=>isDaily()?"/api/stock-daily":"/api/stock-kbar";
- const seriesName=()=>isDaily()?"日 K":"1 分 K";
+ const isDaily=()=>$("granularity").value==="day";
+ const isChips=()=>isDaily()&&$("includeChips").checked;
+ const root=()=>!isDaily()?"/api/stock-kbar":isChips()?"/api/stock-daily-chip":"/api/stock-daily";
+ const modeId=()=>!isDaily()?"stocks":isChips()?"daily-chip":"daily";
+ const seriesName=()=>!isDaily()?"1 分 K":isChips()?"日 K＋籌碼":"日 K";
  function setFormatHelp(){
   const daily=isDaily();
-  $("formatHint").textContent=daily?"日 K：2000/01/01 起可選；每 8 年分段查詢 TaiwanStockPrice，volume_shares 為成交股數（股）。既有 1 分 K 不受影響。":"1 分 K：2021/01/01 起可選，逐日下載 TaiwanStockKBar。切回日 K 也不會刪除進度。";
-  $("csvSpec").textContent=daily?"日 K CSV：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread；來源 TaiwanStockPrice，未還原除權息。":"1 分 K CSV：date、minute、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_raw；來源 TaiwanStockKBar，成交量保留來源原始單位，不作除權息還原。";
+  $("chipsOption").classList.toggle("hidden",!daily);$("chipsNotice").classList.toggle("hidden",!daily);
+  $("chipInfo").classList.toggle("hidden",!isChips());
+  $("formatHint").textContent=!daily?"1 分 K：2021/01/01 起可選，逐日下載 TaiwanStockKBar。":"日 K：從 2000/01/01 開始"+(isChips()?"；會自動依日期結合三大法人與融資融券。2000 年以前籌碼未開始公布，缺少資料不會填 0；籌碼只允許次一交易時段使用。":"；只下載純 OHLCV，不含籌碼。");
+  $("csvSpec").textContent=!daily?"1 分 K CSV：date、minute、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_raw；原始單位且未還原除權息。":isChips()?"日 K＋籌碼 CSV：日 K OHLCV 與三大法人買進／賣出／淨額（股）、融資融券買進／賣出／餘額（張），含 institutional_available、margin_available、chip_signal_use_next_session；不存在的觀測留空，絕不視為 0。":"純日 K CSV：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread；未還原除權息。";
   $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
   $("yearTitle").textContent="各年度：所選股票的現股"+seriesName();
   $("startBtn").textContent="▶ 啟動"+seriesName()+"雲端背景下載";
@@ -147,10 +158,10 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  function updateOne(){$("oneFile").href=root()+"/export?code="+encodeURIComponent($("oneSymbol").value)}
  $("oneSymbol").onchange=updateOne;
  async function refresh(){
-  const expectedMode=isDaily()?"daily":"stocks";
-  try{const s=await call(root()+"/status");if((isDaily()?"daily":"stocks")===expectedMode)render(s)}
+  const expectedMode=modeId();
+  try{const s=await call(root()+"/status");if(modeId()===expectedMode)render(s)}
   catch(e){
-   if((isDaily()?"daily":"stocks")!==expectedMode)return;
+   if(modeId()!==expectedMode)return;
    if(job)$("message").textContent=e.message;
    else {$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");updateCount()}
   }
@@ -186,6 +197,10 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("start").min=isDaily()?"2000-01-01":"2021-01-01";
   $("start").value=startDates[previousMode]||$("start").min;
   if($("start").value<$("start").min)$("start").value=$("start").min;
+  job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
+  setFormatHelp();updateCount();refresh();
+ };
+ $("includeChips").onchange=()=>{
   job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
   setFormatHelp();updateCount();refresh();
  };
