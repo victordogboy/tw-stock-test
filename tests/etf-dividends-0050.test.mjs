@@ -114,7 +114,7 @@ test('Browser end-to-end: FinMind adjusted empty; split and TWSE dividend remain
  };
  const ctx=vm.createContext({document:{getElementById:node,createElement:()=>({append(){}})},
    window:{TWFinMindTokens:{activeToken:()=>''}},
-   fetch,URL,Date,Number,Map,Set,Math,Blob,console,setTimeout,location:{origin:'https://example.workers.dev'}});
+   fetch,URL,URLSearchParams,Date,Number,Map,Set,Math,Blob,console,setTimeout,location:{origin:'https://example.workers.dev'}});
  new vm.Script(fs.readFileSync(new URL('../public/0050-corporate-actions.js',import.meta.url),'utf8')).runInContext(ctx);
  new vm.Script(inner).runInContext(ctx);
  node('start').value='2025-01-01';node('end').value='2025-12-31';
