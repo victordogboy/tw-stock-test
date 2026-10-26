@@ -147,7 +147,9 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(token.length<5||token.length>4096||/[\r\n]/.test(token))return respond({ok:false,error:"請使用原本個股分析的 FinMind Sponsor Token"},401);
   const body=await request.text();if(body.length>14000)return respond({ok:false,error:"參數長度過大"},400);
   let args;try{args=JSON.parse(body)}catch{return respond({ok:false,error:"設定格式錯誤"},400)}
-  if(!dateOk(args.start)||!dateOk(args.end)||args.start<"2021-01-01"||args.end>today()||args.start>args.end)return respond({ok:false,error:"日期必須在 2021/01/01 至今天"},400);
+  const earliest=daily?"2000-01-01":"2021-01-01";
+  if(!dateOk(args.start)||!dateOk(args.end)||args.start<earliest||args.end>today()||args.start>args.end)
+   return respond({ok:false,error:"日期必須在 "+earliest+" 至今天"+(daily?"（日K）":"（1分K及期貨）")},400);
   const resId=known?id:randomId(),stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(resId));
   const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],reset:args.reset===true,mode:daily?"daily":isStock?"stocks":"futures"})}));
   return new Response(data.body,{status:data.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":cookieName+"="+resId+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000"}});
@@ -157,7 +159,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(path===root+"/status"&&method==="GET")return stub.fetch("https://private/status");
  if(path===root+"/export"&&method==="GET"){
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
-  if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!/^(202[1-9]|20[3-9]\d)$/.test(year))return respond({ok:false,error:"下載範圍錯誤"},400);
+  if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!(daily?/^(20\d{2}|21\d{2})$/:/^(202[1-9]|20[3-9]\d)$/).test(year))return respond({ok:false,error:"下載範圍錯誤"},400);
   return stub.fetch("https://private/export?"+new URLSearchParams({code,year}));
  }
  if(method==="POST"&&["pause","resume","delete"].includes(path.split("/").at(-1)))return stub.fetch(new Request("https://private/"+path.split("/").at(-1),{method:"POST"}));
@@ -246,6 +248,20 @@ export function firstDailyPriceDate(list,stock,start,end){
  // No rows is inconclusive: DO NOT skip the minute lookup.
  return dates.length?dates.sort()[0]:"";
 }
+// Daily data goes back to 1994, but requests covering 2000-now can become large.
+// Limit EACH FinMind call to eight calendar years; 2021-now still uses one call.
+export function dailyPriceWindows(start,end,maxYears=8){
+ if(!dateOk(start)||!dateOk(end)||start>end||!Number.isSafeInteger(maxYears)||maxYears<1)throw Error("日K區間設定錯誤");
+ const result=[];
+ let from=start;
+ while(from<=end){
+  const lastYear=Math.min(Number(end.slice(0,4)),Number(from.slice(0,4))+maxYears-1);
+  const to=lastYear===Number(end.slice(0,4))?end:lastYear+"-12-31";
+  result.push({start:from,end:to});
+  from=String(lastYear+1)+"-01-01";
+ }
+ return result;
+}
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
  summary(s){return {ok:true,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,mode:s.mode||"futures",dataset:s.mode==="daily"?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股一次抓完整日期區間（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
@@ -255,7 +271,10 @@ export class StockFuturesBatch{
   if(p==="/start"&&r.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token)return respond({ok:false,error:"沒有 FinMind Token"},401);
-   const q=await r.json(),stocksMode=q.mode==="stocks",dailyMode=q.mode==="daily",cashMode=stocksMode||dailyMode;let old=await st.get("state");
+   const q=await r.json(),stocksMode=q.mode==="stocks",dailyMode=q.mode==="daily",cashMode=stocksMode||dailyMode;
+    if(!dateOk(q.start)||!dateOk(q.end)||q.start>(q.end)||q.start<(dailyMode?"2000-01-01":"2021-01-01"))
+     return respond({ok:false,error:"資料日期範圍無效"},400);
+    let old=await st.get("state");
    if(old&&!q.reset){await st.put("token",token);return respond({...this.summary(old),existing:true,message:old.version===2?old.message:"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再按『重建小型＋近月任務』重抓。",legacy:old.version!==2})}
    let catalog;
    try{
@@ -431,7 +450,10 @@ export class StockFuturesBatch{
   await commit(firstFailed?Math.min(300000,15000*2**s.retries):0)
  }
  async alarmDaily(s,token,st){
-  const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+STOCK_MAX_PARALLEL);
+  // Stay below Cloudflare's outbound-subrequest ceiling for 27 years × 1 stock.
+  const yearCount=Number(s.end.slice(0,4))-Number(s.start.slice(0,4))+1;
+  const batchSize=Math.min(STOCK_MAX_PARALLEL,Math.max(1,Math.floor(40/yearCount)));
+  const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+batchSize);
   if(!stocks.length){
    s.phase="done";s.message="日 K 下載完成，請備份 CSV.gz";
    await st.put("state",s);await st.setAlarm(s.expiresAt);return
@@ -439,22 +461,29 @@ export class StockFuturesBatch{
   const started=Date.now();
   const result=await Promise.all(stocks.map(async c=>{
    try{
-    const data=await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:c.code,start_date:s.start,end_date:s.end});
-    const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
-    // One compressed shard per stock per calendar YEAR. A 6-year stock needs
-    // one FinMind request, but can be exported separately by year.
-    const shard=this.shardFor(s,c.code);
-    for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
-     const payload=await zip(parsed.csvByYear[String(year)]||"");
-     const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01",{method:"POST",body:payload}));
-     if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status);
-    }
-    return {ok:true,c,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
-     rejected:parsed.audit.rejectedInvalid+parsed.audit.rejectedProduct,duplicates:parsed.audit.duplicates};
-   }catch(e){return {ok:false,c,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
+    let calls=0;
+    try{
+     const data=[];
+     for(const window of dailyPriceWindows(s.start,s.end)){
+      calls++;
+      const part=await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:c.code,start_date:window.start,end_date:window.end});
+      data.push(...part);
+     }
+     const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
+     const shard=this.shardFor(s,c.code);
+     for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
+      const payload=await zip(parsed.csvByYear[String(year)]||"");
+      const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01",{method:"POST",body:payload}));
+      if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status);
+     }
+     return {ok:true,c,calls,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
+      rejected:parsed.audit.rejectedInvalid+parsed.audit.rejectedProduct,duplicates:parsed.audit.duplicates};
+    }catch(e){return {ok:false,c,calls,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
+   }catch(e){return {ok:false,c,calls:0,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
   }));
-  s.queries+=stocks.length;
-  s.nextAllowedAt=Math.max(started,s.nextAllowedAt||0)+stocks.length*STOCK_REQUEST_SPACING_MS;
+  const attempts=result.reduce((sum,x)=>sum+(x.calls||0),0);
+  s.queries+=attempts;
+  s.nextAllowedAt=Math.max(started,s.nextAllowedAt||0)+attempts*STOCK_REQUEST_SPACING_MS;
   const firstFailure=result.findIndex(x=>!x.ok);
   for(let i=0;i<result.length;i++){
    const x=result[i];
@@ -473,7 +502,7 @@ export class StockFuturesBatch{
    }else s.message="日 K 上游暫時失敗，稍後自動重試";
   }else{
    s.symbolIndex=from+stocks.length;s.retries=0;
-   s.message="日 K 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（整段日期每股僅需一次 API）";
+   s.message="日 K 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（長歷史每 8 年分段查詢）";
   }
   if(s.symbolIndex>=s.catalog.length&&s.phase==="running"){
    s.phase="done";s.message="日 K 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
