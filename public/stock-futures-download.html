@@ -58,7 +58,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <div class="bar"><div id="fill"></div></div>
 <div class="top"><b id="percent">0%</b><small id="count">0/0 股票</small></div>
 <div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="nonempty">0</b><small id="nonemptyLabel">有資料股票數</small></div><div class="stat"><b id="speed">—</b><small id="speedLabel">1 分 K 每小時筆數</small></div><div class="stat"><b id="skipped">0</b><small id="skippedLabel">省下的股票×日請求</small></div><div class="stat"><b id="preflight">—</b><small id="preflightLabel">歷史有效期預檢</small></div></div>
-<p id="message">—</p><div class="minor" id="cursor"></div>
+<p id="message">—</p><div class="minor" id="chipCoverage"></div><div class="minor" id="cursor"></div>
 <div class="actions"><button id="pauseBtn" class="secondary">暫停</button><button id="resumeBtn" class="secondary">繼續下載</button><button id="refreshBtn" class="secondary">更新狀態</button><button id="resetBtn" class="secondary">重新下載現股資料</button></div>
 <details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
 </section>
@@ -146,7 +146,9 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   const pct=s.total?Math.min(100,100*s.processed/s.total):0;$("fill").style.width=pct+"%";$("percent").textContent=pct.toFixed(2)+"%";
   $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+(s.mode==="daily"?" 檔股票":" 股票×日期");
   $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode==="daily"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode==="daily"?"—":fmt(s.skipped);$("preflight").textContent=s.mode==="daily"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
-  $("message").textContent=s.message+(s.mode==="daily"&&s.start>$("start").value?" ⚠ 既有日K任務從 "+s.start+" 開始。若想改為 2000 年，請先備份既有日K，然後按「重新下載這次的日 K」，1分K資料不受影響。":"");$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
+  $("message").textContent=s.message+((s.mode==="daily"||s.mode==="daily-chip")&&s.start>$("start").value?" ⚠ 現有任務從 "+s.start+" 開始。若需要延長資料，請先備份該模式、再按重新下載；其他模式不受影響。":"");
+  $("chipCoverage").textContent=s.mode==="daily-chip"&&s.chipCoverage?
+   "完整籌碼觀測："+fmt(s.chipCoverage.both)+" 筆；有法人："+fmt(s.chipCoverage.institutional)+" 筆；有融資融券："+fmt(s.chipCoverage.margin)+" 筆。缺漏留空不補0。":"";$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
   $("errors").textContent=(s.errors||[]).slice(-15).map(x=>x.day+" "+x.code+" "+x.error).join("\n")||"沒有紀錄錯誤";
   $("pauseBtn").disabled=s.phase!=="running";$("resumeBtn").disabled=!["paused","error"].includes(s.phase);
   $("exportNote").textContent=s.phase==="done"?"✓ 雲端已查詢完指定商品與日期，請立即備份年度檔。":"⚠ 工作尚未全部完成，目前匯出的檔案僅包含已成功下載的日期。";
