@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'src/etf-vix-daily.mjs'
+      - 'src/etf-dividends-0050.mjs'
+      - 'public/0050-corporate-actions.js'
+      - 'tests/etf-dividends-0050.test.mjs'
       - 'public/0050-vix-download.html'
       - 'tests/etf-vix-daily.test.mjs'
       - '.github/workflows/etf-vix-daily.yml'
@@ -23,6 +26,8 @@ jobs:
       - name: Syntax check
         run: |
           node --check src/etf-vix-daily.mjs
+          node --check src/etf-dividends-0050.mjs
+          node --check public/0050-corporate-actions.js
           node --check src/worker.mjs
       - name: Regression tests for historical date batching
-        run: node --test tests/etf-vix-daily.test.mjs
+        run: node --test tests/etf-vix-daily.test.mjs tests/etf-dividends-0050.test.mjs

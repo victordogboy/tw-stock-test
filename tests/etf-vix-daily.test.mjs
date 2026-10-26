@@ -71,6 +71,7 @@ test('Downloaded page batches 2000-2026 stock range and VIX to 14 days max',asyn
     location:{origin:'https://example.workers.dev'},
     fetch,URL,Date,Number,Map,Set,Math,Blob,console,setTimeout
   });
+  new vm.Script(fs.readFileSync(new URL('../public/0050-corporate-actions.js',import.meta.url),'utf8')).runInContext(ctx);
   compiled.runInContext(ctx);
   elm('start').value='2000-01-01';
   elm('end').value='2026-10-26';
@@ -160,6 +161,7 @@ test('Browser client mode enforces source, strips pasted Bearer prefix, and test
   const ctx=vm.createContext({document:{getElementById:get,createElement:()=>({append(){}})},
     window:{TWFinMindTokens:{activeToken:()=> 'old-browser-token'}},
     fetch,URL,Date,Number,Map,Set,Math,Blob,console,setTimeout,location:{origin:'https://example.workers.dev'}});
+  new vm.Script(fs.readFileSync(new URL('../public/0050-corporate-actions.js',import.meta.url),'utf8')).runInContext(ctx);
   script.runInContext(ctx);
   await vm.runInContext('detectCredentials(true)',ctx);
   assert.equal(get('credentialMode').value,'cloud');

@@ -14,7 +14,7 @@
 <h2>1. 下載設定</h2>
 <p class="sub"><a href="/tx-download.html">返回台指期下載器</a>　·　<a href="/scanner.html">股票掃描器</a></p>
 <div class="fields"><div class="field"><label for="start">起始日期</label><input type="date" id="start" value="2021-01-01"/></div><div class="field"><label for="end">結束日期</label><input type="date" id="end" value="2026-10-26"/></div><div class="field token"><label for="token">手動 FinMind API Token（僅選「手動輸入」才使用）</label><input type="password" id="token" placeholder="只填 API Token，不需提供帳號密碼；可留空" autocomplete="off" spellcheck="false" /></div><div class="field token"><label for="credentialMode">FinMind 認證來源（可切換排除失效 Token）</label><select id="credentialMode" style="width:100%;min-height:43px;color:var(--txt);background:#0d1728;border:1px solid #405674;border-radius:10px;padding:9px 11px;font:inherit"><option value="cloud">Cloudflare 雲端 Token（優先）</option><option value="browser">原網站已儲存的 Token</option><option value="manual">使用上方手動輸入的 Token</option><option value="anonymous">匿名下載（僅適合 0050）</option></select></div></div>
-<div id="credHint" class="sub" style="margin-top:10px">正在檢查伺服器是否有設定 Token；此資訊不會顯示實際金鑰。</div>
+<div id="credHint" class="sub" style="margin-top:10px">正在檢查 FinMind Token。官方 ETF 配息不使用 FinMind Token。</div>
 <div class="buttons"><button id="testStock" class="secondary">測試 0050 認證</button><button id="testVix" class="secondary">測試台灣 VIX 權限</button><button id="detectSource" class="outline">重新偵測 Token 來源</button></div>
 <div class="buttons"><button id="getBoth">取得 0050 ＋ VIX</button><button class="secondary" id="get0050">只取 0050</button><button class="secondary" id="getVix">只取台灣 VIX</button><button class="outline" id="clear">清除資料</button></div>
 <div class="hint"><strong>重要：</strong>FinMind 0050 日價可查多年，但 <code>TaiwanOptionVix</code> 官方文件標示從 <strong>2026-03-01</strong> 起，且需 <strong>Backer / Sponsor</strong>。不會把缺少的 VIX 日資料補 0、推測或冒充五年完整資料。</div>
@@ -32,20 +32,23 @@
 <section class="card full">
 <h2>3. 下載進度與資料檢查</h2>
 <progress id="prog" max="100" value="0"></progress><div id="status" class="sub">準備就緒；可先只下載 0050。</div>
-<div class="metrics" style="margin:15px 0"><div class="metric"><div class="sub">0050 原始日 K</div><div class="num" id="rawCount">—</div></div><div class="metric"><div class="sub">0050 還原日 K</div><div class="num" id="adjCount">—</div></div><div class="metric"><div class="sub">台灣 VIX 日 K</div><div class="num" id="vixCount">—</div></div><div class="metric"><div class="sub">可配對交易日</div><div class="num" id="matchCount">—</div></div></div>
-<div id="coverage" class="sub" style="margin-bottom:8px"></div><pre id="log" aria-live="polite">操作紀錄會顯示在這裡。</pre>
+<div class="metrics" style="margin:15px 0"><div class="metric"><div class="sub">0050 原始日 K（可拆分調整）</div><div class="num" id="rawCount">—</div></div><div class="metric"><div class="sub">FinMind 還原日 K（需權限）</div><div class="num" id="adjCount">—</div></div><div class="metric"><div class="sub">台灣 VIX 日 K</div><div class="num" id="vixCount">—</div></div><div class="metric"><div class="sub">可配對交易日</div><div class="num" id="matchCount">—</div></div></div>
+<div id="coverage" class="sub" style="margin-bottom:8px"></div>
+<div id="corpAudit" class="hint">資料稽核：等待 0050 原始日 K、除息紀錄與 VIX。歷史價格即使做拆分調整，也不代表已含配息。</div>
+<div class="buttons"><button id="loadDividends" class="secondary">單獨補抓官方 0050 配息</button></div><pre id="log" aria-live="polite">操作紀錄會顯示在這裡。</pre>
 </section>
 <section class="card full">
-<h2>4. CSV 匯出</h2><div class="sub">所有 CSV 使用 UTF-8 BOM，Excel 也可直接讀取。合併檔以 <strong>0050 交易日期</strong>為主，VIX 缺資料會保留空白。</div>
-<div class="buttons"><button class="secondary" id="exRaw" disabled>下載 0050 原始日 K</button><button class="secondary" id="exAdj" disabled>下載 0050 還原日 K</button><button class="secondary" id="exVix" disabled>下載 VIX 日 K</button><button id="exMerge" disabled>下載日期合併檔</button></div>
-<div class="hint"><b>回測提醒：</b>0050 在 2025-06-18 以 1:4 拆分，跨期績效比較必須考慮拆分與配息。VIX 的本工具日 K 是從當日分鐘／秒資料彙整；<b>最後一筆 vix ≠ 必然等於期交所官方「收盤前 1 分鐘平均」</b>。檔案保留觀測時間、樣本數與資料來源；只用當日收盤後能取得的 VIX 訊號時，最早應於<b>次一交易日</b>買入。</div>
+<h2>4. CSV 匯出</h2><div class="sub">合併檔以 0050 日期為主，新增 split_adjusted_*（只調整 2025 年 1 拆 4）、cash_dividend（除息日配息）及 cash_dividend_split_unit（換算成拆分後單位）。FinMind adj_close 只放真正取回的還原價；若缺資料保持空白。VIX 也不補零。</div>
+<div class="buttons"><button class="secondary" id="exRaw" disabled>下載 0050 原始日 K</button><button class="secondary" id="exAdj" disabled>下載 0050 還原日 K</button><button class="secondary" id="exVix" disabled>下載 VIX 日 K</button><button class="secondary" id="exDiv" disabled>下載歷史現金配息 CSV</button><button id="exMerge" disabled>下載日期合併檔</button></div>
+<div class="hint"><b>回測提醒：</b>0050 在 2025-06-18 以 1:4 拆分，split_adjusted 僅處理拆分、不包含配息；股息從證交所歷史紀錄額外下載（官方檔自 2005 年）。沒有完整配息／VIX 的資料，嚴禁宣稱為完整含息策略回測。VIX 的本工具日 K 是從當日分鐘／秒資料彙整；<b>最後一筆 vix ≠ 必然等於期交所官方「收盤前 1 分鐘平均」</b>。檔案保留觀測時間、樣本數與資料來源；只用當日收盤後能取得的 VIX 訊號時，最早應於<b>次一交易日</b>買入。</div>
 </section>
-<section class="card full"><h2>5. 合併預覽（最近 25 筆）</h2><div class="scroller"><table><thead><tr><th>日期</th><th>0050 開</th><th>0050 高</th><th>0050 低</th><th>0050 收</th><th>0050 還原收</th><th>VIX 收</th><th>VIX 末筆時刻</th><th>VIX 來源</th></tr></thead><tbody id="preview"><tr><td colspan="9" style="text-align:center;color:#99aac5">尚未取得資料</td></tr></tbody></table></div><div class="ft">依認證來源選項決定使用雲端 Secret、原站瀏覽器 Token、手動 Token 或匿名連線。本頁不額外儲存 Token，不在下載網址攜帶 Token，也不會對外顯示金鑰。下載資料只暫存於目前分頁；不要分享帳號密碼或 Token。</div></section>
+<section class="card full"><h2>5. 合併預覽（最近 25 筆）</h2><div class="scroller"><table><thead><tr><th>日期</th><th>0050 開</th><th>0050 高</th><th>0050 低</th><th>0050 收</th><th>拆分調整收</th><th>現金配息</th><th>0050 還原收</th><th>VIX 收</th><th>VIX 末筆時刻</th><th>VIX 來源</th></tr></thead><tbody id="preview"><tr><td colspan="11" style="text-align:center;color:#99aac5">尚未取得資料</td></tr></tbody></table></div><div class="ft">依認證來源選項決定使用雲端 Secret、原站瀏覽器 Token、手動 Token 或匿名連線。本頁不額外儲存 Token，不在下載網址攜帶 Token，也不會對外顯示金鑰。下載資料只暫存於目前分頁；不要分享帳號密碼或 Token。</div></section>
 </div></main>
 <script src="/finmind-token-manager.js"></script>
+<script src="/0050-corporate-actions.js"></script>
 <script>
 'use strict';
-const $=s=>document.getElementById(s);let stockRaw=[],stockAdj=[],vixRows=[],busy=false;$('end').value=new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
+const $=s=>document.getElementById(s);let stockRaw=[],stockAdj=[],vixRows=[],dividends=[],dividendsReady=false,busy=false;$('end').value=new Date(Date.now()+8*3600*1000).toISOString().slice(0,10);
 const cleanDate=s=>{if(!s)return '';const t=String(s).trim().replace(/[年月.]/g,'/').replace(/日/g,'').replace(/-/g,'/');let m=t.match(/^(\d{2,4})\/(\d{1,2})\/(\d{1,2})/);if(!m)return '';let y=+m[1];if(y<1911)y+=1911;const d=`${y}-${String(+m[2]).padStart(2,'0')}-${String(+m[3]).padStart(2,'0')}`;return !Number.isNaN(Date.parse(d))?d:''};
 const log=(s,isError=false)=>{$('log').textContent=($('log').textContent==='操作紀錄會顯示在這裡。'?'':$('log').textContent+'\n')+(isError?'⚠ ':'✓ ')+s;$('log').scrollTop=$('log').scrollHeight};
 const status=(s,p)=>{$('status').textContent=s;if(p!=null)$('prog').value=Math.max(0,Math.min(100,p))};
@@ -125,8 +128,16 @@ async function probeCredential(action){
 function normalizeStock(list){const m=new Map;for(const r of list){let d=cleanDate(r.date);if(!d)continue;const c=num(r.close);if(c==='')continue;m.set(d,{date:d,open:num(r.open),high:num(r.max??r.high),low:num(r.min??r.low),close:c,volume:num(r.Trading_Volume??r.trading_volume??r.volume),trading_money:num(r.Trading_money??r.trading_money),trading_turnover:num(r.Trading_turnover??r.trading_turnover),spread:num(r.spread)})}return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}
 function normalizeVix(list,source='FinMind TaiwanOptionVix'){const groups=new Map;for(const r of list){const d=cleanDate(r.date);const val=num(r.vix);if(!d||val===''||val<=0||val>300)continue;const time=String(r.time??'').trim();if(!groups.has(d))groups.set(d,[]);groups.get(d).push({vix:val,time})}const out=[];for(const[d,rows]of groups){rows.sort((a,b)=>a.time.localeCompare(b.time));const prices=rows.map(r=>r.vix);out.push({date:d,open:prices[0],high:Math.max(...prices),low:Math.min(...prices),close:prices[prices.length-1],last_time:rows[rows.length-1].time,samples:rows.length,source})}return out.sort((a,b)=>a.date.localeCompare(b.date))}
 function mergeVix(newRows){const map=new Map(vixRows.map(r=>[r.date,r]));for(const r of newRows)map.set(r.date,r);vixRows=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));render()}
-function joined(){const aj=new Map(stockAdj.map(r=>[r.date,r]));const vj=new Map(vixRows.map(r=>[r.date,r]));return stockRaw.map(r=>({...r,adj_close:aj.get(r.date)?.close??'',vix_open:vj.get(r.date)?.open??'',vix_high:vj.get(r.date)?.high??'',vix_low:vj.get(r.date)?.low??'',vix_close:vj.get(r.date)?.close??'',vix_last_time:vj.get(r.date)?.last_time??'',vix_samples:vj.get(r.date)?.samples??'',vix_source:vj.get(r.date)?.source??''}))}
-function render(){$('rawCount').textContent=stockRaw.length||'—';$('adjCount').textContent=stockAdj.length||'—';$('vixCount').textContent=vixRows.length||'—';const rows=joined(),matched=rows.filter(r=>r.vix_close!=='');$('matchCount').textContent=matched.length||'—';$('exRaw').disabled=!stockRaw.length;$('exAdj').disabled=!stockAdj.length;$('exVix').disabled=!vixRows.length;$('exMerge').disabled=!rows.length;const cover=[];if(stockRaw.length)cover.push(`0050：${stockRaw[0].date} ~ ${stockRaw.at(-1).date}`);if(stockAdj.length)cover.push(`還原價：${stockAdj[0].date} ~ ${stockAdj.at(-1).date}`);if(vixRows.length)cover.push(`VIX：${vixRows[0].date} ~ ${vixRows.at(-1).date}`);if(rows.length&&vixRows.length)cover.push(`同日配對 ${matched.length}/${rows.length}（${(matched.length/rows.length*100).toFixed(1)}%）`);$('coverage').textContent=cover.join('　｜　')||'尚無資料';const tbody=$('preview');tbody.replaceChildren();if(!rows.length){let tr=document.createElement('tr');let td=document.createElement('td');td.colSpan=9;td.textContent='請先取得 0050 歷史日 K';tr.append(td);tbody.append(tr);return}const n=rows.slice(-25).reverse();for(const r of n){const tr=document.createElement('tr');for(const k of ['date','open','high','low','close','adj_close','vix_close','vix_last_time','vix_source']){const td=document.createElement('td');td.textContent=String(r[k]??'');tr.append(td)}tbody.append(tr)}}
+function joined(){return window.ETF0050.merge(stockRaw,stockAdj,vixRows,dividends)}
+function render(){$('rawCount').textContent=stockRaw.length||'—';$('adjCount').textContent=stockAdj.length||'—';$('vixCount').textContent=vixRows.length||'—';const rows=joined(),matched=rows.filter(r=>r.vix_close!=='');const audit=window.ETF0050.audit(stockRaw,stockAdj,vixRows,dividends,dividendsReady);$('matchCount').textContent=matched.length||'—';$('exRaw').disabled=!stockRaw.length;$('exAdj').disabled=!stockAdj.length;$('exVix').disabled=!vixRows.length;$('exMerge').disabled=!rows.length;$('exDiv').disabled=!dividends.length;const cover=[];if(stockRaw.length)cover.push(`0050：${stockRaw[0].date} ~ ${stockRaw.at(-1).date}`);if(stockAdj.length)cover.push(`還原價：${stockAdj[0].date} ~ ${stockAdj.at(-1).date}`);if(dividends.length)cover.push('證交所配息 '+dividends.length+' 次');if(vixRows.length)cover.push(`VIX：${vixRows[0].date} ~ ${vixRows.at(-1).date}`);if(rows.length&&vixRows.length)cover.push(`同日配對 ${matched.length}/${rows.length}（${(matched.length/rows.length*100).toFixed(1)}%）`);$('coverage').textContent=cover.join('　｜　')||'尚無資料';
+$('corpAudit').textContent=stockRaw.length?
+('拆分價：'+rows.filter(r=>r.split_adjusted_close!=='').length+'/'+rows.length+' 日；'+
+ 'FinMind 還原價缺漏：'+audit.missingAdj+' 日；'+
+ 'VIX 缺漏：'+audit.missingVix+' 日；'+
+ '官方現金配息：'+(dividendsReady?dividends.length+' 筆，已取得（2005 年起）':'尚未完成稽核')+
+ (audit.unpaired.length?'；配息日未對應日K：'+audit.unpaired.join('、'):'')+
+ (rows[0]?.date<'2005-01-01'?'；2003～2004 年配息來源未涵蓋，不能聲稱全期間含息回測':'')+
+ '。split_adjusted_close 不含股息，不能當 total return。'):'尚無 0050 價格，未開始拆分／配息稽核。';const tbody=$('preview');tbody.replaceChildren();if(!rows.length){let tr=document.createElement('tr');let td=document.createElement('td');td.colSpan=11;td.textContent='請先取得 0050 歷史日 K';tr.append(td);tbody.append(tr);return}const n=rows.slice(-25).reverse();for(const r of n){const tr=document.createElement('tr');for(const k of ['date','open','high','low','close','split_adjusted_close','cash_dividend','adj_close','vix_close','vix_last_time','vix_source']){const td=document.createElement('td');td.textContent=String(r[k]??'');tr.append(td)}tbody.append(tr)}}
 function wrap(fn){return async()=>{if(busy)return;busy=true;['getBoth','get0050','getVix','importVix','testStock','testVix'].forEach(id=>$(id).disabled=true);try{await fn()}catch(e){log(e.message,true);status('發生錯誤；已完成的部分可照常匯出。',0)}finally{busy=false;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=false);render()}}}
 async function loadStock() {
   const [requestedStart,end]=range();
@@ -135,7 +146,7 @@ async function loadStock() {
   if(start!==requestedStart)log(`0050 自 2003-06-30 上市；${requestedStart} 至 2003-06-29 不會產生虛構日價。`);
   const parts=dateBatches(start,end,365);
   log(`0050 依每包最多 365 天分批，共 ${parts.length} 包；避免單次請求超過 Cloudflare 或 FinMind 限制。`);
-  stockRaw=[];stockAdj=[];render();
+  stockRaw=[];stockAdj=[];dividends=[];dividendsReady=false;render();
   const rawMap=new Map();
   for(let i=0;i<parts.length;i++){
     const [a,b]=parts[i];
@@ -154,7 +165,7 @@ async function loadStock() {
       const [a,b]=parts[i];
       status(`0050 還原日 K：${a} ～ ${b}（${i+1}/${parts.length}）`,35+19*i/parts.length);
       const rows=normalizeStock(await request('TaiwanStockPriceAdj',a,b,'0050'));
-      for(const r of rows)adjusted.set(r.date,r);
+      if(i===0&&!rows.length){log('FinMind TaiwanStockPriceAdj 第一年度回傳 0 筆；不再重複查詢，改以拆分調整價格作為「不含息」參考（不填入 adj_close）。',true);break;}for(const r of rows)adjusted.set(r.date,r);
       stockAdj=[...adjusted.values()].sort((x,y)=>x.date.localeCompare(y.date));
       render();
     }
@@ -164,6 +175,27 @@ async function loadStock() {
     log(`還原日 K 下載未完成（已保留原始資料與已取得還原資料）：${e.message}`,true);
   }
   status(`0050 原始日 K 完成 ${stockRaw.length} 筆，還原 ${stockAdj.length} 筆`,55);
+}
+
+async function loadDividends(){
+  const [rStart,end]=range(),start=rStart<'2005-01-01'?'2005-01-01':rStart;
+  dividendsReady=false;dividends=[];
+  if(end<start){log('官方 ETF 配息紀錄只提供 2005 年後；所選區間沒有可查的官方記錄。',true);render();return;}
+  status('由證交所取得 0050 歷史現金配息...',52);
+  const query=new URLSearchParams({start_date:start,end_date:end});
+  let response;
+  try{response=await fetch('/api/etf-dividends-0050?'+query,{cache:'no-store'});}
+  catch(e){log('官方 ETF 配息來源連線失敗：'+e.message,true);render();return;}
+  let body={};try{body=await response.json()}catch{}
+  if(!response.ok||!body.ok||!Array.isArray(body.rows)){
+    log('官方 ETF 配息資料未取得：'+(body.error||'格式異常')+'。不要把配息空白當作 0。',true);
+    render();return;
+  }
+  dividends=body.rows.map(d=>({date:cleanDate(d.date),cash_dividend:num(d.cash_dividend),payment_date:cleanDate(d.payment_date),source:d.source})).filter(d=>d.date&&d.cash_dividend!==''&&d.cash_dividend>0);
+  dividendsReady=dividends.length>0;
+  log('TWSE 官方 ETF 配息：'+dividends.length+' 筆，'+(dividends.length?dividends[0].date+' ~ '+dividends.at(-1).date:'無回傳；無法視為沒有配息'));
+  if(!dividendsReady)log('官方雖回傳資料但查無 0050 的現金配息；請確認交易所 API 是否改版。',true);
+  render();
 }
 async function loadVix() {
   const [requestedStart,end]=range();
@@ -184,25 +216,26 @@ async function loadVix() {
   log(`台灣 VIX 共 ${vixRows.length} 個日 K；當日最後一個觀測值不等於期交所官方收盤價。`);
   status(`下載完成：VIX ${vixRows.length} 日`,100);
 }
-$('getBoth').onclick=wrap(async()=>{await loadStock();try{await loadVix()}catch(e){log('VIX 下載失敗：'+e.message,true);status('0050 已完成；VIX 可另行查詢或匯入 CSV',100)}});
-$('get0050').onclick=wrap(loadStock);$('getVix').onclick=wrap(loadVix);
+$('getBoth').onclick=wrap(async()=>{await loadStock();await loadDividends();try{await loadVix()}catch(e){log('VIX 下載失敗：'+e.message,true);status('0050 已完成；VIX 可另行查詢或匯入 CSV',100)}});
+$('get0050').onclick=wrap(async()=>{await loadStock();await loadDividends()});$('getVix').onclick=wrap(loadVix);$('loadDividends').onclick=wrap(loadDividends);
 $('testStock').onclick=wrap(()=>probeCredential('probe'));
 $('testVix').onclick=wrap(()=>probeCredential('probe-vix'));
 $('detectSource').onclick=()=>detectCredentials(true);
 $('credentialMode').onchange=()=>{$('credentialMode').dataset.touched='yes';$('credHint').textContent='認證來源已切換；請按「測試 0050 認證」檢查。'};
 
-$('clear').onclick=()=>{if(busy)return;stockRaw=[];stockAdj=[];vixRows=[];$('token').value='';$('vixFile').value='';$('log').textContent='資料與 Token 已清空';status('資料已清空',0);render()};
+$('clear').onclick=()=>{if(busy)return;stockRaw=[];stockAdj=[];vixRows=[];dividends=[];dividendsReady=false;$('token').value='';$('vixFile').value='';$('log').textContent='資料與 Token 已清空';status('資料已清空',0);render()};
 function parseCSV(text){const s=text.replace(/^\ufeff/,'').replace(/\r\n?/g,'\n');const lines=[];let field='',row=[],quoted=false;for(let i=0;i<s.length;i++){const c=s[i];if(c==='"'){if(quoted&&s[i+1]==='"'){field+='"';i++}else quoted=!quoted}else if(!quoted&&(c===','||c==='\t'||c===';'||c==='\n')){if(c==='\n'){row.push(field.trim());if(row.some(x=>x!==''))lines.push(row);field='';row=[]}else if(c===delimiter){row.push(field.trim());field=''}else field+=c}else field+=c}row.push(field.trim());if(row.some(x=>x!==''))lines.push(row);return lines}
 let delimiter=',';function parseDelimited(str){let first=str.replace(/^\ufeff/,'').split(/\r?\n/,1)[0]||'';const tests=[',','\t',';'].map(d=>[d,(first.match(new RegExp(d==='\t'?'\t':d,'g'))||[]).length]);tests.sort((a,b)=>b[1]-a[1]);delimiter=tests[0][0];return parseCSV(str)}
 function importVixCsv(str){const rows=parseDelimited(str);if(rows.length<2)throw Error('CSV 至少需一個表頭與一筆資料');const header=rows[0].map(x=>x.toLowerCase().replace(/\s|\(|\)|（|）|_/g,''));const choose=(candidates)=>header.findIndex(s=>candidates.some(c=>s.includes(c)));let dt=choose(['date','日期','時間','dateoftrading']);let vc=choose(['vixclose','vix','波動率','收盤價','close','指數值','收盤']);let ti=choose(['time','時分秒','時間']);let op=choose(['open','開盤']),hi=choose(['high','最高']),lo=choose(['low','最低']);if(dt===-1||vc===-1)throw Error('CSV 必須包含 date/日期 與 vix/close/收盤 欄位，檢測到：'+rows[0].join(','));const raw=[];let skip=0;for(const r of rows.slice(1)){const date=cleanDate(r[dt]);const vix=Number(String(r[vc]??'').replace(/[,%\s]/g,''));if(!date||!Number.isFinite(vix)||vix<=0||vix>300){skip++;continue}raw.push({date,vix,time:ti>=0?r[ti]||'':'' ,o:op>=0?num(r[op]):'',h:hi>=0?num(r[hi]):'',l:lo>=0?num(r[lo]):''})}if(!raw.length)throw Error('CSV 沒有可用資料列（日期可用 YYYY-MM-DD、YYYY/MM/DD 或民國年）');const out=normalizeVix(raw,'匯入 CSV');const explicit=new Map(raw.filter(x=>x.o!==''||x.h!==''||x.l!=='').map(x=>[x.date,x]));for(const r of out){const e=explicit.get(r.date);if(e){if(e.o!=='')r.open=e.o;if(e.h!=='')r.high=e.h;if(e.l!=='')r.low=e.l}else if(r.samples===1){r.open='';r.high='';r.low=''}}return{out,skip}}
 $('importVix').onclick=wrap(async()=>{const f=$('vixFile').files[0];if(!f)throw Error('請先選取 CSV');const text=await f.text();const {out,skip}=importVixCsv(text);mergeVix(out);log(`成功匯入 ${out.length} 個 VIX 交易日，無效列 ${skip} 筆；同日將覆蓋先前來源。`);status('VIX CSV 匯入完成',100)});
 function csvString(rows,cols){const esc=v=>{const s=String(v??'');return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};return '\ufeff'+cols.join(',')+'\r\n'+rows.map(r=>cols.map(k=>esc(r[k])).join(',')).join('\r\n')+'\r\n'}
 function save(name,rows,cols){if(!rows.length)return;const blob=new Blob([csvString(rows,cols)],{type:'text/csv;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(u);a.remove()},1500)}
-const stockCols=['date','open','high','low','close','volume','trading_money','trading_turnover','spread'];const vixCols=['date','open','high','low','close','last_time','samples','source'];
+const divCols=['date','cash_dividend','payment_date','source'];const stockCols=['date','open','high','low','close','volume','trading_money','trading_turnover','spread'];const vixCols=['date','open','high','low','close','last_time','samples','source'];
 $('exRaw').onclick=()=>save(`0050_original_daily_${$('start').value}_${$('end').value}.csv`,stockRaw,stockCols);
 $('exAdj').onclick=()=>save(`0050_adjusted_daily_${$('start').value}_${$('end').value}.csv`,stockAdj,stockCols);
 $('exVix').onclick=()=>save(`TaiwanVIX_daily_${vixRows[0]?.date}_${vixRows.at(-1)?.date}.csv`,vixRows,vixCols);
-$('exMerge').onclick=()=>save(`0050_TaiwanVIX_MERGED_${$('start').value}_${$('end').value}.csv`,joined(),[...stockCols.slice(0,5),'adj_close','volume','vix_open','vix_high','vix_low','vix_close','vix_last_time','vix_samples','vix_source']);
+$('exDiv').onclick=()=>save(`0050_TWSE_cash_dividends_${$('start').value}_${$('end').value}.csv`,dividends,divCols);
+$('exMerge').onclick=()=>save(`0050_TaiwanVIX_MERGED_${$('start').value}_${$('end').value}.csv`,joined(),[...stockCols.slice(0,5),'adj_close','adj_source','split_adjusted_open','split_adjusted_high','split_adjusted_low','split_adjusted_close','split_factor','split_event_ratio','cash_dividend','cash_dividend_split_unit','dividend_payment_date','dividend_source','volume','vix_open','vix_high','vix_low','vix_close','vix_last_time','vix_samples','vix_source']);
 render();
 detectCredentials();
 </script></body></html>
