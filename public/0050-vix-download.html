@@ -13,10 +13,12 @@
 <section class="card">
 <h2>1. 下載設定</h2>
 <p class="sub"><a href="/tx-download.html">返回台指期下載器</a>　·　<a href="/scanner.html">股票掃描器</a></p>
-<div class="fields"><div class="field"><label for="start">起始日期</label><input type="date" id="start" value="2021-01-01"/></div><div class="field"><label for="end">結束日期</label><input type="date" id="end" value="2026-10-26"/></div><div class="field token"><label for="token">FinMind API Token（非帳號密碼，非必填；台灣 VIX 必須具 Backer 以上權限）</label><input type="password" id="token" placeholder="可留空沿用原站 Token，或直接貼入；此頁不新增儲存" autocomplete="off" spellcheck="false" /></div></div>
+<div class="fields"><div class="field"><label for="start">起始日期</label><input type="date" id="start" value="2021-01-01"/></div><div class="field"><label for="end">結束日期</label><input type="date" id="end" value="2026-10-26"/></div><div class="field token"><label for="token">手動 FinMind API Token（僅選「手動輸入」才使用）</label><input type="password" id="token" placeholder="只填 API Token，不需提供帳號密碼；可留空" autocomplete="off" spellcheck="false" /></div><div class="field token"><label for="credentialMode">FinMind 認證來源（可切換排除失效 Token）</label><select id="credentialMode" style="width:100%;min-height:43px;color:var(--txt);background:#0d1728;border:1px solid #405674;border-radius:10px;padding:9px 11px;font:inherit"><option value="cloud">Cloudflare 雲端 Token（優先）</option><option value="browser">原網站已儲存的 Token</option><option value="manual">使用上方手動輸入的 Token</option><option value="anonymous">匿名下載（僅適合 0050）</option></select></div></div>
+<div id="credHint" class="sub" style="margin-top:10px">正在檢查伺服器是否有設定 Token；此資訊不會顯示實際金鑰。</div>
+<div class="buttons"><button id="testStock" class="secondary">測試 0050 認證</button><button id="testVix" class="secondary">測試台灣 VIX 權限</button><button id="detectSource" class="outline">重新偵測 Token 來源</button></div>
 <div class="buttons"><button id="getBoth">取得 0050 ＋ VIX</button><button class="secondary" id="get0050">只取 0050</button><button class="secondary" id="getVix">只取台灣 VIX</button><button class="outline" id="clear">清除資料</button></div>
 <div class="hint"><strong>重要：</strong>FinMind 0050 日價可查多年，但 <code>TaiwanOptionVix</code> 官方文件標示從 <strong>2026-03-01</strong> 起，且需 <strong>Backer / Sponsor</strong>。不會把缺少的 VIX 日資料補 0、推測或冒充五年完整資料。</div>
-<div class="sub" style="margin-top:13px">雲端版自動依日期分批下載：0050 每包最多 365 天，VIX 每包最多 14 天；可沿用原站儲存的 FinMind Token。下載仍在目前手機分頁執行，切換 App 或關閉頁面可能中斷；進度中可先匯出已完成資料。</div>
+<div class="sub" style="margin-top:13px">雲端版自動依日期分批下載：0050 每包最多 365 天，VIX 每包最多 14 天。請先按「測試 0050 認證」；若顯示 Token is illegal，可切換雲端／原網站／手動輸入來源。此處不會上傳帳號密碼，Token 也不會寫入 GitHub。手機離開分頁可能中斷下載。</div>
 </section>
 <section class="card">
 <h2>2. 匯入既有台灣 VIX 歷史 CSV</h2>
@@ -38,7 +40,7 @@
 <div class="buttons"><button class="secondary" id="exRaw" disabled>下載 0050 原始日 K</button><button class="secondary" id="exAdj" disabled>下載 0050 還原日 K</button><button class="secondary" id="exVix" disabled>下載 VIX 日 K</button><button id="exMerge" disabled>下載日期合併檔</button></div>
 <div class="hint"><b>回測提醒：</b>0050 在 2025-06-18 以 1:4 拆分，跨期績效比較必須考慮拆分與配息。VIX 的本工具日 K 是從當日分鐘／秒資料彙整；<b>最後一筆 vix ≠ 必然等於期交所官方「收盤前 1 分鐘平均」</b>。檔案保留觀測時間、樣本數與資料來源；只用當日收盤後能取得的 VIX 訊號時，最早應於<b>次一交易日</b>買入。</div>
 </section>
-<section class="card full"><h2>5. 合併預覽（最近 25 筆）</h2><div class="scroller"><table><thead><tr><th>日期</th><th>0050 開</th><th>0050 高</th><th>0050 低</th><th>0050 收</th><th>0050 還原收</th><th>VIX 收</th><th>VIX 末筆時刻</th><th>VIX 來源</th></tr></thead><tbody id="preview"><tr><td colspan="9" style="text-align:center;color:#99aac5">尚未取得資料</td></tr></tbody></table></div><div class="ft">Token 經由本站 Cloudflare Worker 傳送至 FinMind；本頁不額外儲存 Token，若原網站已有儲存的 Token，沿用原站設定。下載到的資料僅暫存於目前分頁，關閉即清空。請勿分享 Token 或帳號密碼。</div></section>
+<section class="card full"><h2>5. 合併預覽（最近 25 筆）</h2><div class="scroller"><table><thead><tr><th>日期</th><th>0050 開</th><th>0050 高</th><th>0050 低</th><th>0050 收</th><th>0050 還原收</th><th>VIX 收</th><th>VIX 末筆時刻</th><th>VIX 來源</th></tr></thead><tbody id="preview"><tr><td colspan="9" style="text-align:center;color:#99aac5">尚未取得資料</td></tr></tbody></table></div><div class="ft">依認證來源選項決定使用雲端 Secret、原站瀏覽器 Token、手動 Token 或匿名連線。本頁不額外儲存 Token，不在下載網址攜帶 Token，也不會對外顯示金鑰。下載資料只暫存於目前分頁；不要分享帳號密碼或 Token。</div></section>
 </div></main>
 <script src="/finmind-token-manager.js"></script>
 <script>
@@ -60,13 +62,72 @@ function dateBatches(start,end,days) {
   }
   return result;
 }
-async function request(dataset,start,end,id){const u=new URL('/api/etf-vix-daily', location.origin);u.searchParams.set('dataset',dataset);u.searchParams.set('start_date',start);u.searchParams.set('end_date',end);if(id)u.searchParams.set('data_id',id);const headers={};const token=$('token').value.trim()||(window.TWFinMindTokens?.activeToken?.()||'');if(token)headers.Authorization='Bearer '+token;let response;try{response=await fetch(u,{headers,cache:'no-store'})}catch(e){throw Error('Cloudflare 代理連線失敗，請重新整理本頁後再試。'+e.message)}if(!response.ok)throw Error(`${dataset} HTTP ${response.status}：${(await response.text()).slice(0,180)}`);let json;try{json=await response.json()}catch(e){throw Error(`${dataset} 回傳非 JSON：${e.message}`)}if((json.status!=null&&Number(json.status)!==200)||(json.msg&&/error|limit|denied|token|permission|無權|付費/i.test(String(json.msg))))throw Error(`${dataset} API ${json.status||''}：${json.msg||'存取失敗'}`);if(!Array.isArray(json.data))throw Error(`${dataset}：回傳缺少 data 陣列（${json.msg||'未知'}）`);return json.data}
+function credentialSelection(){
+  const mode=$('credentialMode').value||'cloud';
+  const headers={};
+  if(mode==='manual'){
+    let t=$('token').value.trim().replace(/^Bearer\s+/i,'');
+    if(!t)throw Error('請在上方輸入新的 FinMind API Token，或切換其他認證來源。');
+    headers.Authorization='Bearer '+t;
+  }else if(mode==='browser'){
+    let t=String(window.TWFinMindTokens?.activeToken?.()||'').trim().replace(/^Bearer\s+/i,'');
+    if(!t)throw Error('原網站沒有可沿用的 Token；請改選雲端或手動輸入。');
+    headers.Authorization='Bearer '+t;
+  }
+  return {mode,headers};
+}
+async function gateway(params){
+  const u=new URL('/api/etf-vix-daily',location.origin);
+  for(const [key,value] of Object.entries(params))if(value!=null&&value!=='')u.searchParams.set(key,value);
+  const {mode,headers}=credentialSelection();
+  u.searchParams.set('credential',mode);
+  let response;
+  try{response=await fetch(u,{headers,cache:'no-store'})}
+  catch(e){throw Error('Cloudflare 代理連線失敗：'+e.message)}
+  let data;
+  try{data=await response.json()}catch{throw Error('伺服器未回傳 JSON (HTTP '+response.status+')')}
+  if(!response.ok||Number(data?.status)!==200){
+    const code=String(data?.code||'FINMIND_ERROR');
+    const src=String(data?.credential_source||mode);
+    throw Error('['+code+'] 來源 '+src+'：'+String(data?.msg||'未知錯誤'));
+  }
+  return data;
+}
+async function request(dataset,start,end,id){
+  const result=await gateway({dataset,start_date:start,end_date:end,data_id:id});
+  if(!Array.isArray(result.data))throw Error(dataset+' 回應沒有 data 欄位');
+  return result.data;
+}
+async function detectCredentials(force=false){
+  try{
+    const u=new URL('/api/etf-vix-daily',location.origin);u.searchParams.set('action','status');
+    const res=await fetch(u,{cache:'no-store'});
+    const info=await res.json();
+    const browser=!!(window.TWFinMindTokens?.activeToken?.());
+    const manual=!!$('token').value.trim();
+    if(force||!$('credentialMode').dataset?.touched){
+      $('credentialMode').value=info.cloud_available?'cloud':browser?'browser':manual?'manual':'anonymous';
+    }
+    $('credHint').textContent='雲端 Token：'+(info.cloud_available?'已設定（尚未驗證）':'未設定')+
+      '；原網站 Token：'+(browser?'已儲存（尚未驗證）':'未找到')+
+      '；目前選擇：'+$('credentialMode').options?.[$('credentialMode').selectedIndex]?.text||'';
+    if(!info.cloud_available&&!browser&&!manual)log('目前沒有儲存 Token，可匿名抓取 0050；台灣 VIX 需要有效且具權限的 Token。',true);
+  }catch(e){$('credHint').textContent='無法確認雲端 Token 設定；可自行選來源後按「測試 0050 認證」：'+e.message}
+}
+async function probeCredential(action){
+  const data=await gateway({action});
+  const ds=action==='probe-vix'?'台灣 VIX':'0050';
+  const message=ds+' 認證測試成功；來源 '+data.credential_source+'，回傳 '+data.rows+' 筆。';
+  log(message);$('credHint').textContent=message;
+  status(message,0);
+}
+
 function normalizeStock(list){const m=new Map;for(const r of list){let d=cleanDate(r.date);if(!d)continue;const c=num(r.close);if(c==='')continue;m.set(d,{date:d,open:num(r.open),high:num(r.max??r.high),low:num(r.min??r.low),close:c,volume:num(r.Trading_Volume??r.trading_volume??r.volume),trading_money:num(r.Trading_money??r.trading_money),trading_turnover:num(r.Trading_turnover??r.trading_turnover),spread:num(r.spread)})}return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}
 function normalizeVix(list,source='FinMind TaiwanOptionVix'){const groups=new Map;for(const r of list){const d=cleanDate(r.date);const val=num(r.vix);if(!d||val===''||val<=0||val>300)continue;const time=String(r.time??'').trim();if(!groups.has(d))groups.set(d,[]);groups.get(d).push({vix:val,time})}const out=[];for(const[d,rows]of groups){rows.sort((a,b)=>a.time.localeCompare(b.time));const prices=rows.map(r=>r.vix);out.push({date:d,open:prices[0],high:Math.max(...prices),low:Math.min(...prices),close:prices[prices.length-1],last_time:rows[rows.length-1].time,samples:rows.length,source})}return out.sort((a,b)=>a.date.localeCompare(b.date))}
 function mergeVix(newRows){const map=new Map(vixRows.map(r=>[r.date,r]));for(const r of newRows)map.set(r.date,r);vixRows=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));render()}
 function joined(){const aj=new Map(stockAdj.map(r=>[r.date,r]));const vj=new Map(vixRows.map(r=>[r.date,r]));return stockRaw.map(r=>({...r,adj_close:aj.get(r.date)?.close??'',vix_open:vj.get(r.date)?.open??'',vix_high:vj.get(r.date)?.high??'',vix_low:vj.get(r.date)?.low??'',vix_close:vj.get(r.date)?.close??'',vix_last_time:vj.get(r.date)?.last_time??'',vix_samples:vj.get(r.date)?.samples??'',vix_source:vj.get(r.date)?.source??''}))}
 function render(){$('rawCount').textContent=stockRaw.length||'—';$('adjCount').textContent=stockAdj.length||'—';$('vixCount').textContent=vixRows.length||'—';const rows=joined(),matched=rows.filter(r=>r.vix_close!=='');$('matchCount').textContent=matched.length||'—';$('exRaw').disabled=!stockRaw.length;$('exAdj').disabled=!stockAdj.length;$('exVix').disabled=!vixRows.length;$('exMerge').disabled=!rows.length;const cover=[];if(stockRaw.length)cover.push(`0050：${stockRaw[0].date} ~ ${stockRaw.at(-1).date}`);if(stockAdj.length)cover.push(`還原價：${stockAdj[0].date} ~ ${stockAdj.at(-1).date}`);if(vixRows.length)cover.push(`VIX：${vixRows[0].date} ~ ${vixRows.at(-1).date}`);if(rows.length&&vixRows.length)cover.push(`同日配對 ${matched.length}/${rows.length}（${(matched.length/rows.length*100).toFixed(1)}%）`);$('coverage').textContent=cover.join('　｜　')||'尚無資料';const tbody=$('preview');tbody.replaceChildren();if(!rows.length){let tr=document.createElement('tr');let td=document.createElement('td');td.colSpan=9;td.textContent='請先取得 0050 歷史日 K';tr.append(td);tbody.append(tr);return}const n=rows.slice(-25).reverse();for(const r of n){const tr=document.createElement('tr');for(const k of ['date','open','high','low','close','adj_close','vix_close','vix_last_time','vix_source']){const td=document.createElement('td');td.textContent=String(r[k]??'');tr.append(td)}tbody.append(tr)}}
-function wrap(fn){return async()=>{if(busy)return;busy=true;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=true);try{await fn()}catch(e){log(e.message,true);status('發生錯誤；已完成的部分可照常匯出。',0)}finally{busy=false;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=false);render()}}}
+function wrap(fn){return async()=>{if(busy)return;busy=true;['getBoth','get0050','getVix','importVix','testStock','testVix'].forEach(id=>$(id).disabled=true);try{await fn()}catch(e){log(e.message,true);status('發生錯誤；已完成的部分可照常匯出。',0)}finally{busy=false;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=false);render()}}}
 async function loadStock() {
   const [requestedStart,end]=range();
   const start=requestedStart<'2003-06-30'?'2003-06-30':requestedStart;
@@ -125,6 +186,11 @@ async function loadVix() {
 }
 $('getBoth').onclick=wrap(async()=>{await loadStock();try{await loadVix()}catch(e){log('VIX 下載失敗：'+e.message,true);status('0050 已完成；VIX 可另行查詢或匯入 CSV',100)}});
 $('get0050').onclick=wrap(loadStock);$('getVix').onclick=wrap(loadVix);
+$('testStock').onclick=wrap(()=>probeCredential('probe'));
+$('testVix').onclick=wrap(()=>probeCredential('probe-vix'));
+$('detectSource').onclick=()=>detectCredentials(true);
+$('credentialMode').onchange=()=>{$('credentialMode').dataset.touched='yes';$('credHint').textContent='認證來源已切換；請按「測試 0050 認證」檢查。'};
+
 $('clear').onclick=()=>{if(busy)return;stockRaw=[];stockAdj=[];vixRows=[];$('token').value='';$('vixFile').value='';$('log').textContent='資料與 Token 已清空';status('資料已清空',0);render()};
 function parseCSV(text){const s=text.replace(/^\ufeff/,'').replace(/\r\n?/g,'\n');const lines=[];let field='',row=[],quoted=false;for(let i=0;i<s.length;i++){const c=s[i];if(c==='"'){if(quoted&&s[i+1]==='"'){field+='"';i++}else quoted=!quoted}else if(!quoted&&(c===','||c==='\t'||c===';'||c==='\n')){if(c==='\n'){row.push(field.trim());if(row.some(x=>x!==''))lines.push(row);field='';row=[]}else if(c===delimiter){row.push(field.trim());field=''}else field+=c}else field+=c}row.push(field.trim());if(row.some(x=>x!==''))lines.push(row);return lines}
 let delimiter=',';function parseDelimited(str){let first=str.replace(/^\ufeff/,'').split(/\r?\n/,1)[0]||'';const tests=[',','\t',';'].map(d=>[d,(first.match(new RegExp(d==='\t'?'\t':d,'g'))||[]).length]);tests.sort((a,b)=>b[1]-a[1]);delimiter=tests[0][0];return parseCSV(str)}
@@ -138,4 +204,5 @@ $('exAdj').onclick=()=>save(`0050_adjusted_daily_${$('start').value}_${$('end').
 $('exVix').onclick=()=>save(`TaiwanVIX_daily_${vixRows[0]?.date}_${vixRows.at(-1)?.date}.csv`,vixRows,vixCols);
 $('exMerge').onclick=()=>save(`0050_TaiwanVIX_MERGED_${$('start').value}_${$('end').value}.csv`,joined(),[...stockCols.slice(0,5),'adj_close','volume','vix_open','vix_high','vix_low','vix_close','vix_last_time','vix_samples','vix_source']);
 render();
+detectCredentials();
 </script></body></html>
