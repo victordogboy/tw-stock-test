@@ -7,29 +7,30 @@
 <nav><a href="/futures.html">← 返回台指期分析</a>　/　下載歷史分 K　/　<a href="/stock-futures-download.html">有個股期貨的股票・現股1分K</a>　/　<a href="/0050-vix-download.html">0050 × 台灣 VIX 日K</a></nav>
 <div class="eyebrow">FINMIND · CLOUD BACKGROUND DOWNLOADER</div>
 <h1>台指期 1 分 K<br>雲端資料下載</h1>
-<p>從 2021/01/01 開始，逐日曆日下載 TX 日盤＋夜盤，包含週五 15:00 至週六 05:00。僅保留大台 TX 一般月份合約，不含小台、選擇權或跨月價差。</p>
-<div class="chips"><span class="chip">台指期 TX</span><span class="chip">日盤＋夜盤</span><span class="chip">五年歷史資料</span><span class="chip">雲端自動續傳</span></div>
+<p>起始日期可選 2000/01/01；雲端按來源可用範圍下載台指期 TX 日盤＋夜盤，包含週五跨週六凌晨。請注意 FinMind 的分 K 真正從 2011/01/03 才開始。</p>
+<div class="chips"><span class="chip">台指期 TX</span><span class="chip">日盤＋夜盤</span><span class="chip">2000 起可選日期</span><span class="chip">雲端自動續傳</span></div>
 <section><h2>建立任務</h2>
-<div class="grid"><div><label for="start">起始日期</label><input id="start" type="date" value="2021-01-01" min="2021-01-01"></div><div><label for="end">結束日期</label><input id="end" type="date"></div></div>
+<div class="grid"><div><label for="start">起始日期</label><input id="start" type="date" value="2000-01-01" min="2000-01-01"></div><div><label for="end">結束日期</label><input id="end" type="date"></div></div>
+<div class="note" id="sourceCoverage"><strong>資料來源限制：</strong>FinMind 台指期 1 分 K 只有 2011/01/03 至今。2000～2010 年不會產生假資料，也不會把這些年份列為下載成功；夜盤自 2017/05/15 才有。</div>
 <label for="token">FinMind S 級會員 Token（可自動沿用個股分析設定）</label><input id="token" type="password" placeholder="如果原本已設定 Token，這裡留空即可" autocomplete="off" spellcheck="false">
 <div class="small" id="tokenHint">正在檢查這個瀏覽器已儲存的 FinMind Token…</div>
 <div class="actions"><button id="startBtn">▶ 開始雲端下載</button><button id="resetBtn" class="secondary">重新下載乾淨資料（含週六）</button><button id="refreshBtn" class="secondary">更新狀態</button></div>
-<div class="note">需要下載所有有個股期貨的股票？<a href="/stock-futures-download.html">前往現股 1 分 K 下載器（不是期貨報價）</a>。台指期 TX 與個股期貨資料及背景任務互相獨立。<br>任務啟動後可以直接離開網頁。下次用相同瀏覽器重新開啟，即可查看進度與下載 CSV。請不要使用無痕模式，以免遺失工作識別 Cookie。</div>
+<div class="note">想補齊 2000～2010 年原始期貨逐筆或分 K？<a href="https://www.taifex.com.tw/cht/3/hisAppForm" target="_blank" rel="noopener">期交所歷史資料申請</a>提供另一個官方取得途徑，並非本 FinMind 會員已包含的服務。<br>需要下載所有有個股期貨的股票？<a href="/stock-futures-download.html">前往現股 1 分 K 下載器（不是期貨報價）</a>。台指期 TX 與個股期貨資料及背景任務互相獨立。<br>任務啟動後可以直接離開網頁。下次用相同瀏覽器重新開啟，即可查看進度與下載 CSV。請不要使用無痕模式，以免遺失工作識別 Cookie。</div>
 </section>
 <section id="statusCard" class="hidden"><div class="top"><h2 style="margin:0">下載進度</h2><span class="pill" id="phase">準備中</span></div>
 <progress id="prog" max="100" value="0"></progress><div class="top"><b id="percentage">0%</b><small id="range">—</small></div>
 <div class="stats"><div class="stat"><b id="days">0</b><small>已處理／總天數</small></div><div class="stat"><b id="count">0</b><small>1 分 K 筆數</small></div><div class="stat"><b id="night">0</b><small>夜盤筆數</small></div></div>
-<p id="message">—</p><small id="extra"></small><div class="note" id="quality">正在整理資料品質統計…</div>
+<p id="message">—</p><div id="sourceGap" class="note hidden"></div><small id="extra"></small><div class="note" id="quality">正在整理資料品質統計…</div>
 <div class="actions"><button id="pause" class="secondary">暫停</button><button id="resume" class="secondary">繼續</button><button id="retry" class="secondary">補抓失敗日期</button><button id="refresh2" class="secondary">刷新</button></div>
 <details><summary>顯示錯誤日期</summary><div id="errors">目前沒有錯誤</div></details>
 </section>
-<section id="downloadCard" class="hidden"><h2>下載 CSV</h2><p style="font-size:13px">整包採 .csv.gz 壓縮格式，解壓後是同一份 2021 年至今的 CSV；年／月檔保持原有 CSV 格式。未完成下載前匯出的內容會不完整。</p>
-<div id="fullExport" class="note"><a id="fullDownload" class="download" href="/api/tx-download/export?all=1">⬇ 2021 至今完整資料（一包 CSV.GZ）</a><p id="fullInfo" style="margin:7px 0 0">下載後請解壓縮再進行回測。</p></div>
+<section id="downloadCard" class="hidden"><h2>下載 CSV</h2><p style="font-size:13px">整包採 .csv.gz 壓縮格式，下載範圍依 FinMind 實際可用日期，不會憑空產生 2000～2010 年的 K 棒。年／月檔保持原有 CSV 格式；未完成下載時匯出的內容可能不完整。</p>
+<div id="fullExport" class="note"><a id="fullDownload" class="download" href="/api/tx-download/export?all=1">⬇ 全部可取得歷史資料（一包 CSV.GZ）</a><p id="fullInfo" style="margin:7px 0 0">下載後請解壓縮再進行回測。</p></div>
 <div id="years"></div><details><summary>展開每月 CSV（檔案較小，適合手機）</summary><div id="months"></div></details>
 <div class="note">CSV 的 volume 完全保留 FinMind KBar 原始數值，不乘 2 也不除 2；不同到期月份分開保留，禁止在回測時直接累加成同一根 K。</div>
 </section>
 <section><h2>成交量口徑稽核</h2><p style="font-size:13px">選擇已下載的交易日，比較大台 TX「一般盤」分 K 原始量與官方日資料單邊量。比值接近 2 可能代表雙邊口徑，但價差及鉅額交易會造成偏差；不會自動將資料減半。</p>
-<div class="grid"><div><label for="auditDate">抽查日期</label><input type="date" id="auditDate" value="2026-10-22" min="2021-01-01"></div><div style="align-self:end"><button id="auditBtn" class="secondary">核對 Volume</button></div></div>
+<div class="grid"><div><label for="auditDate">抽查日期</label><input type="date" id="auditDate" value="2026-10-22" min="2011-01-03"></div><div style="align-self:end"><button id="auditBtn" class="secondary">核對 Volume</button></div></div>
 <div id="auditResult" class="note">尚未執行成交量核對。</div>
 </section>
 <section><h2>隱私與儲存</h2><p style="font-size:13px">資料來源為 FinMind TaiwanFuturesKBar；依官方限制一天查一次。啟動下載時，Token 會安全傳給本站 Cloudflare 背景任務，保存在該任務的私有儲存中，最多 30 天後與資料一併刪除。Token 不會出現在網址、公開 GitHub 或下載的 CSV 中。不需要另外設定 Cloudflare Secret。</p>
@@ -42,6 +43,12 @@
  const $=id=>document.getElementById(id),number=x=>Number(x||0).toLocaleString("zh-TW");
  $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
  let current=null,busy=false;
+ const FIRST_KBAR="2011-01-03",FIRST_NIGHT="2017-05-15";
+ const gapInfo=()=>{
+  const a=$("start").value,b=$("end").value;
+  $("sourceCoverage").textContent=b&&b<FIRST_KBAR?"所選日期範圍早於 2011/01/03，FinMind 沒有台指期 1 分 K 可下載。":a<FIRST_KBAR?"你要求 "+a+" 起：FinMind 實際只會下載 "+FIRST_KBAR+" 至 "+b+"，2000～2010 年無資料、不能當作已下載。夜盤從 "+FIRST_NIGHT+" 開始。":"依所選日期下載，夜盤從 "+FIRST_NIGHT+" 起才有實際行情。";
+ };
+ $("start").addEventListener("change",gapInfo);$("end").addEventListener("change",gapInfo);gapInfo();
  // Read the same local browser storage as the existing stock / futures pages.
  function savedToken(){
   try{
@@ -63,7 +70,11 @@
   let pct=s.total?Math.min(100,s.processed/s.total*100):0;$("prog").value=pct;$("percentage").textContent=pct.toFixed(1)+"%";
   $("phase").textContent=({running:"背景下載中",paused:"暫停",error:"資料源錯誤",done:"已完成"})[s.phase]||s.phase;
   $("days").textContent=number(s.processed)+" / "+number(s.total);$("count").textContent=number(s.rows);$("night").textContent=number(s.nightRows);
-  $("range").textContent=s.start+" → "+s.end;$("message").textContent=s.message||"—";
+  $("range").textContent=(s.requestedStart||s.start)+" → "+s.end;
+  $("message").textContent=s.message||"—";
+  const missing=s.unavailableBefore;
+  $("sourceGap").classList.toggle("hidden",!missing);
+  $("sourceGap").textContent=missing?"⚠ FinMind 未提供 "+missing.start+" ～ "+missing.end+" 的台指期 1 分 K；這段不是下載失敗，也不是已完成的行情。實際資料從 "+s.start+" 開始。夜盤從 "+(s.nightStart||FIRST_NIGHT)+" 才存在。":"";
   $("extra").textContent="日盤："+number(s.dayRows)+"　無資料日："+number(s.empty)+"　失敗："+number(s.failed)+"　更新："+new Date(s.updatedAt).toLocaleString("zh-TW");
   $("quality").textContent=(s.version<2?"⚠️ 這是舊版下載，缺少週六凌晨；請按「重新下載乾淨資料（含週六）」。":"週六凌晨含交易資料的日數："+number(s.saturdaysWithData))+"｜非 TX 剔除："+number(s.rejectedProducts)+"｜價差／異常月份剔除："+number(s.rejectedContracts)+"｜無效行情剔除："+number(s.rejectedInvalid)+"｜重複分鐘剔除："+number(s.duplicates)+"｜原始 Volume 加總："+number(s.volumeRaw);
   $("pause").disabled=s.phase!=="running";$("resume").disabled=!["paused","error"].includes(s.phase);
@@ -71,7 +82,8 @@
   $("errors").textContent=(s.errors||[]).map(x=>x.date+" : "+x.error).join("\n")||"目前沒有錯誤";
   const groups={};for(const [month,v] of Object.entries(s.months||{})){const y=month.slice(0,4);(groups[y]??=[]).push({month,...v})}
   $("downloadCard").classList.toggle("hidden",!Object.keys(groups).length);
-  $("fullInfo").textContent=s.phase==="done"?"已下載完畢，可取得全期間壓縮檔。":"目前任務尚未完成：若現在下載整包，僅包含已處理的日期。";
+  $("fullDownload").textContent="⬇ "+s.start+" ～ "+s.end+"（資料源實際可取得，一包 CSV.GZ）";
+  $("fullInfo").textContent=(s.phase==="done"?"雲端查詢結束，可下載壓縮檔。":"下載尚未完成：現在匯出只包含已處理日期。")+(s.unavailableBefore?" 你要求的 "+s.unavailableBefore.start+"～"+s.unavailableBefore.end+" 沒有 FinMind 1 分 K。":"");
   $("years").replaceChildren();$("months").replaceChildren();
   for(const year of Object.keys(groups).sort()){
    const a=groups[year],d=a.reduce((n,x)=>n+x.days,0),r=a.reduce((n,x)=>n+x.rows,0);
@@ -92,7 +104,7 @@
   if(busy)return;
   const token=$("token").value.trim()||savedToken();
   if(!token){alert("請先在個股分析儲存 Token，或在這裡貼入 Token。");return}
-  if(reset&&!confirm("確定刪除目前背景下載資料並從 2021/01/01 全部重新取得？請先備份需要的舊檔。"))return;
+  if(reset&&!confirm("確定刪除目前雲端工作及已下載的資料，改以新選日期重新取得嗎？請先備份需要的舊檔。FinMind 最早只有 2011/01/03 的 1 分 K。"))return;
   busy=true;$("startBtn").disabled=true;$("resetBtn").disabled=true;
   try{
    const s=await api("/api/tx-download/start",{method:"POST",headers:{"authorization":"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value,reset})});
