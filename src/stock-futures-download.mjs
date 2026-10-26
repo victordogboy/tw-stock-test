@@ -332,7 +332,7 @@ export function dailyPriceWindows(start,end,maxYears=8){
 }
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
- summary(s){return {ok:true,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"||s.mode==="daily-chip"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,mode:s.mode||"futures",dataset:s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":s.mode==="daily"?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
+ summary(s){return {ok:true,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"||s.mode==="daily-chip"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,chipCoverage:s.chipCoverage||null,mode:s.mode||"futures",dataset:s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":s.mode==="daily"?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
  shard(code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(code))}
  async fetch(r){
   const p=new URL(r.url).pathname,st=this.ctx.storage;
@@ -520,6 +520,7 @@ export class StockFuturesBatch{
  async alarmDaily(s,token,st){
   // Stay below Cloudflare's outbound-subrequest ceiling for 27 years × 1 stock.
   const yearCount=Number(s.end.slice(0,4))-Number(s.start.slice(0,4))+1;
+  const chipMode=s.mode==="daily-chip";
   const batchSize=Math.min(STOCK_MAX_PARALLEL,Math.max(1,Math.floor(40/yearCount)));
   const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+batchSize);
   if(!stocks.length){
@@ -538,13 +539,29 @@ export class StockFuturesBatch{
       data.push(...part);
      }
      const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
+     let merged=null;
+     if(chipMode){
+      const requestDataset=async(dataset,earliest)=>{
+       if(s.end<earliest)return [];
+       const rows=[];
+       for(const w of dailyPriceWindows(s.start<earliest?earliest:s.start,s.end)){
+        calls++;
+        const part=await fetchFinMind(token,{dataset,data_id:c.code,start_date:w.start,end_date:w.end});
+        rows.push(...part);
+       }
+       return rows;
+      };
+      const institutional=await requestDataset("TaiwanStockInstitutionalInvestorsBuySell","2005-01-01");
+      const margin=await requestDataset("TaiwanStockMarginPurchaseShortSale","2001-01-01");
+      merged=joinDailyChipRows(parsed,institutional,margin,c.stock,s.start,s.end);
+     }
      const shard=this.shardFor(s,c.code);
      for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
-      const payload=await zip(parsed.csvByYear[String(year)]||"");
+      const payload=await zip((chipMode?merged.csvByYear:parsed.csvByYear)[String(year)]||"");
       const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01",{method:"POST",body:payload}));
       if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status);
      }
-     return {ok:true,c,calls,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
+     return {ok:true,c,calls,coverage:merged?.coverage||null,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
       rejected:parsed.audit.rejectedInvalid+parsed.audit.rejectedProduct,duplicates:parsed.audit.duplicates};
     }catch(e){return {ok:false,c,calls,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
    }catch(e){return {ok:false,c,calls:0,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
@@ -558,6 +575,10 @@ export class StockFuturesBatch{
    if(x.ok&&(firstFailure<0||i<firstFailure)){
     s.processed++;s.rows+=x.rows;s.nonempty+=x.nonempty;s.empty+=x.empty;
     s.rejected+=x.rejected;s.duplicates+=x.duplicates;
+    if(x.coverage){
+     if(!s.chipCoverage)s.chipCoverage={institutional:0,margin:0,both:0,missingInstitutional:0,missingMargin:0};
+     for(const [name,count] of Object.entries(x.coverage))s.chipCoverage[name]=(s.chipCoverage[name]||0)+count;
+    }
    }
    if(!x.ok)s.errors.push({day:"multi-year",code:x.c.code,error:x.error});
   }
@@ -570,10 +591,10 @@ export class StockFuturesBatch{
    }else s.message="日 K 上游暫時失敗，稍後自動重試";
   }else{
    s.symbolIndex=from+stocks.length;s.retries=0;
-   s.message="日 K 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（長歷史每 8 年分段查詢）";
+   s.message=(chipMode?"日K＋三大法人＋融資融券":"日K")+" 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（每 8 年分段查詢）";
   }
   if(s.symbolIndex>=s.catalog.length&&s.phase==="running"){
-   s.phase="done";s.message="日 K 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
+   s.phase="done";s.message=(chipMode?"日K＋法人＋融資融券":"日K")+" 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
   }
   const latest=await st.get("state");
   if(!latest||latest.shardKey!==s.shardKey)return;
