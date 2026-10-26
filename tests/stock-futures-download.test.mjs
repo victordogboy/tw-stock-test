@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {gunzipSync} from "node:zlib";
-import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,joinDailyChipRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -367,6 +367,87 @@ test("2000-to-2026 real daily workflow uses four 8-year requests per stock, reta
   assert.equal(data.trim().split("\n").length,5);
   assert.match(data,/2000-01-04,2330/);assert.match(data,/2024-01-04,2330/);
  }finally{globalThis.fetch=orig}
+});
+test("chip merge correctly handles historical 2000 blank, old/new dealer categories, and financing lots",()=>{
+ const stock="2330",price=filterUnderlyingDailyBars([
+  {date:"2000-01-04",stock_id:stock,open:100,max:103,min:98,close:102,Trading_Volume:25000,Trading_money:2550000,Trading_turnover:200,spread:2},
+  {date:"2005-01-05",stock_id:stock,open:101,max:105,min:100,close:104,Trading_Volume:25000,Trading_money:2550000,Trading_turnover:200,spread:2},
+  {date:"2020-03-04",stock_id:stock,open:105,max:110,min:103,close:109,Trading_Volume:25000,Trading_money:2550000,Trading_turnover:200,spread:4}
+ ],stock,"2000-01-01","2020-12-31",{name:"台積電",futureCode:"QFF"});
+ const row=(date,name,buy,sell)=>({date,stock_id:stock,name,buy,sell});
+ const ins=[row("2005-01-05","Foreign_Investor",2000,1000),row("2005-01-05","Investment_Trust",500,300),row("2005-01-05","Dealer",200,700),
+  row("2020-03-04","Foreign_Investor",1000,1500),row("2020-03-04","Foreign_Dealer_Self",300,200),
+  row("2020-03-04","Investment_Trust",600,200),
+  row("2020-03-04","Dealer_self",300,100),row("2020-03-04","Dealer_Hedging",100,600)];
+ const margin=(date)=>({date,stock_id:stock,MarginPurchaseBuy:123,MarginPurchaseSell:99,MarginPurchaseCashRepayment:2,MarginPurchaseTodayBalance:2000,MarginPurchaseYesterdayBalance:1975,
+  ShortSaleBuy:40,ShortSaleSell:24,ShortSaleCashRepayment:1,ShortSaleTodayBalance:100,ShortSaleYesterdayBalance:97});
+ const merged=joinDailyChipRows(price,ins,[margin("2020-03-04"),margin("2005-01-05")],stock,"2000-01-01","2020-12-31");
+ assert.equal(merged.coverage.institutional,2);assert.equal(merged.coverage.margin,2);
+ const columns=("date,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread,"
+  +"institutional_available,institutional_foreign_buy_shares,institutional_foreign_sell_shares,institutional_foreign_net_shares,institutional_foreign_dealer_net_shares,"
+  +"institutional_trust_buy_shares,institutional_trust_sell_shares,institutional_trust_net_shares,institutional_dealer_buy_shares,institutional_dealer_sell_shares,"
+  +"institutional_dealer_net_shares,institutional_dealer_self_net_shares,institutional_dealer_hedge_net_shares,margin_available,"
+  +"margin_buy_lots,margin_sell_lots,margin_cash_repayment_lots,margin_balance_lots,margin_previous_balance_lots,margin_change_lots,"
+  +"short_buy_lots,short_sell_lots,short_cash_repayment_lots,short_balance_lots,short_previous_balance_lots,short_change_lots,chip_signal_use_next_session").split(",");
+ const decode=(year)=>Object.fromEntries(merged.csvByYear[year].trim().split(",").map((v,i)=>[columns[i],v]));
+ const y2000=decode("2000");assert.equal(y2000.institutional_available,"0");assert.equal(y2000.margin_available,"0");
+ assert.equal(y2000.institutional_foreign_net_shares,"");assert.equal(y2000.margin_balance_lots,"");
+ const y2005=decode("2005");assert.equal(y2005.institutional_dealer_net_shares,"-500");
+ assert.equal(y2005.institutional_foreign_net_shares,"1000");
+ const y2020=decode("2020");assert.equal(y2020.institutional_foreign_net_shares,"-400");
+ assert.equal(y2020.institutional_dealer_net_shares,"-300");
+ assert.equal(y2020.institutional_dealer_self_net_shares,"200");
+ assert.equal(y2020.institutional_dealer_hedge_net_shares,"-500");
+ assert.equal(y2020.margin_change_lots,"25");assert.equal(y2020.short_change_lots,"3");
+ assert.equal(y2020.chip_signal_use_next_session,"1");
+ assert.equal(columns.length,merged.csvByYear["2020"].trim().split(",").length);
+});
+test("combined daily job uses three dataset families and deliberately skips pre-2001/2005 requests",async()=>{
+ const x=fixture(),orig=globalThis.fetch,queries=[];
+ const price=(stock,date)=>({date,stock_id:stock,open:100,max:104,min:99,close:103,Trading_Volume:5000,Trading_money:500000,Trading_turnover:3,spread:3});
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url),dataset=u.searchParams.get("dataset"),stock=u.searchParams.get("data_id");
+  assert.equal(stock,"2330");queries.push({dataset,start:u.searchParams.get("start_date"),end:u.searchParams.get("end_date")});
+  if(dataset==="TaiwanStockPrice")return Response.json({status:200,data:[price(stock,u.searchParams.get("start_date").slice(0,4)+"-01-04")]});
+  if(dataset==="TaiwanStockInstitutionalInvestorsBuySell")return Response.json({status:200,data:[
+   {date:"2005-01-05",stock_id:stock,name:"Dealer",buy:3000,sell:2000},
+   {date:"2005-01-05",stock_id:stock,name:"Investment_Trust",buy:1000,sell:500}
+  ]});
+  if(dataset==="TaiwanStockMarginPurchaseShortSale")return Response.json({status:200,data:[
+   {date:"2005-01-05",stock_id:stock,MarginPurchaseTodayBalance:30,MarginPurchaseYesterdayBalance:29,ShortSaleTodayBalance:8,ShortSaleYesterdayBalance:9}
+  ]});
+  throw Error("unexpected "+dataset)
+ };
+ try{
+  const start=await stockFuturesRoute(new Request(host+"/api/stock-daily-chip/start",{method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},
+   body:JSON.stringify({start:"2000-01-01",end:"2007-12-31",codes:["2330"]})}),x.env,"daily-chip");
+  assert.equal(start.status,202);assert.match(start.headers.get("set-cookie"),/__Host-underlying-chip=/);
+  const cookie=start.headers.get("set-cookie").split(";")[0];
+  await x.job.alarm();
+  const status=await(await stockFuturesRoute(new Request(host+"/api/stock-daily-chip/status",{headers:{cookie}}),x.env,"daily-chip")).json();
+  assert.equal(status.phase,"done");assert.equal(status.mode,"daily-chip");assert.equal(status.queries,3);
+  assert.deepEqual(queries.map(x=>[x.dataset,x.start,x.end]),[
+   ["TaiwanStockPrice","2000-01-01","2007-12-31"],
+   ["TaiwanStockInstitutionalInvestorsBuySell","2005-01-01","2007-12-31"],
+   ["TaiwanStockMarginPurchaseShortSale","2001-01-01","2007-12-31"]
+  ]);
+  const result=await stockFuturesRoute(new Request(host+"/api/stock-daily-chip/export?year=2000",{headers:{cookie}}),x.env,"daily-chip");
+  assert.equal(result.status,200);
+  const csv=gunzipSync(Buffer.from(await result.arrayBuffer())).toString();
+  assert.match(csv,/institutional_foreign_net_shares/);
+  assert.match(csv,/margin_balance_lots/);
+  assert.match(csv,/2000-01-04,2330/);
+  assert.equal(csv.split("\n")[1].split(",")[12],"0");
+  const unauthorized=await stockFuturesRoute(new Request(host+"/api/stock-daily-chip/status",{headers:{cookie:cookie.replace("__Host-underlying-chip","__Host-underlying-day")}}),x.env,"daily-chip");
+  assert.equal(unauthorized.status,401);
+ }finally{globalThis.fetch=orig}
+});
+test("old daily jobs still show unmodified OHLCV-only format",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/id="includeChips"/);assert.match(html,/api\/stock-daily-chip/);
+ assert.match(html,/api\/stock-daily"/);
+ assert.match(html,/api\/stock-kbar/);
 });
 test("daily OHLCV follows TaiwanStockPrice field names, raw shares, all years, and emerging open exceptions",()=>{
  const meta={name:"台積電",futureCode:"QFF"};
