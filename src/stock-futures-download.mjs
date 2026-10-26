@@ -485,7 +485,40 @@ export class StockFuturesBatch{
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Math.max(Date.now()+150,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
  }
+ async exportDailyData(s,url){
+  if(!["running","paused","done","error"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
+  if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"股票不在任務清單內"},404);
+  if(year&&(!/^\d{4}$/.test(year)||year<s.start.slice(0,4)||year>s.end.slice(0,4)))return respond({ok:false,error:"年份超出任務範圍"},400);
+  if(!code&&!year)return respond({ok:false,error:"請選年度或股票代碼以避免下載過大"},400);
+  const codes=code?[code]:s.catalog.map(c=>c.code);
+  const first=Number(s.start.slice(0,4)),last=Number(s.end.slice(0,4));
+  const years=year?[Number(year)]:Array.from({length:last-first+1},(_,i)=>first+i);
+  const segments=codes.flatMap(stock=>years.map(y=>({stock,day:y+"-01-01"})));
+  const self=this,head=await zip(DAILY_HDR);let ix=-1,reader=null;
+  const stream=new ReadableStream({async pull(c){
+   try{
+    if(ix<0){ix=0;c.enqueue(head);return}
+    for(;;){
+     if(reader){
+      const n=await reader.read();
+      if(!n.done){c.enqueue(n.value);return}
+      reader=null
+     }
+     if(ix>=segments.length){c.close();return}
+     const segment=segments[ix++],shard=self.shardFor(s,segment.stock);
+     // Year-specific key, no iteration over calendar dates.
+     const response=await shard.fetch("https://private/get?"+new URLSearchParams({start:segment.day,end:segment.day}));
+     if(!response.ok)throw Error(segment.stock+" "+segment.day+" 匯出失敗");
+     reader=response.body.getReader()
+    }
+   }catch(e){c.error(e)}
+  }});
+  const name="FinMind_FuturesEligibleStocks_Daily_"+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
+  return new Response(stream,{headers:{"content-type":"application/gzip","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
+ }
  async exportData(s,url){
+  if(s.mode==="daily")return this.exportDailyData(s,url);
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"商品不在本次任務清單內"},404);
