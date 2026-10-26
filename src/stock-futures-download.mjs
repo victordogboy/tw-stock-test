@@ -430,6 +430,61 @@ export class StockFuturesBatch{
   if(s.date>s.end&&s.phase==="running"){s.phase="done";s.message="歷史檔下載完成；請備份年度 CSV.gz"}
   await commit(firstFailed?Math.min(300000,15000*2**s.retries):0)
  }
+ async alarmDaily(s,token,st){
+  const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+STOCK_MAX_PARALLEL);
+  if(!stocks.length){
+   s.phase="done";s.message="日 K 下載完成，請備份 CSV.gz";
+   await st.put("state",s);await st.setAlarm(s.expiresAt);return
+  }
+  const started=Date.now();
+  const result=await Promise.all(stocks.map(async c=>{
+   try{
+    const data=await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:c.code,start_date:s.start,end_date:s.end});
+    const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
+    // One compressed shard per stock per calendar YEAR. A 6-year stock needs
+    // one FinMind request, but can be exported separately by year.
+    const shard=this.shardFor(s,c.code);
+    for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
+     const payload=await zip(parsed.csvByYear[String(year)]||"");
+     const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01",{method:"POST",body:payload}));
+     if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status);
+    }
+    return {ok:true,c,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
+     rejected:parsed.audit.rejectedInvalid+parsed.audit.rejectedProduct,duplicates:parsed.audit.duplicates};
+   }catch(e){return {ok:false,c,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
+  }));
+  s.queries+=stocks.length;
+  s.nextAllowedAt=Math.max(started,s.nextAllowedAt||0)+stocks.length*STOCK_REQUEST_SPACING_MS;
+  const firstFailure=result.findIndex(x=>!x.ok);
+  for(let i=0;i<result.length;i++){
+   const x=result[i];
+   if(x.ok&&(firstFailure<0||i<firstFailure)){
+    s.processed++;s.rows+=x.rows;s.nonempty+=x.nonempty;s.empty+=x.empty;
+    s.rejected+=x.rejected;s.duplicates+=x.duplicates;
+   }
+   if(!x.ok)s.errors.push({day:"multi-year",code:x.c.code,error:x.error});
+  }
+  s.errors=s.errors.slice(-100);
+  if(firstFailure>=0){
+   const failed=result[firstFailure];
+   s.symbolIndex=from+firstFailure;s.retries++;
+   if([401,402,403,429].includes(failed.code)||s.retries>=5){
+    s.phase="error";s.lastError=failed.error;s.message="日 K API 失敗，已保留已完成股票，請檢查額度並按繼續";
+   }else s.message="日 K 上游暫時失敗，稍後自動重試";
+  }else{
+   s.symbolIndex=from+stocks.length;s.retries=0;
+   s.message="日 K 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（整段日期每股僅需一次 API）";
+  }
+  if(s.symbolIndex>=s.catalog.length&&s.phase==="running"){
+   s.phase="done";s.message="日 K 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
+  }
+  const latest=await st.get("state");
+  if(!latest||latest.shardKey!==s.shardKey)return;
+  if(latest.phase==="paused")s.phase="paused";
+  if(latest.phase==="error"&&s.phase==="running")s.phase="error";
+  s.updatedAt=Date.now();await st.put("state",s);
+  await st.setAlarm(s.phase==="running"?Math.max(Date.now()+150,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
+ }
  async exportData(s,url){
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
