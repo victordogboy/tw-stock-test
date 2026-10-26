@@ -1,6 +1,10 @@
 // TX 1-minute K cloud downloader. Individual-use data stays in Durable Object storage.
 const J=(x,s=200,h={})=>new Response(JSON.stringify(x),{status:s,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...h}});
 const DAY=86400000, CK="__Host-txdownload", H="date,minute,session,futures_id,contract_date,open,high,low,close,volume\n";
+// Official FinMind TaiwanFuturesKBar data coverage begins on 2011-01-03.
+// TX started in 1998, but this API does not expose 2000-2010 one-minute bars.
+export const TX_KBAR_FIRST_DATE="2011-01-03";
+export const TX_NIGHT_FIRST_DATE="2017-05-15";
 const okdate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&new Date(s).toISOString().slice(0,10)===s;
 const nxt=s=>new Date(Date.parse(s)+DAY).toISOString().slice(0,10);
 // Saturday 00:00-05:00 holds the tail of Friday's night session.
@@ -54,10 +58,12 @@ export async function txDownloadRoute(req,env){
   const body=await req.text();if(body.length>2048)return J({ok:false,error:"設定長度不正確"},400);
   let opt;try{opt=JSON.parse(body)}catch{return J({ok:false,error:"格式無效"},400)}
   const {start,end}=opt||{};
-  if(!okdate(start)||!okdate(end)||start<"2021-01-01"||end>twtoday()||end<start||nDays(start,end)>2500)return J({ok:false,error:"日期不正確（2021-01-01 至今日）"},400);
+  if(!okdate(start)||!okdate(end)||start<"2000-01-01"||end>twtoday()||end<start)return J({ok:false,error:"日期必須介於 2000/01/01 至今日"},400);
+  if(end<TX_KBAR_FIRST_DATE)return J({ok:false,error:"FinMind 台指期分K最早從 2011/01/03 提供；所選範圍沒有可下載的分K，2000～2010 年需另找歷史來源。"},400);
+  const effectiveStart=start<TX_KBAR_FIRST_DATE?TX_KBAR_FIRST_DATE:start;
   let id=cookie(req);if(!/^[a-f0-9]{64}$/.test(id))id=ident();
   const stub=env.TX_DOWNLOAD_JOBS.get(env.TX_DOWNLOAD_JOBS.idFromName(id));
-  const result=await stub.fetch(new Request("https://job.local/start",{method:"POST",headers:{"authorization":"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end,reset:opt.reset===true})}));
+  const result=await stub.fetch(new Request("https://job.local/start",{method:"POST",headers:{"authorization":"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start:effectiveStart,requestedStart:start,end,reset:opt.reset===true})}));
   return new Response(result.body,{status:result.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":CK+"="+id+"; Path=/; Max-Age=2592000; Secure; HttpOnly; SameSite=Strict"}});
  }
  const id=cookie(req);if(!/^[a-f0-9]{64}$/.test(id))return J({ok:false,error:"尚未建立下載工作"},401);
@@ -83,23 +89,28 @@ export async function txDownloadRoute(req,env){
 }
 export class TxDownloadJob{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
- summary(s){return {version:s.version||1,start:s.start,end:s.end,phase:s.phase,current:s.current,total:s.total,processed:s.processed,filled:s.filled,empty:s.empty,failed:s.failed,rows:s.rows,dayRows:s.dayRows,nightRows:s.nightRows,rejectedProducts:s.rejectedProducts||0,rejectedContracts:s.rejectedContracts||0,rejectedInvalid:s.rejectedInvalid||0,duplicates:s.duplicates||0,volumeRaw:s.volumeRaw||0,saturdaysWithData:s.saturdaysWithData||0,errors:s.errors.slice(-20),months:s.months,updatedAt:s.updatedAt,message:s.message}}
+ summary(s){return {version:s.version||1,start:s.start,requestedStart:s.requestedStart||s.start,availableStart:TX_KBAR_FIRST_DATE,nightStart:TX_NIGHT_FIRST_DATE,unavailableBefore:s.requestedStart&&s.requestedStart<TX_KBAR_FIRST_DATE?{start:s.requestedStart,end:"2011-01-02",reason:"FinMind 無 2000～2010 年 TX 一分 K"}:null,end:s.end,phase:s.phase,current:s.current,total:s.total,processed:s.processed,filled:s.filled,empty:s.empty,failed:s.failed,rows:s.rows,dayRows:s.dayRows,nightRows:s.nightRows,rejectedProducts:s.rejectedProducts||0,rejectedContracts:s.rejectedContracts||0,rejectedInvalid:s.rejectedInvalid||0,duplicates:s.duplicates||0,volumeRaw:s.volumeRaw||0,saturdaysWithData:s.saturdaysWithData||0,errors:s.errors.slice(-20),months:s.months,updatedAt:s.updatedAt,message:s.message}}
  async fetch(req){
   const st=this.ctx.storage,url=new URL(req.url),p=url.pathname;
   if(p==="/start"&&req.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(req.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,error:"缺少有效 FinMind Token"},401);
-   const {start,end,reset=false}=await req.json();
+   const {start,requestedStart=start,end,reset=false}=await req.json();
+   if(!okdate(start)||start<TX_KBAR_FIRST_DATE||!okdate(end)||end<start||!okdate(requestedStart)||requestedStart>start)return J({ok:false,error:"任務日期超出 FinMind 有效資料範圍"},400);
    let old=await st.get("state");
    if(reset){await st.deleteAll();await st.deleteAlarm();old=null;}
    // Store only inside this browser's private Durable Object. The token is never returned in a response.
    await st.put("finmind-token",token);
    if(old){
+    // Reusing an existing job with another requested range would silently return incomplete history.
+    if(old.start!==start||old.end!==end||(old.requestedStart||old.start)!==requestedStart){
+     return J({ok:false,error:"目前已有 "+(old.requestedStart||old.start)+"～"+old.end+" 的下載任務。若要改成 "+requestedStart+"～"+end+"，請先備份舊資料，再按「重新下載」；不會自動刪除舊任務。",code:"EXISTING_RANGE_MISMATCH",existing:this.summary(old)},409);
+    }
     if(old.phase==="error"){old.phase="running";old.retries=0;old.message="已更新 Token，恢復雲端下載";old.updatedAt=Date.now();await st.put("state",old)}
     if(old.phase==="running")await st.setAlarm(Date.now()+100);
     return J({ok:true,existing:true,...this.summary(old)});
    }
-   const s={version:2,start,end,phase:"running",current:start,total:nDays(start,end),processed:0,filled:0,empty:0,failed:0,rows:0,dayRows:0,nightRows:0,rejectedProducts:0,rejectedContracts:0,rejectedInvalid:0,duplicates:0,volumeRaw:0,saturdaysWithData:0,retries:0,errors:[],months:{},createdAt:Date.now(),expiresAt:Date.now()+30*DAY,updatedAt:Date.now(),message:"已建立全日曆下載工作（包含週六凌晨）"};
+   const s={version:3,start,requestedStart,end,phase:"running",current:start,total:nDays(start,end),processed:0,filled:0,empty:0,failed:0,rows:0,dayRows:0,nightRows:0,rejectedProducts:0,rejectedContracts:0,rejectedInvalid:0,duplicates:0,volumeRaw:0,saturdaysWithData:0,retries:0,errors:[],months:{},createdAt:Date.now(),expiresAt:Date.now()+30*DAY,updatedAt:Date.now(),message:requestedStart<TX_KBAR_FIRST_DATE?"所選 "+requestedStart+" 起，但 FinMind 分K僅 2011/01/03 起可取得；已從 2011 開始下載（日夜盤／週六凌晨）":"已建立全日曆下載工作（包含週六凌晨）"};
    await st.put("state",s);await st.setAlarm(Date.now()+100);return J({ok:true,...this.summary(s)},202)
   });
   let s=await st.get("state");if(!s)return J({ok:false,error:"找不到下載工作"},404);
