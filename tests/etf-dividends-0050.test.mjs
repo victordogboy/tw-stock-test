@@ -81,3 +81,56 @@ test('Cloudflare official ETF dividend API returns normalized 0050 only, and exp
   assert.equal((await fail.json()).ok,false);
  }finally{globalThis.fetch=prev;}
 });
+
+test('Browser end-to-end: FinMind adjusted empty; split and TWSE dividend remain usable',async()=>{
+ const html=fs.readFileSync(new URL('../public/0050-vix-download.html',import.meta.url),'utf8');
+ const inner=html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
+ assert.ok(inner);
+ const nodes=new Map();
+ function node(id){
+  if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',scrollHeight:0,disabled:false,dataset:{},
+   selectedIndex:0,options:[{text:'cloud'},{text:'browser'},{text:'manual'},{text:'anon'}],
+   replaceChildren(){},append(){}});
+  return nodes.get(id);
+ }
+ const urls=[];
+ const fetch=async(u)=>{
+  const url=new URL(String(u),'https://example.workers.dev');urls.push(url);
+  if(url.pathname==='/api/etf-dividends-0050')
+   return {ok:true,json:async()=>({ok:true,rows:[
+     {date:'2025-02-20',cash_dividend:2.7,payment_date:'2025-03-02',source:'TWSE ETF etfDiv'},
+     {date:'2025-08-01',cash_dividend:0.36,payment_date:'2025-08-08',source:'TWSE ETF etfDiv'}]})};
+  if(url.searchParams.get('action')==='status')
+   return {ok:true,json:async()=>({status:200,cloud_available:false})};
+  if(url.searchParams.get('dataset')==='TaiwanStockPriceAdj')
+   return {ok:true,json:async()=>({status:200,msg:'success',data:[]})};
+  if(url.searchParams.get('dataset')==='TaiwanStockPrice')
+   return {ok:true,json:async()=>({status:200,msg:'success',data:[
+    {date:'2025-02-20',open:182,close:180,max:185,min:179},
+    {date:'2025-06-10',open:188,close:188.65,max:190,min:186},
+    {date:'2025-06-18',open:47.16,close:47.16,max:48,min:46},
+    {date:'2025-08-01',open:49,close:50,max:51,min:48}]})};
+  throw Error('unexpected test URL: '+url);
+ };
+ const ctx=vm.createContext({document:{getElementById:node,createElement:()=>({append(){}})},
+   window:{TWFinMindTokens:{activeToken:()=>''}},
+   fetch,URL,Date,Number,Map,Set,Math,Blob,console,setTimeout,location:{origin:'https://example.workers.dev'}});
+ new vm.Script(fs.readFileSync(new URL('../public/0050-corporate-actions.js',import.meta.url),'utf8')).runInContext(ctx);
+ new vm.Script(inner).runInContext(ctx);
+ node('start').value='2025-01-01';node('end').value='2025-12-31';
+ await vm.runInContext('loadStock()',ctx);
+ await vm.runInContext('loadDividends()',ctx);
+ const data=vm.runInContext('joined()',ctx);
+ assert.equal(data.length,4);
+ assert.equal(data[0].split_adjusted_close,45);
+ assert.equal(data[1].split_adjusted_close,47.1625);
+ assert.equal(data[2].split_adjusted_close,47.16);
+ assert.equal(data[0].cash_dividend,2.7);
+ assert.equal(data[0].cash_dividend_split_unit,0.675);
+ assert.equal(data[3].cash_dividend_split_unit,0.36);
+ assert.equal(data[1].cash_dividend,'');
+ assert.equal(data[0].adj_close,'');
+ assert.equal(data[0].vix_close,'');
+ assert.match(node('corpAudit').textContent,/FinMind 還原價缺漏：4 日/);
+ assert.ok(urls.some(x=>x.pathname==='/api/etf-dividends-0050'));
+});
