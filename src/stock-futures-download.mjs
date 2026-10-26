@@ -343,7 +343,7 @@ export class StockFuturesBatch{
     if(!dateOk(q.start)||!dateOk(q.end)||q.start>(q.end)||q.start<(dailyMode?"2000-01-01":"2021-01-01"))
      return respond({ok:false,error:"資料日期範圍無效"},400);
     let old=await st.get("state");
-   if(old&&!q.reset){await st.put("token",token);return respond({...this.summary(old),existing:true,message:old.version===2?old.message:"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再按『重建小型＋近月任務』重抓。",legacy:old.version!==2})}
+   if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
    let catalog;
    try{
     const official=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
