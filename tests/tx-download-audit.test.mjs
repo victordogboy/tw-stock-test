@@ -113,5 +113,5 @@ test("old download v1 remains visible for rebuild warning and new reset wipes ol
  }),env);
  assert.equal(req.status,202);
  assert.equal(await ctx.storage.get("meta:old"),undefined);
- assert.equal((await ctx.storage.get("state")).version,2);
+ assert.equal((await ctx.storage.get("state")).version,3);
 });
