@@ -1,0 +1,28 @@
+name: 0050 Taiwan VIX daily downloader checks
+on:
+  pull_request:
+    paths:
+      - 'src/etf-vix-daily.mjs'
+      - 'public/0050-vix-download.html'
+      - 'tests/etf-vix-daily.test.mjs'
+      - '.github/workflows/etf-vix-daily.yml'
+  push:
+    paths:
+      - 'src/etf-vix-daily.mjs'
+      - 'public/0050-vix-download.html'
+      - 'tests/etf-vix-daily.test.mjs'
+      - '.github/workflows/etf-vix-daily.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check src/etf-vix-daily.mjs
+          node --check src/worker.mjs
+      - name: Regression tests for historical date batching
+        run: node --test tests/etf-vix-daily.test.mjs

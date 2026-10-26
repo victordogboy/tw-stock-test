@@ -16,7 +16,7 @@
 <div class="fields"><div class="field"><label for="start">起始日期</label><input type="date" id="start" value="2021-01-01"/></div><div class="field"><label for="end">結束日期</label><input type="date" id="end" value="2026-10-26"/></div><div class="field token"><label for="token">FinMind API Token（非帳號密碼，非必填；台灣 VIX 必須具 Backer 以上權限）</label><input type="password" id="token" placeholder="可留空沿用原站 Token，或直接貼入；此頁不新增儲存" autocomplete="off" spellcheck="false" /></div></div>
 <div class="buttons"><button id="getBoth">取得 0050 ＋ VIX</button><button class="secondary" id="get0050">只取 0050</button><button class="secondary" id="getVix">只取台灣 VIX</button><button class="outline" id="clear">清除資料</button></div>
 <div class="hint"><strong>重要：</strong>FinMind 0050 日價可查多年，但 <code>TaiwanOptionVix</code> 官方文件標示從 <strong>2026-03-01</strong> 起，且需 <strong>Backer / Sponsor</strong>。不會把缺少的 VIX 日資料補 0、推測或冒充五年完整資料。</div>
-<div class="sub" style="margin-top:13px">雲端版經由本站 Cloudflare Worker 代理 FinMind API，可沿用此瀏覽器原本已儲存的 FinMind Token；如已設置 Worker Secret，也可直接使用。下載處理仍在目前分頁執行，離開可能中斷。</div>
+<div class="sub" style="margin-top:13px">雲端版自動依日期分批下載：0050 每包最多 365 天，VIX 每包最多 14 天；可沿用原站儲存的 FinMind Token。下載仍在目前手機分頁執行，切換 App 或關閉頁面可能中斷；進度中可先匯出已完成資料。</div>
 </section>
 <section class="card">
 <h2>2. 匯入既有台灣 VIX 歷史 CSV</h2>
@@ -52,15 +52,77 @@ const iso=(date)=>{const y=date.getUTCFullYear(),m=String(date.getUTCMonth()+1).
 const parseDate=s=>new Date(s+'T00:00:00Z');
 const addDays=(s,n)=>{let d=parseDate(s);d.setUTCDate(d.getUTCDate()+n);return iso(d)};
 function range(){let a=$('start').value,b=$('end').value;if(!a||!b||a>b)throw Error('請確認正確起訖日期');return[a,b]}
+function dateBatches(start,end,days) {
+  const result=[];
+  for(let d=start;d<=end;d=addDays(d,days)) {
+    const to=addDays(d,days-1);
+    result.push([d,to>end?end:to]);
+  }
+  return result;
+}
 async function request(dataset,start,end,id){const u=new URL('/api/etf-vix-daily', location.origin);u.searchParams.set('dataset',dataset);u.searchParams.set('start_date',start);u.searchParams.set('end_date',end);if(id)u.searchParams.set('data_id',id);const headers={};const token=$('token').value.trim()||(window.TWFinMindTokens?.activeToken?.()||'');if(token)headers.Authorization='Bearer '+token;let response;try{response=await fetch(u,{headers,cache:'no-store'})}catch(e){throw Error('Cloudflare 代理連線失敗，請重新整理本頁後再試。'+e.message)}if(!response.ok)throw Error(`${dataset} HTTP ${response.status}：${(await response.text()).slice(0,180)}`);let json;try{json=await response.json()}catch(e){throw Error(`${dataset} 回傳非 JSON：${e.message}`)}if((json.status!=null&&Number(json.status)!==200)||(json.msg&&/error|limit|denied|token|permission|無權|付費/i.test(String(json.msg))))throw Error(`${dataset} API ${json.status||''}：${json.msg||'存取失敗'}`);if(!Array.isArray(json.data))throw Error(`${dataset}：回傳缺少 data 陣列（${json.msg||'未知'}）`);return json.data}
-function normalizeStock(list){const m=new Map;for(const r of list){let d=cleanDate(r.date);if(!d)continue;const c=num(r.close);if(c==='')continue;m.set(d,{date:d,open:num(r.open),high:num(r.max??r.high),low:num(r.min??r.low),close:c,volume:num(r.Trading_Volume??r.volume),trading_money:num(r.Trading_money),trading_turnover:num(r.Trading_turnover),spread:num(r.spread)})}return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}
+function normalizeStock(list){const m=new Map;for(const r of list){let d=cleanDate(r.date);if(!d)continue;const c=num(r.close);if(c==='')continue;m.set(d,{date:d,open:num(r.open),high:num(r.max??r.high),low:num(r.min??r.low),close:c,volume:num(r.Trading_Volume??r.trading_volume??r.volume),trading_money:num(r.Trading_money??r.trading_money),trading_turnover:num(r.Trading_turnover??r.trading_turnover),spread:num(r.spread)})}return [...m.values()].sort((a,b)=>a.date.localeCompare(b.date))}
 function normalizeVix(list,source='FinMind TaiwanOptionVix'){const groups=new Map;for(const r of list){const d=cleanDate(r.date);const val=num(r.vix);if(!d||val===''||val<=0||val>300)continue;const time=String(r.time??'').trim();if(!groups.has(d))groups.set(d,[]);groups.get(d).push({vix:val,time})}const out=[];for(const[d,rows]of groups){rows.sort((a,b)=>a.time.localeCompare(b.time));const prices=rows.map(r=>r.vix);out.push({date:d,open:prices[0],high:Math.max(...prices),low:Math.min(...prices),close:prices[prices.length-1],last_time:rows[rows.length-1].time,samples:rows.length,source})}return out.sort((a,b)=>a.date.localeCompare(b.date))}
 function mergeVix(newRows){const map=new Map(vixRows.map(r=>[r.date,r]));for(const r of newRows)map.set(r.date,r);vixRows=[...map.values()].sort((a,b)=>a.date.localeCompare(b.date));render()}
 function joined(){const aj=new Map(stockAdj.map(r=>[r.date,r]));const vj=new Map(vixRows.map(r=>[r.date,r]));return stockRaw.map(r=>({...r,adj_close:aj.get(r.date)?.close??'',vix_open:vj.get(r.date)?.open??'',vix_high:vj.get(r.date)?.high??'',vix_low:vj.get(r.date)?.low??'',vix_close:vj.get(r.date)?.close??'',vix_last_time:vj.get(r.date)?.last_time??'',vix_samples:vj.get(r.date)?.samples??'',vix_source:vj.get(r.date)?.source??''}))}
 function render(){$('rawCount').textContent=stockRaw.length||'—';$('adjCount').textContent=stockAdj.length||'—';$('vixCount').textContent=vixRows.length||'—';const rows=joined(),matched=rows.filter(r=>r.vix_close!=='');$('matchCount').textContent=matched.length||'—';$('exRaw').disabled=!stockRaw.length;$('exAdj').disabled=!stockAdj.length;$('exVix').disabled=!vixRows.length;$('exMerge').disabled=!rows.length;const cover=[];if(stockRaw.length)cover.push(`0050：${stockRaw[0].date} ~ ${stockRaw.at(-1).date}`);if(stockAdj.length)cover.push(`還原價：${stockAdj[0].date} ~ ${stockAdj.at(-1).date}`);if(vixRows.length)cover.push(`VIX：${vixRows[0].date} ~ ${vixRows.at(-1).date}`);if(rows.length&&vixRows.length)cover.push(`同日配對 ${matched.length}/${rows.length}（${(matched.length/rows.length*100).toFixed(1)}%）`);$('coverage').textContent=cover.join('　｜　')||'尚無資料';const tbody=$('preview');tbody.replaceChildren();if(!rows.length){let tr=document.createElement('tr');let td=document.createElement('td');td.colSpan=9;td.textContent='請先取得 0050 歷史日 K';tr.append(td);tbody.append(tr);return}const n=rows.slice(-25).reverse();for(const r of n){const tr=document.createElement('tr');for(const k of ['date','open','high','low','close','adj_close','vix_close','vix_last_time','vix_source']){const td=document.createElement('td');td.textContent=String(r[k]??'');tr.append(td)}tbody.append(tr)}}
 function wrap(fn){return async()=>{if(busy)return;busy=true;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=true);try{await fn()}catch(e){log(e.message,true);status('發生錯誤；已完成的部分可照常匯出。',0)}finally{busy=false;['getBoth','get0050','getVix','importVix'].forEach(id=>$(id).disabled=false);render()}}}
-async function loadStock(){const [start,end]=range();status('取得 0050 原始日 K...',5);const raw=await request('TaiwanStockPrice',start,end,'0050');stockRaw=normalizeStock(raw);log(`0050 原始日 K：${stockRaw.length} 筆`);render();status('取得 0050 還原日 K...',30);try{const adj=await request('TaiwanStockPriceAdj',start,end,'0050');stockAdj=normalizeStock(adj);log(`0050 還原日 K：${stockAdj.length} 筆`)}catch(e){stockAdj=[];log('還原日 K 失敗（原始日 K 已保留）：'+e.message,true)}render();status('0050 下載完成',55)}
-async function loadVix(){const [requestedStart,end]=range();const start=requestedStart<'2026-03-01'?'2026-03-01':requestedStart;if(end<start)throw Error('選定日期不在 FinMind 台灣 VIX 官方提供的 2026-03-01 之後範圍');if(requestedStart<start)log(`FinMind VIX 最早 2026-03-01；${requestedStart}～2026-02-28 不會自動造數據。`);const parts=[];for(let d=start;d<=end;d=addDays(d,14)){const e=addDays(d,13);parts.push([d,e>end?end:e])}const records=[];let seen=0;for(const[a,b]of parts){status(`取得台灣 VIX：${a} ～ ${b}（${seen+1}/${parts.length} 包）`,55+(seen/parts.length)*44);const data=await request('TaiwanOptionVix',a,b);records.push(...data);seen++;if(seen%2===0||seen===parts.length)log(`VIX 已讀 ${seen}/${parts.length} 包；原始筆數 ${records.length}`)}const daily=normalizeVix(records);mergeVix(daily);log(`VIX 歸併為 ${daily.length} 個日 K；來源 FinMind 日內波動率點位（非官方日收盤欄位）`);status('VIX 處理完成',100)}
+async function loadStock() {
+  const [requestedStart,end]=range();
+  const start=requestedStart<'2003-06-30'?'2003-06-30':requestedStart;
+  if(end<start)throw Error('0050 自 2003-06-30 上市，所選日期全部早於上市日期。');
+  if(start!==requestedStart)log(`0050 自 2003-06-30 上市；${requestedStart} 至 2003-06-29 不會產生虛構日價。`);
+  const parts=dateBatches(start,end,365);
+  log(`0050 依每包最多 365 天分批，共 ${parts.length} 包；避免單次請求超過 Cloudflare 或 FinMind 限制。`);
+  stockRaw=[];stockAdj=[];render();
+  const rawMap=new Map();
+  for(let i=0;i<parts.length;i++){
+    const [a,b]=parts[i];
+    status(`0050 原始日 K：${a} ～ ${b}（${i+1}/${parts.length}）`,5+29*i/parts.length);
+    const rows=normalizeStock(await request('TaiwanStockPrice',a,b,'0050'));
+    for(const r of rows)rawMap.set(r.date,r);
+    stockRaw=[...rawMap.values()].sort((x,y)=>x.date.localeCompare(y.date));
+    if(i%3===0||i===parts.length-1)log(`0050 原始 ${i+1}/${parts.length} 包，累計 ${stockRaw.length} 日`);
+    render();
+  }
+  if(!stockRaw.length)throw Error('FinMind 沒有回傳 0050 原始日價，請確認 Token 與日期。');
+  log(`0050 原始日 K 完成：${stockRaw.length} 筆`);
+  const adjusted=new Map();
+  try{
+    for(let i=0;i<parts.length;i++){
+      const [a,b]=parts[i];
+      status(`0050 還原日 K：${a} ～ ${b}（${i+1}/${parts.length}）`,35+19*i/parts.length);
+      const rows=normalizeStock(await request('TaiwanStockPriceAdj',a,b,'0050'));
+      for(const r of rows)adjusted.set(r.date,r);
+      stockAdj=[...adjusted.values()].sort((x,y)=>x.date.localeCompare(y.date));
+      render();
+    }
+    log(`0050 還原日 K 完成：${stockAdj.length} 筆`);
+    if(stockAdj.length!==stockRaw.length)log('原始／還原日數不一致，合併檔會保留缺漏；回測前請核對。',true);
+  }catch(e){
+    log(`還原日 K 下載未完成（已保留原始資料與已取得還原資料）：${e.message}`,true);
+  }
+  status(`0050 原始日 K 完成 ${stockRaw.length} 筆，還原 ${stockAdj.length} 筆`,55);
+}
+async function loadVix() {
+  const [requestedStart,end]=range();
+  const start=requestedStart<'2026-03-01'?'2026-03-01':requestedStart;
+  if(end<start)throw Error('選定日期不在 FinMind 台灣 VIX 官方提供的 2026-03-01 之後範圍');
+  if(requestedStart<start)log(`FinMind VIX 最早 2026-03-01；${requestedStart}～2026-02-28 不會自動造數據。`);
+  const parts=dateBatches(start,end,14);
+  let total=0;
+  for(let i=0;i<parts.length;i++){
+    const [a,b]=parts[i];
+    status(`台灣 VIX：${a} ～ ${b}（${i+1}/${parts.length}）`,55+44*i/parts.length);
+    const points=await request('TaiwanOptionVix',a,b);
+    total+=points.length;
+    // Aggregate each batch immediately to avoid holding years of tick-like data in mobile RAM.
+    mergeVix(normalizeVix(points));
+    if(i%2===0||i===parts.length-1)log(`VIX 已取得 ${i+1}/${parts.length} 包，原始 ${total} 筆，合併為 ${vixRows.length} 個交易日`);
+  }
+  log(`台灣 VIX 共 ${vixRows.length} 個日 K；當日最後一個觀測值不等於期交所官方收盤價。`);
+  status(`下載完成：VIX ${vixRows.length} 日`,100);
+}
 $('getBoth').onclick=wrap(async()=>{await loadStock();try{await loadVix()}catch(e){log('VIX 下載失敗：'+e.message,true);status('0050 已完成；VIX 可另行查詢或匯入 CSV',100)}});
 $('get0050').onclick=wrap(loadStock);$('getVix').onclick=wrap(loadVix);
 $('clear').onclick=()=>{if(busy)return;stockRaw=[];stockAdj=[];vixRows=[];$('token').value='';$('vixFile').value='';$('log').textContent='資料與 Token 已清空';status('資料已清空',0);render()};
