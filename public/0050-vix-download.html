@@ -66,11 +66,11 @@ function credentialSelection(){
   const mode=$('credentialMode').value||'cloud';
   const headers={};
   if(mode==='manual'){
-    let t=$('token').value.trim().replace(/^Bearer\\s+/i,'');
+    let t=$('token').value.trim().replace(/^Bearer\s+/i,'');
     if(!t)throw Error('請在上方輸入新的 FinMind API Token，或切換其他認證來源。');
     headers.Authorization='Bearer '+t;
   }else if(mode==='browser'){
-    let t=String(window.TWFinMindTokens?.activeToken?.()||'').trim().replace(/^Bearer\\s+/i,'');
+    let t=String(window.TWFinMindTokens?.activeToken?.()||'').trim().replace(/^Bearer\s+/i,'');
     if(!t)throw Error('原網站沒有可沿用的 Token；請改選雲端或手動輸入。');
     headers.Authorization='Bearer '+t;
   }
