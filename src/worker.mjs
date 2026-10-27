@@ -28,6 +28,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily/'))return stockFuturesRoute(request,env,'daily');
+  if(new URL(request.url).pathname.startsWith('/api/market-daily/'))return stockFuturesRoute(request,env,'market-daily');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-chip/'))return stockFuturesRoute(request,env,'daily-chip');
   if(new URL(request.url).pathname.startsWith('/api/tx-download/'))return txDownloadRoute(request,env);
   if(new URL(request.url).pathname==='/api/etf-vix-daily')return etfVixDailyRoute(request,env);
