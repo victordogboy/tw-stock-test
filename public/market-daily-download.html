@@ -166,7 +166,7 @@ function render(s){
  $("pause").disabled=!["running","preparing"].includes(s.phase);$("resume").disabled=!["paused","error"].includes(s.phase);
  $("startBtn").disabled=["running","preparing"].includes(s.phase);$("exports").classList.toggle("hidden",!s.total);
  const merge=s.merge,ready=s.phase==="done"&&s.codeCount>0&&s.processed===s.total;
- $("cloudMergeBtn").classList.toggle("hidden",merge?.phase==="running"||merge?.phase==="done");
+ $("cloudMergeBtn").classList.toggle("hidden",["running","done","error"].includes(merge?.phase));
  $("cloudMergeBtn").disabled=!ready||busy;
  $("mergeResumeBtn").classList.toggle("hidden",merge?.phase!=="error");
  $("mergeResumeBtn").disabled=busy;
