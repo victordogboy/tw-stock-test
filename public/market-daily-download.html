@@ -157,7 +157,7 @@ async function launch(reset=false){
 async function action(kind){
  if(busy)return;busy=true;
  try{await api("/"+kind,{method:"POST"});
-  if(kind==="delete"){current=null;catalog=null;$("statusCard").classList.add("hidden");$("exports").classList.add("hidden");alert("雲端任務已刪除")}
+  if(kind==="delete"){current=null;catalog=null;$("statusCard").classList.add("hidden");$("exports").classList.add("hidden");alert("已停止下載，雲端正分批清除舊資料。")}
   else await refresh()
  }catch(e){fail(e)}finally{busy=false}
 }
