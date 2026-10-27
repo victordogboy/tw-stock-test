@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1525"><meta name="color-scheme" content="dark">
+<title>台股全市場日 K 雲端下載器｜2018 至今</title>
+<style>
+:root{font:15px/1.6 system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#e9f3fb;background:#0b1525}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 95% -20%,#15596688,transparent 44%),#0b1525}
+main{max-width:990px;margin:auto;padding:25px 16px 70px}nav{font-size:13px;display:flex;gap:18px;flex-wrap:wrap}a{color:#7bdfd4}
+h1{font-size:clamp(28px,7vw,45px);letter-spacing:-.03em;line-height:1.2;margin:16px 0 12px}
+h2{font-size:19px;margin:0 0 14px}.sub{color:#aac0d0;max-width:780px}
+.badge{display:inline-block;border:1px solid #1e8d81;color:#81ebd4;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700}
+section{background:#162739;border:1px solid #36556b;padding:20px;border-radius:17px;margin:17px 0}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:11px 0}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+label{display:block;font-size:13px;color:#cee4f1;margin:10px 0 5px}
+input[type=date],input[type=text],input[type=password]{width:100%;min-height:43px;color:#e9f3fc;background:#0b1928;border:1px solid #517188;border-radius:10px;padding:8px 12px;font-size:15px}
+input:focus-visible,button:focus-visible{outline:2px solid #80dfd4;outline-offset:2px}
+.check{display:flex;gap:7px;align-items:center;border:1px solid #416078;background:#112337;border-radius:10px;padding:9px 13px;cursor:pointer;margin:0}
+input[type=checkbox]{accent-color:#4ab5a6;width:17px;height:17px}
+button,.download{color:#071823;background:#83ebd5;border:1px solid #83ebd5;border-radius:11px;padding:9px 15px;min-height:42px;font-size:14px;font-weight:750;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button:hover,.download:hover{filter:brightness(1.07)}button:disabled{opacity:.5;cursor:not-allowed}
+button.secondary,.download.secondary{color:#c9e6f5;background:#223a51;border-color:#45637c}
+button.danger{background:#72383d;color:#fff;border-color:#a55f65}
+.small{font-size:12px;color:#a4bbce}.note{background:#0d2132;border-left:3px solid #4caeac;padding:13px;margin:13px 0;border-radius:0 9px 9px 0;font-size:13px;color:#c7dce9}
+.warn{border-left-color:#e6b36a}progress{height:16px;width:100%;accent-color:#67dcc5}
+.stat{background:#102033;border:1px solid #345065;border-radius:12px;padding:12px;text-align:center}.stat b{font-size:21px;display:block}.stat span{color:#9eb5c8;font-size:12px}
+.pill{border-radius:50px;background:#28536b;padding:5px 12px;font-size:12px}
+.packs{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;padding:10px 0}
+.packs a{padding:8px;background:#1d3a4c;border:1px solid #37657b;text-align:center;border-radius:10px;text-decoration:none;font-size:13px}
+.packs a:hover{background:#2c5164}
+details{margin:10px 0;border:1px solid #35556e;border-radius:10px;padding:10px;background:#102238}summary{cursor:pointer;font-weight:700}
+.hidden{display:none!important}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:250px;overflow-y:auto}
+footer{color:#93adbd;font-size:12px;margin-top:25px}
+@media(max-width:550px){.grid,.grid3{grid-template-columns:1fr}section{padding:16px}.packs{grid-template-columns:repeat(2,minmax(0,1fr))}button,.download{flex-grow:1}}
+</style></head><body><main>
+<nav><a href="/">首頁</a><a href="/stock-futures-download.html">有個股期貨股票下載</a><a href="/tx-download.html">台指期 1 分 K</a></nav>
+<p class="badge">FinMind TaiwanStockPrice · 雲端背景任務</p>
+<h1>台股全市場<br>2018 至今日 K 下載器</h1>
+<p class="sub">一次建立上市、上櫃所有普通股票的歷史日 K，預設包含 2018 年起下市櫃股票。下載時手機可關閉網頁，之後回來接著看進度。</p>
+<section><h2>① 設定下載範圍</h2>
+<div class="grid"><div><label for="start">開始日期</label><input id="start" type="date" value="2018-01-01" min="2018-01-01"></div>
+<div><label for="end">結束日期（預設今日）</label><input id="end" type="date" min="2018-01-01"></div></div>
+<label>市場範圍</label><div class="row">
+<label class="check"><input id="twse" type="checkbox" checked>上市 TWSE</label>
+<label class="check"><input id="tpex" type="checkbox" checked>上櫃 TPEx</label>
+<label class="check"><input id="delisted" type="checkbox" checked>2018 年後下市櫃</label></div>
+<div class="note">普通股限定；不包含 ETF、ETN、權證、興櫃。<strong>下市櫃資料對歷史回測很重要</strong>，因為只下載現在還上市的股票會造成存活者偏差。下市櫃所屬原市場可能無法從清單得知，匯出會標記 <code>delisted</code>。</div>
+<label for="token">FinMind Token（自動沿用既有個股分析設定）</label>
+<input id="token" type="password" autocomplete="off" placeholder="已有儲存 Token 可留空">
+<div id="tokenHint" class="small">檢查共用 Token 中…</div>
+<div class="row"><button id="catalogBtn" class="secondary">↻ 讀取全市場股票數</button><span class="small" id="catalogInfo">尚未讀取</span></div>
+<div class="row"><button id="startBtn">▶ 開始雲端背景下載</button><button id="resetBtn" class="secondary">重新建立任務</button><button id="refreshBtn" class="secondary">刷新進度</button></div>
+<div id="error" class="note warn hidden" role="alert"></div>
+</section>
+<section id="statusCard" class="hidden"><div class="row" style="justify-content:space-between"><h2>② 背景下載進度</h2><span id="phase" class="pill">等待中</span></div>
+<progress id="prog" max="100" value="0"></progress>
+<div class="row" style="justify-content:space-between"><strong id="percent">0.0%</strong><span id="range" class="small"></span></div>
+<div class="grid3"><div class="stat"><b id="processed">0</b><span>完成股票 / 總股票</span></div>
+<div class="stat"><b id="rows">0</b><span>有效日 K 根數</span></div>
+<div class="stat"><b id="queries">0</b><span>已使用 API 查詢</span></div></div>
+<div class="note" id="message">—</div><div class="small" id="stats">—</div>
+<div class="row"><button class="secondary" id="pause">⏸ 暫停</button><button class="secondary" id="resume">▶ 繼續</button><button class="secondary" id="refresh2">↻ 刷新</button></div>
+<details><summary>查看異常紀錄</summary><pre id="errors"></pre></details></section>
+<section id="exports" class="hidden"><h2>③ 匯出 CSV.GZ</h2>
+<div class="note">每年依股票代碼排序切成每包 250 檔，避免 Cloudflare 免費版一次讀取超過 1,000 個內部節點。每一包包含該年度所有已完成股票的日 K；如任務還在下載，檔案可能不完整。<strong>請等顯示「已完成」再整批匯出。</strong></div>
+<div id="years"></div>
+<label for="code">也可以下載單一股票（完整所選年份，非分包）</label>
+<div class="row"><input style="flex:1;min-width:120px" id="code" type="text" pattern="[0-9]{4}" inputmode="numeric" maxlength="4" placeholder="例如 2330"><button id="stockExportBtn" class="secondary">下載單股 CSV.GZ</button></div>
+<div class="small">CSV 欄位：date、stock_id、stock_name、market、open、high、low、close、volume_shares、trading_money_twd、trading_turnover、spread。價格為<strong>未還原</strong>日 K；成交量為「股」，不是「張」。</div>
+</section>
+<section><h2>資料處理方式</h2>
+<p class="small">每檔以 FinMind <code>TaiwanStockPrice</code> 查詢 2018 年起的日 K；依八個曆年分段，伺服器按股票逐批下載，完成進度會保存在私有 Cloudflare Durable Object。下載內容不包含未發生的交易日，也不會將下市櫃後缺失日期補 0。清單來自 <code>TaiwanStockInfo</code> 與 <code>TaiwanStockDelisting</code>，依資料來源覆蓋範圍，仍可能無法收錄所有更早退市公司。</p>
+<p class="small">下載資料於雲端暫存最多 30 天，過期後需重新下載；請先備份 CSV.GZ。本頁僅供會員個人研究使用，並遵循 FinMind 授權規範。</p>
+<button id="deleteBtn" class="danger">刪除這個瀏覽器的雲端下載任務</button>
+</section>
+<footer>資料來源：<a href="https://finmind.github.io/tutor/TaiwanMarket/Technical/" target="_blank" rel="noopener">FinMind 官方文件</a>。網站不會把 Token 放在網址或公開 GitHub。</footer>
+</main><script>
+(()=>{"use strict";
+const $=id=>document.getElementById(id),fmt=x=>Number(x||0).toLocaleString("zh-TW");
+const DATE=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+$("end").max=DATE;$("end").value=DATE;
+let current=null, busy=false, catalog=null;
+const root="/api/market-daily";
+function savedToken(){
+ try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null"),active=Number(s?.active)===1?1:0;
+  return String(s?.tokens?.[active]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}
+}
+function token(){return $("token").value.trim()||savedToken()}
+function saveToken(){if($("token").value.trim())localStorage.setItem("twq_finmind_token_v1",$("token").value.trim())}
+$("tokenHint").textContent=savedToken()?"已沿用既有 FinMind Token（尾碼 "+savedToken().slice(-4)+"），可直接開始。":"此瀏覽器找不到共用 Token；請貼上會員 Token。";
+function fail(err){$("error").classList.remove("hidden");$("error").textContent=String(err?.message||err)}
+function clearError(){$("error").classList.add("hidden");$("error").textContent=""}
+async function api(path,opt={}){
+ let r;try{r=await fetch(root+path,{credentials:"same-origin",cache:"no-store",...opt})}
+ catch{throw Error("網路暫時中斷；背景任務可能仍在進行")}
+ let j;try{j=await r.json()}catch{throw Error("伺服器回傳非 JSON，請檢查雲端部署")}
+ if(!r.ok||j.ok===false)throw Error(j.error||"HTTP "+r.status);
+ return j
+}
+function selectedMarkets(){return ["twse","tpex","delisted"].filter(x=>$(x).checked)}
+async function loadCatalog(){
+ if(busy)return;
+ const t=token();if(!t){$("catalogInfo").textContent="輸入 Token 後可讀取";return}
+ $("catalogBtn").disabled=true;$("catalogInfo").textContent="載入股票清單中…";
+ try{catalog=await api("/catalog",{headers:{authorization:"Bearer "+t}});
+  $("catalogInfo").textContent="可下載 "+fmt(catalog.count)+" 檔（上市 "+fmt(catalog.listed)+"、上櫃 "+fmt(catalog.otc)+"、下市櫃 "+fmt(catalog.delisted)+"）";clearError();
+ }catch(e){$("catalogInfo").textContent="清單讀取失敗";fail(e)}
+ finally{$("catalogBtn").disabled=false}
+}
+function yearsOf(s){const years=[];for(let y=Number(s.start.slice(0,4));y<=Number(s.end.slice(0,4));y++)years.push(y);return years}
+function addDownload(container,text,url){
+ const a=document.createElement("a");a.href=url;a.className="download secondary";a.setAttribute("download","");a.textContent=text;container.append(a)
+}
+function render(s){
+ current=s;clearError();$("statusCard").classList.remove("hidden");
+ const pct=s.total?Math.min(100,100*s.processed/s.total):0;
+ $("prog").value=pct;$("percent").textContent=pct.toFixed(1)+"%";
+ $("phase").textContent=({running:"背景下載中",paused:"已暫停",error:"需要處理錯誤",done:"已完成"})[s.phase]||s.phase;
+ $("processed").textContent=fmt(s.processed)+" / "+fmt(s.total);
+ $("rows").textContent=fmt(s.rows);$("queries").textContent=fmt(s.queries);
+ $("range").textContent=s.start+" 至 "+s.end;
+ $("message").textContent=s.message||"—";
+ $("stats").textContent="目前股票："+(s.currentCode||"—")+"｜失敗紀錄："+(s.errors||[]).length+"（最近30筆）｜無資料股票："+fmt(s.empty)+"｜資料異常："+fmt(s.rejected)+"｜更新時間："+new Date(s.updatedAt).toLocaleString("zh-TW");
+ $("errors").textContent=(s.errors||[]).map(x=>(x.code||"—")+" "+(x.day||"")+"："+x.error).join("\n")||"無異常";
+ $("pause").disabled=s.phase!=="running";$("resume").disabled=!["paused","error"].includes(s.phase);
+ $("startBtn").disabled=s.phase==="running";$("exports").classList.remove("hidden");
+ const totalParts=Math.ceil(s.codeCount/250),box=$("years");box.replaceChildren();
+ for(const year of yearsOf(s)){
+  const d=document.createElement("details"),summary=document.createElement("summary");
+  summary.textContent=year+" 年 ｜ "+totalParts+" 包（每包最多250股）";
+  d.append(summary);
+  const row=document.createElement("div");row.className="packs";
+  for(let part=1;part<=totalParts;part++){
+   addDownload(row,"第 "+part+" / "+totalParts+" 包",root+"/export?year="+year+"&part="+part)
+  }
+  d.append(row);box.append(d)
+ }
+}
+async function refresh(){
+ try{const s=await api("/status");render(s)}catch(e){
+  if(current)fail(e);else if(!/沒有這個瀏覽器的下載工作/.test(e.message))fail(e)
+ }
+}
+async function launch(reset=false){
+ if(busy)return;clearError();
+ const t=token();if(!t)return fail("找不到 FinMind Token，請先填入。");
+ const markets=selectedMarkets();if(!markets.length)return fail("至少要選一個股票市場");
+ const start=$("start").value,end=$("end").value;
+ if(!start||!end||start>end||start<"2018-01-01"||end>DATE)return fail("日期須在 2018/01/01 到今天之間，且結束日期不能早於開始日期");
+ if(reset&&!confirm("確定重建下載任務？舊任務的進度會被清除，請先備份需要的資料。"))return;
+ busy=true;$("startBtn").disabled=true;$("resetBtn").disabled=true;
+ try{saveToken();const s=await api("/start",{method:"POST",headers:{authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end,markets,reset})});
+  $("token").value="";render(s);$("statusCard").scrollIntoView({behavior:"smooth"});
+ }catch(e){fail(e)}
+ finally{busy=false;$("startBtn").disabled=false;$("resetBtn").disabled=false}
+}
+async function action(kind){
+ if(busy)return;busy=true;
+ try{await api("/"+kind,{method:"POST"});
+  if(kind==="delete"){current=null;catalog=null;$("statusCard").classList.add("hidden");$("exports").classList.add("hidden");alert("雲端任務已刪除")}
+  else await refresh()
+ }catch(e){fail(e)}finally{busy=false}
+}
+$("catalogBtn").onclick=()=>{saveToken();loadCatalog()};
+$("startBtn").onclick=()=>launch(false);$("resetBtn").onclick=()=>launch(true);
+$("refreshBtn").onclick=$("refresh2").onclick=refresh;
+$("pause").onclick=()=>action("pause");$("resume").onclick=()=>action("resume");
+$("deleteBtn").onclick=()=>{if(current&&confirm("永久刪除此任務與所有暫存日 K？"))action("delete")};
+$("stockExportBtn").onclick=()=>{
+ if(!current)return fail("請先建立下載任務");
+ const code=$("code").value.trim();
+ if(!/^[0-9]{4}$/.test(code))return fail("股票代號必須是4位數字");
+ location.href=root+"/export?code="+encodeURIComponent(code)
+};
+refresh();if(savedToken())loadCatalog();
+setInterval(()=>{if(!document.hidden&&current?.phase==="running")refresh()},12000);
+})();
+</script></body></html>
