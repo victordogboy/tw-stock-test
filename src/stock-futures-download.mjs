@@ -171,6 +171,24 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(!["GET","POST"].includes(method))return respond({ok:false,error:"不支援此方法"},405);
  if(method==="POST"&&request.headers.get("origin")&&request.headers.get("origin")!==url.origin)return respond({ok:false,error:"來源不符"},403);
  const id=cookie(request,cookieName),known=/^[a-f0-9]{64}$/.test(id);
+ if(market&&path===root+"/token"&&method==="POST"){
+  const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+  if(token.length<5||token.length>4096||/[\r\n]/.test(token))
+   return respond({ok:false,error:"請貼上 FinMind 官方會員中心提供的完整新 Token"},401);
+  // Preflight before overwriting any stored credential or restarting a job.
+  // A minimal known stock/day is enough to verify that the bearer is accepted.
+  try{
+   await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:"2330",start_date:"2024-01-02",end_date:"2024-01-02"});
+  }catch(e){
+   const illegal=/token.*(illegal|invalid|expired)|token.*無效/i.test(String(e.message||""));
+   return respond({ok:false,code:illegal?"TOKEN_INVALID":"FINMIND_TEST_FAILED",
+    error:illegal?"FinMind 拒絕此 Token。請至官方會員中心重新取得 Token，再貼上驗證。":("FinMind Token 驗證未通過："+String(e.message||e))},illegal?401:502);
+  }
+  if(!known)return respond({ok:true,verified:true,jobFound:false,message:"Token 已通過 FinMind 讀取驗證；可以開始下載"});
+  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(id));
+  const result=await stub.fetch(new Request("https://private/replace-token",{method:"POST",headers:{authorization:"Bearer "+token}}));
+  return new Response(result.body,{status:result.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}});
+ }
  if(path===root+"/catalog"&&method==="GET"){
   try{
    if(market){
@@ -442,6 +460,25 @@ export class StockFuturesBatch{
   let s=await st.get("state");if(!s)return respond({ok:false,error:"找不到下載任務"},404);
   if(p==="/status")return respond(this.summary(s));
   if(p==="/export")return this.exportData(s,new URL(r.url));
+  if(p==="/replace-token"&&r.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
+   const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+   if(token.length<5||token.length>4096)return respond({ok:false,error:"缺少有效的新 Token"},401);
+   const current=await st.get("state");
+   if(!current||current.mode!=="market-daily")return respond({ok:false,error:"沒有需要修復的全市場下載任務"},404);
+   if(current.phase==="deleting")return respond({ok:false,error:"資料正在刪除，不能恢復"},409);
+   await st.put("token",token);
+   if(["paused","error"].includes(current.phase)){
+    current.phase=current.catalog.length?"running":"preparing";
+    current.retries=0;current.errors=[];current.lastError="";
+    current.message="新 Token 已驗證，"+(current.catalog.length?"繼續下載現股日 K":"正在重新建立股票清單");
+    current.updatedAt=Date.now();
+    await st.put("state",current);
+    await st.setAlarm(Date.now()+100);
+   }
+   return respond({...this.summary(current),verified:true,credentialUpdated:true,
+    message:current.message||"FinMind Token 已驗證並更新"});
+  });
+
   if(r.method!=="POST")return respond({ok:false,error:"操作方法錯誤"},405);
   return this.ctx.blockConcurrencyWhile(async()=>{
    s=await st.get("state");
