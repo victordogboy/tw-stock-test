@@ -1,7 +1,14 @@
 /* One shared valuation snapshot; sorting never triggers per-stock requests. */
 (function(root){
  'use strict';
- let snapshot=null,pending=null,attemptedAt=0,error=false,visible=[];
+ const cacheKey='twq_valuation_snapshot_r56';
+ let snapshot=null,pending=null,attemptedAt=0,error=false,visible=[],checkedAt=0;
+ try{const saved=JSON.parse(root.localStorage?.getItem(cacheKey)||'null');
+  if(saved?.version===1&&Array.isArray(saved.rows)&&Number.isFinite(saved.checkedAt)){
+   snapshot=new Map(saved.rows.map(r=>[String(r.code),r]));checkedAt=saved.checkedAt;
+  }
+ }catch{}
+
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function cell(r){
   const stock=snapshot?.get(String(r.code)),model=stock?.models?.A;
@@ -12,7 +19,8 @@
     error?'稍後切換排序可重試':snapshot?(model?.status==='ok'?'缺有效股價':model?.status||'缺估值資料'):'正在取得全年預估EPS';
   const v=r.liquidityVolume,volume=Number.isFinite(v)&&v>=0?Math.round(v/1000).toLocaleString('zh-TW')+' 張':'—';
   const basis=r.liquidityBasis==='projected'?'預估量':'實際量';
-  return '<b>預估PE '+esc(peText)+'</b><br><small class="muted">'+esc(note)+'</small><br><b>'+basis+' '+esc(volume)+'</b><br><small class="muted">'+esc(r.liquidityDate||r.dataDate||'日期未提供')+(r.liveTime?' '+esc(r.liveTime):'')+'</small>';
+  const stamp=checkedAt?'<br><small class="muted">估值檢查 '+esc(new Date(checkedAt).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false}))+(Date.now()-checkedAt>86400000?'｜舊資料':'')+(error?'｜更新失敗，保留上次資料':'')+'</small>':'';
+  return '<b>預估PE '+esc(peText)+'</b><br><small class="muted">'+esc(note)+'</small>'+stamp+'<br><b>'+basis+' '+esc(volume)+'</b><br><small class="muted">'+esc(r.liquidityDate||r.dataDate||'日期未提供')+(r.liveTime?' '+esc(r.liveTime):'')+'</small>';
  }
  function paint(){
   const rows=new Map(visible.map(r=>[String(r.code),r]));
@@ -29,10 +37,12 @@
   attemptedAt=Date.now();error=false;
   pending=(async()=>{
    try{
-    const response=await fetch('/api/pe-screener/data',{cache:'no-store',signal:AbortSignal.timeout(60000)});
+    const response=await fetch('/api/pe-screener/snapshot',{cache:'no-store',signal:AbortSignal.timeout(60000)});
     const j=await response.json();if(!response.ok||!j.ok||!Array.isArray(j.rows))throw Error('valuation unavailable');
     snapshot=new Map(j.rows.map(r=>[String(r.code),r]));
-   }catch{error=true;snapshot=null;}
+    checkedAt=Number.isFinite(j.checkedAt)?j.checkedAt:Date.now();error=!!j.refreshError;
+    try{root.localStorage?.setItem(cacheKey,JSON.stringify({version:1,rows:j.rows,checkedAt}));}catch{}
+   }catch{error=true;}
    finally{pending=null;paint();}
   })();
   return pending;

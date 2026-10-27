@@ -1149,7 +1149,7 @@ async function liveCurrentRecheckOne(r){
   const raw=r._chips||{margin:[],inst:[],daytrade:[]},chips={margin:chipCutForLive(raw.margin,b.date,open),inst:chipCutForLive(raw.inst,b.date,open),daytrade:chipCutForLive(raw.daytrade,b.date,open)},sc=formalScore(sim,chips);
   delete r.liveError;r.liveActualVolume=n(b.volume);r.formalBeforeLive={setup:r.setup,opportunity:r.opportunity,entry:r.entry,hold:r.hold};Object.assign(r,sc);r.close=twPrice(b.close);r.dataDate=b.date;r.liveCurrent=true;r.liveTime=b.last_time||'';r.liveProjectedVolume=Math.round(pv.volume);r.liveVolumeRatio=avg5?pv.volume/avg5:null;r.liveMarketOpen=open;r.liveSource=j.source||'Yahoo Finance 1m intraday';r._hist=sim;r._chips=chips;r.decision=priceDecision(sim);Object.assign(r,scanVolumeFields(liveBar,avg5));return r;
 }
-async function stage1CurrentHistory(code,market,start,end){
+async function stage1CurrentHistory(code,market,start,end,preflight=null){
   // Scalable path: cached Yahoo Daily first. If it lags the market-data target,
   // append the completed/current Yahoo 1m bar. No per-stock TWSE monthly request here.
   const j=await getJSON(`/api/history/auto?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}&start_date=${start}&end_date=${end}`);
@@ -1161,7 +1161,7 @@ async function stage1CurrentHistory(code,market,start,end){
   let provisional=false,liveSource=null;
 
   if(SCAN_TARGET_DATE && (String(last?.date||'')<String(SCAN_TARGET_DATE)||(SCAN_TARGET_DATE===scanTaipeiNow().date&&scanMarketOpen({}, {date:SCAN_TARGET_DATE})))){
-    const iq=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
+    const iq=preflight||await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
     const b=iq.bar||{},errs=scanQuoteErrors(iq,b);
     if(iq.quote_valid===false||errs.length||String(b.date)!==String(SCAN_TARGET_DATE)){
       SCAN_LATEST_MISSING++;
@@ -1210,7 +1210,25 @@ async function worker(item){
     const end=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
     const start=new Date(Date.now()-470*864e5).toLocaleDateString('sv-SE',{timeZone:'Asia/Taipei'});
     const market=item.market||'twse';
-    const sh=await stage1CurrentHistory(code,market,start,end);
+    let preflight=null;
+    if(SCAN_TARGET_DATE===scanTaipeiNow().date&&scanMarketOpen({}, {date:SCAN_TARGET_DATE})){
+      // Use current quotes to reject guaranteed failures before downloading history.
+      try{
+        const q=await getJSON(`/api/intraday?code=${encodeURIComponent(code)}&market=${encodeURIComponent(market)}`);
+        if(q.quote_valid!==false&&String(q.bar?.date)===SCAN_TARGET_DATE&&!scanQuoteErrors(q,q.bar).length)preflight=q;
+      }catch{} // History path retains the existing error/fallback behaviour.
+      if(preflight){
+        const b=preflight.bar,price=twPrice(b.close);
+        if(price<SCAN_FILTERS.minClose)throw new Error(`低於最低股價 ${price}`);
+        if(SCAN_FILTERS.maxClose>0&&price>SCAN_FILTERS.maxClose&&!item.hasFutures)throw new Error('超過最高股價');
+        // Before 11:00 projection blends historical average volume: do not shortcut it.
+        if(scanMinutes(b.last_time)>=660){
+          const lots=scanProjectedVolume(Number(b.volume),b.last_time,0,true).volume/1000;
+          if(lots<SCAN_FILTERS.minLots)throw new Error(`低於最低成交量 ${lots.toFixed(0)}張（盤中預估）`);
+        }
+      }
+    }
+    const sh=await stage1CurrentHistory(code,market,start,end,preflight);
     let hist=sh.hist;
     const lastBar=hist.at(-1)||{};
     const latestClose=n(lastBar.close,0);

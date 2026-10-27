@@ -1,3 +1,4 @@
+import {ValuationCache,valuationStub} from './valuation-cache.mjs';
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
@@ -8,9 +9,22 @@ import {createScanJobClass,scanRoute} from './scan-job.mjs';
 import {taiexFuturesRoute} from './taiex-futures.mjs';
 import {taiexVixRoute} from './taiex-vix.mjs';
 export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
-export const ScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
+const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
+// Existing namespace, isolated named object: no new namespace migration for preview uploads.
+export class ScanJob extends BaseScanJob {
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);}
+ fetch(request){
+  if(new URL(request.url).pathname.startsWith('/valuation/'))return this.valuation.fetch(request);
+  return super.fetch(request);
+ }
+}
 export default {
+ scheduled(event,env,ctx){ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname==='/api/pe-screener/snapshot'){
+   if(request.method!=='GET')return new Response('Method not allowed',{status:405});
+   return valuationStub(env).fetch(new Request('https://valuation.internal/valuation/snapshot'));
+  }
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily/'))return stockFuturesRoute(request,env,'daily');
