@@ -243,6 +243,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(id));
  if(path===root+"/status"&&method==="GET")return stub.fetch("https://private/status");
  if(market&&path===root+"/merge-start"&&method==="POST")return stub.fetch(new Request("https://private/merge-start",{method:"POST"}));
+ if(market&&path===root+"/merge-resume"&&method==="POST")return stub.fetch(new Request("https://private/merge-resume",{method:"POST"}));
  if(market&&path===root+"/merge-download"&&method==="GET")return stub.fetch("https://private/merge-download");
  if(market&&path===root+"/merge-share"&&method==="POST"){
   const resp=await stub.fetch(new Request("https://private/merge-share",{method:"POST"}));
@@ -538,7 +539,9 @@ export class StockFuturesBatch{
     const merge={phase:"running",processed:0,total:s.catalog.length,bytes:0,
      retryCount:0,error:"",startedAt:now,updatedAt:now,completedAt:null,
      message:"雲端已開始從既有股票日K逐檔建立單一 GZIP，手機可直接關閉"};
-    await st.put("merge:header",await zip(MARKET_HDR));
+    const header=await zip(MARKET_HDR);merge.bytes=header.byteLength;
+    await st.put("merge:header",header);
+    await st.delete("merge:share");
     await st.put("merge",merge);await st.setAlarm(now+100);
     return respond({ok:true,merge:this.summary(s,merge).merge},202);
    });
@@ -567,7 +570,7 @@ export class StockFuturesBatch{
    await st.delete("merge:share");return respond({ok:true,revoked:true});
   }
   if(s.mode==="market-daily"&&p==="/merge-shared"){
-   const key=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
+   const key=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    const share=await st.get("merge:share");
    if(!validShareKey(key)||!share||share.expiresAt<=Date.now()||share.key!==key)
     return respond({ok:false,error:"此唯讀分享連結已失效或無權限"},403);
@@ -581,7 +584,7 @@ export class StockFuturesBatch{
    if(fmt)return respond({ok:false,error:"不支援的格式"},400);
    const code=u.searchParams.get("code")||"",year=u.searchParams.get("year")||"",part=u.searchParams.get("part")||"";
    if(code||year||part){
-    if(code&&!/^\\d{4}$/.test(code)||year&&!/^(20|21)\\d{2}$/.test(year)||part&&!/^[1-9]\\d{0,2}$/.test(part))
+    if(code&&!/^\d{4}$/.test(code)||year&&!/^(20|21)\d{2}$/.test(year)||part&&!/^[1-9]\d{0,2}$/.test(part))
      return respond({ok:false,error:"股票、年份或分包參數錯誤"},400);
     if(!code&&!year)return respond({ok:false,error:"請指定年份或單一股票代碼"},400);
     return this.exportDailyData(s,new URL("https://private/export?"+new URLSearchParams({code,year,part})));
@@ -641,6 +644,10 @@ export class StockFuturesBatch{
    return
   }
   if(Date.now()>=s.expiresAt){await st.deleteAll();await st.deleteAlarm();return}
+  if(s.mode==="market-daily"){
+   const merge=await st.get("merge");
+   if(merge?.phase==="running"){await this.alarmMerge(s,merge,st);return}
+  }
   if(s.phase==="preparing"&&s.mode==="market-daily"){
    const token=await st.get("token");
    try{
@@ -877,6 +884,100 @@ export class StockFuturesBatch{
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Math.max(Date.now()+150,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
  }
+
+ // Existing daily K bars are already compressed by year and symbol.
+ // Cloudflare alarms copy their GZIP members into this job's private SQLite
+ // storage, using small durable chunks. No FinMind / browser requests.
+ async alarmMerge(s,merge,st){
+  const begin=merge.processed||0,limit=Math.min(merge.total,begin+MERGE_STOCKS_PER_ALARM);
+  const startYear=Number(s.start.slice(0,4)),endYear=Number(s.end.slice(0,4));
+  for(let i=begin;i<limit;i++){
+   const symbol=s.catalog[i]?.code;
+   if(!symbol){merge.phase="error";merge.error="股票清單發生變更";break}
+   let part=0,stockBytes=0,reader=null;
+   try{
+    const shard=this.shardFor(s,symbol);
+    const response=await shard.fetch("https://private/get-years?"+new URLSearchParams({startYear,endYear}));
+    if(!response.ok||!response.body)throw Error(symbol+" 雲端歷史資料無法開啟");
+    reader=response.body.getReader();
+    let first=null,second=null;
+    for(;;){
+     const next=await reader.read();
+     if(next.done)break;
+     const bytes=next.value;
+     if(!bytes?.byteLength)continue;
+     // DO get-years sends genuine GZIP streams; fail closed on malformed input.
+     if(first===null){first=bytes[0];if(bytes.byteLength>1)second=bytes[1]}
+     else if(second===null)second=bytes[0];
+     for(let offset=0;offset<bytes.byteLength;offset+=MERGE_STORAGE_CHUNK){
+      const slice=bytes.slice(offset,Math.min(bytes.byteLength,offset+MERGE_STORAGE_CHUNK));
+      await st.put("merge:blob:"+i+":"+(part++),slice);
+      stockBytes+=slice.byteLength;
+     }
+    }
+    if(first!==31||second!==139||stockBytes<20)throw Error(symbol+" GZIP 檔頭不合法或資料缺失");
+    // Commit per-stock metadata LAST so an interrupted alarm cannot mark
+    // incomplete chunks as successful. Re-running overwrites the same keys.
+    await st.put("merge:meta:"+i,{parts:part,bytes:stockBytes,code:symbol});
+    merge.processed=i+1;merge.bytes+=stockBytes;merge.retryCount=0;merge.error="";
+    merge.updatedAt=Date.now();
+    merge.message="雲端背景合併 "+merge.processed+"/"+merge.total+" 檔，大小 "+Math.round(merge.bytes/1024/1024)+" MB";
+    await st.put("merge",merge);
+   }catch(e){
+    // Abort this stock's uncommitted chunk set; prior stocks remain intact.
+    for(let j=0;j<part;j++)await st.delete("merge:blob:"+i+":"+j);
+    await st.delete("merge:meta:"+i);
+    merge.retryCount=(merge.retryCount||0)+1;
+    merge.error=String(e.message||e).slice(0,250);
+    merge.updatedAt=Date.now();
+    merge.message="第 "+(i+1)+" 檔股票 "+symbol+" 合併失敗："+merge.error;
+    if(merge.retryCount>=5)merge.phase="error";
+    await st.put("merge",merge);
+    await st.setAlarm(merge.phase==="running"?Date.now()+Math.min(300000,12000*2**merge.retryCount):s.expiresAt);
+    return
+   }finally{try{reader?.releaseLock()}catch{}}
+  }
+  if(merge.phase!=="error"&&merge.processed>=merge.total){
+   merge.phase="done";merge.completedAt=Date.now();merge.updatedAt=Date.now();
+   merge.message="雲端合併完成：共 "+merge.total+" 檔，已保存單一 GZIP 檔案";
+  }
+  await st.put("merge",merge);
+  await st.setAlarm(merge.phase==="running"?Date.now()+250:s.expiresAt);
+ }
+ async exportMerged(s,st){
+  const merge=await st.get("merge");
+  if(!merge||merge.phase!=="done"||merge.processed!==s.catalog.length)
+   return respond({ok:false,error:"完整日K雲端合併尚未完成"},409);
+  const header=await st.get("merge:header");
+  if(!header?.byteLength)return respond({ok:false,error:"雲端合併缺少CSV標題"},500);
+  let index=-1,chunk=0,meta=null;
+  const stream=new ReadableStream({async pull(controller){
+   try{
+    if(index===-1){index=0;controller.enqueue(new Uint8Array(header));return}
+    for(;;){
+     if(index>=merge.total){controller.close();return}
+     if(!meta){
+      meta=await st.get("merge:meta:"+index);
+      if(!meta||meta.code!==s.catalog[index]?.code||!Number.isSafeInteger(meta.parts)||meta.parts<1)
+       throw Error("雲端合併索引缺失（第 "+(index+1)+" 檔）");
+      chunk=0;
+     }
+     if(chunk>=meta.parts){index++;meta=null;continue}
+     const bytes=await st.get("merge:blob:"+index+":"+(chunk++));
+     if(!bytes?.byteLength)throw Error("雲端合併壓縮資料損毀（第 "+(index+1)+" 檔）");
+     controller.enqueue(new Uint8Array(bytes));return
+    }
+   }catch(e){controller.error(e)}
+  }});
+  const filename=MERGE_NAME+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-","")+"_ALL.csv.gz";
+  return new Response(stream,{headers:{
+   "content-type":"application/gzip",
+   "content-disposition":'attachment; filename="'+filename+'"',
+   "content-length":String(merge.bytes),
+   "cache-control":"private, no-store","x-content-type-options":"nosniff"
+  }});
+ }
+
  async exportDailyData(s,url){
   if(!["running","paused","done","error"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
