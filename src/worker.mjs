@@ -28,7 +28,15 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily/'))return stockFuturesRoute(request,env,'daily');
-  if(new URL(request.url).pathname.startsWith('/api/market-daily/'))return stockFuturesRoute(request,env,'market-daily');
+  if(new URL(request.url).pathname.startsWith('/api/market-daily/')){
+   return Promise.resolve().then(()=>stockFuturesRoute(request,env,'market-daily')).catch(e=>
+    new Response(JSON.stringify({ok:false,code:"MARKET_DAILY_WORKER_ERROR",
+      error:"全市場日K API 執行錯誤，既有雲端資料未因本次查詢被清除",
+      reason:String(e?.name||"Error"),version:"r55-status-guard"}),{
+      status:503,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store"}
+    })
+   );
+  }
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-chip/'))return stockFuturesRoute(request,env,'daily-chip');
   if(new URL(request.url).pathname.startsWith('/api/tx-download/'))return txDownloadRoute(request,env);
   if(new URL(request.url).pathname==='/api/etf-vix-daily')return etfVixDailyRoute(request,env);
