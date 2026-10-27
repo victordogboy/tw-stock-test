@@ -174,8 +174,13 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   try{
    if(market){
     const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
-    const catalog=await fetchMarketStockCatalog(token);
-    return respond({ok:true,source:"FinMind TaiwanStockInfo + TaiwanStockDelisting",dataset:"TaiwanStockPrice",count:catalog.length,listed:catalog.filter(x=>x.market==="twse").length,otc:catalog.filter(x=>x.market==="tpex").length,delisted:catalog.filter(x=>x.market==="delisted").length,asOf:new Date().toISOString(),catalog});
+    // Catalog preview intentionally fetches the smaller current universe only.
+    // Complete delisted inventory is resolved by the durable background job.
+    const info=await fetchFinMind(token,{dataset:"TaiwanStockInfo"});
+    const catalog=parseMarketStockCatalog(info,[]);
+    return respond({ok:true,source:"FinMind TaiwanStockInfo（僅預覽當前上市櫃）",dataset:"TaiwanStockPrice",count:catalog.length,
+      listed:catalog.filter(x=>x.market==="twse").length,otc:catalog.filter(x=>x.market==="tpex").length,
+      delisted:null,asOf:new Date().toISOString()});
    }
    const r=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
    if(!r.ok)throw Error("TAIFEX HTTP "+r.status);
@@ -183,7 +188,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
    const selected=preferMiniStockFutures(all);
    const catalog=isCash?selected.map(c=>({code:c.stock,stock:c.stock,name:c.name,futureCode:c.code,units:c.units,night:false})):selected;
    return respond({ok:true,source:"TAIFEX 股票期貨/選擇權交易標的",asOf:new Date().toISOString(),count:catalog.length,rawCount:all.length,miniCount:selected.filter(x=>x.units===100).length,policy:isCash?"unique-underlying-cash-stock":"one-stock-mini-first-nearest-expiry",dataset:daily?"TaiwanStockPrice":isStock?"TaiwanStockKBar":"TaiwanFuturesKBar",catalog});
-  }catch(e){return respond({ok:false,error:"取得期交所個股期貨商品清單失敗："+e.message},502)}
+  }catch(e){return respond({ok:false,error:(market?"FinMind 全市場清單讀取失敗：":"取得期交所個股期貨商品清單失敗：")+e.message},502)}
  }
  if(path===root+"/start"&&method==="POST"){
   const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
@@ -388,15 +393,25 @@ export class StockFuturesBatch{
      return respond({ok:false,error:"資料日期範圍無效"},400);
     let old=await st.get("state");
    if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.mode!=="market-daily"&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
+   if(marketMode){
+    // IMPORTANT: do not fetch FinMind while holding blockConcurrencyWhile.
+    // Cloudflare aborts blocked objects after ~30 seconds, which produced
+    // an interrupted browser request before the job was even created.
+    if(old&&q.reset)await st.deleteAll();
+    const markets=Array.isArray(q.markets)?q.markets.filter(x=>["twse","tpex","delisted"].includes(x)):[];
+    if(!markets.length)return respond({ok:false,error:"請至少選擇上市、上櫃或下市櫃其中一個市場"},400);
+    const s={phase:"preparing",shardKey:randomId(),start:q.start,end:q.end,mode:"market-daily",version:8,
+     catalog:[],codes:[],requestedMarkets:markets,requestedCodes:Array.isArray(q.codes)?q.codes:[],
+     date:q.start,symbolIndex:0,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,
+     rejected:0,excludedFarMonth:0,duplicates:0,retries:0,errors:[],
+     createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,
+     message:"背景建立任務成功；正在取得 FinMind 上市、上櫃與下市櫃完整股票清單"};
+    await st.put("token",token);await st.put("state",s);await st.setAlarm(Date.now()+100);
+    return respond(this.summary(s),202);
+   }
    let catalog;
    try{
-    if(marketMode){
-     catalog=await fetchMarketStockCatalog(token);
-     const markets=new Set(Array.isArray(q.markets)?q.markets.filter(x=>["twse","tpex","delisted"].includes(x)):[]);
-     if(markets.size)catalog=catalog.filter(c=>markets.has(c.market));
-     const selected=new Set(Array.isArray(q.codes)?q.codes:[]);
-     if(selected.size)catalog=catalog.filter(c=>selected.has(c.code));
-    }else{
+    {
     const official=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
     if(!official.ok)throw Error("TAIFEX HTTP "+official.status);
     const rawCatalog=parseStockFutureUniverse(await official.text());
@@ -440,8 +455,12 @@ export class StockFuturesBatch{
     for(let i=0;i<s.catalog.length;i+=20)await Promise.all(s.catalog.slice(i,i+20).map(c=>this.shardFor(s,c.code).fetch(new Request("https://private/delete",{method:"POST"}))));
     await st.deleteAll();await st.deleteAlarm();return respond({ok:true,deleted:true})
    }
-   if(p==="/pause"&&s.phase==="running"){s.phase="paused";s.message="已暫停";await st.put("state",s);await st.setAlarm(s.expiresAt)}
-   if(p==="/resume"&&["paused","error"].includes(s.phase)){s.phase="running";s.lastError="";s.retries=0;s.message="繼續下載";await st.put("state",s);await st.setAlarm(Date.now()+100)}
+   if(p==="/pause"&&["running","preparing"].includes(s.phase)){s.phase="paused";s.message="已暫停";await st.put("state",s);await st.setAlarm(s.expiresAt)}
+   if(p==="/resume"&&["paused","error"].includes(s.phase)){
+    s.phase=s.mode==="market-daily"&&!s.catalog.length?"preparing":"running";
+    s.lastError="";s.retries=0;s.message=s.phase==="preparing"?"重新取得股票名單":"繼續下載";
+    await st.put("state",s);await st.setAlarm(Date.now()+100)
+   }
    return respond(this.summary(s))
   })
  }
@@ -456,6 +475,28 @@ export class StockFuturesBatch{
    return
   }
   if(Date.now()>=s.expiresAt){await st.deleteAll();await st.deleteAlarm();return}
+  if(s.phase==="preparing"&&s.mode==="market-daily"){
+   const token=await st.get("token");
+   try{
+    if(!token)throw Error("缺少 FinMind Token");
+    const all=await fetchMarketStockCatalog(token),markets=new Set(s.requestedMarkets||[]);
+    const wanted=new Set(s.requestedCodes||[]);
+    const catalog=all.filter(c=>markets.has(c.market)&&(!wanted.size||wanted.has(c.code)));
+    if(!catalog.length)throw Error("FinMind 名單沒有符合市場條件的普通股");
+    const latest=await st.get("state");
+    if(!latest||latest.shardKey!==s.shardKey||latest.phase!=="preparing")return;
+    s.catalog=catalog;s.codes=[];s.total=catalog.length;s.phase="running";s.queries+=2;
+    s.message="已確認 "+catalog.length+" 檔股票，開始按股票下載日 K";
+    s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(Date.now()+100);
+   }catch(e){
+    const latest=await st.get("state");
+    if(!latest||latest.shardKey!==s.shardKey||latest.phase!=="preparing")return;
+    s.phase="error";s.lastError=String(e.message||e);s.message="股票名單取得失敗："+s.lastError;
+    s.errors.push({day:"catalog",code:"TaiwanStockInfo/TaiwanStockDelisting",error:s.lastError});
+    s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(s.expiresAt)
+   }
+   return
+  }
   if(s.phase!=="running"){await st.setAlarm(s.expiresAt);return}
   await st.setAlarm(Date.now()+120000);
   const token=await st.get("token");
