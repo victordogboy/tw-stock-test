@@ -46,8 +46,12 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
 <label class="check"><input id="delisted" type="checkbox" checked>2018 年後下市櫃</label></div>
 <div class="note">普通股限定；不包含 ETF、ETN、權證、興櫃。<strong>下市櫃資料對歷史回測很重要</strong>，因為只下載現在還上市的股票會造成存活者偏差。下市櫃所屬原市場可能無法從清單得知，匯出會標記 <code>delisted</code>。</div>
 <label for="token">FinMind Token（自動沿用既有個股分析設定）</label>
-<input id="token" type="password" autocomplete="off" placeholder="已有儲存 Token 可留空">
+<input id="token" type="password" autocomplete="off" placeholder="舊 Token 無效時，在此貼上 FinMind 最新 Token">
 <div id="tokenHint" class="small">檢查共用 Token 中…</div>
+<div class="note warn">若顯示 <code>Token is illegal</code>，代表 FinMind 拒絕目前儲存的 Token。請先至
+<a href="https://finmindtrade.com/analysis/#/account/user" target="_blank" rel="noopener">FinMind 會員中心</a>
+複製最新 API Token（不要貼在聊天訊息），再貼到上方，按下「驗證新 Token 並繼續」。不需要刪除已完成的下載。</div>
+<div class="row"><button id="verifyTokenBtn" class="secondary">✓ 驗證新 Token 並繼續既有任務</button><span class="small" id="verifyResult">會向 FinMind 測試一筆台積電日 K，不會公開 Token</span></div>
 <div class="row"><button id="catalogBtn" class="secondary">↻ 查詢目前上市櫃數量（選用）</button><span class="small" id="catalogInfo">不必先讀取名單，直接按「開始」即可；下市櫃完整清單會在背景建立</span></div>
 <div class="row"><button id="startBtn">▶ 開始雲端背景下載</button><button id="resetBtn" class="secondary">重新建立任務</button><button id="refreshBtn" class="secondary">刷新進度</button></div>
 <div id="error" class="note warn hidden" role="alert"></div>
@@ -83,10 +87,26 @@ let current=null, busy=false, catalog=null;
 const root="/api/market-daily";
 function savedToken(){
  try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null"),active=Number(s?.active)===1?1:0;
-  return String(s?.tokens?.[active]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}
+  return String(s?.tokens?.[active]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}
+ catch{return String(localStorage.getItem("twq_finmind_token_v1")||"").trim()}
 }
 function token(){return $("token").value.trim()||savedToken()}
-function saveToken(){if($("token").value.trim())localStorage.setItem("twq_finmind_token_v1",$("token").value.trim())}
+function persistVerifiedToken(t){
+ try{
+  const old=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");
+  if(old&&Array.isArray(old.tokens)){
+   const active=Number(old.active)===1?1:0;
+   old.tokens[active]=t;
+   localStorage.setItem("twq_finmind_tokens_v2",JSON.stringify(old))
+  }
+ }catch{}
+ localStorage.setItem("twq_finmind_token_v1",t);
+ $("tokenHint").textContent="✅ 已儲存驗證通過的 FinMind Token（尾碼 "+t.slice(-4)+"）";
+}
+async function validateToken(t){
+ const s=await api("/token",{method:"POST",headers:{authorization:"Bearer "+t}});
+ persistVerifiedToken(t);$("token").value="";return s
+}
 $("tokenHint").textContent=savedToken()?"已沿用既有 FinMind Token（尾碼 "+savedToken().slice(-4)+"），可直接開始。":"此瀏覽器找不到共用 Token；請貼上會員 Token。";
 function fail(err){$("error").classList.remove("hidden");$("error").textContent=String(err?.message||err)}
 function clearError(){$("error").classList.add("hidden");$("error").textContent=""}
@@ -124,6 +144,10 @@ function render(s){
  $("errors").textContent=(s.errors||[]).map(x=>(x.code||"—")+" "+(x.day||"")+"："+x.error).join("\n")||"無異常";
  $("pause").disabled=!["running","preparing"].includes(s.phase);$("resume").disabled=!["paused","error"].includes(s.phase);
  $("startBtn").disabled=["running","preparing"].includes(s.phase);$("exports").classList.toggle("hidden",!s.total);
+ $("verifyResult").textContent=s.phase==="error"&&/token|illegal/i.test(s.lastError||s.message||"")
+ ?"⚠ 舊 Token 已被 FinMind 拒絕，請貼上最新 Token，按「驗證新 Token 並繼續」"
+ :"如果 Token 已更新，可以在上方驗證並直接恢復任務";
+
  const totalParts=Math.ceil(s.codeCount/250),box=$("years");box.replaceChildren();
  for(const year of yearsOf(s)){
   const d=document.createElement("details"),summary=document.createElement("summary");
@@ -149,10 +173,26 @@ async function launch(reset=false){
  if(!start||!end||start>end||start<"2018-01-01"||end>DATE)return fail("日期須在 2018/01/01 到今天之間，且結束日期不能早於開始日期");
  if(reset&&!confirm("確定重建下載任務？舊任務的進度會被清除，請先備份需要的資料。"))return;
  busy=true;$("startBtn").disabled=true;$("resetBtn").disabled=true;
- try{saveToken();const s=await api("/start",{method:"POST",headers:{authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end,markets,reset})});
-  $("token").value="";render(s);$("statusCard").scrollIntoView({behavior:"smooth"});
+ try{
+  const verified=await validateToken(t);
+  if(verified.jobFound!==false&&current&&!reset){render(verified);$("statusCard").scrollIntoView({behavior:"smooth"});return}
+  const s=await api("/start",{method:"POST",headers:{authorization:"Bearer "+t,"content-type":"application/json"},body:JSON.stringify({start,end,markets,reset})});
+  render(s);$("statusCard").scrollIntoView({behavior:"smooth"});
  }catch(e){fail(e)}
  finally{busy=false;$("startBtn").disabled=false;$("resetBtn").disabled=false}
+}
+async function verifyAndContinue(){
+ if(busy)return;clearError();
+ const fresh=$("token").value.trim();
+ if(!fresh)return fail("請貼上 FinMind 會員中心最新的完整 API Token。此按鈕不會再次拿舊 Token 嘗試，避免帳號或來源 IP 遭封鎖。");
+ busy=true;$("verifyTokenBtn").disabled=true;$("verifyResult").textContent="正在向 FinMind 檢查新 Token…";
+ try{
+  const result=await validateToken(fresh);
+  $("verifyResult").textContent="✅ FinMind 驗證成功"+(result.credentialUpdated?"，已更新雲端工作並恢復下載":"，現在可開始下載");
+  if(result.credentialUpdated)render(result);
+  else await refresh()
+ }catch(e){$("verifyResult").textContent="❌ 驗證失敗：請至 FinMind 會員中心重新取得 Token";fail(e)}
+ finally{busy=false;$("verifyTokenBtn").disabled=false}
 }
 async function action(kind){
  if(busy)return;busy=true;
@@ -161,10 +201,16 @@ async function action(kind){
   else await refresh()
  }catch(e){fail(e)}finally{busy=false}
 }
-$("catalogBtn").onclick=()=>{saveToken();loadCatalog()};
+$("catalogBtn").onclick=loadCatalog;
+$("verifyTokenBtn").onclick=verifyAndContinue;
 $("startBtn").onclick=()=>launch(false);$("resetBtn").onclick=()=>launch(true);
 $("refreshBtn").onclick=$("refresh2").onclick=refresh;
-$("pause").onclick=()=>action("pause");$("resume").onclick=()=>action("resume");
+$("pause").onclick=()=>action("pause");
+$("resume").onclick=()=>{
+ if(current?.phase==="error"&&/token|illegal/i.test(current.lastError||current.message||""))
+  return fail("這個任務的舊 Token 已無效。請先將 FinMind 新 Token 貼到上方，按「驗證新 Token 並繼續」，不要重複使用舊 Token。");
+ action("resume");
+};
 $("deleteBtn").onclick=()=>{if(current&&confirm("永久刪除此任務與所有暫存日 K？"))action("delete")};
 $("stockExportBtn").onclick=()=>{
  if(!current)return fail("請先建立下載任務");
