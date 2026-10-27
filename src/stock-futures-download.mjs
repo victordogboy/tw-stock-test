@@ -4,7 +4,14 @@ const STOCK_HDR="date,minute,stock_id,stock_name,qualifying_futures_id,open,high
 const DAILY_HDR="date,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread\n";
 const DAILY_COOKIE="__Host-underlying-day", CHIP_COOKIE="__Host-underlying-chip", MARKET_COOKIE="__Host-tw-market-daily";
 const MARKET_HDR="date,stock_id,stock_name,market,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread\n";
-const MARKET_EXPORT_PART_SIZE=250; // Stay below Cloudflare free-plan 1000 internal requests per export.
+const MARKET_EXPORT_PART_SIZE=250; // Legacy per-year export option.
+const MERGE_STOCKS_PER_ALARM=5;  // Per alarm bound; never depends on phone activity.
+const MERGE_STORAGE_CHUNK=384*1024; // Strictly below Durable Object's 2 MB/value limit.
+const MERGE_SHARE_MAX_AGE=7*DAY;
+const MERGE_NAME="FinMind_All_TWSE_TPEX_Daily_";
+const validJobId=s=>/^[a-f0-9]{64}$/.test(String(s||""));
+const validShareKey=s=>/^[a-f0-9]{64}$/.test(String(s||""));
+
 
 const CHIP_HDR="institutional_available,institutional_foreign_buy_shares,institutional_foreign_sell_shares,institutional_foreign_net_shares,institutional_foreign_dealer_net_shares,institutional_trust_buy_shares,institutional_trust_sell_shares,institutional_trust_net_shares,institutional_dealer_buy_shares,institutional_dealer_sell_shares,institutional_dealer_net_shares,institutional_dealer_self_net_shares,institutional_dealer_hedge_net_shares,margin_available,margin_buy_lots,margin_sell_lots,margin_cash_repayment_lots,margin_balance_lots,margin_previous_balance_lots,margin_change_lots,short_buy_lots,short_sell_lots,short_cash_repayment_lots,short_balance_lots,short_previous_balance_lots,short_change_lots,chip_signal_use_next_session\n";
 const STOCK_MAX_PARALLEL=5, STOCK_REQUEST_SPACING_MS=750; // 4,800 calls/h, below Sponsor's 6,000 calls/h cap
@@ -170,7 +177,18 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(!env.STOCK_FUTURES_BATCH||!env.STOCK_FUTURES_DATA)return respond({ok:false,error:"個股期貨雲端背景服務尚未部署"},503);
  if(!["GET","POST"].includes(method))return respond({ok:false,error:"不支援此方法"},405);
  if(method==="POST"&&request.headers.get("origin")&&request.headers.get("origin")!==url.origin)return respond({ok:false,error:"來源不符"},403);
- const id=cookie(request,cookieName),known=/^[a-f0-9]{64}$/.test(id);
+ const id=cookie(request,cookieName),known=validJobId(id);
+ // Explicit, revokeable, read-only capability URL. No FinMind credential
+ // or browser cookie is included in the shared link.
+ if(market&&path===root+"/shared"&&method==="GET"){
+  const job=url.searchParams.get("job")||"",key=url.searchParams.get("key")||"";
+  if(!validJobId(job)||!validShareKey(key))return respond({ok:false,error:"唯讀連結參數錯誤"},403);
+  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(job));
+  const qs=new URLSearchParams({format:url.searchParams.get("format")||"",
+    code:url.searchParams.get("code")||"",year:url.searchParams.get("year")||"",
+    part:url.searchParams.get("part")||""});
+  return stub.fetch(new Request("https://private/merge-shared?"+qs,{headers:{authorization:"Bearer "+key}}));
+ }
  if(market&&path===root+"/token"&&method==="POST"){
   const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
   if(token.length<5||token.length>4096||/[\r\n]/.test(token))
@@ -224,7 +242,21 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(!known)return respond({ok:false,error:"沒有這個瀏覽器的下載工作；請先按開始"},401);
  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(id));
  if(path===root+"/status"&&method==="GET")return stub.fetch("https://private/status");
- if(path===root+"/export"&&method==="GET"){
+ if(market&&path===root+"/merge-start"&&method==="POST")return stub.fetch(new Request("https://private/merge-start",{method:"POST"}));
+ if(market&&path===root+"/merge-download"&&method==="GET")return stub.fetch("https://private/merge-download");
+ if(market&&path===root+"/merge-share"&&method==="POST"){
+  const resp=await stub.fetch(new Request("https://private/merge-share",{method:"POST"}));
+  const data=await resp.json().catch(()=>({ok:false,error:"分享連結產生失敗"}));
+  if(data.ok){
+   const u=new URL(root+"/shared",url.origin);
+   u.searchParams.set("job",id);u.searchParams.set("key",data.key);
+   data.url=u.toString();delete data.key;
+   data.statusUrl=data.url+"&format=status";
+  }
+  return respond(data,resp.status);
+ }
+ if(market&&path===root+"/merge-revoke"&&method==="POST")return stub.fetch(new Request("https://private/merge-revoke",{method:"POST"}));
+ if(market&&path===root+"/export"&&method==="GET"){
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   const part=url.searchParams.get("part")||"",all=url.searchParams.get("all")==="1";
   if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!(daily?/^(20\d{2}|21\d{2})$/:/^(202[1-9]|20[3-9]\d)$/).test(year)||part&&!/^[1-9]\d{0,3}$/.test(part)||all&&(!market||!part||!!code||!!year))
@@ -427,7 +459,12 @@ export function dailyPriceWindows(start,end,maxYears=8){
 }
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
- summary(s){return {ok:true,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"||s.mode==="daily-chip"||s.mode==="market-daily"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,chipCoverage:s.chipCoverage||null,mode:s.mode||"futures",dataset:s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":["daily","market-daily"].includes(s.mode)?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.mode==="market-daily"?[]:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="market-daily"?"現行上市上櫃普通股＋2018年後下市櫃股票（FinMind 名單）；排除 ETF／權證／興櫃，原始未還原日K":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
+ summary(s,merge=null){return {ok:true,merge:merge?{
+  phase:merge.phase,processed:merge.processed,total:merge.total,bytes:merge.bytes,
+  error:merge.error||"",updatedAt:merge.updatedAt,startedAt:merge.startedAt,
+  completedAt:merge.completedAt||null,retryCount:merge.retryCount||0,
+  message:merge.message||""
+ }:null,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"||s.mode==="daily-chip"||s.mode==="market-daily"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,chipCoverage:s.chipCoverage||null,mode:s.mode||"futures",dataset:s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":["daily","market-daily"].includes(s.mode)?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.mode==="market-daily"?[]:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="market-daily"?"現行上市上櫃普通股＋2018年後下市櫃股票（FinMind 名單）；排除 ETF／權證／興櫃，原始未還原日K":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
  shard(code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(code))}
  async fetch(r){
   const p=new URL(r.url).pathname,st=this.ctx.storage;
@@ -485,8 +522,72 @@ export class StockFuturesBatch{
    return respond(this.summary(s),202)
   });
   let s=await st.get("state");if(!s)return respond({ok:false,error:"找不到下載任務"},404);
-  if(p==="/status")return respond(this.summary(s));
+  if(p==="/status")return respond(this.summary(s,s.mode==="market-daily"?await st.get("merge"):null));
   if(p==="/export")return this.exportData(s,new URL(r.url));
+  if(s.mode==="market-daily"&&p==="/merge-start"&&r.method==="POST")
+   return this.ctx.blockConcurrencyWhile(async()=>{
+    s=await st.get("state");
+    if(s.phase!=="done"||s.processed!==s.total||!s.catalog.length)
+     return respond({ok:false,error:"請先完成雲端歷史日K下載"},409);
+    const current=await st.get("merge");
+    if(current&&["running","done"].includes(current.phase))
+     return respond({ok:true,existing:true,merge:this.summary(s,current).merge});
+    if(current?.processed>0)
+     return respond({ok:false,error:"合併曾中斷，請使用「繼續合併」保留已完成資料"},409);
+    const now=Date.now();
+    const merge={phase:"running",processed:0,total:s.catalog.length,bytes:0,
+     retryCount:0,error:"",startedAt:now,updatedAt:now,completedAt:null,
+     message:"雲端已開始從既有股票日K逐檔建立單一 GZIP，手機可直接關閉"};
+    await st.put("merge:header",await zip(MARKET_HDR));
+    await st.put("merge",merge);await st.setAlarm(now+100);
+    return respond({ok:true,merge:this.summary(s,merge).merge},202);
+   });
+  if(s.mode==="market-daily"&&p==="/merge-resume"&&r.method==="POST")
+   return this.ctx.blockConcurrencyWhile(async()=>{
+    const merge=await st.get("merge");
+    if(!merge||merge.phase!=="error")return respond({ok:false,error:"沒有中斷的合併任務"},409);
+    merge.phase="running";merge.error="";merge.retryCount=0;
+    merge.message="正在從第 "+(merge.processed+1)+" 檔股票恢復合併";
+    merge.updatedAt=Date.now();
+    await st.put("merge",merge);await st.setAlarm(Date.now()+100);
+    return respond({ok:true,merge:this.summary(s,merge).merge});
+   });
+  if(s.mode==="market-daily"&&p==="/merge-download")return this.exportMerged(s,st);
+  if(s.mode==="market-daily"&&p==="/merge-share"&&r.method==="POST"){
+   const merge=await st.get("merge");
+   if(!merge||merge.phase!=="done")return respond({ok:false,error:"合併尚未完成，無法分享"},409);
+   let share=await st.get("merge:share");
+   if(!share||share.expiresAt<=Date.now()){
+    share={key:randomId(),expiresAt:Math.min(Date.now()+MERGE_SHARE_MAX_AGE,s.expiresAt)};
+    await st.put("merge:share",share);
+   }
+   return respond({ok:true,key:share.key,expiresAt:new Date(share.expiresAt).toISOString(),warning:"具有連結的任何人均可讀取這份歷史資料"});
+  }
+  if(s.mode==="market-daily"&&p==="/merge-revoke"&&r.method==="POST"){
+   await st.delete("merge:share");return respond({ok:true,revoked:true});
+  }
+  if(s.mode==="market-daily"&&p==="/merge-shared"){
+   const key=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
+   const share=await st.get("merge:share");
+   if(!validShareKey(key)||!share||share.expiresAt<=Date.now()||share.key!==key)
+    return respond({ok:false,error:"此唯讀分享連結已失效或無權限"},403);
+   const u=new URL(r.url),fmt=u.searchParams.get("format")||"";
+   if(fmt==="status"){
+    const merge=await st.get("merge");
+    return respond({ok:true,source:"FinMind TaiwanStockPrice",dateStart:s.start,dateEnd:s.end,
+     totalStocks:s.total,totalRows:s.rows,merge:this.summary(s,merge).merge,
+     columns:MARKET_HDR.trim(),shareExpiresAt:new Date(share.expiresAt).toISOString()});
+   }
+   if(fmt)return respond({ok:false,error:"不支援的格式"},400);
+   const code=u.searchParams.get("code")||"",year=u.searchParams.get("year")||"",part=u.searchParams.get("part")||"";
+   if(code||year||part){
+    if(code&&!/^\\d{4}$/.test(code)||year&&!/^(20|21)\\d{2}$/.test(year)||part&&!/^[1-9]\\d{0,2}$/.test(part))
+     return respond({ok:false,error:"股票、年份或分包參數錯誤"},400);
+    if(!code&&!year)return respond({ok:false,error:"請指定年份或單一股票代碼"},400);
+    return this.exportDailyData(s,new URL("https://private/export?"+new URLSearchParams({code,year,part})));
+   }
+   return this.exportMerged(s,st);
+  }
   if(p==="/replace-token"&&r.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(token.length<5||token.length>4096)return respond({ok:false,error:"缺少有效的新 Token"},401);
