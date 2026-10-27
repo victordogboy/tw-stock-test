@@ -178,6 +178,10 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(!["GET","POST"].includes(method))return respond({ok:false,error:"不支援此方法"},405);
  if(method==="POST"&&request.headers.get("origin")&&request.headers.get("origin")!==url.origin)return respond({ok:false,error:"來源不符"},403);
  const id=cookie(request,cookieName),known=validJobId(id);
+ // Independent Worker health check, no Durable Object or FinMind calls.
+ if(market&&path===root+"/ping"&&method==="GET")
+  return respond({ok:true,service:"market-daily",version:"r55-status-guard",worker:true,
+    durableBinding:!!env.STOCK_FUTURES_BATCH,dataBinding:!!env.STOCK_FUTURES_DATA,hasSession:known});
  // Explicit, revokeable, read-only capability URL. No FinMind credential
  // or browser cookie is included in the shared link.
  if(market&&path===root+"/shared"&&method==="GET"){
@@ -241,7 +245,18 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  }
  if(!known)return respond({ok:false,error:"沒有這個瀏覽器的下載工作；請先按開始"},401);
  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(id));
- if(path===root+"/status"&&method==="GET")return stub.fetch("https://private/status");
+ if(path===root+"/status"&&method==="GET"){
+  try{
+   const response=await stub.fetch("https://private/status");
+   // DO failures must never become opaque HTML 500 to the phone.
+   return new Response(response.body,{status:response.status,headers:{"content-type":"application/json; charset=utf-8",
+    "cache-control":"private, no-store","x-market-daily-version":"r55-status-guard"}});
+  }catch(e){
+   return respond({ok:false,code:"DURABLE_STATUS_FAILURE",
+    error:"雲端任務進度查詢失敗；既有日K未被此操作刪除",
+    reason:String(e?.name||"Error"),version:"r55-status-guard"},503);
+  }
+ }
  if(market&&path===root+"/merge-start"&&method==="POST")return stub.fetch(new Request("https://private/merge-start",{method:"POST"}));
  if(market&&path===root+"/merge-resume"&&method==="POST")return stub.fetch(new Request("https://private/merge-resume",{method:"POST"}));
  if(market&&path===root+"/merge-download"&&method==="GET")return stub.fetch("https://private/merge-download");
@@ -523,7 +538,29 @@ export class StockFuturesBatch{
    return respond(this.summary(s),202)
   });
   let s=await st.get("state");if(!s)return respond({ok:false,error:"找不到下載任務"},404);
-  if(p==="/status")return respond(this.summary(s,s.mode==="market-daily"?await st.get("merge"):null));
+  if(p==="/status"){
+   try{
+    // Old completed jobs can have pre-merge state; retrieving its merge
+    // metadata must not prevent access to the already downloaded history.
+    let merge=null,mergeWarning="";
+    if(s.mode==="market-daily"){
+     try{merge=await st.get("merge")||null}
+     catch(e){mergeWarning=String(e?.name||"StorageError")}
+    }
+    const out=this.summary(s,merge);
+    if(mergeWarning)out.mergeWarning="雲端合併進度暫時不可讀（"+mergeWarning+"）；原始日K仍保留";
+    return respond(out);
+   }catch(e){
+    // Return safe minimal state, not an unhandled 500. Do not return
+    // stored credentials or raw catalog fields.
+    return respond({ok:true,mode:s.mode||"unknown",phase:s.phase||"error",
+     start:s.start||"",end:s.end||"",total:Number(s.total||0),processed:Number(s.processed||0),
+     rows:Number(s.rows||0),codeCount:Array.isArray(s.catalog)?s.catalog.length:0,
+     errors:[],merge:null,updatedAt:s.updatedAt||Date.now(),
+     warning:"完整狀態摘要無法讀取，已改用基本模式："+String(e?.name||"Error"),
+     message:"日K任務仍存在，請勿刪除或重新下載"},200);
+   }
+  }
   if(p==="/export")return this.exportData(s,new URL(r.url));
   if(s.mode==="market-daily"&&p==="/merge-start"&&r.method==="POST")
    return this.ctx.blockConcurrencyWhile(async()=>{
