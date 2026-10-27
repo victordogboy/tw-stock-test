@@ -65,9 +65,18 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
 <div class="note" id="message">—</div><div class="small" id="stats">—</div>
 <div class="row"><button class="secondary" id="pause">⏸ 暫停</button><button class="secondary" id="resume">▶ 繼續</button><button class="secondary" id="refresh2">↻ 刷新</button></div>
 <details><summary>查看異常紀錄</summary><pre id="errors"></pre></details></section>
-<section id="exports" class="hidden"><h2>③ 匯出 CSV.GZ</h2>
-<div class="note">每年依股票代碼排序切成每包 250 檔，避免 Cloudflare 免費版一次讀取超過 1,000 個內部節點。每一包包含該年度所有已完成股票的日 K；如任務還在下載，檔案可能不完整。<strong>請等顯示「已完成」再整批匯出。</strong></div>
-<div id="years"></div>
+<section id="exports" class="hidden"><h2>③ 下載全部日 K</h2>
+<div class="note"><strong>一次下載全部：</strong>將已存在雲端的 2018 年至今日 K，按照股票分包合併為<strong>單一 CSV.GZ</strong>，包含全部上市、上櫃與已選下市櫃股票。只會讀取既有雲端資料，不再消耗 FinMind API 次數。<br>
+手機請保持此頁開啟，合併期間不要鎖定螢幕或關閉分頁；Cloudflare 原本的下載進度與資料不受影響。</div>
+<div class="row"><button id="allExportBtn">⬇ 一鍵下載全部（單一 CSV.GZ）</button><button id="cancelExportBtn" class="secondary hidden">取消合併</button></div>
+<div id="allExportBox" class="hidden">
+<progress id="allExportProgress" max="100" value="0"></progress>
+<div class="small" id="allExportMessage" role="status" aria-live="polite">準備中…</div>
+<div id="allExportReady" class="hidden"></div>
+</div>
+<details><summary>展開原本的逐年／分包下載（保留備用）</summary>
+<div class="note">如果手機儲存空間不足，可使用原本每年、每 250 檔的 CSV.GZ 分包下載，不需要重新抓取 FinMind。</div>
+<div id="years"></div></details>
 <label for="code">也可以下載單一股票（完整所選年份，非分包）</label>
 <div class="row"><input style="flex:1;min-width:120px" id="code" type="text" pattern="[0-9]{4}" inputmode="numeric" maxlength="4" placeholder="例如 2330"><button id="stockExportBtn" class="secondary">下載單股 CSV.GZ</button></div>
 <div class="small">CSV 欄位：date、stock_id、stock_name、market、open、high、low、close、volume_shares、trading_money_twd、trading_turnover、spread。價格為<strong>未還原</strong>日 K；成交量為「股」，不是「張」。</div>
@@ -83,7 +92,7 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
 const $=id=>document.getElementById(id),fmt=x=>Number(x||0).toLocaleString("zh-TW");
 const DATE=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 $("end").max=DATE;$("end").value=DATE;
-let current=null, busy=false, catalog=null;
+let current=null, busy=false, catalog=null,mergeController=null,mergedObjectUrl=null;
 const root="/api/market-daily";
 function savedToken(){
  try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null"),active=Number(s?.active)===1?1:0;
@@ -144,6 +153,8 @@ function render(s){
  $("errors").textContent=(s.errors||[]).map(x=>(x.code||"—")+" "+(x.day||"")+"："+x.error).join("\n")||"無異常";
  $("pause").disabled=!["running","preparing"].includes(s.phase);$("resume").disabled=!["paused","error"].includes(s.phase);
  $("startBtn").disabled=["running","preparing"].includes(s.phase);$("exports").classList.toggle("hidden",!s.total);
+ $("allExportBtn").disabled=s.phase!=="done"||!s.codeCount||s.processed!==s.total||busy;
+ $("allExportBtn").textContent=s.phase==="done"?"⬇ 一鍵下載全部（單一 CSV.GZ）":"資料下載完成後可一鍵合併";
  $("verifyResult").textContent=s.phase==="error"&&/token|illegal/i.test(s.lastError||s.message||"")
  ?"⚠ 舊 Token 已被 FinMind 拒絕，請貼上最新 Token，按「驗證新 Token 並繼續」"
  :"如果 Token 已更新，可以在上方驗證並直接恢復任務";
@@ -194,6 +205,123 @@ async function verifyAndContinue(){
  }catch(e){$("verifyResult").textContent="❌ 驗證失敗：請至 FinMind 會員中心重新取得 Token";fail(e)}
  finally{busy=false;$("verifyTokenBtn").disabled=false}
 }
+
+function bytesText(n){return n>=1073741824?(n/1073741824).toFixed(2)+" GB":(n/1048576).toFixed(1)+" MB"}
+function updateMerge(progress,text){
+ $("allExportBox").classList.remove("hidden");
+ $("allExportProgress").value=progress;
+ $("allExportMessage").textContent=text;
+}
+function downloadReady(blob,name){
+ if(mergedObjectUrl)URL.revokeObjectURL(mergedObjectUrl);
+ mergedObjectUrl=URL.createObjectURL(blob);
+ const a=document.createElement("a");a.href=mergedObjectUrl;a.download=name;
+ a.className="download";a.textContent="⬇ 下載已合併完成的 "+bytesText(blob.size)+" CSV.GZ";
+ const box=$("allExportReady");box.replaceChildren(a);
+ box.classList.remove("hidden");
+ // Android WebViews can suppress a delayed programmatic download. Keep a
+ // permanent, user-clickable link as the reliable fallback.
+ a.click();
+}
+async function mergeAll(){
+ if(busy||!current)return;
+ if(current.phase!=="done"||current.processed!==current.total||!current.codeCount)
+  return fail("請等待雲端任務顯示已完成，再一次下載全部資料。");
+ if(!navigator.storage?.getDirectory&&!window.showSaveFilePicker)
+  return fail("此瀏覽器不支援大檔案串流儲存。請在 Android Chrome 或電腦 Chrome 開啟同一下載網址。");
+ busy=true;
+ const s={...current},total=Math.ceil(s.codeCount/250),controller=new AbortController();
+ mergeController=controller;
+ const filename="FinMind_All_TWSE_TPEX_Daily_"+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-","")+"_ALL.csv.gz";
+ let writer=null,opfsRoot=null,opfsHandle=null,filePicker=false,position=0,completed=0;
+ $("allExportBtn").disabled=true;$("cancelExportBtn").classList.remove("hidden");
+ $("allExportReady").classList.add("hidden");
+ $("allExportProgress").max=total;$("allExportProgress").value=0;
+ updateMerge(0,"正在準備單一 CSV.GZ，共 "+total+" 個雲端分段…");
+ clearError();
+ try{
+  // OPFS writes directly to browser-managed disk, avoiding a several
+  // hundred-MB in-memory Blob. On desktop, the native save picker is also valid.
+  if(navigator.storage?.getDirectory){
+   opfsRoot=await navigator.storage.getDirectory();
+   opfsHandle=await opfsRoot.getFileHandle(filename,{create:true});
+   writer=await opfsHandle.createWritable();
+  }else{
+   const handle=await window.showSaveFilePicker({
+    suggestedName:filename,types:[{description:"CSV.GZ 資料檔",accept:{"application/gzip":[".gz"]}}]
+   });
+   writer=await handle.createWritable();
+   filePicker=true;
+  }
+  for(let part=1;part<=total;part++){
+   let success=false;
+   for(let retry=0;retry<3&&!success;retry++){
+    if(controller.signal.aborted)throw new DOMException("取消下載","AbortError");
+    const offset=position;
+    try{
+     updateMerge(completed,"正在串流合併第 "+part+" / "+total+" 段（"+bytesText(position)+"）"+(retry?"，重新嘗試 "+(retry+1)+"/3":""));
+     const resp=await fetch(root+"/export?all=1&part="+part,{
+      credentials:"same-origin",cache:"no-store",signal:controller.signal
+     });
+     if(!resp.ok){
+      const msg=await resp.text().catch(()=>"");
+      let note=msg.slice(0,150);
+      try{note=JSON.parse(msg).error||note}catch{}
+      throw Error("雲端分段 "+part+" HTTP "+resp.status+": "+note);
+     }
+     if(!resp.body)throw Error("瀏覽器不支援串流回應");
+     const reader=resp.body.getReader();
+     let count=0,firstByte=null,secondByte=null;
+     try{
+      for(;;){
+       const next=await reader.read();
+       if(next.done)break;
+       if(controller.signal.aborted)throw new DOMException("取消下載","AbortError");
+       const buf=next.value;
+       if(!buf?.byteLength)continue;
+       if(firstByte===null){firstByte=buf[0];if(buf.byteLength>1)secondByte=buf[1]}
+       else if(secondByte===null)secondByte=buf[0];
+       if(count===0&&firstByte!==31)throw Error("分段回傳不是 GZIP，請確認雲端版本");
+       await writer.write(buf);
+       position+=buf.byteLength;count+=buf.byteLength;
+       if(count%(4*1024*1024)<buf.byteLength)
+        updateMerge(completed,"第 "+part+" / "+total+" 段 · 已合併 "+bytesText(position));
+      }
+     }finally{reader.releaseLock()}
+     if(count<20||firstByte!==31||secondByte!==139)
+      throw Error("第 "+part+" 段的 GZIP 壓縮內容不完整或格式錯誤");
+     success=true;completed++;updateMerge(completed,"已合併 "+completed+" / "+total+" 段 · "+bytesText(position));
+    }catch(e){
+     // A streamed request can fail after part of its body was written.
+     // Rewind before retrying, otherwise duplicate/truncated GZIP members.
+     await writer.truncate(offset);await writer.seek(offset);position=offset;
+     if(controller.signal.aborted||retry===2||/HTTP 4(0[139]|13)/.test(String(e.message)))throw e;
+     await new Promise((resolve,reject)=>{
+      const timer=setTimeout(resolve,1000*(retry+1));
+      controller.signal.addEventListener("abort",()=>{clearTimeout(timer);reject(new DOMException("取消下載","AbortError"))},{once:true});
+     });
+    }
+   }
+  }
+  await writer.close();writer=null;
+  updateMerge(total,"✅ 全市場 "+fmt(s.codeCount)+" 檔股票，"+s.start+"～"+s.end+
+   "，已合併 "+total+" 段為單一 "+bytesText(position)+" CSV.GZ。");
+  if(opfsHandle)downloadReady(await opfsHandle.getFile(),filename);
+  else if(filePicker){
+   const link=$("allExportReady");link.classList.remove("hidden");
+   link.textContent="✅ 檔案已儲存到你選擇的位置："+filename;
+  }
+ }catch(e){
+  if(writer){try{await writer.abort()}catch{}}
+  if(opfsRoot){try{await opfsRoot.removeEntry(filename)}catch{}}
+  updateMerge(completed,controller.signal.aborted?"合併已取消，雲端歷史 K 線仍完整保留。":"❌ 合併中斷：已完成 "+completed+"/"+total+" 段。可重新按一次，原雲端資料不會被刪除。");
+  if(!controller.signal.aborted)fail(e);
+ }finally{
+  mergeController=null;busy=false;$("cancelExportBtn").classList.add("hidden");
+  $("allExportBtn").disabled=current?.phase!=="done";
+ }
+}
+
 async function action(kind){
  if(busy)return;busy=true;
  try{await api("/"+kind,{method:"POST"});
@@ -203,6 +331,8 @@ async function action(kind){
 }
 $("catalogBtn").onclick=loadCatalog;
 $("verifyTokenBtn").onclick=verifyAndContinue;
+$("allExportBtn").onclick=mergeAll;
+$("cancelExportBtn").onclick=()=>mergeController?.abort();
 $("startBtn").onclick=()=>launch(false);$("resetBtn").onclick=()=>launch(true);
 $("refreshBtn").onclick=$("refresh2").onclick=refresh;
 $("pause").onclick=()=>action("pause");
