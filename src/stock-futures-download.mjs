@@ -430,6 +430,13 @@ export class StockFuturesBatch{
   return this.ctx.blockConcurrencyWhile(async()=>{
    s=await st.get("state");
    if(p==="/delete"){
+    if(s.mode==="market-daily"){
+     // Avoid exceeding the 1000-internal-subrequest free-plan limit:
+     // durable alarms clean up stock shards 80 per invocation.
+     s.phase="deleting";s.deleteIndex=0;s.message="背景刪除資料中";
+     await st.put("state",s);await st.setAlarm(Date.now()+100);
+     return respond({ok:true,deleting:true,message:"正在分批清除私有雲端日K，任務已停止"})
+    }
     for(let i=0;i<s.catalog.length;i+=20)await Promise.all(s.catalog.slice(i,i+20).map(c=>this.shardFor(s,c.code).fetch(new Request("https://private/delete",{method:"POST"}))));
     await st.deleteAll();await st.deleteAlarm();return respond({ok:true,deleted:true})
    }
@@ -441,6 +448,13 @@ export class StockFuturesBatch{
  shardFor(s,code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(s.shardKey+":"+code))}
  async alarm(){
   const st=this.ctx.storage,s=await st.get("state");if(!s)return;
+  if(s.phase==="deleting"){
+   const offset=s.deleteIndex||0,batch=s.catalog.slice(offset,offset+80);
+   await Promise.all(batch.map(c=>this.shardFor(s,c.code).fetch(new Request("https://private/delete",{method:"POST"}))));
+   if(offset+batch.length>=s.catalog.length){await st.deleteAll();await st.deleteAlarm()}
+   else{s.deleteIndex=offset+batch.length;s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(Date.now()+200)}
+   return
+  }
   if(Date.now()>=s.expiresAt){await st.deleteAll();await st.deleteAlarm();return}
   if(s.phase!=="running"){await st.setAlarm(s.expiresAt);return}
   await st.setAlarm(Date.now()+120000);
