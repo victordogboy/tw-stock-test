@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>台股 Scan｜V1.17.0-R54｜盤中預估量篩選</title>
+<title>台股 Scan｜V1.17.0-R55｜盤中預估量篩選</title>
 <style>
 body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b1020;color:#eaf0ff;margin:0}
 main{max-width:1200px;margin:auto;padding:22px}.card{background:#141b2f;border:1px solid #2b3858;border-radius:14px;padding:15px;margin:12px 0}
@@ -32,8 +32,8 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 .selected-metric{background:rgba(255,209,102,.09);min-width:105px}th[data-metric]{white-space:nowrap}
 .futures-code{color:#c9a7ff;font-weight:900}
 </style></head><body><main>
-<h1>台股 Scan｜V1.17.0-R54｜盤中預估量篩選</h1>
-<p class="release-note"><b>R54｜修正零量占位K造成空榜</b>　排除 Yahoo 無成交占位K，恢復前一交易日量比；盤中採預估量、盤後採實際量。請重新全市場掃描。</p>
+<h1>台股 Scan｜V1.17.0-R55｜盤中預估量篩選</h1>
+<p class="release-note"><b>R55｜固定估值與成交量欄</b>　第3欄顯示所選指標；第4欄固定全年預估本益比與今日預估量（盤後實際量）。本益比採A模型全年預估EPS，依榜單股價重算。</p>
 <p><a class="linkbtn" href="/futures.html">↗ 台指期分析｜R36</a></p>
 <div id="futuresStatus" class="small muted">期貨名單：待載入</div>
 <div id="finmindTokenStatus" style="font-size:12px;margin:4px 0 8px 0">FinMind TOKEN：檢查中…</div>
@@ -95,7 +95,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <p class="small muted">原始 Hold 變化＝本次 Hold − 前一交易日 Hold。新欄位＝原始變化＋量能加減分，百分比另列；盤中用預估收盤量，盤後用實際量，皆與前一交易日實際量比較。量比 ≥2× 加10分、≥1.5× 加7分、≥1.2× 加4分、&lt;0.6× 減4分，其餘0分。新欄位為分數變化，不限制在0～100；進場／續抱 Action 分數仍使用原始 Hold；雙 Action 日變化＝今日分數−前日同權重分數＋上述量能分。量能只加一次，缺少前日量時顯示 —。</p>
 <div style="overflow:auto"><table id="rankTable"><thead><tr>
 <th>代號</th><th>名稱</th>
-<th data-metric="setup">Setup</th><th data-metric="opportunity">Opportunity</th><th data-metric="entry">Entry</th><th data-metric="hold">Hold</th><th data-metric="holdDelta">Hold 變化</th><th data-metric="holdVolumeDelta">Hold 變化＋量變化</th><th data-metric="buyAction">進場 Action</th><th data-metric="buyActionDelta">進場 Δ（含量能）</th><th data-metric="stayAction">續抱 Action</th><th data-metric="stayActionDelta">續抱 Δ（含量能）</th><th data-metric="stayDrawdown">前5日高點回落</th><th data-metric="samePrice">同價位法人增持</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>累計／實際量（張）</th><th>篩選量（張）</th><th>量比（對前5日均量）</th>
+<th data-fixed-summary>全年預估本益比<br>今日預估量／實際量</th><th data-metric="setup">Setup</th><th data-metric="opportunity">Opportunity</th><th data-metric="entry">Entry</th><th data-metric="hold">Hold</th><th data-metric="holdDelta">Hold 變化</th><th data-metric="holdVolumeDelta">Hold 變化＋量變化</th><th data-metric="buyAction">進場 Action</th><th data-metric="buyActionDelta">進場 Δ（含量能）</th><th data-metric="stayAction">續抱 Action</th><th data-metric="stayActionDelta">續抱 Δ（含量能）</th><th data-metric="stayDrawdown">前5日高點回落</th><th data-metric="samePrice">同價位法人增持</th><th>法人承接（不計分）</th><th>價格防守</th><th>比較基準日</th><th>行情時間</th><th>累計／實際量（張）</th><th>篩選量（張）</th><th>量比（對前5日均量）</th>
 <th>市場</th><th>資料日</th><th>期貨</th><th>現價／收盤</th><th>資料完整度</th>
 <th>買區</th><th>最高可買</th><th>停損</th><th>T1</th><th>T2</th><th>R:R1</th><th>狀態</th><th>操作</th>
 </tr></thead><tbody id="rows"></tbody></table></div>
@@ -128,6 +128,7 @@ tr.futures-row:hover{background:rgba(126,87,194,.23)}
 <script src="/stock-futures.js?r22"></script>
 <script src="/hold-change.js?r21"></script>
 <script src="/v44-engine.js?r21"></script>
+<script src="/scan-summary.js?r55"></script>
 <script>
 const $=id=>document.getElementById(id);
 let stopped=false, results=[], errors=[], currentRank='entry';
@@ -151,6 +152,8 @@ function moveSelectedMetricFirst(key){
     const selected=row.querySelector('[data-metric="'+key+'"]');
     for(const cell of row.querySelectorAll('[data-metric]'))cell.classList.toggle('selected-metric',cell===selected);
     if(selected)row.insertBefore(selected,row.children[2]);
+    const summary=row.querySelector('[data-fixed-summary]');
+    if(summary)row.insertBefore(summary,row.children[3]);
   }
 }
 function safeText(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -542,6 +545,7 @@ function renderRankOnly(key=currentRank){
   $('rows').innerHTML=a.map(r=>`<tr class="stockrow ${r.hasFutures?'futures-row':''}" onclick="openDetail('${r.code}',${r.hasFutures?'true':'false'},'${r.market||'twse'}')">
     <td class="${r.hasFutures?'futures-code':''}">${r.code}</td>
     <td>${r.name}${r.hasFutures?'<span class="futures-badge">期貨</span>':''}</td>
+    <td data-fixed-summary data-summary-code="${safeText(r.code)}" style="min-width:155px;line-height:1.6">${TWScanSummary.cell(r)}</td>
     <td data-metric="setup">${r.setup}</td><td data-metric="opportunity">${r.opportunity}</td><td data-metric="entry"><b>${r.entry}</b></td><td data-metric="hold">${r.holdNeedsRefresh?'待更新':displayScore(r.hold)}</td>
     <td data-metric="holdDelta">${displayScore(scanDelta(r,'holdDelta'),true)}</td>
     <td data-metric="holdVolumeDelta" class="hold-change-cell"><b class="${r.holdVolumeDelta>0?'hold-up':r.holdVolumeDelta<0?'hold-down':''}">${displayScore(scanDelta(r,'holdVolumeDelta'),true)}</b><small class="muted">${r.holdNeedsRefresh?'請更新榜單盤中行情':TWHoldChange.volumeText(r,r.holdVolumeProjected)}</small></td>
@@ -568,6 +572,7 @@ function renderRankOnly(key=currentRank){
     <td><button class="starbtn" onclick="event.stopPropagation();toggleWatch('${r.code}')">${isWatched(r.code)?'★':'☆'}</button></td>
   </tr>`).join('');
   moveSelectedMetricFirst(currentRank);
+  TWScanSummary.update(a);
 }
 
 function showRank(key=currentRank){
@@ -907,7 +912,7 @@ $('scanBtn').onclick=async()=>{
   const latestDates=[...new Set(results.map(x=>x.dataDate).filter(Boolean))].sort();
   const latestDateText=latestDates.length===1?latestDates[0]:(latestDates.length?`${latestDates[0]}～${latestDates.at(-1)}`:'—');
   $('stats').textContent=`上市 ${c.twse}｜上櫃 ${c.tpex}｜Universe ${cand.length}｜第一階段 ${firstStageProcessed}/${cand.length}（成功 ${firstStageSuccess}、略過 ${firstStageSkipped}）｜符合 ${qualified.length}｜保留 ${retained.length}｜籌碼重評 ${results.length}｜Target ${SCAN_TARGET_DATE} (${SCAN_TARGET_SOURCE}${SCAN_TARGET_DEGRADED?' / degraded':''})｜Stage1 Target命中 ${qualified.length}/${qualified.length}｜暫定K ${SCAN_PROVISIONAL_COUNT}｜正式化 ${SCAN_FORMALIZED_COUNT}｜最新K缺失 ${SCAN_LATEST_MISSING}｜榜單資料日 ${latestDateText}`;
-  $('status').textContent=`V1.17.0-R54 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
+  $('status').textContent=`V1.17.0-R55 完成 · 全市場 → ${SCAN_TYPES[scanSelection]}保留 ${retained.length} → 籌碼 ${results.length} · 完整 ${full} · 部分 ${partial}`;
   persistScan();
  }catch(e){$('status').textContent=e.message}
  finally{scanBusy=false;setScanControlsBusy(false);$('scanBtn').disabled=false;$('refreshLiveBtn').disabled=false}
