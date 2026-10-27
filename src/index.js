@@ -318,6 +318,13 @@ async function mergeTwseLatestBar(code, market, endDate, history){
   }
 }
 
+// Yahoo can emit flat, zero-volume placeholder bars on non-trading dates.
+// They are not traded sessions and must not become the previous-volume denominator.
+function isYahooPlaceholderBar(row){
+  return row.volume !== null && row.volume !== undefined && Number(row.volume) === 0 &&
+    row.open === row.close && row.high === row.close && row.low === row.close;
+}
+
 async function fetchYahooHistory(code, market, startDate, endDate) {
   const suffixes = market==="tpex" ? [".TWO",".TW"] :
                    market==="twse" ? [".TW",".TWO"] :
@@ -351,7 +358,7 @@ async function fetchYahooHistory(code, market, startDate, endDate) {
           adj_close:adj?.[i]??null,
           volume:q.volume?.[i]??null,
           symbol
-        })).filter(x=>Number.isFinite(x.close) && x.close>0);
+        })).filter(x=>Number.isFinite(x.close) && x.close>0 && !isYahooPlaceholderBar(x));
         if(data.length) return {ok:true,source:"Yahoo Finance chart",symbol,data,attempts};
       }catch(e){
         attempts.push({source:"yahoo",host,symbol,error:String(e?.message||e)});
@@ -1405,7 +1412,7 @@ async function routeApi(request, env, url) {
     // merged history at the Worker edge so a second scan does not hit Yahoo/TWSE again.
     const historyCache=caches.default;
     const historyCacheKey=new Request(
-      `${url.origin}/__cache/history-auto-r26/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
+      `${url.origin}/__cache/history-auto-r54/${market||"auto"}/${code}/${startDate}/${endDate}/${fresh?"fresh":"normal"}`
     );
     // fresh=1 is used by Scanner/Detail latest-data requests.
     // It must never reuse the 6-hour custom cache, otherwise an intraday

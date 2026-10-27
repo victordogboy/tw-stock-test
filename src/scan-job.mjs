@@ -134,6 +134,7 @@ export function createScanJobClass(api){return class ScanJob {
      if(error){s.skipped++;s.errors.push(error)}
      if(row){
       const ranked=runtime.selectCandidates([row]);
+      if(!ranked.length){s.skipped++;s.errors.push(row.code+': 排名指標無法計算（請檢查前一交易日成交量／分數資料）')}
       if(ranked.length){s.qualified++;const before=s.ranked;s.ranked=runtime.selectCandidates([...s.ranked,row],s.options.maxStocks).map(r=>rankRow(r,runtime));
        if(s.ranked.some(x=>x.code===row.code))rows.push(row);
        remove.push(...before.filter(x=>!s.ranked.some(y=>y.code===x.code)).map(x=>x.code));
@@ -163,7 +164,7 @@ export function createScanJobClass(api){return class ScanJob {
      if(s.phase==='formalizing'){
       const old=s.ranked;s.ranked=s.ranked.slice(0,s.options.finTopN);remove.push(...old.slice(s.options.finTopN).map(r=>r.code));s.phase='chips';
      }else if(s.phase==='chips')s.phase='live';
-     else{s.phase='completed';s.message=`R34 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
+     else{s.phase='completed';s.message=`R54 背景掃描完成｜全市場 ${s.total} 檔｜榜單 ${s.ranked.length} 檔${s.errors.length?'｜部分資料失敗或條件略過，請查看下方明細':''}`;}
      s.work=s.ranked.map(r=>r.code);s.cursor=0;
     }
    }
