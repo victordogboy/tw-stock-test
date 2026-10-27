@@ -5,7 +5,7 @@ const DAILY_HDR="date,stock_id,stock_name,qualifying_futures_id,open,high,low,cl
 const DAILY_COOKIE="__Host-underlying-day", CHIP_COOKIE="__Host-underlying-chip", MARKET_COOKIE="__Host-tw-market-daily";
 const MARKET_HDR="date,stock_id,stock_name,market,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread\n";
 const MARKET_EXPORT_PART_SIZE=250; // Legacy per-year export option.
-const MERGE_STOCKS_PER_ALARM=5;  // Per alarm bound; never depends on phone activity.
+const MERGE_STOCKS_PER_ALARM=2;  // Keep CPU/storage I/O modest; alarm runs even if phone is closed.
 const MERGE_STORAGE_CHUNK=384*1024; // Strictly below Durable Object's 2 MB/value limit.
 const MERGE_SHARE_MAX_AGE=7*DAY;
 const MERGE_NAME="FinMind_All_TWSE_TPEX_Daily_";
@@ -982,7 +982,7 @@ export class StockFuturesBatch{
    merge.message="雲端合併完成：共 "+merge.total+" 檔，已保存單一 GZIP 檔案";
   }
   await st.put("merge",merge);
-  await st.setAlarm(merge.phase==="running"?Date.now()+250:s.expiresAt);
+  await st.setAlarm(merge.phase==="running"?Date.now()+1000:s.expiresAt);
  }
  async exportMerged(s,st){
   const merge=await st.get("merge");
