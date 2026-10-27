@@ -24,7 +24,7 @@ test('intraday surge passes using projected volume even when yesterday and cumul
 });
 test('large prior-day volume cannot admit a quiet stock, including futures',async t=>{
  clock(t,'12:30');const a=setup(history(10000000),quote(200000,'12:30:00'));
- const {row,error}=await a.rt.scan({...item,hasFutures:true});assert.equal(row,null);assert.match(error,/低於最低成交量.*盤中預估/);assert.equal(a.calls.length,2);
+ const {row,error}=await a.rt.scan({...item,hasFutures:true});assert.equal(row,null);assert.match(error,/低於最低成交量.*盤中預估/);assert.equal(a.calls.length,1);assert.ok(a.calls[0].includes('/intraday'));
 });
 test('live refresh rechecks exact volume threshold, including compact background rank rows',async t=>{
  clock(t,'10:30');const a=setup(history(1000000),quote(1500000)),{row}=await a.rt.scan(item);

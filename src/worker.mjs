@@ -1,3 +1,5 @@
+import {ValuationCache,valuationStub} from './valuation-cache.mjs';
+export {ValuationCache};
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
@@ -10,7 +12,12 @@ import {taiexVixRoute} from './taiex-vix.mjs';
 export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
 export const ScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 export default {
+ scheduled(event,env,ctx){ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/refresh')));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname==='/api/pe-screener/snapshot'){
+   if(request.method!=='GET')return new Response('Method not allowed',{status:405});
+   return valuationStub(env).fetch(new Request('https://valuation.internal/snapshot'));
+  }
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily/'))return stockFuturesRoute(request,env,'daily');
