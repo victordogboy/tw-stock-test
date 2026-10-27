@@ -55,6 +55,8 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
 <div class="row"><button id="catalogBtn" class="secondary">↻ 查詢目前上市櫃數量（選用）</button><span class="small" id="catalogInfo">不必先讀取名單，直接按「開始」即可；下市櫃完整清單會在背景建立</span></div>
 <div class="row"><button id="startBtn">▶ 開始雲端背景下載</button><button id="resetBtn" class="secondary">重新建立任務</button><button id="refreshBtn" class="secondary">刷新進度</button></div>
 <div id="error" class="note warn hidden" role="alert"></div>
+<div class="row"><button id="serverPingBtn" class="secondary">🔎 檢查雲端 API 是否正常</button>
+<span id="serverPingState" class="small">如果進度出現 HTTP 500，先按這裡檢查；不要刪除任務。</span></div>
 </section>
 <section id="statusCard" class="hidden"><div class="row" style="justify-content:space-between"><h2>② 背景下載進度</h2><span id="phase" class="pill">等待中</span></div>
 <progress id="prog" max="100" value="0"></progress>
@@ -155,6 +157,9 @@ function addDownload(container,text,url){
 function render(s){
  current=s;clearError();$("statusCard").classList.remove("hidden");
  const pct=s.total?Math.min(100,100*s.processed/s.total):0;
+ if(s.phase==="done"){
+  $("verifyResult").textContent="✅ 日K下載任務已完成。雲端合併不需要 FinMind Token，無須再驗證。";
+ }
  $("prog").value=pct;$("percent").textContent=pct.toFixed(1)+"%";
  $("phase").textContent=({preparing:"正在背景取得名單",running:"背景下載中",paused:"已暫停",error:"需要處理錯誤",done:"已完成",deleting:"背景刪除中"})[s.phase]||s.phase;
  $("processed").textContent=s.phase==="preparing"?"整理市場名單中":fmt(s.processed)+" / "+fmt(s.total);
@@ -184,9 +189,9 @@ function render(s){
   " 檔（"+progress.toFixed(1)+"%） · "+
   bytesText(merge.bytes)+(merge.error?" · "+merge.error:"");
  }
- $("verifyResult").textContent=s.phase==="error"&&/token|illegal/i.test(s.lastError||s.message||"")
+ if(s.phase!=="done")$("verifyResult").textContent=s.phase==="error"&&/token|illegal/i.test(s.lastError||s.message||"")
  ?"⚠ 舊 Token 已被 FinMind 拒絕，請貼上最新 Token，按「驗證新 Token 並繼續」"
- :"如果 Token 已更新，可以在上方驗證並直接恢復任務";
+ :"只有需要重新向 FinMind 抓日K時才需要 Token";
 
  const totalParts=Math.ceil(s.codeCount/250),box=$("years");box.replaceChildren();
  for(const year of yearsOf(s)){
@@ -202,8 +207,25 @@ function render(s){
 }
 async function refresh(){
  try{const s=await api("/status");render(s)}catch(e){
-  if(current)fail(e);else if(!/沒有這個瀏覽器的下載工作/.test(e.message))fail(e)
+  if(/沒有這個瀏覽器的下載工作/.test(e.message))return;
+  // Status queries are read-only; never restart or erase a completed job.
+  fail("⚠ 無法讀取既有任務進度："+e.message+"。請按「檢查雲端 API」，不要按重新建立任務。");
+  $("serverPingState").textContent="進度 API 讀取失敗；已下載日K不會因為此查詢被刪除。";
  }
+}
+async function pingServer(){
+ $("serverPingBtn").disabled=true;
+ $("serverPingState").textContent="測試 Worker 連線中…";
+ try{
+  const r=await fetch(root+"/ping",{cache:"no-store",credentials:"same-origin"});
+  const body=await r.text();let data=null;try{data=JSON.parse(body)}catch{}
+  if(!data?.ok)throw Error("HTTP "+r.status+(data?.error?" · "+data.error:"（非 JSON 或不可用）"));
+  $("serverPingState").textContent="✅ Worker 已回應 "+data.version+"；背景儲存綁定 "+
+    (data.durableBinding&&data.dataBinding?"正常":"異常")+
+    "；"+(data.hasSession?"已有工作階段 Cookie":"此瀏覽器沒有工作識別 Cookie");
+  await refresh();
+ }catch(e){$("serverPingState").textContent="❌ Worker 健康檢查失敗："+e.message+"。此狀況不是 Token 問題。"}
+ finally{$("serverPingBtn").disabled=false}
 }
 async function launch(reset=false){
  if(busy)return;clearError();
@@ -279,6 +301,7 @@ async function action(kind){
  }catch(e){fail(e)}finally{busy=false}
 }
 $("catalogBtn").onclick=loadCatalog;
+$("serverPingBtn").onclick=pingServer;
 $("verifyTokenBtn").onclick=verifyAndContinue;
 $("cloudMergeBtn").onclick=startCloudMerge;
 $("mergeResumeBtn").onclick=resumeCloudMerge;
