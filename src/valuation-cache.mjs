@@ -15,7 +15,7 @@ export class ValuationCache {
   })().finally(()=>{this.pending=null;});return this.pending;
  }
  async fetch(request){
-  const force=new URL(request.url).pathname==='/refresh';
+  const force=new URL(request.url).pathname==='/valuation/refresh';
   const saved=await this.ctx.storage.get('snapshot');
   if(force||!saved){
    try{return Response.json(await this.refresh());}
@@ -27,4 +27,4 @@ export class ValuationCache {
   return Response.json({...saved,stale:age>24*3600000},{headers:{'cache-control':'no-store'}});
  }
 }
-export function valuationStub(env){return env.VALUATION_CACHE.get(env.VALUATION_CACHE.idFromName('shared-fundamentals'));}
+export function valuationStub(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:valuation:r56'));}

@@ -29,10 +29,6 @@
       {
         "name": "STOCK_FUTURES_DATA",
         "class_name": "StockFuturesData"
-      },
-      {
-        "name": "VALUATION_CACHE",
-        "class_name": "ValuationCache"
       }
     ]
   },
@@ -54,12 +50,6 @@
       "new_sqlite_classes": [
         "StockFuturesBatch",
         "StockFuturesData"
-      ]
-    },
-    {
-      "tag": "r56-valuation-cache",
-      "new_sqlite_classes": [
-        "ValuationCache"
       ]
     }
   ],

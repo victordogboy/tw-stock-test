@@ -19,10 +19,10 @@ test('durable snapshot survives instance restart; stale read returns immediately
  const saved={ok:true,rows:[{code:'2330'}],checkedAt:Date.now()-7*3600000},map=new Map([['snapshot',saved]]),waits=[];
  const ctx={storage:{get:async k=>map.get(k),put:async(k,v)=>map.set(k,v)},waitUntil:p=>waits.push(p)};
  const cache=new ValuationCache(ctx,{});cache.refresh=async()=>{throw Error('offline')};
- assert.deepEqual((await (await cache.fetch(new Request('https://v/snapshot'))).json()).rows,saved.rows);assert.equal(waits.length,1);await Promise.all(waits);
- const failed=await (await cache.fetch(new Request('https://v/refresh'))).json();assert.equal(failed.refreshError,true);assert.deepEqual(map.get('snapshot'),saved);
+ assert.deepEqual((await (await cache.fetch(new Request('https://v/valuation/snapshot'))).json()).rows,saved.rows);assert.equal(waits.length,1);await Promise.all(waits);
+ const failed=await (await cache.fetch(new Request('https://v/valuation/refresh'))).json();assert.equal(failed.refreshError,true);assert.deepEqual(map.get('snapshot'),saved);
  const restarted=new ValuationCache(ctx,{});restarted.refresh=async()=>saved;
- assert.deepEqual((await (await restarted.fetch(new Request('https://v/snapshot'))).json()).rows,saved.rows);
+ assert.deepEqual((await (await restarted.fetch(new Request('https://v/valuation/snapshot'))).json()).rows,saved.rows);
 });
 test('late-session prefilter skips history for guaranteed failures and reuses quote for candidates',async t=>{
  const RealDate=Date,at='2026-10-27T12:30:00+08:00';globalThis.Date=class extends RealDate{constructor(...a){super(...(a.length?a:[at]))}static now(){return new RealDate(at).getTime()}};t.after(()=>globalThis.Date=RealDate);
