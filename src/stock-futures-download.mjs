@@ -248,7 +248,10 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(path===root+"/status"&&method==="GET"){
   try{
    const response=await stub.fetch("https://private/status");
-   // DO failures must never become opaque HTML 500 to the phone.
+   if(response.status>=500)
+    return respond({ok:false,code:"DURABLE_STATUS_HTTP_"+response.status,
+      error:"背景進度服務暫時錯誤，但這次查詢不會刪除已下載的日K",
+      version:"r55-status-guard"},503);
    return new Response(response.body,{status:response.status,headers:{"content-type":"application/json; charset=utf-8",
     "cache-control":"private, no-store","x-market-daily-version":"r55-status-guard"}});
   }catch(e){
