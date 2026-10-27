@@ -156,11 +156,12 @@ export function parseMarketStockCatalog(info,delisted){
  if(found.size<1000)throw Error("全市場名單不足 "+found.size+" 檔，為避免漏抓已停止");
  return [...found.values()].sort((a,b)=>a.code.localeCompare(b.code));
 }
-async function fetchMarketStockCatalog(token){
- const [info,delisted]=await Promise.all([
-  fetchFinMind(token,{dataset:"TaiwanStockInfo"}),
-  fetchFinMind(token,{dataset:"TaiwanStockDelisting",start_date:"2018-01-01",end_date:today()})
- ]);
+async function fetchMarketStockCatalog(token,includeDelisted=true){
+ // When user selects only listed/OTC, do not query the heavier historical
+ // delisting dataset at all. This also keeps the source request count down.
+ const info=await fetchFinMind(token,{dataset:"TaiwanStockInfo"});
+ if(!includeDelisted)return parseMarketStockCatalog(info,[]);
+ const delisted=await fetchFinMind(token,{dataset:"TaiwanStockDelisting",start_date:"2018-01-01",end_date:today()});
  return parseMarketStockCatalog(info,delisted);
 }
 export async function stockFuturesRoute(request,env,mode="futures"){
@@ -479,13 +480,14 @@ export class StockFuturesBatch{
    const token=await st.get("token");
    try{
     if(!token)throw Error("缺少 FinMind Token");
-    const all=await fetchMarketStockCatalog(token),markets=new Set(s.requestedMarkets||[]);
+    const markets=new Set(s.requestedMarkets||[]);
+    const all=await fetchMarketStockCatalog(token,markets.has("delisted"));
     const wanted=new Set(s.requestedCodes||[]);
     const catalog=all.filter(c=>markets.has(c.market)&&(!wanted.size||wanted.has(c.code)));
     if(!catalog.length)throw Error("FinMind 名單沒有符合市場條件的普通股");
     const latest=await st.get("state");
     if(!latest||latest.shardKey!==s.shardKey||latest.phase!=="preparing")return;
-    s.catalog=catalog;s.codes=[];s.total=catalog.length;s.phase="running";s.queries+=2;
+    s.catalog=catalog;s.codes=[];s.total=catalog.length;s.phase="running";s.queries+=markets.has("delisted")?2:1;
     s.message="已確認 "+catalog.length+" 檔股票，開始按股票下載日 K";
     s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(Date.now()+100);
    }catch(e){
