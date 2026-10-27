@@ -226,10 +226,11 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  if(path===root+"/status"&&method==="GET")return stub.fetch("https://private/status");
  if(path===root+"/export"&&method==="GET"){
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
-  const part=url.searchParams.get("part")||"";
-  if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!(daily?/^(20\d{2}|21\d{2})$/:/^(202[1-9]|20[3-9]\d)$/).test(year)||part&&!/^[1-9]\d{0,3}$/.test(part))return respond({ok:false,error:"下載範圍錯誤"},400);
-  if(market&&!code&&(!year||!part))return respond({ok:false,error:"全市場匯出請選年份與分包號碼（每包250檔）"},400);
-  return stub.fetch("https://private/export?"+new URLSearchParams({code,year,part}));
+  const part=url.searchParams.get("part")||"",all=url.searchParams.get("all")==="1";
+  if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!(daily?/^(20\d{2}|21\d{2})$/:/^(202[1-9]|20[3-9]\d)$/).test(year)||part&&!/^[1-9]\d{0,3}$/.test(part)||all&&(!market||!part||!!code||!!year))
+   return respond({ok:false,error:"下載範圍錯誤"},400);
+  if(market&&!code&&(!year||!part)&&!all)return respond({ok:false,error:"全市場匯出請選年份與分包號碼（每包250檔）"},400);
+  return stub.fetch("https://private/export?"+new URLSearchParams({code,year,part,all:all?"1":"0"}));
  }
  if(method==="POST"&&["pause","resume","delete"].includes(path.split("/").at(-1)))return stub.fetch(new Request("https://private/"+path.split("/").at(-1),{method:"POST"}));
  return respond({ok:false,error:"不存在的 API"},404);
@@ -250,6 +251,32 @@ export class StockFuturesData{
    await this.ctx.storage.put("expiresAt",expires);
    await this.ctx.storage.setAlarm(expires);
    return respond({ok:true});
+  }
+  if(p==="/get-years"){
+   // Daily OHLCV shards are stored only on YYYY-01-01; reading those
+   // keys directly avoids ~3,000 redundant day lookups per stock.
+   const startYear=Number(u.searchParams.get("startYear")),endYear=Number(u.searchParams.get("endYear"));
+   if(!Number.isInteger(startYear)||!Number.isInteger(endYear)||startYear<2000||endYear>2200||startYear>endYear||endYear-startYear>50)
+    return respond({ok:false,error:"年份範圍錯誤"},400);
+   let year=startYear,idx=0,part=null;
+   const st=this.ctx.storage;
+   const stream=new ReadableStream({async pull(c){
+    try{
+     for(;;){
+      if(year>endYear){c.close();return}
+      const key=year+"-01-01";
+      if(part===null){
+       part=await st.get("meta:"+key);idx=0;
+       if(!part||!Number.isInteger(part.parts)||part.parts<1)throw Error("雲端日K缺少年份："+year);
+      }
+      if(idx>=part.parts){year++;part=null;continue}
+      const bytes=await st.get("day:"+key+":"+(idx++));
+      if(!bytes)throw Error("雲端日K儲存區塊毀損："+key);
+      c.enqueue(new Uint8Array(bytes));return
+     }
+    }catch(e){c.error(e)}
+   }});
+   return new Response(stream,{headers:{"content-type":"application/gzip","cache-control":"private, no-store"}});
   }
   if(p==="/get"){
    const start=u.searchParams.get("start"),end=u.searchParams.get("end");
@@ -751,21 +778,27 @@ export class StockFuturesBatch{
  }
  async exportDailyData(s,url){
   if(!["running","paused","done","error"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
-  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
+  if(whole&&(s.phase!=="done"||code||year))return respond({ok:false,error:"完整日K匯出只允許已完成的全市場任務"},409);
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"股票不在任務清單內"},404);
   if(year&&(!/^\d{4}$/.test(year)||year<s.start.slice(0,4)||year>s.end.slice(0,4)))return respond({ok:false,error:"年份超出任務範圍"},400);
-  if(!code&&!year)return respond({ok:false,error:"請選年度或股票代碼以避免下載過大"},400);
+  if(!code&&!year&&!whole)return respond({ok:false,error:"請選年度或股票代碼以避免下載過大"},400);
   const partText=url.searchParams.get("part")||"",part=partText?Number(partText):0;
-  if(s.mode==="market-daily"&&!code&&(!year||!part))return respond({ok:false,error:"全市場日K請依年份＋每250檔分包下載"},400);
+  if(s.mode==="market-daily"&&!code&&(!year||!part)&&!whole)return respond({ok:false,error:"全市場日K請依年份＋每250檔分包下載"},400);
+  if(whole&&(!part||!Number.isInteger(part)))return respond({ok:false,error:"必須指定分包編號"},400);
   if(part&&(!Number.isSafeInteger(part)||part<1||part>Math.ceil(s.catalog.length/MARKET_EXPORT_PART_SIZE)))return respond({ok:false,error:"分包序號錯誤"},400);
   const codes=code?[code]:part?s.catalog.slice((part-1)*MARKET_EXPORT_PART_SIZE,part*MARKET_EXPORT_PART_SIZE).map(c=>c.code):s.catalog.map(c=>c.code);
   const first=Number(s.start.slice(0,4)),last=Number(s.end.slice(0,4));
   const years=year?[Number(year)]:Array.from({length:last-first+1},(_,i)=>first+i);
-  const segments=codes.flatMap(stock=>years.map(y=>({stock,day:y+"-01-01"})));
-  const self=this,head=await zip(s.mode==="daily-chip"?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?MARKET_HDR:DAILY_HDR);let ix=-1,reader=null;
+  const segments=whole?codes.map(stock=>({stock,whole:true})):codes.flatMap(stock=>years.map(y=>({stock,day:y+"-01-01"})));
+  // Only part 1 contains the CSV header. GZIP concatenated members form a
+  // standards-valid single .gz when the browser appends all parts verbatim.
+  const withHeader=!whole||part===1;
+  const self=this,head=withHeader?await zip(s.mode==="daily-chip"?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?MARKET_HDR:DAILY_HDR):null;
+  let ix=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{
-    if(ix<0){ix=0;c.enqueue(head);return}
+    if(ix<0){ix=0;if(head){c.enqueue(head);return}}
     for(;;){
      if(reader){
       const n=await reader.read();
@@ -775,7 +808,9 @@ export class StockFuturesBatch{
      if(ix>=segments.length){c.close();return}
      const segment=segments[ix++],shard=self.shardFor(s,segment.stock);
      // Year-specific key, no iteration over calendar dates.
-     const response=await shard.fetch("https://private/get?"+new URLSearchParams({start:segment.day,end:segment.day}));
+     const response=await shard.fetch(whole
+      ?"https://private/get-years?"+new URLSearchParams({startYear:String(first),endYear:String(last)})
+      :"https://private/get?"+new URLSearchParams({start:segment.day,end:segment.day}));
      if(!response.ok)throw Error(segment.stock+" "+segment.day+" 匯出失敗");
      reader=response.body.getReader()
     }
