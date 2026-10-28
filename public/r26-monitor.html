@@ -126,7 +126,7 @@ async function loadR26Replay(){
   const proj=x.next_open_projection;
   if(proj && proj.trade_date==='2026-10-29' && proj.session==='night' && proj.model_blocked===true && proj.previous_completed_position===0 && proj.model_core_desire===0){
    $('preopenAction').textContent='風控停機 · 維持空手';$('preopenAction').classList.add('down');
-   $('preopenDetails').textContent='原始核心訊號 +1，但風控停機=true；原始模型禁止核心單與關鍵價輔助單。這是回推的 10/28 15:00 開盤前決策，不代表即時行情、券商持倉或後續交易已驗證。';
+   $('preopenDetails').textContent='影子策略 A 的 10/27 夜盤 -486 與日盤 -426.5，合計 -912.5 點，觸發 -750 點風控停機；停機涵蓋 10/29 交易日夜盤。原始核心雖為 +1，風控後方向仍是 0（不交易）。這是歷史開盤前研究重播，不代表已核對盤中報價或券商實際倉位。';
   }else{$('preopenAction').textContent='無法核實開盤訊號';}
 
   $('replayTable').innerHTML=x.new_sessions.map(r=>'<tr><td>'+r.date+' '+(r.session==='night'?'夜盤':'日盤')+
