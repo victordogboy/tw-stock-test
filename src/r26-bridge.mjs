@@ -8,7 +8,7 @@ export function normalizeFinmindR26(rows,dt,month=''){
  if(!Array.isArray(rows))throw Error('Invalid FinMind data');
  const seen=new Set(),out=[];
  for(const r of rows){
-  if(r?.futures_id!=='TX'||!/^\d{6}$/.test(String(r.contract_date||''))||(month&&r.contract_date!==month)||r.date!==dt)continue;
+  if(r?.futures_id!=='TX'||!/^\d{6}$/.test(String(r.contract_date||''))||(month&&String(r.contract_date)!==month)||r.date!==dt)continue;
   const time=String(r.minute||'');
   if(!/^\d{2}:\d{2}:\d{2}$/.test(time))continue;
   const h=+time.slice(0,2),mn=+time.slice(3,5),ss=+time.slice(6,8);
