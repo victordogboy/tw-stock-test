@@ -30,6 +30,18 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <div>下次檢查時點<br><strong>日盤 08:45 ／夜盤 15:00</strong></div></div>
 <div class="info" style="margin-top:14px">原 R26 核心沒有固定停利價，主要依新盤訊號切換、關鍵價停損與條件式停損後重進場運行。「無法確認」不代表建議空手。</div>
 </section>
+
+<section class="panel" id="replayPanel">
+ <div class="top"><h2>原始 R26 引擎：最新已完成分盤重播</h2><span class="tag">歷史模擬 · 非即時下單訊號</span></div>
+ <p id="r26ReplayStatus" class="info">載入 10/27～10/28 的凍結版 R26 逐盤結果中…</p>
+ <div class="grid">
+   <div class="card"><small>封存後模型累積盈虧</small><div id="recentPnl" class="number">—</div><small>10/27～10/28，共四盤</small></div>
+   <div class="card"><small>截至最後完成日盤的模型倉位</small><div id="replayHold" class="number">—</div><small id="replayHoldTime">尚未確認</small></div>
+   <div class="card"><small>加入新資料後的模型總點數</small><div id="provisionalTotal" class="number">—</div><small>非凍結金標，後續新增區間待完整對帳</small></div>
+ </div>
+ <div class="scroll" style="margin-top:12px"><table><thead><tr><th>交易日／盤別</th><th>方向</th><th>開盤</th><th>原始停損</th><th>模擬損益</th></tr></thead><tbody id="replayTable"><tr><td colspan="5">尚未載入</td></tr></tbody></table></div>
+ <p class="info">只有完成日夜盤重播的結果才會列在此處。現在的夜盤若缺少逐分鐘行情，<strong>不能沿用上一盤空手狀態</strong>；無法核實時也不提供進場價或停損價。</p>
+</section>
 <div class="grid" id="stats">
 <div class="card"><small>R26 凍結版全期累積</small><div class="number up">+66,452</div><small>點（2021/10/22～2026/10/22）</small></div>
 <div class="card"><small>R13 同期累積</small><div class="number">+64,413</div><small>點</small></div>
@@ -95,5 +107,23 @@ function renderChart(){
 $('range').onchange=()=>rows.length&&renderChart();
 $('monthYear').onchange=()=>rows.length&&renderMonth();
 $('download').onclick=()=>window.location.href='/r26-monthly-canonical.csv';
+
+async function loadR26Replay(){
+ try{
+  const rsp=await fetch('/r26-replay-latest.json',{cache:'no-store'});if(!rsp.ok)throw Error('重播檔案尚未部署');
+  const x=await rsp.json();
+  if(x.model!=='R26_dd15_tick / TX_R26_CANONICAL_20261028'||x.verified_gold_sessions!==2428||!x.golden_match||x.new_sessions.length!==4)throw Error('引擎金標資料驗證失敗');
+  $('r26ReplayStatus').textContent='資料截至 '+x.as_of+' ｜ '+x.contract+' ｜ 金標 2,428 盤逐盤零差異；後續四盤為歷史重播，當前夜盤未計算。';
+  $('recentPnl').textContent=fmt(x.new_period_r26_pnl)+' 點';$('recentPnl').classList.add(x.new_period_r26_pnl<0?'down':'up');
+  $('replayHold').textContent=x.last_completed_position===0?'空手':x.last_completed_position===1?'多單':'空單';
+  $('replayHoldTime').textContent='截至 '+x.last_completed_session+'；現在持倉未知';
+  $('provisionalTotal').textContent=fmt(x.provisional_cumulative_r26)+' 點';
+  $('replayTable').innerHTML=x.new_sessions.map(r=>'<tr><td>'+r.date+' '+(r.session==='night'?'夜盤':'日盤')+
+  '</td><td>'+(r.decision==='LONG'?'做多後停損':r.decision==='SHORT'?'做空':'風控停機／空手')+
+  '</td><td>'+r.open.toLocaleString()+'</td><td>'+(r.core_stop??'—')+'</td>'+cell(r.pnl)+'</tr>').join('');
+ }catch(e){$('r26ReplayStatus').textContent='無法取得完整歷史重播：'+e.message+'。不得將本頁當作已連線的 R26 開盤訊號';}
+}
+loadR26Replay();
+
 load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html(e.message)+'</text>';$('pointInfo').textContent='金標未載入，請檢查連線。'});
 </script></body></html>
