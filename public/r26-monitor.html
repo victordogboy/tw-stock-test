@@ -16,10 +16,47 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 .scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:580px}th,td{padding:11px 8px;border-bottom:1px solid #31465f;text-align:right;font-size:13px}td:first-child,th:first-child{text-align:left}tbody tr:hover{background:#203650}
 .info{font-size:13px;line-height:1.65;color:#adbed2}.divider{height:1px;background:#334963;margin:12px 0}
 #pointInfo{height:22px;font-size:13px;color:#b4d4ed}#liveData{font-size:14px;line-height:1.8}
+
+.liveboard{background:linear-gradient(145deg,#163957,#101e30);border-color:#4f779c}
+.livehead{display:flex;gap:10px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+.quoteprice{font-size:clamp(34px,8vw,62px);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin:9px 0}
+.livebox{padding:11px;border:1px solid #345772;border-radius:10px;background:#0b2035;min-height:76px}
+.livebox small{display:block;margin-bottom:4px}
+.livebox strong{font-variant-numeric:tabular-nums;font-size:clamp(17px,3vw,23px)}
+.livepill{padding:5px 11px;border-radius:100px;font-size:12px;background:#2c4660}
+.livepill.ok{background:#134d43;color:#a1f8ce}
+.livepill.bad{background:#79343b;color:#ffe0de}
+.livepill.wait{background:#68502b;color:#ffe4a7}
+.liveclock{font-variant-numeric:tabular-nums}
+#ticks{display:block;height:100px;width:100%;background:#0c2135;border-radius:8px;margin-top:12px}
 </style></head><body>
 <header><div class="tag">CANONICAL R26 · TX · 2026/10/29</div><h1>R26 台指期跨盤監控</h1>
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
 <main>
+
+<section class="panel liveboard" id="liveQuotePanel" aria-label="台指期即時報價">
+ <div class="livehead"><h2 style="margin:0">台指期近一 · 行情監控</h2>
+  <span id="liveIndicator" class="livepill wait" role="status" aria-live="polite">連線中 · 每 5 秒檢查</span>
+ </div>
+ <div class="grid" style="margin-top:12px;align-items:center">
+ <div><small>WTX&amp; · Yahoo 連續近月（非指定月份 TX）</small><div id="txNow" class="quoteprice">—</div><b id="txChange" class="muted">—</b></div>
+ <div class="grid" style="grid-template-columns:repeat(2,minmax(100px,1fr))">
+  <div class="livebox"><small>來源開盤價</small><strong id="txOpen">—</strong></div>
+  <div class="livebox"><small>來源最高／最低</small><strong id="txRange">—</strong></div>
+  <div class="livebox"><small>買一／賣一</small><strong id="txBidAsk">—</strong></div>
+  <div class="livebox"><small>來源總量</small><strong id="txVol">—</strong></div>
+ </div></div>
+ <div class="divider"></div>
+ <div class="grid">
+  <div class="info">成交／分 K 來源時間<br><strong id="liveSourceTime" class="liveclock">—</strong></div>
+  <div class="info">資料年齡／頁面輪詢<br><strong id="liveLag" class="liveclock">—</strong></div>
+  <div class="info">來源／狀態<br><strong id="liveSourceName">—</strong></div>
+ </div>
+ <svg id="ticks" viewBox="0 0 720 100" role="img" aria-label="最近10分鐘，網頁取得的報價快照示意圖"><text x="20" y="55" font-size="14" fill="#90abc3">開始蒐集報價後顯示本頁快照趨勢</text></svg>
+ <p class="info" id="quoteDisclaimer">頁面開啟且可見時每 5 秒檢查一次，背景分頁或手機休眠可能暫停。5 秒是查詢頻率，不保證來源每 5 秒成交或更新；無法證實未延遲時會標示來源延遲。報價與 R26 開盤／停損信號分離。</p>
+ <a href="https://tw.stock.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
+</section>
+
 <section class="panel alert">
 <h2 id="mainSignalHeading">10/29 夜盤開盤前 R26：風控停機、維持空手</h2>
 <div id="signalStatus">已用原始凍結 Python／Numba 引擎重播至 2026/10/28 日盤，並用截至該盤的既有資料推得 10/29 交易日夜盤（10/28 15:00 開始）為風控停機：核心原訊號 +1，但停機後方向 0，且關鍵價輔助單停用。這是開盤前模型重播結果，不是此刻即時行情或實際券商持倉核對；自動連續運算後端尚待接通。</div>
@@ -143,4 +180,59 @@ if(Date.now()>=Date.parse('2026-10-28T21:00:00Z')){
 
 
 load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html(e.message)+'</text>';$('pointInfo').textContent='金標未載入，請檢查連線。'});
+
+// R26 near-month market data: independent of frozen strategy signal.
+const fnum=n=>Number.isFinite(n)?n.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
+let quoteLast=null,quoteLastPoll=0,quoteFailure=false,inflight=false,quotesSeen=0;
+const quoteHistory=[];
+const twClock=s=>{try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(s));}catch{return '—'}};
+function liveBadge(text,kind){
+ const el=$('liveIndicator');el.textContent=text;el.className='livepill '+kind;
+}
+function renderTicks(){
+ if(!quoteHistory.length)return;
+ const pts=quoteHistory.slice(-120),v=pts.map(x=>x.p),min=Math.min(...v)-1,max=Math.max(...v)+1;
+ const px=i=>12+(i/Math.max(1,pts.length-1))*696,py=z=>10+(max-z)/(max-min)*80;
+ const d=pts.map((x,i)=>(i?'L':'M')+px(i).toFixed(1)+','+py(x.p).toFixed(1)).join(' ');
+ $('ticks').innerHTML='<path d="'+d+'" stroke="#6fe7af" fill="none" stroke-width="2.5"/><text x="12" y="14" font-size="10" fill="#9db6cc">'+fnum(max-1)+'</text><text x="12" y="95" font-size="10" fill="#9db6cc">'+fnum(min+1)+'</text>';
+}
+function renderQuote(){
+ const q=quoteLast;
+ if(!q){liveBadge(quoteFailure?'報價失敗（5 秒後重試）':'連線中 · 每 5 秒檢查',quoteFailure?'bad':'wait');return}
+ const elapsed=Math.max(0,Math.round((Date.now()-Date.parse(q.source_time))/1000)),pollAge=Math.max(0,Math.round((performance.now()-quoteLastPoll)/1000));
+ const fresh=elapsed<=90;
+ $('txNow').textContent=fnum(q.price);
+ $('txChange').textContent=Number.isFinite(q.change)?fmt(q.change)+(Number.isFinite(q.change_pct)?' ('+q.change_pct.toFixed(2)+'%)':''):'漲跌幅未提供';
+ $('txChange').className=q.change>0?'up':q.change<0?'down':'muted';
+ $('txOpen').textContent=fnum(q.open);
+ $('txRange').textContent=Number.isFinite(q.high)&&Number.isFinite(q.low)?fnum(q.high)+'／'+fnum(q.low):'—';
+ $('txBidAsk').textContent=Number.isFinite(q.bid)&&Number.isFinite(q.ask)?fnum(q.bid)+'／'+fnum(q.ask):'—';
+ $('txVol').textContent=fnum(q.volume);
+ $('liveSourceTime').textContent=twClock(q.source_time)+' （台灣時間）';
+ $('liveLag').textContent=elapsed+' 秒／'+pollAge+' 秒前檢查';
+ $('liveSourceName').textContent=q.source+(q.cache_hit?' · 來源快取':'');
+ if(quoteFailure)liveBadge('連線失敗，顯示上次資料','bad');
+ else if(!fresh)liveBadge('來源逾 90 秒，非即時','bad');
+ else liveBadge('來源時間 '+elapsed+' 秒前 · 每 5 秒查詢','ok');
+}
+async function fetchQuote(){
+ if(inflight||document.visibilityState!=='visible')return;
+ inflight=true;const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),4400);
+ try{
+  const r=await fetch('/api/r26/live-quote',{cache:'no-store',headers:{accept:'application/json'},signal:ctl.signal});
+  const j=await r.json();if(!r.ok||!j.ok||!Number.isFinite(j.price)||!Number.isFinite(Date.parse(j.source_time)))throw Error(j.error||'報價無效');
+  quoteFailure=false;quoteLast=j;quoteLastPoll=performance.now();quotesSeen++;
+  // Every distinct source timestamp is one point; repeated polling is never fabricated as a trade.
+  if(!quoteHistory.length||quoteHistory[quoteHistory.length-1].t!==j.source_time){
+   quoteHistory.push({t:j.source_time,p:j.price});while(quoteHistory.length>120)quoteHistory.shift();renderTicks();
+  }
+ }catch(e){quoteFailure=true;$('liveSourceName').textContent='連線異常：'+String(e?.name==='AbortError'?'逾時':e?.message||'來源不可用').slice(0,80);}
+ finally{clearTimeout(timeout);inflight=false;renderQuote()}
+}
+const quoteTimer=setInterval(fetchQuote,5000);
+const statusTimer=setInterval(renderQuote,1000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){liveBadge('恢復即時行情檢查','wait');fetchQuote();}else liveBadge('背景分頁已暫停輪詢','wait')});
+window.addEventListener('online',()=>fetchQuote());
+fetchQuote();
+
 </script></body></html>
