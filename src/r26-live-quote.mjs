@@ -89,8 +89,8 @@ export function parseYahooChart(raw,sourceUrl){
  const timestamp=Number(a[idx]);if(!Number.isFinite(timestamp)||timestamp<1577836800)return null;
  const stamp=new Date(timestamp*1000).toISOString();
  return buildQuote({source:'Yahoo Finance chart',source_url:sourceUrl,source_time:stamp,last:px,
-  open:Number(bars?.open?.[idx]??NaN),high:Number(bars?.high?.[idx]??NaN),
-  low:Number(bars?.low?.[idx]??NaN),volume:Number(bars?.volume?.[idx]??NaN),
+  // Chart values describe the most recent minute candle, not verified session open/high/low.
+  open:null,high:null,low:null,volume:null,
   prev_close:Number(result.meta?.chartPreviousClose??NaN)});
 }
 const providers=[
