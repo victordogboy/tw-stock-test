@@ -106,23 +106,31 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  const cache=globalThis.caches?.default,key=new Request(new URL(request.url).origin+'/__r26_live_quote_v1');
  try{if(cache){const hit=await cache.match(key);if(hit){const body=await hit.json();return json({...body,cache_hit:true,polled_at:new Date().toISOString()})}}}catch{}
  const failures=[];
- for(const [kind,url] of providers){
+ // Fetch in parallel; one blocked vendor must not delay the five-second frontend cycle.
+ const attempts=await Promise.all(providers.map(async([kind,url],priority)=>{
   try{
    const rsp=await fetchImpl(url,{headers:{accept:kind==='chart'?'application/json':'text/html,application/xhtml+xml',
-     'user-agent':'Mozilla/5.0 (compatible; TX-R26-quote-monitor/1.0)'},signal:AbortSignal.timeout(3500)});
-   if(!rsp.ok){failures.push(kind+':HTTP '+rsp.status);continue}
+     'user-agent':'Mozilla/5.0 (compatible; TX-R26-quote-monitor/1.0)'},signal:AbortSignal.timeout(3000)});
+   if(!rsp.ok)throw Error('HTTP '+rsp.status);
    let quote=null;
    if(kind==='chart'){const body=await rsp.json();quote=parseYahooChart(body,url);}
    else {const body=await rsp.text();if(body.length>3000000)throw Error('large HTML response');quote=kind==='quote'?parseYahooQuotePage(body,url):parseYahooFuturesTable(body,url);}
-   if(!quote){failures.push(kind+':invalid or unverified timestamp');continue}
-   // Historical close is allowed as a value, but explicitly marked stale.
-   const body={ok:true,version:'r26-quote-5s-v1',market:'TX',...quote,
-    polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
-    strategy_signal_validated:false};
-   if(cache)try{await cache.put(key,new Response(JSON.stringify(body),{headers:{'content-type':'application/json','cache-control':'public,max-age=4'}}))}catch{}
-   return json(body);
-  }catch(e){failures.push(kind+':'+String(e?.name||'unavailable').slice(0,60))}
+   if(!quote)throw Error('No verified timestamp + price');
+   return {quote,priority};
+  }catch(e){failures.push(kind+':'+String(e?.message||e?.name||'unavailable').slice(0,70));return null}
+ }));
+ const candidates=attempts.filter(Boolean).sort((a,b)=>
+  Date.parse(b.quote.source_time)-Date.parse(a.quote.source_time)||b.priority-a.priority);
+ if(candidates.length){
+  const quote=candidates[0].quote;
+  // Returning a stale vendor quote is permitted only when its true source timestamp is shown.
+  const body={ok:true,version:'r26-quote-5s-v1',market:'TX',...quote,
+   polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
+   strategy_signal_validated:false};
+  if(cache)try{await cache.put(key,new Response(JSON.stringify(body),{headers:{'content-type':'application/json','cache-control':'public,max-age=4'}}))}catch{}
+  return json(body);
  }
+
  return json({ok:false,version:'r26-quote-5s-v1',error:'Yahoo 近月報價來源暫時不可用；不回傳虛構現價。',
    polled_at:new Date().toISOString(),retry_after_seconds:5,providers_checked:failures},503);
 }
