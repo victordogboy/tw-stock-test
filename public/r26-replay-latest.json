@@ -1,0 +1,94 @@
+{
+  "status": "HISTORICAL_REPLAY_NOT_LIVE",
+  "model": "R26_dd15_tick / TX_R26_CANONICAL_20261028",
+  "as_of": "2026-10-28T13:45:00+08:00",
+  "contract": "TX202611",
+  "source": "Frozen R26 1m data + R26-data-diagnostic.json 2250 rows",
+  "golden_match": true,
+  "verified_gold_sessions": 2428,
+  "last_completed_position": 0,
+  "last_completed_session": "2026-10-28 day",
+  "current_night_position": null,
+  "current_night_status": "NOT_REPLAYED",
+  "frozen_r26_points": 66452,
+  "frozen_market_points": 29603,
+  "new_sessions": [
+    {
+      "date": "2026-10-27",
+      "session": "night",
+      "start": "2026-10-22 15:00",
+      "open": 46270,
+      "close": 45654,
+      "bar_count": 838,
+      "decision": "LONG",
+      "core_stop": 45789,
+      "stop_fill": 45789,
+      "stop_fill_time": "2026-10-22 23:06",
+      "reentry": false,
+      "pnl": -486,
+      "market": -618,
+      "position_end": 0,
+      "blocked": false
+    },
+    {
+      "date": "2026-10-27",
+      "session": "day",
+      "start": "2026-10-27 08:45",
+      "open": 46505,
+      "close": 46081,
+      "bar_count": 300,
+      "decision": "BLOCKED_FLAT",
+      "pnl": 0,
+      "market": 427,
+      "position_end": 0,
+      "blocked": true
+    },
+    {
+      "date": "2026-10-28",
+      "session": "night",
+      "start": "2026-10-27 15:00",
+      "open": 46080,
+      "close": 46880,
+      "bar_count": 812,
+      "decision": "BLOCKED_FLAT",
+      "pnl": 0,
+      "market": 799,
+      "position_end": 0,
+      "blocked": true
+    },
+    {
+      "date": "2026-10-28",
+      "session": "day",
+      "start": "2026-10-28 08:45",
+      "open": 46971,
+      "close": 47244,
+      "bar_count": 300,
+      "decision": "BLOCKED_FLAT",
+      "pnl": 0,
+      "market": 364,
+      "position_end": 0,
+      "blocked": true
+    }
+  ],
+  "new_period_r26_pnl": -486,
+  "new_period_market_pnl": 972,
+  "provisional_cumulative_r26": 65966,
+  "provisional_cumulative_market": 30575,
+  "verified_official_session": {
+    "date": "2026-10-28",
+    "day": {
+      "open": 46971,
+      "close": 47244
+    },
+    "previous_night": {
+      "open": 46080,
+      "close": 46880
+    }
+  },
+  "data_quality": {
+    "night_20261027_missing_minutes": 2,
+    "night_20261028_missing_minutes": 28,
+    "missing_minutes_are_not_proof_of_missing_trades": true
+  },
+  "note": "This is a retrospective simulation; missing 2026-10-28 15:00+ TX202611 minute data prevents verified R26 night signal. No broker order placed."
+}
