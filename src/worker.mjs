@@ -9,6 +9,7 @@ import {createScanJobClass,scanRoute} from './scan-job.mjs';
 import {taiexFuturesRoute} from './taiex-futures.mjs';
 import {taiexVixRoute} from './taiex-vix.mjs';
 import {r26BridgeRoute} from './r26-bridge.mjs';
+import {r26LiveQuoteRoute} from './r26-live-quote.mjs';
 export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
@@ -26,6 +27,7 @@ export default {
    if(request.method!=='GET')return new Response('Method not allowed',{status:405});
    return valuationStub(env).fetch(new Request('https://valuation.internal/valuation/snapshot'));
   }
+  if(new URL(request.url).pathname==='/api/r26/live-quote')return r26LiveQuoteRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/r26/'))return r26BridgeRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
