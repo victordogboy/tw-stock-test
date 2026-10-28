@@ -21,14 +21,14 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
 <main>
 <section class="panel alert">
-<h2>交易訊號：⛔ 尚不可發布正式 R26 訊號</h2>
-<div id="signalStatus">目前雲端只有歷史資料補抓 API，缺少凍結模型從 2026/10/22 起至現在的完整逐分鐘重播，無法核定開盤方向、進場價、停損、續抱倉位及已實現損益。為避免錯誤下單，這些欄位暫不捏造。</div>
+<h2>10/29 夜盤開盤前 R26：風控停機、維持空手</h2>
+<div id="signalStatus">已用原始凍結 Python／Numba 引擎重播至 2026/10/28 日盤，並用截至該盤的既有資料推得 10/29 交易日夜盤（10/28 15:00 開始）為風控停機：核心原訊號 +1，但停機後方向 0，且關鍵價輔助單停用。這是開盤前模型重播結果，不是此刻即時行情或實際券商持倉核對；自動連續運算後端尚待接通。</div>
 <div class="divider"></div><div class="grid">
-<div>最近完整封存日期<br><strong>2026/10/22</strong></div>
-<div>接續運算狀態<br><strong>尚未與金標對帳</strong></div>
-<div>目前持倉／進場價／停損價<br><strong>未核實</strong></div>
+<div>最後完成分 K 日期<br><strong>2026/10/28 日盤</strong></div>
+<div>原始金標對帳<br><strong>2,428 盤零差異</strong></div>
+<div>截至 10/28 日盤模型倉位<br><strong>0（空手）</strong></div>
 <div>下次檢查時點<br><strong>日盤 08:45 ／夜盤 15:00</strong></div></div>
-<div class="info" style="margin-top:14px">原 R26 核心沒有固定停利價，主要依新盤訊號切換、關鍵價停損與條件式停損後重進場運行。「無法確認」不代表建議空手。</div>
+<div class="info" style="margin-top:14px">10/29 夜盤的模型停機由影子策略先前兩盤合計 −912.5 點（門檻 −750 點）觸發；停機時禁止核心單與關鍵價輔助單。這不代表系統已取得即時分 K、完成盤內損益或可自動送出委託。</div>
 </section>
 
 <section class="panel" id="replayPanel">
