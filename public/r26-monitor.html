@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R26 台指期跨盤｜開盤訊號 × 歷史獲利</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,"Noto Sans TC",sans-serif;background:#08121f;color:#e8f0ff}
+*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(135deg,#102a47,#091522);padding:22px max(16px,calc((100vw - 1120px)/2));border-bottom:1px solid #365071}
+main{max-width:1120px;padding:16px;margin:auto}h1{font-size:clamp(25px,5vw,40px);margin:4px 0}h2{margin:0 0 14px;font-size:19px}
+small,.muted{color:#99aec8}.tag{display:inline-block;background:#25466d;padding:4px 9px;border-radius:999px;font-size:11px;letter-spacing:.07em}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.panel,.card{padding:17px;background:#15263b;border:1px solid #2e4762;border-radius:12px;margin-bottom:12px}
+.card{margin-bottom:0}.number{font-size:clamp(23px,5vw,34px);font-weight:750;margin-top:8px}.up{color:#6fe7af}.down{color:#ff9b9b}
+.alert{background:#42262e;border-color:#a25564}.alert b{color:#ffd9d9}
+a{color:#98d2ff}button,select{font:inherit;background:#1b4e7e;color:#fff;border:1px solid #52799c;border-radius:8px;padding:9px 13px;cursor:pointer}
+button:focus,select:focus{outline:2px solid #8ac0ff}
+.top{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+#chart{width:100%;height:360px;display:block;touch-action:pan-y} .leg{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;margin:12px 0}.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}
+.scroll{overflow:auto}table{width:100%;border-collapse:collapse;min-width:580px}th,td{padding:11px 8px;border-bottom:1px solid #31465f;text-align:right;font-size:13px}td:first-child,th:first-child{text-align:left}tbody tr:hover{background:#203650}
+.info{font-size:13px;line-height:1.65;color:#adbed2}.divider{height:1px;background:#334963;margin:12px 0}
+#pointInfo{height:22px;font-size:13px;color:#b4d4ed}#liveData{font-size:14px;line-height:1.8}
+</style></head><body>
+<header><div class="tag">CANONICAL R26 · TX · 2026/10/29</div><h1>R26 台指期跨盤監控</h1>
+<div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
+<main>
+<section class="panel alert">
+<h2>交易訊號：⛔ 尚不可發布正式 R26 訊號</h2>
+<div id="signalStatus">目前雲端只有歷史資料補抓 API，缺少凍結模型從 2026/10/22 起至現在的完整逐分鐘重播，無法核定開盤方向、進場價、停損、續抱倉位及已實現損益。為避免錯誤下單，這些欄位暫不捏造。</div>
+<div class="divider"></div><div class="grid">
+<div>最近完整封存日期<br><strong>2026/10/22</strong></div>
+<div>接續運算狀態<br><strong>尚未與金標對帳</strong></div>
+<div>目前持倉／進場價／停損價<br><strong>未核實</strong></div>
+<div>下次檢查時點<br><strong>日盤 08:45 ／夜盤 15:00</strong></div></div>
+<div class="info" style="margin-top:14px">原 R26 核心沒有固定停利價，主要依新盤訊號切換、關鍵價停損與條件式停損後重進場運行。「無法確認」不代表建議空手。</div>
+</section>
+<div class="grid" id="stats">
+<div class="card"><small>R26 凍結版全期累積</small><div class="number up">+66,452</div><small>點（2021/10/22～2026/10/22）</small></div>
+<div class="card"><small>R13 同期累積</small><div class="number">+64,413</div><small>點</small></div>
+<div class="card"><small>TX 同期持有</small><div class="number">+29,603</div><small>點（封存大盤基準）</small></div>
+<div class="card"><small>逐分鐘收盤最大回撤</small><div class="number down">−2,733</div><small>點（不含分鐘內極端浮虧）</small></div>
+</div>
+<section class="panel">
+<div class="top"><h2>61 個月累積獲利走勢</h2><div><select id="range" aria-label="期間"><option value="all">全期</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026 至 10/22</option></select><button id="download">匯出月資料</button></div></div>
+<div class="leg"><span><i class="dot" style="background:#52e1b0"></i>R26</span><span><i class="dot" style="background:#75baff"></i>R13</span><span><i class="dot" style="background:#e7ba7a"></i>同期 TX 持有</span></div>
+<svg viewBox="0 0 940 350" id="chart" role="img" aria-label="R26 R13 大盤 61個月累積損益走勢"></svg>
+<div id="pointInfo" aria-live="polite"></div>
+<p class="info">每月金標資料取自《TX_R26_R13跨盤_停損再進場_同期大盤驗證_20261026》；此圖是<strong>月末收盤損益</strong>，不能用月末連線推算逐分鐘最大回撤。2026/10 僅計算至 10/22。</p>
+</section>
+<section class="panel"><div class="top"><h2>每年實際比較（每側成本 2.5 點）</h2><span class="muted">單位：大台指點數</span></div>
+<div class="scroll"><table><thead><tr><th>年度</th><th>R26</th><th>R13</th><th>同期大盤</th><th>R26 超額</th></tr></thead><tbody id="annual"></tbody><tfoot id="allYears"></tfoot></table></div>
+</section>
+<section class="panel"><div class="top"><h2>逐月盈虧</h2><select id="monthYear"><option value="all">全部年度</option><option>2021</option><option>2022</option><option>2023</option><option>2024</option><option>2025</option><option>2026</option></select></div>
+<div class="scroll"><table><thead><tr><th>月份</th><th>R26</th><th>R13</th><th>同期大盤</th><th>R26 超額</th></tr></thead><tbody id="monthly"></tbody></table></div></section>
+<section class="panel"><h2>資料更新與模型接續</h2>
+<div class="grid"><div><b>有合約的歷史 K 棒</b><p class="info">透過 FinMind TaiwanFuturesKBar 補抓，保留 YYYYMM 合約別及實際成交分鐘；無成交分鐘不補造 K 棒。</p><a href="/r26-audit.html">開啟分鐘資料稽核 ↗</a></div>
+<div><b>Yahoo 近一行情</b><p class="info">Yahoo WTX& 可查看市場報價，但其近一連續合約與 TX202611 必須對帳；且不等於已知的開盤策略方向。</p><a href="https://tw.stock.yahoo.com/quote/WTX%26" target="_blank" rel="noreferrer">查看 Yahoo 台指近一 ↗</a></div>
+<div><b>原凍結網站</b><p class="info">原有 ChatGPT 研究室保留；新頁面先恢復經驗證的完整 61 個月績效，不取代待修復的策略引擎。</p><a href="https://r26-tx-monitor-weichen.victorfishboy.chatgpt.site/" target="_blank" rel="noreferrer">原 R26 研究室 ↗</a></div>
+</div></section>
+<p class="info">注意：凍結 R26 2017～2020 的額外歷史測試為 −733 點、同期大盤 +7,105 點；不是全年代穩健策略。以上月度回測為歷史研究，不代表真實帳戶報酬、保證金 ROI 或未來表現。</p>
+</main>
+<script>
+const $=x=>document.getElementById(x),fmt=n=>(n>0?'+':'')+n.toLocaleString('zh-TW',{maximumFractionDigits:1}),html=x=>x.replaceAll('&','&amp;').replaceAll('<','&lt;');
+let rows=[],yearTotals=[],year0={};
+function agg(rows){return rows.reduce((a,r)=>({market:a.market+r.market,r13:a.r13+r.r13,r26:a.r26+r.r26}),{market:0,r13:0,r26:0});}
+function cell(n){return '<td class="'+(n<0?'down':n>0?'up':'')+'">'+fmt(n)+'</td>';}
+async function load(){
+ const r=await fetch('/r26-monthly-canonical.csv',{cache:'no-cache'});if(!r.ok)throw Error('無法讀取月份績效 CSV');
+ rows=(await r.text()).trim().split(/\r?\n/).slice(1).map(line=>{const [month,market,r13,r26]=line.split(',');return{month,market:+market,r13:+r13,r26:+r26}});
+ const totals=agg(rows);
+ if(rows.length!==61||totals.r26!==66452||totals.r13!==64413||totals.market!==29603)throw Error('金標數值或日期不一致，禁止顯示曲線');
+ const grouped=Object.groupBy?Object.groupBy(rows,x=>x.month.slice(0,4)):rows.reduce((a,x)=>((a[x.month.slice(0,4)]??=[]).push(x),a),{});
+ yearTotals=Object.entries(grouped).sort().map(([year,x])=>({year,...agg(x)}));
+ $('annual').innerHTML=yearTotals.map(x=>'<tr><td>'+x.year+(x.year==='2026'?' (至10/22)':'')+'</td>'+cell(x.r26)+cell(x.r13)+cell(x.market)+cell(x.r26-x.market)+'</tr>').join('');
+ $('allYears').innerHTML='<tr><th>合計</th>'+['r26','r13','market'].map(k=>'<th>'+fmt(totals[k])+'</th>').join('')+'<th>'+fmt(totals.r26-totals.market)+'</th></tr>';
+ year0={};let c={market:0,r13:0,r26:0};for(const x of rows){c={market:c.market+x.market,r13:c.r13+x.r13,r26:c.r26+x.r26};Object.assign(x,{c_market:c.market,c_r13:c.r13,c_r26:c.r26})}
+ renderChart();renderMonth();
+}
+function renderMonth(){const y=$('monthYear').value;const xs=rows.filter(x=>y==='all'||x.month.startsWith(y));$('monthly').innerHTML=xs.map(x=>'<tr><td>'+x.month+'</td>'+cell(x.r26)+cell(x.r13)+cell(x.market)+cell(x.r26-x.market)+'</tr>').join('')}
+function renderChart(){
+ const y=$('range').value, xs=rows.filter(r=>y==='all'||r.month.startsWith(y));
+ const base=rows.indexOf(xs[0])>0?rows[rows.indexOf(xs[0])-1]:null;
+ const off=k=>y==='all'||!base?0:base['c_'+k];
+ const series=['r26','r13','market'],colors=['#52e1b0','#75baff','#e7ba7a'];
+ const all=xs.flatMap(r=>series.map(k=>r['c_'+k]-off(k)));if(!xs.length)return;
+ const lo=Math.min(0,...all),hi=Math.max(0,...all),w=940,h=350,left=74,right=14,top=14,bottom=43,iw=w-left-right,ih=h-top-bottom;
+ const xx=i=>left+(i/(Math.max(xs.length-1,1)))*iw, yy=v=>top+(hi-v)/(hi-lo||1)*ih;
+ let svg='<rect x="0" y="0" width="940" height="350" rx="12" fill="#101f33"/>';
+ for(let j=0;j<=5;j++){const v=lo+(hi-lo)*j/5,py=yy(v);svg+='<line x1="'+left+'" y1="'+py+'" x2="'+(w-right)+'" y2="'+py+'" stroke="#2a435a" stroke-dasharray="3 5"/><text x="'+(left-8)+'" y="'+(py+4)+'" text-anchor="end" fill="#8da4ba" font-size="11">'+Math.round(v).toLocaleString()+'</text>'}
+ for(let j=0;j<=4;j++){let i=Math.round((xs.length-1)*j/4);svg+='<text x="'+xx(i)+'" y="335" text-anchor="middle" fill="#a5bad0" font-size="13">'+xs[i].month+'</text>'}
+ for(let s=0;s<series.length;s++){const k=series[s],d=xs.map((r,i)=>(i?'L':'M')+xx(i).toFixed(2)+','+yy(r['c_'+k]-off(k)).toFixed(2)).join(' ');svg+='<path d="'+d+'" fill="none" stroke="'+colors[s]+'" stroke-width="'+(s===0?3.5:2.5)+'" stroke-linejoin="round"/>'}
+ // transparent pointing layer: keyboard and mouse selection
+ xs.forEach((r,i)=>{svg+='<rect x="'+(i===0?left:xx(i)-(iw/(xs.length-1))/2)+'" y="'+top+'" width="'+(iw/(xs.length-1)+1)+'" height="'+ih+'" fill="transparent" tabindex="0" aria-label="'+r.month+' R26 '+fmt(r.r26)+' 點" data-i="'+i+'"/>'});
+ $('chart').innerHTML=svg;
+ const info=i=>{let r=xs[i];$('pointInfo').textContent=r.month+' ｜ 本月 R26 '+fmt(r.r26)+' ｜ R13 '+fmt(r.r13)+' ｜ 大盤 '+fmt(r.market)+' ｜ 累積 R26 '+fmt(r.c_r26)};
+ $('chart').querySelectorAll('[data-i]').forEach(el=>{el.addEventListener('pointerenter',()=>info(+el.dataset.i));el.addEventListener('focus',()=>info(+el.dataset.i));el.addEventListener('click',()=>info(+el.dataset.i))});
+ info(xs.length-1);
+}
+$('range').onchange=()=>rows.length&&renderChart();
+$('monthYear').onchange=()=>rows.length&&renderMonth();
+$('download').onclick=()=>window.location.href='/r26-monthly-canonical.csv';
+load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html(e.message)+'</text>';$('pointInfo').textContent='金標未載入，請檢查連線。'});
+</script></body></html>
