@@ -40,6 +40,11 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
    <div class="card"><small>加入新資料後的模型總點數</small><div id="provisionalTotal" class="number">—</div><small>非凍結金標，後續新增區間待完整對帳</small></div>
  </div>
  <div class="scroll" style="margin-top:12px"><table><thead><tr><th>交易日／盤別</th><th>方向</th><th>開盤</th><th>原始停損</th><th>模擬損益</th></tr></thead><tbody id="replayTable"><tr><td colspan="5">尚未載入</td></tr></tbody></table></div>
+ <div class="card" id="preopenProjection" style="margin-top:12px">
+  <small>10/29 交易日夜盤 · 10/28 15:00 開盤前 R26 模型研究重播</small>
+  <div class="number" id="preopenAction">檢查中</div>
+  <p id="preopenDetails" class="info">使用原版引擎及前一完成盤資料，當盤成交及停損尚未連線。</p>
+ </div>
  <p class="info">只有完成日夜盤重播的結果才會列在此處。現在的夜盤若缺少逐分鐘行情，<strong>不能沿用上一盤空手狀態</strong>；無法核實時也不提供進場價或停損價。</p>
 </section>
 <div class="grid" id="stats">
@@ -118,6 +123,12 @@ async function loadR26Replay(){
   $('replayHold').textContent=x.last_completed_position===0?'空手':x.last_completed_position===1?'多單':'空單';
   $('replayHoldTime').textContent='截至 '+x.last_completed_session+'；現在持倉未知';
   $('provisionalTotal').textContent=fmt(x.provisional_cumulative_r26)+' 點';
+  const proj=x.next_open_projection;
+  if(proj && proj.trade_date==='2026-10-29' && proj.session==='night' && proj.model_blocked===true && proj.previous_completed_position===0 && proj.model_core_desire===0){
+   $('preopenAction').textContent='風控停機 · 維持空手';$('preopenAction').classList.add('down');
+   $('preopenDetails').textContent='原始核心訊號 +1，但風控停機=true；原始模型禁止核心單與關鍵價輔助單。這是回推的 10/28 15:00 開盤前決策，不代表即時行情、券商持倉或後續交易已驗證。';
+  }else{$('preopenAction').textContent='無法核實開盤訊號';}
+
   $('replayTable').innerHTML=x.new_sessions.map(r=>'<tr><td>'+r.date+' '+(r.session==='night'?'夜盤':'日盤')+
   '</td><td>'+(r.decision==='LONG'?'做多後停損':r.decision==='SHORT'?'做空':'風控停機／空手')+
   '</td><td>'+r.open.toLocaleString()+'</td><td>'+(r.core_stop??'—')+'</td>'+cell(r.pnl)+'</tr>').join('');
