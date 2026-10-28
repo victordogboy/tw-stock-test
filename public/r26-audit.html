@@ -1,0 +1,96 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>R26 台指期分鐘資料補全</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,'Noto Sans TC',sans-serif;background:#0d1827;color:#e6f0fa}body{max-width:1100px;margin:20px auto;padding:0 16px}
+h1{font-size:clamp(26px,5vw,40px)}p{line-height:1.65;color:#a9bfd6}.warn{padding:14px;background:#542e31;border:1px solid #a45c60;border-radius:10px}
+section{margin:14px 0;padding:18px;background:#16263b;border:1px solid #2d4865;border-radius:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+label{display:block;font-size:13px;color:#a8c3dc}input{display:block;width:100%;max-width:500px;background:#081628;color:white;border:1px solid #3b5978;padding:10px;border-radius:8px;margin:7px 0 11px}
+button{border:0;border-radius:8px;background:#2265a6;color:white;font-weight:bold;padding:11px 13px;margin:4px;cursor:pointer}button:disabled{opacity:.4}
+table{width:100%;border-collapse:collapse;min-width:660px}th,td{text-align:left;padding:9px;border-bottom:1px solid #2e4159;font-size:13px}.scroll{overflow:auto}
+#log{font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto;color:#97c4ee}
+</style></head><body>
+<small>R26 · VERIFIED DATA AUDIT · 2026/10/29</small><h1>台指期 1 分 K 補全</h1>
+<div class="warn"><b>正式 R26 交易訊號暫停</b>：尚未連接凍結版持倉重播引擎，不能推測當天已進場／停損／停利。此頁只補指定月份 TX 分 K，不會動到原策略。</div>
+<div class="grid">
+<section><h3>① 匯入先前診斷</h3><label>R26-data-diagnostic.json</label><input type="file" id="file" accept=".json"><button id="import">讀取診斷</button><p>FinMind 與 Yahoo 近一的資料分開，Yahoo 不會自動補進指定合約。</p></section>
+<section><h3>② FinMind 歷史補抓</h3><label>你的 FinMind Token（只儲存在這台瀏覽器）</label><input type="password" id="token"><label>TX 合約月份 YYYYMM</label><input type="text" id="contract" maxlength="6" value="202611">
+<label>最近幾個日曆日（含休市與凌晨）</label><input type="number" id="days" min="1" max="14" value="7">
+<button id="sync">補抓 1 分 K</button><button id="clear">清除 Token</button><p>FinMind 歷史分 K 不是盤中逐秒資料，網頁關閉後不會自行下載。</p></section>
+<section><h3>③ 快取與匯出</h3><p id="total">尚未匯入</p><button id="load">讀取快取</button><button id="csv">匯出 CSV</button><button id="report">匯出稽核報告</button><p>驗證資料會保存在此瀏覽器 IndexedDB。</p></section>
+</div>
+<section><h2>分盤完整性</h2><div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>取得 K 棒</th><th>理論分鐘</th><th>待查分鐘</th></tr></thead><tbody id="table"></tbody></table></div>
+<p>沒有 K 棒的分鐘可能是沒有成交，也可能是真正資料漏失；未核實前不得自動補零或假定價格沒有變。</p></section>
+<div class="grid"><section><h3>Yahoo 快照</h3><p id="yahoo">尚未匯入；Yahoo WTX& 連續近一無法直接認定為 TX202611。</p></section>
+<section><h3>執行記錄</h3><pre id="log">尚未開始</pre></section></div>
+<script>
+let data=new Map(),calendar=[],yahoo=null,lastAudit={};
+const $=id=>document.getElementById(id);
+const note=s=>$('log').textContent=new Date().toLocaleTimeString('zh-TW')+' '+s+'\n'+$('log').textContent.slice(0,7000);
+const dt=(day,mins)=>new Date(Date.parse(day+'T00:00:00Z')+mins*60000).toISOString().replace('T',' ').slice(0,19);
+const norm=r=>{
+ if(r.futures_id&&r.futures_id!=='TX')return null;
+ const contract=String(r.contract_date||'');if(!/^\d{6}$/.test(contract))return null;
+ const ts=String(r.timestamp_tpe||r.timestamp||'').replace('T',' ').slice(0,19);
+ if(!/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(ts))return null;
+ const min=+ts.slice(11,13)*60+ +ts.slice(14,16),day=min>=525&&min<=824;
+ if(!day&&!(min>=900||min<300))return null;
+ const vals=['open','high','low','close','volume'].map(k=>Number(r[k])),[o,h,l,c,v]=vals;
+ if(!vals.every(Number.isFinite)||l<=0||h<Math.max(o,c,l)||l>Math.min(o,c)||v<0)return null;
+ const date=ts.slice(0,10),start=day||min>=900?date:dt(date,-1440).slice(0,10);
+ return {timestamp_tpe:ts,contract_date:contract,session_key:(day?'day:':'night:')+start,open:o,high:h,low:l,close:c,volume:v};
+};
+const db=()=>new Promise((ok,no)=>{let a=indexedDB.open('r26-verified-TX',1);a.onupgradeneeded=()=>a.result.createObjectStore('bars',{keyPath:'key'});a.onsuccess=()=>ok(a.result);a.onerror=()=>no(a.error)});
+async function save(rows){const d=await db();await new Promise((ok,no)=>{const t=d.transaction('bars','readwrite'),s=t.objectStore('bars');for(const r of rows)s.put({key:r.contract_date+'|'+r.timestamp_tpe,...r});t.oncomplete=ok;t.onerror=()=>no(t.error)});d.close()}
+async function reload(){const d=await db(),rows=await new Promise((ok,no)=>{const q=d.transaction('bars').objectStore('bars').getAll();q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)});d.close();for(const r of rows){const x=norm(r);if(x)data.set(x.contract_date+'|'+x.timestamp_tpe,x)}note('已恢復 '+rows.length+' 根快取');render()}
+function render(){
+ const groups=new Map();
+ for(const r of data.values()){const k=r.contract_date+'|'+r.session_key;if(!groups.has(k))groups.set(k,{r,seen:new Set()});groups.get(k).seen.add(r.timestamp_tpe)}
+ const audit=[];let html='';
+ for(const [k,{r,seen}] of [...groups].sort((a,b)=>a[0].localeCompare(b[0]))){
+  const night=r.session_key.startsWith('night:'),start=r.session_key.slice(night?6:4),expected=night?840:300;
+  let missing=0;for(let i=0;i<expected;i++)if(!seen.has(dt(start,(night?900:525)+i)))missing++;
+  const trade=night?(calendar.find(x=>x>start)||'未驗證'):start;
+  audit.push({session:r.session_key,trade_date:trade,contract:r.contract_date,bars:seen.size,expected,unverified_minutes:missing});
+  html+='<tr>'+[r.session_key,trade,r.contract_date,seen.size,expected,missing].map(x=>'<td>'+x+'</td>').join('')+'</tr>';
+ }
+ $('table').innerHTML=html||'<tr><td colspan="6">沒有分鐘 K，請先匯入診斷或補抓。</td></tr>';
+ $('total').textContent='已儲存 '+data.size+' 根，指定月 '+$('contract').value+'：'+[...data.values()].filter(x=>x.contract_date===$('contract').value).length+' 根';
+ lastAudit={exported_at:new Date().toISOString(),coverage:audit,yahoo_preview:yahoo?{source:yahoo.source,bars:yahoo.bars?.length,contract:yahoo.contract,verified:false}:null,formal_R26_signal_allowed:false};
+}
+$('token').value=localStorage.getItem('R26_FinMind_Token')||'';
+$('token').addEventListener('change',()=>localStorage.setItem('R26_FinMind_Token',$('token').value.trim()));
+$('clear').onclick=()=>{localStorage.removeItem('R26_FinMind_Token');$('token').value='';note('已清除 Token')};
+$('contract').onchange=render;
+$('import').onclick=async()=>{
+ try{const file=$('file').files[0];if(!file)throw Error('請選擇 JSON');const j=JSON.parse(await file.text());if(!Array.isArray(j.records)||!Array.isArray(j.calendar))throw Error('檔案格式不符');
+ calendar=[...new Set(j.calendar)].sort();yahoo=j.quote||null;const rows=j.records.map(norm).filter(Boolean);
+ for(const r of rows)data.set(r.contract_date+'|'+r.timestamp_tpe,r);await save(rows);
+ if(rows.length)$('contract').value=rows.at(-1).contract_date;
+ $('yahoo').textContent=yahoo?'來源 '+yahoo.source+'，報價 '+yahoo.price+'，圖表 '+(yahoo.bars?.length||0)+' 根；實際合約月份 '+(yahoo.contract||'未知')+'，禁止直接混入 FinMind。':'無 Yahoo 快照';
+ note('匯入 '+rows.length+' 根；交易日曆 '+calendar.length+' 日');render()
+ }catch(e){note('匯入錯誤 '+e.message)}
+};
+$('load').onclick=()=>reload().catch(e=>note('快取錯誤 '+e.message));
+$('sync').onclick=async()=>{
+ const token=$('token').value.trim(),contract=$('contract').value.trim(),n=Math.max(1,Math.min(14,Number($('days').value)||7));
+ if(!token||!/^20\d{4}$/.test(contract)){note('請檢查 Token 及 YYYYMM');return}
+ localStorage.setItem('R26_FinMind_Token',token);$('sync').disabled=true;
+ const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());let count=0,fail=0;
+ for(let i=n-1;i>=0;i--){
+  const day=dt(today,-1440*i).slice(0,10);
+  try{const r=await fetch('/api/r26/kbar?date='+day+'&contract='+contract,{headers:{Authorization:'Bearer '+token},cache:'no-store'});const j=await r.json();
+   if(!r.ok||!j.ok)throw Error(j.reason||j.error||'API failed');const rows=j.data.map(norm).filter(Boolean);
+   for(const row of rows)data.set(row.contract_date+'|'+row.timestamp_tpe,row);await save(rows);count+=rows.length;note(day+' +'+rows.length+' 根')
+  }catch(e){fail++;note(day+' 失敗：'+e.message)}render();
+ }$('sync').disabled=false;note('下載完成，收到 '+count+' 根，失敗日數 '+fail+'；不能當作正式開盤即時訊號');
+};
+function down(name,body,type){const u=URL.createObjectURL(new Blob([body],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
+$('csv').onclick=()=>{
+ const rows=[...data.values()].filter(x=>x.contract_date===$('contract').value).sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
+ const columns=['timestamp_tpe','session_key','contract_date','open','high','low','close','volume'];
+ down('R26_TX_'+$('contract').value+'.csv','\ufeff'+columns.join(',')+'\n'+rows.map(r=>columns.map(k=>r[k]).join(',')).join('\n'),'text/csv;charset=utf-8');note('已匯出 '+rows.length+' 根');
+};
+$('report').onclick=()=>down('R26_audit.json',JSON.stringify(lastAudit,null,2),'application/json');
+reload().catch(e=>note('初次快取錯誤 '+e.message));
+</script></body></html>
