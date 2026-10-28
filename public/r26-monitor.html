@@ -21,7 +21,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
 <main>
 <section class="panel alert">
-<h2>10/29 夜盤開盤前 R26：風控停機、維持空手</h2>
+<h2 id="mainSignalHeading">10/29 夜盤開盤前 R26：風控停機、維持空手</h2>
 <div id="signalStatus">已用原始凍結 Python／Numba 引擎重播至 2026/10/28 日盤，並用截至該盤的既有資料推得 10/29 交易日夜盤（10/28 15:00 開始）為風控停機：核心原訊號 +1，但停機後方向 0，且關鍵價輔助單停用。這是開盤前模型重播結果，不是此刻即時行情或實際券商持倉核對；自動連續運算後端尚待接通。</div>
 <div class="divider"></div><div class="grid">
 <div>最後完成分 K 日期<br><strong>2026/10/28 日盤</strong></div>
@@ -135,6 +135,12 @@ async function loadR26Replay(){
  }catch(e){$('r26ReplayStatus').textContent='無法取得完整歷史重播：'+e.message+'。不得將本頁當作已連線的 R26 開盤訊號';}
 }
 loadR26Replay();
+
+if(Date.now()>=Date.parse('2026-10-28T21:00:00Z')){
+ $('mainSignalHeading').textContent='10/29 夜盤歷史開盤前訊號（已過期）';
+ $('signalStatus').textContent='10/29 夜盤開盤前原版 R26 推算為停機空手，但該盤結束後必須取得最新分鐘 K 並重播模型，才能判定新的日盤與夜盤訊號。現在沒有已驗證的最新開盤訊號；請勿沿用這一盤的歷史決策。';
+}
+
 
 load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html(e.message)+'</text>';$('pointInfo').textContent='金標未載入，請檢查連線。'});
 </script></body></html>
