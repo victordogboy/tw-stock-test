@@ -107,6 +107,18 @@
     "preopen_dd10": -2.359,
     "method": "Original Python R26 startup with synthetic no-trade sentinel for future-day index only; uses completed 2026-10-28 daytime indicators and prior completed night/day; no live bar supplied to infer fill.",
     "verification": "PREOPEN_RESEARCH_REPLAY_ONLY",
-    "notes": "No valid in-session trading or fill confirmation. Next daytime signal requires full current night K bars."
+    "notes": "No valid in-session trading or fill confirmation. Next daytime signal requires full current night K bars.",
+    "reason": {
+      "risk_rule": "Shadow A prior-two-session loss < -750 causes block, held over 3 sessions",
+      "trigger_trade_date": "2026-10-28",
+      "trigger_session": "night",
+      "shadow_PnL_2026_10_27_night": -486,
+      "shadow_PnL_2026_10_27_day": -426.5,
+      "two_session_sum": -912.5,
+      "threshold": -750,
+      "blocks": "2026-10-28 night, 2026-10-28 day, 2026-10-29 night",
+      "sensitivity_test": "synthetic future opening sentinel 47244 vs 51500 yields identical signal +1, block=true, dd10=-2.359, ATR20=829.2",
+      "exposure_note": "Shadow A PnL is not realized R26 PnL; actual R26 2026-10-27 day was blocked flat with 0 points."
+    }
   }
 }
