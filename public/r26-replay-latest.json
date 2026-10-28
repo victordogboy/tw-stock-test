@@ -90,5 +90,23 @@
     "night_20261028_missing_minutes": 28,
     "missing_minutes_are_not_proof_of_missing_trades": true
   },
-  "note": "This is a retrospective simulation; missing 2026-10-28 15:00+ TX202611 minute data prevents verified R26 night signal. No broker order placed."
+  "note": "This is a retrospective simulation; missing 2026-10-28 15:00+ TX202611 minute data prevents verified R26 night signal. No broker order placed.",
+  "next_open_projection": {
+    "trade_date": "2026-10-29",
+    "session": "night",
+    "session_start": "2026-10-28 15:00 Asia/Taipei",
+    "model_raw_core_signal": 1,
+    "model_blocked": true,
+    "model_core_desire": 0,
+    "previous_completed_position": 0,
+    "preopen_action": "HOLD_FLAT_NO_TRADE",
+    "key_overlay_disabled": true,
+    "fill_price": null,
+    "stop_price": null,
+    "preopen_atr20": 829.2,
+    "preopen_dd10": -2.359,
+    "method": "Original Python R26 startup with synthetic no-trade sentinel for future-day index only; uses completed 2026-10-28 daytime indicators and prior completed night/day; no live bar supplied to infer fill.",
+    "verification": "PREOPEN_RESEARCH_REPLAY_ONLY",
+    "notes": "No valid in-session trading or fill confirmation. Next daytime signal requires full current night K bars."
+  }
 }
