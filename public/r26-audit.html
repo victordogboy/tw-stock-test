@@ -15,12 +15,12 @@ table{width:100%;border-collapse:collapse;min-width:660px}th,td{text-align:left;
 <div class="grid">
 <section><h3>① 匯入先前診斷</h3><label>R26-data-diagnostic.json</label><input type="file" id="file" accept=".json"><button id="import">讀取診斷</button><p>FinMind 與 Yahoo 近一的資料分開，Yahoo 不會自動補進指定合約。</p></section>
 <section><h3>② FinMind 歷史補抓</h3><label>你的 FinMind Token（只儲存在這台瀏覽器）</label><input type="password" id="token"><label>TX 合約月份 YYYYMM</label><input type="text" id="contract" maxlength="6" value="202611">
-<label>最近幾個日曆日（含休市與凌晨）</label><input type="number" id="days" min="1" max="14" value="7">
+<label>最近幾個日曆日（自動向前補 1 天，涵蓋跨午夜夜盤）</label><input type="number" id="days" min="1" max="14" value="7">
 <button id="sync">補抓 1 分 K</button><button id="clear">清除 Token</button><p>FinMind 歷史分 K 不是盤中逐秒資料，網頁關閉後不會自行下載。</p></section>
 <section><h3>③ 快取與匯出</h3><p id="total">尚未匯入</p><button id="load">讀取快取</button><button id="csv">匯出 CSV</button><button id="report">匯出稽核報告</button><p>驗證資料會保存在此瀏覽器 IndexedDB。</p></section>
 </div>
 <section><h2>分盤完整性</h2><div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>取得 K 棒</th><th>理論分鐘</th><th>待查分鐘</th></tr></thead><tbody id="table"></tbody></table></div>
-<p>沒有 K 棒的分鐘可能是沒有成交，也可能是真正資料漏失；未核實前不得自動補零或假定價格沒有變。</p></section>
+<p>本頁自動多補前一個日曆日，以取得最早一盤夜盤 15:00～23:59 的分鐘 K。沒有 K 棒的分鐘也可能是沒有成交；未核實前不自動補造價格。</p></section>
 <div class="grid"><section><h3>Yahoo 快照</h3><p id="yahoo">尚未匯入；Yahoo WTX& 連續近一無法直接認定為 TX202611。</p></section>
 <section><h3>執行記錄</h3><pre id="log">尚未開始</pre></section></div>
 <script>
@@ -55,7 +55,7 @@ function render(){
   html+='<tr>'+[r.session_key,trade,r.contract_date,seen.size,expected,missing].map(x=>'<td>'+x+'</td>').join('')+'</tr>';
  }
  $('table').innerHTML=html||'<tr><td colspan="6">沒有分鐘 K，請先匯入診斷或補抓。</td></tr>';
- $('total').textContent='已儲存 '+data.size+' 根，指定月 '+$('contract').value+'：'+[...data.values()].filter(x=>x.contract_date===$('contract').value).length+' 根';
+ $('total').textContent='已快取 '+data.size+' 根，指定月 '+$('contract').value+'：'+[...data.values()].filter(x=>x.contract_date===$('contract').value).length+' 根';
  lastAudit={exported_at:new Date().toISOString(),coverage:audit,yahoo_preview:yahoo?{source:yahoo.source,bars:yahoo.bars?.length,contract:yahoo.contract,verified:false}:null,formal_R26_signal_allowed:false};
 }
 $('token').value=localStorage.getItem('R26_FinMind_Token')||'';
@@ -77,13 +77,15 @@ $('sync').onclick=async()=>{
  if(!token||!/^20\d{4}$/.test(contract)){note('請檢查 Token 及 YYYYMM');return}
  localStorage.setItem('R26_FinMind_Token',token);$('sync').disabled=true;
  const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());let count=0,fail=0;
- for(let i=n-1;i>=0;i--){
+ // The first requested calendar day may be the post-midnight tail of the preceding night session.
+ // Always fetch its previous calendar day so that 15:00-23:59 is not silently lost.
+ for(let i=n;i>=0;i--){
   const day=dt(today,-1440*i).slice(0,10);
   try{const r=await fetch('/api/r26/kbar?date='+day+'&contract='+contract,{headers:{Authorization:'Bearer '+token},cache:'no-store'});const j=await r.json();
    if(!r.ok||!j.ok)throw Error(j.reason||j.error||'API failed');const rows=j.data.map(norm).filter(Boolean);
    for(const row of rows)data.set(row.contract_date+'|'+row.timestamp_tpe,row);await save(rows);count+=rows.length;note(day+' +'+rows.length+' 根')
   }catch(e){fail++;note(day+' 失敗：'+e.message)}render();
- }$('sync').disabled=false;note('下載完成，收到 '+count+' 根，失敗日數 '+fail+'；不能當作正式開盤即時訊號');
+ }$('sync').disabled=false;note('已含前一個日曆日晚盤；下載完成，收到 '+count+' 根，失敗日數 '+fail+'；不能當作正式開盤即時訊號');
 };
 function down(name,body,type){const u=URL.createObjectURL(new Blob([body],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)}
 $('csv').onclick=()=>{
