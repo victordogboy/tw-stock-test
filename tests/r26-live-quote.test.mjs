@@ -16,7 +16,7 @@ test('table parser preserves full vendor timestamp, bid, ask, open',()=>{
  assert.match(q.source_time,/T\d\d:\d\d:\d\d\+08:00$/);
 });
 test('server-rendered page parser reads price only with source date-time',()=>{
- const q=parseYahooQuotePage(page);assert.equal(q.price,price);assert.equal(q.prev_close,47249);
+ const q=parseYahooQuotePage(page);assert.equal(q.price,price);assert.equal(q.prev_close,47249);assert.equal(q.change,-48);assert.ok(q.change_pct<0);
  assert.equal(parseYahooQuotePage('<h1>台指期近一 WTX& 成交47201</h1>'),null);
 });
 test('minute candle open/high/low are NOT presented as session OHLC',()=>{

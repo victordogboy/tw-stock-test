@@ -26,7 +26,8 @@ function buildQuote(fields){
  const ms=Date.parse(source_time);
  if(!Number.isFinite(ms)||ms>Date.now()+90000)return null;
  return {symbol:'WTX&',product:'台指期近一',contract_month:null,contract_verified:false,
-  price:last,change:fields.change??null,change_pct:fields.change_pct??null,
+  price:last,change:Number.isFinite(fields.prev_close)?last-fields.prev_close:(fields.change??null),
+  change_pct:Number.isFinite(fields.prev_close)&&fields.prev_close>0?(last-fields.prev_close)/fields.prev_close*100:(fields.change_pct??null),
   bid:fields.bid??null,ask:fields.ask??null,open:fields.open??null,high:fields.high??null,low:fields.low??null,
   volume:fields.volume??null,prev_close:fields.prev_close??null,
   source,source_time,quote_age_seconds:Math.max(0,Math.round((Date.now()-ms)/1000)),
@@ -103,7 +104,7 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  if(request.method!=='GET')return json({ok:false,error:'Method not allowed'},405);
  if(new URL(request.url).pathname!=='/api/r26/live-quote')return json({ok:false,error:'Not found'},404);
  // Edge cache limits upstream 5-second polling load. Never cache failures or imply cache is a live trade.
- const cache=globalThis.caches?.default,key=new Request(new URL(request.url).origin+'/__r26_live_quote_v1');
+ const cache=globalThis.caches?.default,key=new Request(new URL(request.url).origin+'/__r26_live_quote_v2');
  try{if(cache){const hit=await cache.match(key);if(hit){const body=await hit.json();return json({...body,cache_hit:true,polled_at:new Date().toISOString()})}}}catch{}
  const failures=[];
  // Fetch in parallel; one blocked vendor must not delay the five-second frontend cycle.

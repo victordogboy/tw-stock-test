@@ -22,7 +22,8 @@ export function parseNamedChart(html,contract,now=Date.now()){
  // Taiwan Yahoo labels the completed opening minute 15:01 / 08:46.
  // Infer ONLY from a full chart with the actual opening bar, never from the last quote.
  const first=valid[0],clock=first?tpe(first.t).slice(11,16):'';
- if(!['15:01','08:46'].includes(clock)||q.open[first.i]!==Number(c.quote?.openPrice))throw Error('分鐘時間基準或開盤尚無法核對');
+ const openingMatches=valid.some(({t,i})=>['15:01','08:46'].includes(tpe(t).slice(11,16))&&q.open[i]===Number(c.quote?.openPrice));
+ if(!['15:01','08:46'].includes(clock)||!openingMatches)throw Error('分鐘時間基準或開盤尚無法核對');
  const data=[];
  for(const {t,i} of valid){if(t>now)continue;
   const ts=tpe(t-60000),date=ts.slice(0,10),m=+ts.slice(11,13)*60+ +ts.slice(14,16),day=m>=525&&m<825;
