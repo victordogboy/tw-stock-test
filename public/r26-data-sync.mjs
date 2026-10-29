@@ -65,14 +65,16 @@ export function lastDataDate(bars){
  const timestamps=bars.map(x=>x.timestamp_tpe).sort();return timestamps.at(-1)||null
 }
 function getSavedToken(){
+ // Prefer the current shared scanner token: an old R26-specific token may
+ // have expired while the scanner token was refreshed separately.
  try{
-  const dedicated=String(localStorage.getItem("R26_FinMind_Token")||"").trim();
-  if(dedicated)return dedicated;
   const j=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");
   const active=Number(j?.active)===1?1:0;
-  const from=j?.tokens?.[active];
-  return String(from||localStorage.getItem("twq_finmind_token_v1")||"").trim();
- }catch{return String(localStorage.getItem("twq_finmind_token_v1")||"").trim()}
+  const shared=String(j?.tokens?.[active]||"").trim();
+  if(shared)return shared;
+ }catch{}
+ return String(localStorage.getItem("R26_FinMind_Token")||
+  localStorage.getItem("twq_finmind_token_v1")||"").trim()
 }
 function openDatabase(){
  return new Promise((resolve,reject)=>{
@@ -133,6 +135,10 @@ function renderCoverage(rows,anchor,now,contract){
 }
 function init(){
  const card=get("r26DataHealthPanel");if(!card)return;
+ const dateTag=get("r26NowDate");
+ const paintDate=()=>{if(dateTag)dateTag.textContent="臺灣日期 "+taipeiParts().date+" · 凍結模型非即時訊號"};
+ paintDate();
+ setInterval(paintDate,60000);
  let loading=false,invalidToken=false,lastFetched=0,replay=null,contract="",rows=[],lastReport=null;
  const tokenInput=get("r26DataToken"),contractInput=get("r26DataContract");
  const token=getSavedToken();
@@ -162,6 +168,7 @@ function init(){
    }
    const bearer=String(tokenInput.value||getSavedToken()).trim();
    if(!bearer){message("未找到 FinMind Token：可以先查看上次快取，或在此貼上 Token 後按「補抓」。");return}
+   if(manual&&tokenInput.value.trim())localStorage.setItem("R26_FinMind_Token",tokenInput.value.trim());
    if(invalidToken&&!manual){message("Token 曾被來源拒絕；自動補抓暫停，避免無效重試。");return}
    if(!manual&&Date.now()-lastFetched<10*60000)return;
    lastFetched=Date.now();
