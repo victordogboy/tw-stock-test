@@ -229,4 +229,4 @@ function init(){
  const timer=setInterval(()=>{if(document.visibilityState==="visible")startAudit(false)},60000);
  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")startAudit(false)});
 }
-if(typeof document!=="undefined")init();
+if(typeof document!=="undefined" && document.querySelector('script[src*="r26-data-sync.mjs"]'))init();

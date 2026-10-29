@@ -67,7 +67,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 </section>
 
 <section class="panel" id="r26DataHealthPanel" aria-label="R26 近期分鐘 K 資料更新稽核">
- <div class="top"><h2>R26 分 K 接續檢查｜與即時報價分離</h2><span class="tag">分鐘 K 不是即時成交</span></div>
+ <div class="top"><h2>R26 分 K 與原版引擎自動接續</h2><span class="tag">分鐘 K 不是即時成交</span></div>
  <p class="info" id="r26FreezeLabel">正在確認原始凍結版模型的最後完成時段…</p>
  <p id="r26DataHealth">正在確認目前可用的指定合約分鐘 K…</p>
  <div class="grid">
@@ -76,44 +76,44 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
   <div class="card"><small>未完成核對的分盤</small><div id="r26DataMissing" class="info">—</div></div>
  </div>
  <div class="group" style="margin-top:10px">
-  <div><label for="r26DataContract">指定 TX 月份（不能與 Yahoo 連續近月混用）</label><input id="r26DataContract" type="text" readonly value="202611"/></div>
+  <div><label for="r26DataContract">指定 TX 月份（Yahoo 指定月合約）</label><input id="r26DataContract" type="text" readonly value="202611"/></div>
   <div><label for="r26DataToken">FinMind Token（自動沿用此瀏覽器設定）</label><input id="r26DataToken" type="password" autocomplete="off" placeholder="有儲存 Token 可留空"/></div>
-  <button id="r26DataRefresh" type="button">↻ 補抓最新歷史 1 分 K</button>
+  <button id="r26DataRefresh" type="button">↻ 補抓並重播 R26</button>
   <button id="r26DataClearToken" type="button">清除這頁 Token</button>
   <button id="r26DataExport" type="button">匯出缺漏報告</button>
  </div>
  <p class="info" id="r26DataProgress">載入瀏覽器快取、檢查指定合約中…</p>
- <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>已取得／應有分鐘</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
+ <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>成交分鐘／核實來源</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
  <p class="info" id="r26DataGap">風控：即使取得歷史 1 分 K，沒有完成原凍結版引擎重播前，仍不能產生新的 R26 訊號。交易日標記需核對期交所日曆。</p>
- <p class="info"><strong>來源限制：</strong>FinMind TaiwanFuturesKBar 官方更新時間為平日 16:30，實際以 API 為準，非 5 秒即時分 K。Yahoo WTX&amp; 只顯示報價，不能拿來補造特定 TX 月份 K 棒。<a href="/r26-audit.html">查看完整分 K 稽核 ↗</a></p>
+ <p class="info"><strong>資料來源：</strong>歷史以期交所原始逐筆彙整；當盤使用 Yahoo 指定月份合約，與上方 WTX&amp; 報價分開。FinMind Token 可選填並保留。</p>
 </section>
 
 <section class="panel alert">
 <h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2>
-<div id="signalStatus">凍結版 R26 模型只重播至 2026/10/28 日盤；後續夜盤與日盤尚未完成最新分 K、前盤持倉和風控狀態的原模型重播。下方「停機、空手」僅代表當時的歷史研究結果，不代表現在可以持續空手或解除停機。即時 Yahoo 價格不能替代原 R26 策略引擎。</div>
+<div id="signalStatus">正在以官方逐筆歷史與指定月份分鐘 K 自動重播；下方會列出模型進場、停損及最後資料時間。</div>
 <div class="divider"></div><div class="grid">
-<div>最後完成分 K 日期<br><strong>2026/10/28 日盤</strong></div>
-<div>原始金標對帳<br><strong>2,428 盤零差異</strong></div>
-<div>截至 10/28 日盤模型倉位<br><strong>0（空手）</strong></div>
-<div>下次檢查時點<br><strong>日盤 08:45 ／夜盤 15:00</strong></div></div>
-<div class="info" style="margin-top:14px">10/29 夜盤的模型停機由影子策略先前兩盤合計 −912.5 點（門檻 −750 點）觸發；停機時禁止核心單與關鍵價輔助單。這不代表系統已取得即時分 K、完成盤內損益或可自動送出委託。</div>
+<div>最後完成分 K 日期<br><strong id="signalAsOf">計算中</strong></div>
+<div>原始金標對帳<br><strong id="signalAudit">驗證中</strong></div>
+<div>當前模型倉位<br><strong id="signalPosition">計算中</strong></div>
+<div>下次檢查時點<br><strong id="signalNext">計算中</strong></div></div>
+<div class="info" id="signalReason" style="margin-top:14px">等待原版引擎驗證與接續重播。</div>
 </section>
 
 <section class="panel" id="replayPanel">
- <div class="top"><h2>原始 R26 引擎：封存分盤結果（未自動接續）</h2><span class="tag">截至 10/28 · 非即時下單訊號</span></div>
+ <div class="top"><h2>原始 R26 引擎：逐盤接續結果</h2><span class="tag">自動重播 · 模型倉位</span></div>
  <p id="r26ReplayStatus" class="info">載入 10/27～10/28 的凍結版 R26 逐盤結果中…</p>
  <div class="grid">
-   <div class="card"><small>封存後模型累積盈虧</small><div id="recentPnl" class="number">—</div><small>10/27～10/28，共四盤</small></div>
-   <div class="card"><small>截至最後完成日盤的模型倉位</small><div id="replayHold" class="number">—</div><small id="replayHoldTime">尚未確認</small></div>
-   <div class="card"><small>封存的模型總點數（截至 10/28）</small><div id="provisionalTotal" class="number">—</div><small>只包含當時已重播的四個歷史時段，不包含此刻盤勢</small></div>
+   <div class="card"><small>封存後模型累積盈虧</small><div id="recentPnl" class="number">—</div><small>10/22 金標後接續計算，含當盤浮動損益</small></div>
+   <div class="card"><small>最新分鐘的模型倉位</small><div id="replayHold" class="number">—</div><small id="replayHoldTime">尚未確認</small></div>
+   <div class="card"><small>模型總點數（含接續盤）</small><div id="provisionalTotal" class="number">—</div><small>依完整分鐘路徑計算；未連接券商帳戶</small></div>
  </div>
  <div class="scroll" style="margin-top:12px"><table><thead><tr><th>交易日／盤別</th><th>方向</th><th>開盤</th><th>原始停損</th><th>模擬損益</th></tr></thead><tbody id="replayTable"><tr><td colspan="5">尚未載入</td></tr></tbody></table></div>
  <div class="card" id="preopenProjection" style="margin-top:12px">
-  <small>歷史研究：10/28 15:00 開始的夜盤（交易日 10/29，已過期）</small>
+  <small>當盤模型決策與觸發紀錄</small>
   <div class="number" id="preopenAction">檢查中</div>
   <p id="preopenDetails" class="info">使用原版引擎及前一完成盤資料，當盤成交及停損尚未連線。</p>
  </div>
- <p class="info">只有完成日夜盤重播的結果才會列在此處。現在的夜盤若缺少逐分鐘行情，<strong>不能沿用上一盤空手狀態</strong>；無法核實時也不提供進場價或停損價。</p>
+ <p class="info">完成盤以官方逐筆核對；當盤以指定月份分鐘 K 推算。頁面顯示模型曾經執行的條件，不代表現在仍可成交於相同價格。</p>
 </section>
 <div class="grid" id="stats">
 <div class="card"><small>R26 凍結版全期累積</small><div class="number up">+66,452</div><small>點（2021/10/22～2026/10/22）</small></div>
@@ -181,42 +181,6 @@ $('range').onchange=()=>rows.length&&renderChart();
 $('monthYear').onchange=()=>rows.length&&renderMonth();
 $('download').onclick=()=>window.location.href='/r26-monthly-canonical.csv';
 
-async function loadR26Replay(){
- try{
-  const rsp=await fetch('/r26-replay-latest.json',{cache:'no-store'});if(!rsp.ok)throw Error('重播檔案尚未部署');
-  const x=await rsp.json();
-  if(x.model!=='R26_dd15_tick / TX_R26_CANONICAL_20261028'||x.verified_gold_sessions!==2428||!x.golden_match||x.new_sessions.length!==4)throw Error('引擎金標資料驗證失敗');
-  $('r26ReplayStatus').textContent='資料截至 '+x.as_of+' ｜ '+x.contract+' ｜ 金標 2,428 盤逐盤零差異；後續四盤為歷史重播，當前夜盤未計算。';
-  $('recentPnl').textContent=fmt(x.new_period_r26_pnl)+' 點';$('recentPnl').classList.add(x.new_period_r26_pnl<0?'down':'up');
-  $('replayHold').textContent=x.last_completed_position===0?'空手':x.last_completed_position===1?'多單':'空單';
-  $('replayHoldTime').textContent='截至 '+x.last_completed_session+'；現在持倉未知';
-  $('provisionalTotal').textContent=fmt(x.provisional_cumulative_r26)+' 點';
-  const proj=x.next_open_projection;
-  if(proj && proj.trade_date==='2026-10-29' && proj.session==='night' && proj.model_blocked===true && proj.previous_completed_position===0 && proj.model_core_desire===0){
-   $('preopenAction').textContent='風控停機 · 維持空手';$('preopenAction').classList.add('down');
-   $('preopenDetails').textContent='影子策略 A 的 10/27 夜盤 -486 與日盤 -426.5，合計 -912.5 點，觸發 -750 點風控停機；停機涵蓋 10/29 交易日夜盤。原始核心雖為 +1，風控後方向仍是 0（不交易）。這是歷史開盤前研究重播，不代表已核對盤中報價或券商實際倉位。';
-  }else{$('preopenAction').textContent='無法核實開盤訊號';}
-  // Once the historical night session has ended, the projected flat state
-  // is NOT a present-day R26 signal. Never leave an old actionable label.
-  if(Date.now()>=Date.parse('2026-10-28T21:00:00Z')){
-   $('preopenAction').textContent='歷史訊號已過期 · 不可沿用';
-   $('preopenAction').classList.add('down');
-   $('preopenDetails').textContent='這是 10/28 15:00 開始的歷史夜盤開盤前研究結果，已不是此刻的策略狀態。新交易日須取得完整指定月份 TX 分 K、前盤模型持倉及凍結版引擎重播後才能解除資料停機。';
-  }
-
-  $('replayTable').innerHTML=x.new_sessions.map(r=>'<tr><td>'+r.date+' '+(r.session==='night'?'夜盤':'日盤')+
-  '</td><td>'+(r.decision==='LONG'?'做多後停損':r.decision==='SHORT'?'做空':'風控停機／空手')+
-  '</td><td>'+r.open.toLocaleString()+'</td><td>'+(r.core_stop??'—')+'</td>'+cell(r.pnl)+'</tr>').join('');
- }catch(e){$('r26ReplayStatus').textContent='無法取得完整歷史重播：'+e.message+'。不得將本頁當作已連線的 R26 開盤訊號';}
-}
-loadR26Replay();
-
-if(Date.now()>=Date.parse('2026-10-28T21:00:00Z')){
- $('mainSignalHeading').textContent='10/29 夜盤歷史開盤前訊號（已過期）';
- $('signalStatus').textContent='10/29 夜盤開盤前原版 R26 推算為停機空手，但該盤結束後必須取得最新分鐘 K 並重播模型，才能判定新的日盤與夜盤訊號。現在沒有已驗證的最新開盤訊號；請勿沿用這一盤的歷史決策。';
-}
-
-
 load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html(e.message)+'</text>';$('pointInfo').textContent='金標未載入，請檢查連線。'});
 
 // R26 near-month market data: independent of frozen strategy signal.
@@ -274,5 +238,5 @@ window.addEventListener('online',()=>fetchQuote());
 fetchQuote();
 
 </script>
-<script type="module" src="/r26-data-sync.mjs?v=20261029-coverage-v1"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261029-live2"></script>
 </body></html>
