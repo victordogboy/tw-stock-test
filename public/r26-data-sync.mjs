@@ -73,8 +73,8 @@ function getSavedToken(){
   const shared=String(j?.tokens?.[active]||"").trim();
   if(shared)return shared;
  }catch{}
- return String(localStorage.getItem("R26_FinMind_Token")||
-  localStorage.getItem("twq_finmind_token_v1")||"").trim()
+ try{return String(localStorage.getItem("R26_FinMind_Token")||
+  localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}
 }
 function openDatabase(){
  return new Promise((resolve,reject)=>{
@@ -163,12 +163,13 @@ function init(){
     }
     contractInput.value=contract;
     anchorLabel.textContent="凍結模型資料截至 "+safeDate(replay.as_of)+"；僅供歷史對照";
-    rows=await readCached(contract);
+    try{rows=await readCached(contract)}
+    catch(e){rows=[];message("瀏覽器歷史快取不可讀，改由 FinMind 補抓，不影響既有策略金標。")}
     draw();
    }
    const bearer=String(tokenInput.value||getSavedToken()).trim();
    if(!bearer){message("未找到 FinMind Token：可以先查看上次快取，或在此貼上 Token 後按「補抓」。");return}
-   if(manual&&tokenInput.value.trim())localStorage.setItem("R26_FinMind_Token",tokenInput.value.trim());
+   if(manual&&tokenInput.value.trim())try{localStorage.setItem("R26_FinMind_Token",tokenInput.value.trim())}catch{}
    if(invalidToken&&!manual){message("Token 曾被來源拒絕；自動補抓暫停，避免無效重試。");return}
    if(!manual&&Date.now()-lastFetched<10*60000)return;
    lastFetched=Date.now();
@@ -192,7 +193,9 @@ function init(){
      if(!Array.isArray(j.data))throw Error(date+"：分 K 格式不正確");
      const filtered=j.data.filter(x=>x.contract_date===contract&&x.source==="FinMind TaiwanFuturesKBar");
      count+=filtered.length;
-     await writeCached(filtered);
+     try{await writeCached(filtered)}catch(e){
+      message("IndexedDB 儲存失敗；本次分 K 仍可顯示，但重新開頁可能需要再下載。")
+     }
      const merged=new Map(rows.map(x=>[x.contract_date+"|"+x.timestamp_tpe,x]));
      for(const x of filtered)merged.set(x.contract_date+"|"+x.timestamp_tpe,x);
      rows=[...merged.values()];
@@ -210,10 +213,10 @@ function init(){
  }
  tokenInput.addEventListener("change",()=>{
   const t=tokenInput.value.trim();
-  if(t){localStorage.setItem("R26_FinMind_Token",t);invalidToken=false}
+  if(t){try{localStorage.setItem("R26_FinMind_Token",t)}catch{}invalidToken=false}
  });
  get("r26DataRefresh").addEventListener("click",()=>{invalidToken=false;startAudit(true)});
- get("r26DataClearToken").addEventListener("click",()=>{localStorage.removeItem("R26_FinMind_Token");tokenInput.value="";invalidToken=true;message("已清除這個頁面使用的 Token")});
+ get("r26DataClearToken").addEventListener("click",()=>{try{localStorage.removeItem("R26_FinMind_Token")}catch{}tokenInput.value="";invalidToken=true;message("已清除這個頁面使用的 Token")});
  get("r26DataExport").addEventListener("click",()=>{
   if(!lastReport)return;
   const payload={generated_at:new Date().toISOString(),contract,replay_baseline:replay?.as_of,
