@@ -39,7 +39,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 #r26DataTable td,#r26DataTable th{padding:7px;text-align:left}
 #r26DataProgress{white-space:pre-wrap;overflow-wrap:anywhere}
 </style></head><body>
-<header><div class="tag">CANONICAL R26 · TX · 2026/10/29</div><h1>R26 台指期跨盤監控</h1>
+<header><div class="tag">CANONICAL R26 · TX · <span id="r26NowDate">日期檢查中</span></div><h1>R26 台指期跨盤監控</h1>
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
 <main>
 
@@ -89,8 +89,8 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 </section>
 
 <section class="panel alert">
-<h2 id="mainSignalHeading">10/29 夜盤開盤前 R26：風控停機、維持空手</h2>
-<div id="signalStatus">已用原始凍結 Python／Numba 引擎重播至 2026/10/28 日盤，並用截至該盤的既有資料推得 10/29 交易日夜盤（10/28 15:00 開始）為風控停機：核心原訊號 +1，但停機後方向 0，且關鍵價輔助單停用。這是開盤前模型重播結果，不是此刻即時行情或實際券商持倉核對；自動連續運算後端尚待接通。</div>
+<h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2>
+<div id="signalStatus">凍結版 R26 模型只重播至 2026/10/28 日盤；後續夜盤與日盤尚未完成最新分 K、前盤持倉和風控狀態的原模型重播。下方「停機、空手」僅代表當時的歷史研究結果，不代表現在可以持續空手或解除停機。即時 Yahoo 價格不能替代原 R26 策略引擎。</div>
 <div class="divider"></div><div class="grid">
 <div>最後完成分 K 日期<br><strong>2026/10/28 日盤</strong></div>
 <div>原始金標對帳<br><strong>2,428 盤零差異</strong></div>
@@ -100,16 +100,16 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 </section>
 
 <section class="panel" id="replayPanel">
- <div class="top"><h2>原始 R26 引擎：最新已完成分盤重播</h2><span class="tag">歷史模擬 · 非即時下單訊號</span></div>
+ <div class="top"><h2>原始 R26 引擎：封存分盤結果（未自動接續）</h2><span class="tag">截至 10/28 · 非即時下單訊號</span></div>
  <p id="r26ReplayStatus" class="info">載入 10/27～10/28 的凍結版 R26 逐盤結果中…</p>
  <div class="grid">
    <div class="card"><small>封存後模型累積盈虧</small><div id="recentPnl" class="number">—</div><small>10/27～10/28，共四盤</small></div>
    <div class="card"><small>截至最後完成日盤的模型倉位</small><div id="replayHold" class="number">—</div><small id="replayHoldTime">尚未確認</small></div>
-   <div class="card"><small>加入新資料後的模型總點數</small><div id="provisionalTotal" class="number">—</div><small>非凍結金標，後續新增區間待完整對帳</small></div>
+   <div class="card"><small>封存的模型總點數（截至 10/28）</small><div id="provisionalTotal" class="number">—</div><small>只包含當時已重播的四個歷史時段，不包含此刻盤勢</small></div>
  </div>
  <div class="scroll" style="margin-top:12px"><table><thead><tr><th>交易日／盤別</th><th>方向</th><th>開盤</th><th>原始停損</th><th>模擬損益</th></tr></thead><tbody id="replayTable"><tr><td colspan="5">尚未載入</td></tr></tbody></table></div>
  <div class="card" id="preopenProjection" style="margin-top:12px">
-  <small>10/29 交易日夜盤 · 10/28 15:00 開盤前 R26 模型研究重播</small>
+  <small>歷史研究：10/28 15:00 開始的夜盤（交易日 10/29，已過期）</small>
   <div class="number" id="preopenAction">檢查中</div>
   <p id="preopenDetails" class="info">使用原版引擎及前一完成盤資料，當盤成交及停損尚未連線。</p>
  </div>
