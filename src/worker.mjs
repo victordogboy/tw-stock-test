@@ -8,6 +8,7 @@ import {forwardPeRoute} from './forward-pe.mjs';
 import {createScanJobClass,scanRoute} from './scan-job.mjs';
 import {taiexFuturesRoute} from './taiex-futures.mjs';
 import {taiexVixRoute} from './taiex-vix.mjs';
+import {r26MarketRoute} from './r26-market.mjs';
 import {r26BridgeRoute} from './r26-bridge.mjs';
 import {r26LiveQuoteRoute} from './r26-live-quote.mjs';
 export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
@@ -27,6 +28,7 @@ export default {
    if(request.method!=='GET')return new Response('Method not allowed',{status:405});
    return valuationStub(env).fetch(new Request('https://valuation.internal/valuation/snapshot'));
   }
+  if(['/api/r26/intraday','/api/r26/official-zip'].includes(new URL(request.url).pathname))return r26MarketRoute(request,env);
   if(new URL(request.url).pathname==='/api/r26/live-quote')return r26LiveQuoteRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/r26/'))return r26BridgeRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
