@@ -29,6 +29,15 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 .livepill.wait{background:#68502b;color:#ffe4a7}
 .liveclock{font-variant-numeric:tabular-nums}
 #ticks{display:block;height:100px;width:100%;background:#0c2135;border-radius:8px;margin-top:12px}
+#r26DataHealthPanel input{font:inherit;border:1px solid #52799c;background:#0b2035;color:#fff;padding:9px;border-radius:8px;min-width:0;max-width:100%}
+#r26DataHealthPanel label{display:block;font-size:12px;color:#bcd1e5;margin:8px 0 5px}
+#r26DataHealthPanel .group{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+#r26DataHealthPanel .group > div{flex:1 1 180px}
+#r26DataHealthPanel .group button{flex:0 1 auto}
+#r26DataHealth{font-size:15px;font-weight:750;color:#ffcf8b}
+#r26DataTable td:first-child{min-width:120px}
+#r26DataTable td,#r26DataTable th{padding:7px;text-align:left}
+#r26DataProgress{white-space:pre-wrap;overflow-wrap:anywhere}
 </style></head><body>
 <header><div class="tag">CANONICAL R26 · TX · 2026/10/29</div><h1>R26 台指期跨盤監控</h1>
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
@@ -55,6 +64,28 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
  <svg id="ticks" viewBox="0 0 720 100" role="img" aria-label="最近10分鐘，網頁取得的報價快照示意圖"><text x="20" y="55" font-size="14" fill="#90abc3">開始蒐集報價後顯示本頁快照趨勢</text></svg>
  <p class="info" id="quoteDisclaimer">頁面開啟且可見時每 5 秒檢查一次，背景分頁或手機休眠可能暫停。5 秒是查詢頻率，不保證來源每 5 秒成交或更新；無法證實未延遲時會標示來源延遲。報價與 R26 開盤／停損信號分離。</p>
  <a href="https://tw.stock.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
+</section>
+
+<section class="panel" id="r26DataHealthPanel" aria-label="R26 近期分鐘 K 資料更新稽核">
+ <div class="top"><h2>R26 分 K 接續檢查｜與即時報價分離</h2><span class="tag">分鐘 K 不是即時成交</span></div>
+ <p class="info" id="r26FreezeLabel">正在確認原始凍結版模型的最後完成時段…</p>
+ <p id="r26DataHealth">正在確認目前可用的指定合約分鐘 K…</p>
+ <div class="grid">
+  <div class="card"><small>最後有資料的分鐘</small><div id="r26DataLatest" class="info">—</div></div>
+  <div class="card"><small>已取得的歷史資料</small><div id="r26DataCount" class="info">—</div></div>
+  <div class="card"><small>未完成核對的分盤</small><div id="r26DataMissing" class="info">—</div></div>
+ </div>
+ <div class="group" style="margin-top:10px">
+  <div><label for="r26DataContract">指定 TX 月份（不能與 Yahoo 連續近月混用）</label><input id="r26DataContract" type="text" readonly value="202611"/></div>
+  <div><label for="r26DataToken">FinMind Token（自動沿用此瀏覽器設定）</label><input id="r26DataToken" type="password" autocomplete="off" placeholder="有儲存 Token 可留空"/></div>
+  <button id="r26DataRefresh" type="button">↻ 補抓最新歷史 1 分 K</button>
+  <button id="r26DataClearToken" type="button">清除這頁 Token</button>
+  <button id="r26DataExport" type="button">匯出缺漏報告</button>
+ </div>
+ <p class="info" id="r26DataProgress">載入瀏覽器快取、檢查指定合約中…</p>
+ <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>已取得／應有分鐘</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
+ <p class="info" id="r26DataGap">風控：即使取得歷史 1 分 K，沒有完成原凍結版引擎重播前，仍不能產生新的 R26 訊號。交易日標記需核對期交所日曆。</p>
+ <p class="info"><strong>來源限制：</strong>FinMind TaiwanFuturesKBar 官方更新時間為平日 16:30，實際以 API 為準，非 5 秒即時分 K。Yahoo WTX&amp; 只顯示報價，不能拿來補造特定 TX 月份 K 棒。<a href="/r26-audit.html">查看完整分 K 稽核 ↗</a></p>
 </section>
 
 <section class="panel alert">
@@ -165,6 +196,13 @@ async function loadR26Replay(){
    $('preopenAction').textContent='風控停機 · 維持空手';$('preopenAction').classList.add('down');
    $('preopenDetails').textContent='影子策略 A 的 10/27 夜盤 -486 與日盤 -426.5，合計 -912.5 點，觸發 -750 點風控停機；停機涵蓋 10/29 交易日夜盤。原始核心雖為 +1，風控後方向仍是 0（不交易）。這是歷史開盤前研究重播，不代表已核對盤中報價或券商實際倉位。';
   }else{$('preopenAction').textContent='無法核實開盤訊號';}
+  // Once the historical night session has ended, the projected flat state
+  // is NOT a present-day R26 signal. Never leave an old actionable label.
+  if(Date.now()>=Date.parse('2026-10-28T21:00:00Z')){
+   $('preopenAction').textContent='歷史訊號已過期 · 不可沿用';
+   $('preopenAction').classList.add('down');
+   $('preopenDetails').textContent='這是 10/28 15:00 開始的歷史夜盤開盤前研究結果，已不是此刻的策略狀態。新交易日須取得完整指定月份 TX 分 K、前盤模型持倉及凍結版引擎重播後才能解除資料停機。';
+  }
 
   $('replayTable').innerHTML=x.new_sessions.map(r=>'<tr><td>'+r.date+' '+(r.session==='night'?'夜盤':'日盤')+
   '</td><td>'+(r.decision==='LONG'?'做多後停損':r.decision==='SHORT'?'做空':'風控停機／空手')+
@@ -235,4 +273,6 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 window.addEventListener('online',()=>fetchQuote());
 fetchQuote();
 
-</script></body></html>
+</script>
+<script type="module" src="/r26-data-sync.mjs?v=20261029-coverage-v1"></script>
+</body></html>
