@@ -91,6 +91,12 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <section class="panel alert">
 <h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2>
 <div id="signalStatus">正在以官方逐筆歷史與指定月份分鐘 K 自動重播；下方會列出模型進場、停損及最後資料時間。</div>
+<div class="grid" style="margin-top:16px" aria-label="當前部位停損停利設定">
+ <div class="card"><small>部位類型</small><strong id="signalTradeType" style="display:block;margin-top:8px">計算中</strong></div>
+ <div class="card"><small>保護停損價</small><strong id="signalStopPrice" style="display:block;margin-top:8px">計算中</strong></div>
+ <div class="card"><small>停利設定</small><strong id="signalTakeProfit" style="display:block;margin-top:8px">計算中</strong></div>
+</div>
+<p class="info"><strong>出場條件：</strong><span id="signalExitRule">等待原版引擎重播。</span></p>
 <div class="divider"></div><div class="grid">
 <div>最後完成分 K 日期<br><strong id="signalAsOf">計算中</strong></div>
 <div>原始金標對帳<br><strong id="signalAudit">驗證中</strong></div>
@@ -238,5 +244,5 @@ window.addEventListener('online',()=>fetchQuote());
 fetchQuote();
 
 </script>
-<script type="module" src="/r26-live-monitor.mjs?v=20261029-live2"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261029-exit-rules"></script>
 </body></html>

@@ -40,7 +40,16 @@ function draw(m){
  const entries=r.events.filter(e=>/進場/.test(e.type)),exit=r.events.filter(e=>/停損|停利|平倉/.test(e.type));
  let detail=ready?('交易日 '+s.date+'，TX'+s.contract+'。開盤 '+fmt(s.op)+'，原始方向 '+(s.signal===1?'多':s.signal===-1?'空':'中性')+'；'+(s.blocked?'風控停機。':'風控允許交易。')+'模型目前'+planName(p.held)+'，保護停損 '+(p.held?fmt(r.stop):'無持倉')+'。本盤模型損益 '+fmt(p.pnl)+' 點（含每邊 2.5 點成本）。'):'目前未完成當盤計算：'+r.issues.join('；')+'。下方僅列已取得資料的重播，不代表此刻可進場。';
  if(ready&&entries.length)detail+=' 進場紀錄：'+entries.map(e=>e.time+' '+e.type+' '+fmt(e.price)).join('；')+'。';
- if(ready)detail+=' 停損／停利：'+(exit.length?exit.map(e=>e.time+' '+e.type+' '+fmt(e.price)).join('；'):'截至所列分鐘尚未觸發')+'。';
+ if(ready)detail+=' 出場紀錄：'+(exit.length?exit.map(e=>e.time+' '+e.type+' '+fmt(e.price)).join('；'):'截至所列分鐘尚無出場')+'。';
+ const fixedTarget=Number.isFinite(p.target)&&p.target>0;
+ const tpLabel=!ready?'尚未確認':!p.held?'無持倉':fixedTarget?fmt(p.target):'未設固定停利（核心趨勢單）';
+ const tradeType=!ready?'尚未確認':!p.held?'空手':fixedTarget?'關鍵價輔助單':p.recovered?'核心再進場單':'核心趨勢單';
+ const exitRule=!ready?'資料接齊後自動顯示。':!p.held?'目前無持倉，沒有正在生效的停損或停利委託。':fixedTarget?
+  '觸及固定停利或保護停損即出場；關鍵價輔助單於該盤尾盤平倉。':
+  '觸及保護停損即出場；下一盤開盤若方向轉為空手、反向或風控要求空手，則平倉；同向可跨盤續抱。停損依當盤規則重設，原版核心單不以固定目標價停利。';
+ text('signalTradeType',tradeType);text('signalStopPrice',!ready?'尚未確認':p.held?fmt(r.stop):'無持倉');
+ text('signalTakeProfit',tpLabel);text('signalExitRule',exitRule);
+ if(ready&&p.held)detail+=' 停利設定：'+tpLabel+'。';
  text('signalStatus',detail);
  text('signalAsOf',r.as_of||'—');text('signalAudit',m.gold.compared+' 盤零差異');text('signalPosition',ready?planName(p.held):'尚未確認');
  text('signalNext',r.nextSession?.start||'日曆待更新');
