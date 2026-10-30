@@ -310,7 +310,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
     !code&&(!year||!part))return respond({ok:false,error:"籌碼資料請選擇股票，或年份與分包"},400);
   return stub.fetch("https://private/export?"+new URLSearchParams({code,year,part,chip:"1"}));
  }
- if(market&&path===root+"/export"&&method==="GET"){
+ if(path===root+"/export"&&method==="GET"){
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   const part=url.searchParams.get("part")||"",all=url.searchParams.get("all")==="1";
   if(code&&!(isCash?/^[0-9]{4}$/:/^[A-Z]{2}F$/).test(code)||year&&!(daily?/^(20\d{2}|21\d{2})$/:/^(202[1-9]|20[3-9]\d)$/).test(year)||part&&!/^[1-9]\d{0,3}$/.test(part)||all&&(!market||!part||!!code||!!year))
@@ -565,7 +565,7 @@ export function joinResearchRows(prices,oldJoined,foreignRaw,lendingRaw,futuresR
    if(hold)availability.foreignHolding++;else availability.missingForeignHolding++;
    if(loan)availability.lendingTrades++;else availability.missingLending++;
    if(contractMap)availability.futuresObservations++;else availability.missingFutures++;
-   const loanFee=loan&&loan.feeVolumeObserved>0?loan.feeVolume/loan.feeVolumeObserved:"";
+   const loanFee=loan&&loan.feeVolumeObserved>0?Number((loan.feeVolume/loan.feeVolumeObserved).toFixed(6)):"";
    const symbols=contractMap?[...contractMap.keys()].sort():[];
    // Selected mini-future symbol takes priority; if it did not exist historically,
    // fall back to another OBSERVED current-code contract, without mixing sizes.
