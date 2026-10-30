@@ -34,7 +34,7 @@ function draw(m){
  text('r26DataCount',fmt(rows.length)+' 根／已接續 '+r.added+' 盤');
  text('r26DataMissing','已收盤缺資料 '+missing.length+' 盤；完整性待核對 '+unverified.length+' 盤；交易中 '+(active?1:0)+' 盤');
  text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'官方歷史＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
- text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。重新開頁會補抓整盤，背景或休眠時暫停。');
+ text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
  const table=$('r26DataTable');table.replaceChildren();
  for(const t of [...states].slice(-9).reverse()){
   const tr=document.createElement('tr');
