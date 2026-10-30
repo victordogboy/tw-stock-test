@@ -33,6 +33,7 @@ jobs:
       - name: Syntax check
         run: |
           node --check src/stock-futures-download.mjs
+          node --check src/market-chip.mjs
           node --check src/worker.mjs
           node - <<'NODE'
           const fs=require('node:fs'),vm=require('node:vm');
@@ -40,6 +41,15 @@ jobs:
           const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
           if(scripts.length!==1) throw Error('Expected one dashboard script');
           new vm.Script(scripts[0]);
+          const market=fs.readFileSync('public/market-daily-download.html','utf8');
+          const marketScripts=[...market.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
+          if(marketScripts.length!==1)throw Error('Market data downloader script missing');
+          new vm.Script(marketScripts[0]);
+          for(const id of ['chipStartBtn','chipMergeProgress','chipCombinedDownload','chipShareBtn','chipPauseBtn'])
+            if(!market.includes('id="'+id+'"'))throw Error('Market chip UI missing '+id);
+          const backend=fs.readFileSync('src/stock-futures-download.mjs','utf8');
+          for(const endpoint of ['/chip-start','/chip-merge-download','/chip-share','/chip-revoke'])
+            if(!backend.includes(endpoint))throw Error('Chip API missing '+endpoint);
           const config=JSON.parse(fs.readFileSync('wrangler.jsonc','utf8'));
           for(const c of ['StockFuturesBatch','StockFuturesData']) {
             if(!config.durable_objects.bindings.find(b=>b.class_name===c))throw Error('Missing Durable Object '+c);
