@@ -85,6 +85,7 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
    <strong>④ 雲端將所有股價＋籌碼合成一包</strong>
    <progress id="chipMergeBar" max="100" value="0"></progress>
    <div id="chipMergeMsg" class="small">—</div>
+   <button id="chipMergeResumeBtn" class="secondary hidden">▶ 恢復雲端合併（不重抓籌碼）</button>
   </div>
  </div>
  <div id="chipReady" class="hidden">
@@ -220,6 +221,7 @@ function render(s){
  }
  $("chipMergeProgress").classList.toggle("hidden",!chipMerge);
  $("chipReady").classList.toggle("hidden",chipMerge?.phase!=="done");
+ $("chipMergeResumeBtn").classList.toggle("hidden",chipMerge?.phase!=="error");
  $("chipYearsPanel").classList.toggle("hidden",chip?.phase!=="done");
  if(chipMerge){
   const pct=chipMerge.total?chipMerge.processed*100/chipMerge.total:0;
@@ -412,6 +414,7 @@ $("shareBtn").onclick=createShare;
 $("chipStartBtn").onclick=startChipBackfill;
 $("chipResumeBtn").onclick=startChipBackfill;
 $("chipPauseBtn").onclick=()=>chipAction("chip-pause");
+$("chipMergeResumeBtn").onclick=()=>chipAction("chip-merge-resume");
 $("chipShareBtn").onclick=shareChipData;
 $("chipRevokeBtn").onclick=revokeChipShare;
 $("chipCopyBtn").onclick=copyChipShare;
