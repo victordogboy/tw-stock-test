@@ -1,4 +1,5 @@
 import {run,audit,stop,simulate} from './engine.mjs';
+import {assessSessions,validReplayBar,positionPublication} from './session-status.mjs';
 const offset=8*3600000,dayms=86400000;
 const tpe=ms=>new Date(ms+offset).toISOString().slice(0,19).replace('T',' ');
 const ms=s=>Date.parse(s.replace(' ','T')+'+08:00');
@@ -24,21 +25,17 @@ export function mergeRecords(old,added){
  return [...map.values()].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
 }
 export function replayLive(meta,bars,records,calendar,now=Date.now()){
- const expected=physicalSessions(calendar,meta.end,now),issues=[],groups=new Map(),ss=meta.sessions.map(x=>({...x})),extra=[];
+ const expected=physicalSessions(calendar,meta.end,now),sessionStates=assessSessions(expected,records,now),issues=[],groups=new Map(),ss=meta.sessions.map(x=>({...x})),extra=[];
  for(const r of records){
-  if(!r.contract_verified||!/^\d{6}$/.test(r.contract_date)||!['open','high','low','close'].every(k=>Number.isInteger(r[k])&&r[k]>0))continue;
-  if(!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:00$/.test(r.timestamp_tpe)||ms(r.timestamp_tpe)>now)continue;
+  if(!validReplayBar(r,now))continue;
   const key=r.contract_date+'|'+r.session_key;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
  }
  for(const target of expected){
   const all=[...groups.entries()].filter(([k])=>k.endsWith('|'+target.key));
-  // Preserve the frozen model's scheduled monthly rollover: reject mixed-contract sessions.
-  if(all.length!==1){issues.push(target.date+' '+(target.sid?'日盤':'夜盤')+' '+(all.length?'合約混雜':'缺少分K'));break}
+  const assessment=sessionStates.find(s=>s.key===target.key);
+  if(!assessment.dataReady){issues.push(assessment.reason);break}
   const rr=all[0][1].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe)),official=rr.every(x=>/TAIFEX/.test(x.source));
   const first=rr[0],last=rr.at(-1);
-  if(first.timestamp_tpe!==target.start&&!official){issues.push(target.key+' 缺少可核實開盤');break}
-  if(target.complete&&!official&&!rr.every(x=>/^Yahoo WTX/.test(x.source)&&x.source_complete)){issues.push(target.key+' 尚待官方逐筆確認完整（不以分鐘根數猜測）');break}
-  if(rr.some(r=>ms(r.timestamp_tpe)<ms(target.start)||ms(r.timestamp_tpe)>=ms(target.end))){issues.push(target.key+' 時段錯誤');break}
   const prev=ss.at(-1),p=(prev.offset+prev.count-1)*4+3,pclose=p<bars.length?bars[p]:extra[p-bars.length],cl=last.close;
   const session={...target,contract:first.contract_date,offset:(bars.length+extra.length)/4,count:rr.length,
    start:first.timestamp_tpe,end:last.timestamp_tpe,physical_end:target.end,partial:!target.complete,
@@ -54,12 +51,14 @@ export function replayLive(meta,bars,records,calendar,now=Date.now()){
  const currentExpected=expected.at(-1);
  if(added&&currentExpected?.key!==last.key)issues.push('後續盤尚未接齊');
  const age=added?(now-ms(last.end))/60000:Infinity;
- if(added&&last.partial&&age>3)issues.push('當盤分鐘K已延遲 '+Math.floor(age)+' 分鐘');
+ const currentData=sessionStates.at(-1);
+ if(currentData?.marketState==='trading'&&!currentData.dataReady&&currentData.reason&&!issues.includes(currentData.reason))issues.push(currentData.reason);
  const shadow=simulate(result.sessions,combined,{shadow:true,reentry:false,liquidate:false}),i=result.sessions.length-1;
  const loss=shadow.pnls.slice(Math.max(0,i-2),i).reduce((a,b)=>a+b,0);
  const events=result.events.filter(e=>e.date===session.date&&e.sid===session.sid).map(e=>({...e,time:session.timestamps?.[e.bar]||session.start}));
- return {ready:issues.length===0,issues:[...new Set(issues)],added,session:{...session,timestamps:undefined,gold:undefined},row,
-  events,stop:row.held?row.stop:null,shadowPreviousTwo:loss,ageMinutes:age,
+ const ready=issues.length===0,publication=positionPublication(ready,sessionStates);
+ return {ready,...publication,sessionStates,confirmedPosition:publication.positionConfirmed?row.held:null,issues:[...new Set(issues)],added,session:{...session,timestamps:undefined,gold:undefined},row,
+  events,stop:publication.positionConfirmed&&row.held?row.stop:null,shadowPreviousTwo:loss,ageMinutes:age,
   total:result.rows.reduce((a,r)=>a+r.pnl,0),newPnl:result.rows.filter(r=>r.date>meta.end).reduce((a,r)=>a+r.pnl,0),
   recent:result.rows.filter(r=>r.date>meta.end).slice(-10),as_of:added?last.end:null,
   nextSession:physicalSessions(calendar,meta.end,now+dayms*5).find(x=>ms(x.start)>now)||null};

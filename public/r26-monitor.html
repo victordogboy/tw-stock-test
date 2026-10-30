@@ -69,9 +69,11 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <section class="panel" id="r26DataHealthPanel" aria-label="R26 近期分鐘 K 資料更新稽核">
  <div class="top"><h2>R26 分 K 與原版引擎自動接續</h2><span class="tag">分鐘 K 不是即時成交</span></div>
  <p class="info" id="r26FreezeLabel">正在確認原始凍結版模型的最後完成時段…</p>
+ <p class="info" id="r26MarketState">盤次交易狀態檢查中…</p>
+ <p class="info" id="r26PositionState">策略持倉尚未確認。</p>
  <p id="r26DataHealth">正在確認目前可用的指定合約分鐘 K…</p>
  <div class="grid">
-  <div class="card"><small>最後有資料的分鐘</small><div id="r26DataLatest" class="info">—</div></div>
+  <div class="card"><small>最新取得分鐘（資料）</small><div id="r26DataLatest" class="info">—</div></div>
   <div class="card"><small>已取得的歷史資料</small><div id="r26DataCount" class="info">—</div></div>
   <div class="card"><small>未完成核對的分盤</small><div id="r26DataMissing" class="info">—</div></div>
  </div>
@@ -83,7 +85,8 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
   <button id="r26DataExport" type="button">匯出缺漏報告</button>
  </div>
  <p class="info" id="r26DataProgress">載入瀏覽器快取、檢查指定合約中…</p>
- <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>成交分鐘／核實來源</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
+ <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>已取得成交分鐘</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
+ <p class="info">時間判讀：日盤 13:45 收盤，最後一根分鐘 K 的正常起點為 13:44；夜盤最後一根為 04:59。未到收盤的當盤不列為歷史缺盤；週五夜盤跨週六仍依交易日曆歸屬下個交易日。</p>
  <p class="info" id="r26DataGap">風控：即使取得歷史 1 分 K，沒有完成原凍結版引擎重播前，仍不能產生新的 R26 訊號。交易日標記需核對期交所日曆。</p>
  <p class="info"><strong>資料來源：</strong>歷史以期交所原始逐筆彙整；當盤使用 Yahoo 指定月份合約，與上方 WTX&amp; 報價分開。FinMind Token 可選填並保留。</p>
 </section>
@@ -98,7 +101,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 </div>
 <p class="info"><strong>出場條件：</strong><span id="signalExitRule">等待原版引擎重播。</span></p>
 <div class="divider"></div><div class="grid">
-<div>最後完成分 K 日期<br><strong id="signalAsOf">計算中</strong></div>
+<div>最近重播分鐘（起點）<br><strong id="signalAsOf">計算中</strong></div>
 <div>原始金標對帳<br><strong id="signalAudit">驗證中</strong></div>
 <div>當前模型倉位<br><strong id="signalPosition">計算中</strong></div>
 <div>下次檢查時點<br><strong id="signalNext">計算中</strong></div></div>
@@ -244,5 +247,5 @@ window.addEventListener('online',()=>fetchQuote());
 fetchQuote();
 
 </script>
-<script type="module" src="/r26-live-monitor.mjs?v=20261029-exit-rules"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261031-status"></script>
 </body></html>
