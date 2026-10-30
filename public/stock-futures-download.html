@@ -102,7 +102,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("researchOption").classList.toggle("hidden",!isChips());$("researchNotice").classList.toggle("hidden",!isChips());
   $("chipInfo").classList.toggle("hidden",!isChips());
   $("formatHint").textContent=!daily?"1 分 K：2021 年起，逐日下載。":isResearch()?"完整研究版：2000 年起日 K＋法人＋融資融券＋借券成交＋外資持股比例＋歷史股期契約觀測；缺值不填 0，籌碼收盤後公布的只能用於之後交易。":isChips()?"日 K＋法人買賣超＋融資融券餘額，缺值留空。":"純日 K，不含籌碼。";
-  $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV，來源原始單位。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
+  $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV，來源原始單位。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉（futures_observed_contract_months）；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
   $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
   $("yearTitle").textContent="各年度：所選股票的現股"+seriesName();
   $("startBtn").textContent="▶ 啟動"+seriesName()+"雲端背景下載";
