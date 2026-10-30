@@ -59,7 +59,7 @@ test("cloud-only FinMind chip backfill preserves original price and merges gzip"
    const put=await shard.fetch(new Request("https://test/put?date=2025-01-01",{method:"POST",body:bytes}));
    assert.equal(put.status,200);
    originals.set(code,new Uint8Array(db.map.get("day:2025-01-01:0")));
-   shards.set("job:"+code,{db,fetch:r=>shard.fetch(r)});
+   shards.set("job:"+code,{db,fetch:r=>shard.fetch(typeof r==="string"?new Request(r):r)});
   }
   const s={mode:"market-daily",phase:"done",start:"2025-01-01",end:"2025-12-31",
    total:2,processed:2,catalog:codes.map(code=>({code})),shardKey:"job",rows:6,
