@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - "src/stock-futures-download.mjs"
+      - "src/market-chip.mjs"
+      - "tests/market-chip.test.mjs"
+      - "public/market-daily-download.html"
       - "tests/stock-futures-download.test.mjs"
       - "public/stock-futures-download.html"
       - "src/worker.mjs"
@@ -11,6 +14,9 @@ on:
   pull_request:
     paths:
       - "src/stock-futures-download.mjs"
+      - "src/market-chip.mjs"
+      - "tests/market-chip.test.mjs"
+      - "public/market-daily-download.html"
       - "tests/stock-futures-download.test.mjs"
       - "public/stock-futures-download.html"
       - "src/worker.mjs"
@@ -40,4 +46,4 @@ jobs:
           }
           NODE
       - name: API and data integrity tests
-        run: node --test tests/stock-futures-download.test.mjs
+        run: node --test tests/stock-futures-download.test.mjs tests/market-chip.test.mjs
