@@ -965,7 +965,8 @@ export class StockFuturesBatch{
  // Existing daily K bars are already compressed by year and symbol.
  // Cloudflare alarms copy their GZIP members into this job's private SQLite
  // storage, using small durable chunks. No FinMind / browser requests.
- async alarmMerge(s,merge,st){
+ async alarmMerge(s,merge,st,kind="price"){
+  const enriched=kind==="chip",pref=enriched?CHIP_MERGE_KEY:"merge";
   const begin=merge.processed||0,limit=Math.min(merge.total,begin+MERGE_STOCKS_PER_ALARM);
   const startYear=Number(s.start.slice(0,4)),endYear=Number(s.end.slice(0,4));
   for(let i=begin;i<limit;i++){
@@ -974,7 +975,7 @@ export class StockFuturesBatch{
    let part=0,stockBytes=0,reader=null;
    try{
     const shard=this.shardFor(s,symbol);
-    const response=await shard.fetch("https://private/get-years?"+new URLSearchParams({startYear,endYear}));
+    const response=await shard.fetch("https://private/"+(enriched?"get-chip-years":"get-years")+"?"+new URLSearchParams({startYear,endYear}));
     if(!response.ok||!response.body)throw Error(symbol+" 雲端歷史資料無法開啟");
     reader=response.body.getReader();
     let first=null,second=null;
@@ -988,28 +989,28 @@ export class StockFuturesBatch{
      else if(second===null)second=bytes[0];
      for(let offset=0;offset<bytes.byteLength;offset+=MERGE_STORAGE_CHUNK){
       const slice=bytes.slice(offset,Math.min(bytes.byteLength,offset+MERGE_STORAGE_CHUNK));
-      await st.put("merge:blob:"+i+":"+(part++),slice);
+      await st.put(pref+":blob:"+i+":"+(part++),slice);
       stockBytes+=slice.byteLength;
      }
     }
     if(first!==31||second!==139||stockBytes<20)throw Error(symbol+" GZIP 檔頭不合法或資料缺失");
     // Commit per-stock metadata LAST so an interrupted alarm cannot mark
     // incomplete chunks as successful. Re-running overwrites the same keys.
-    await st.put("merge:meta:"+i,{parts:part,bytes:stockBytes,code:symbol});
+    await st.put(pref+":meta:"+i,{parts:part,bytes:stockBytes,code:symbol});
     merge.processed=i+1;merge.bytes+=stockBytes;merge.retryCount=0;merge.error="";
     merge.updatedAt=Date.now();
     merge.message="雲端背景合併 "+merge.processed+"/"+merge.total+" 檔，大小 "+Math.round(merge.bytes/1024/1024)+" MB";
-    await st.put("merge",merge);
+    await st.put(pref,merge);
    }catch(e){
     // Abort this stock's uncommitted chunk set; prior stocks remain intact.
-    for(let j=0;j<part;j++)await st.delete("merge:blob:"+i+":"+j);
-    await st.delete("merge:meta:"+i);
+    for(let j=0;j<part;j++)await st.delete(pref+":blob:"+i+":"+j);
+    await st.delete(pref+":meta:"+i);
     merge.retryCount=(merge.retryCount||0)+1;
     merge.error=String(e.message||e).slice(0,250);
     merge.updatedAt=Date.now();
     merge.message="第 "+(i+1)+" 檔股票 "+symbol+" 合併失敗："+merge.error;
     if(merge.retryCount>=5)merge.phase="error";
-    await st.put("merge",merge);
+    await st.put(pref,merge);
     await st.setAlarm(merge.phase==="running"?Date.now()+Math.min(300000,12000*2**merge.retryCount):s.expiresAt);
     return
    }finally{try{reader?.releaseLock()}catch{}}
@@ -1018,14 +1019,15 @@ export class StockFuturesBatch{
    merge.phase="done";merge.completedAt=Date.now();merge.updatedAt=Date.now();
    merge.message="雲端合併完成：共 "+merge.total+" 檔，已保存單一 GZIP 檔案";
   }
-  await st.put("merge",merge);
+  await st.put(pref,merge);
   await st.setAlarm(merge.phase==="running"?Date.now()+1000:s.expiresAt);
  }
- async exportMerged(s,st){
-  const merge=await st.get("merge");
+ async exportMerged(s,st,kind="price"){
+  const enriched=kind==="chip",pref=enriched?CHIP_MERGE_KEY:"merge";
+  const merge=await st.get(pref);
   if(!merge||merge.phase!=="done"||merge.processed!==s.catalog.length)
    return respond({ok:false,error:"完整日K雲端合併尚未完成"},409);
-  const header=await st.get("merge:header");
+  const header=await st.get(pref+":header");
   if(!header?.byteLength)return respond({ok:false,error:"雲端合併缺少CSV標題"},500);
   let index=-1,chunk=0,meta=null;
   const stream=new ReadableStream({async pull(controller){
@@ -1034,19 +1036,20 @@ export class StockFuturesBatch{
     for(;;){
      if(index>=merge.total){controller.close();return}
      if(!meta){
-      meta=await st.get("merge:meta:"+index);
+      meta=await st.get(pref+":meta:"+index);
       if(!meta||meta.code!==s.catalog[index]?.code||!Number.isSafeInteger(meta.parts)||meta.parts<1)
        throw Error("雲端合併索引缺失（第 "+(index+1)+" 檔）");
       chunk=0;
      }
      if(chunk>=meta.parts){index++;meta=null;continue}
-     const bytes=await st.get("merge:blob:"+index+":"+(chunk++));
+     const bytes=await st.get(pref+":blob:"+index+":"+(chunk++));
      if(!bytes?.byteLength)throw Error("雲端合併壓縮資料損毀（第 "+(index+1)+" 檔）");
      controller.enqueue(new Uint8Array(bytes));return
     }
    }catch(e){controller.error(e)}
   }});
-  const filename=MERGE_NAME+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-","")+"_ALL.csv.gz";
+  const filename=MERGE_NAME+s.start.replaceAll("-","")+"_"+s.end.replaceAll("-","")+
+   (enriched?"_WITH_INSTITUTIONAL_MARGIN.csv.gz":"_ALL.csv.gz");
   return new Response(stream,{headers:{
    "content-type":"application/gzip",
    "content-disposition":'attachment; filename="'+filename+'"',
