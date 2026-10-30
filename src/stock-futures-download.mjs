@@ -463,6 +463,89 @@ export function joinDailyChipRows(price,instRaw,marginRaw,stock,start,end){
  }
  return {csvByYear:byYear,coverage,bad};
 }
+// Add THREE missing research families to the dated daily+institutional+margin CSV.
+// Future contract OBSERVATIONS are not official listing/adjustment events.
+// Borrow lending is daily securities-lending TRANSACTIONS, not lending short balances.
+export function joinResearchRows(prices,oldJoined,foreignRaw,lendingRaw,futuresRaw,stock,start,end,futureCodes=[],preferredFuture=""){
+ if(!Array.isArray(prices?.records)||!oldJoined?.csvByYear||![foreignRaw,lendingRaw,futuresRaw].every(Array.isArray))
+  throw Error("研究欄位合併資料格式錯誤");
+ const foreign=new Map(),lending=new Map(),futures=new Map(),allowed=new Set(futureCodes);
+ const counts={foreignHolding:0,lendingTrades:0,futuresObservations:0,missingForeignHolding:0,missingLending:0,missingFutures:0};
+ const num=(v,kind)=>{
+  if(v===undefined||v===null||v==="")return "";
+  const n=Number(v);if(!Number.isFinite(n)||(kind==="nonnegative"&&n<0))throw Error("研究資料數值欄位錯誤："+v);
+  return n;
+ };
+ for(const r of foreignRaw){
+  const d=String(r?.date||"");
+  if(String(r?.stock_id||"")!==stock||!dateOk(d)||d<start||d>end)continue;
+  const vals=["ForeignInvestmentShares","ForeignInvestmentSharesRatio","ForeignInvestmentRemainRatio","NumberOfSharesIssued"].map(x=>num(r[x],"nonnegative"));
+  if(vals[1]!==""&&vals[1]>100||vals[2]!==""&&vals[2]>100)throw Error("外資比例不合法："+d);
+  const sig=JSON.stringify(vals);if(foreign.has(d)&&foreign.get(d).sig!==sig)throw Error("外資持股同日重複且資料不一致："+stock+" "+d);
+  foreign.set(d,{vals,sig});
+ }
+ for(const r of lendingRaw){
+  const d=String(r?.date||"");
+  if(String(r?.stock_id||"")!==stock||!dateOk(d)||d<start||d>end)continue;
+  const volume=num(r.volume,"nonnegative"),fee=num(r.fee_rate,"nonnegative");
+  if(volume==="")continue;
+  let val=lending.get(d);
+  if(!val){val={transactions:0,volume:0,feeVolume:0,feeVolumeObserved:0};lending.set(d,val)}
+  val.transactions++;val.volume+=volume;
+  if(fee!==""){val.feeVolume+=volume*fee;val.feeVolumeObserved+=volume}
+ }
+ for(const r of futuresRaw){
+  const d=String(r?.date||""),symbol=String(r?.futures_id||"").trim();
+  if(!allowed.has(symbol)||!dateOk(d)||d<start||d>end)continue;
+  const month=String(r.contract_date||"").trim();
+  if(!/^\d{6}$/.test(month))continue; // exclude spread contracts.
+  if(!futures.has(d))futures.set(d,new Map());
+  const bucket=futures.get(d);
+  if(!bucket.has(symbol))bucket.set(symbol,new Map());
+  const group=bucket.get(symbol),session=String(r.trading_session||"");
+  // Keep only normal-session OI/volume for comparable contracts; night still proves a quote was observed.
+  const key=month+"|"+session;
+  const volume=num(r.volume,"nonnegative"),oi=num(r.open_interest,"nonnegative");
+  const value={volume,oi,month,session};
+  if(group.has(key)){
+   if(JSON.stringify(group.get(key))!==JSON.stringify(value))throw Error("股期同月同交易時段資料矛盾："+symbol+" "+d);
+   continue
+  }
+  group.set(key,value)
+ }
+ const grouped=new Map();
+ for(const p of prices.records){const y=p.date.slice(0,4);if(!grouped.has(y))grouped.set(y,[]);grouped.get(y).push(p)}
+ const merged={},availability={...counts};
+ for(const [year,records] of grouped){
+  const existing=String(oldJoined.csvByYear[year]||"").split("\n").filter(Boolean);
+  if(existing.length!==records.length)throw Error("研究檔行數與日K不一致："+stock+" "+year);
+  const lines=[];
+  for(let i=0;i<records.length;i++){
+   const d=records[i].date,hold=foreign.get(d),loan=lending.get(d),contractMap=futures.get(d);
+   if(hold)availability.foreignHolding++;else availability.missingForeignHolding++;
+   if(loan)availability.lendingTrades++;else availability.missingLending++;
+   if(contractMap)availability.futuresObservations++;else availability.missingFutures++;
+   const loanFee=loan&&loan.feeVolumeObserved>0?loan.feeVolume/loan.feeVolumeObserved:"";
+   const symbols=contractMap?[...contractMap.keys()].sort():[];
+   // Selected mini-future symbol takes priority; if it did not exist historically,
+   // fall back to another OBSERVED current-code contract, without mixing sizes.
+   const primary=contractMap?(contractMap.has(preferredFuture)?preferredFuture:symbols[0]):"";
+   const position=primary?[...contractMap.get(primary).values()].filter(x=>x.session==="position"&&x.month>=d.slice(0,4)+d.slice(5,7)):[];
+   const months=contractMap?[...new Set([...contractMap.values()].flatMap(x=>[...x.values()].map(y=>y.month)))].sort():[];
+   const frontMonth=position.length?position.map(x=>x.month).sort()[0]:"";
+   const front=position.find(x=>x.month===frontMonth);
+   const extra=[
+    hold?1:0,...(hold?.vals||["","","",""]),
+    loan?1:0,loan?.transactions??"",loan?.volume??"",loan?1:"",loanFee,
+    contractMap?1:0,symbols.join("|"),months.join("|"),primary,frontMonth,front?.volume??"",front?.oi??"",
+    1,1
+   ];
+   lines.push(existing[i]+","+extra.map(column).join(","));
+  }
+  merged[year]=lines.join("\n")+"\n";
+ }
+ return {csvByYear:merged,coverage:availability};
+}
 // Daily data goes back to 1994, but requests covering 2000-now can become large.
 // Limit EACH FinMind call to eight calendar years; 2021-now still uses one call.
 export function dailyPriceWindows(start,end,maxYears=8){
