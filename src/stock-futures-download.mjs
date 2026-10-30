@@ -188,14 +188,15 @@ export async function stockFuturesRoute(request,env,mode="futures"){
     durableBinding:!!env.STOCK_FUTURES_BATCH,dataBinding:!!env.STOCK_FUTURES_DATA,hasSession:known});
  // Explicit, revokeable, read-only capability URL. No FinMind credential
  // or browser cookie is included in the shared link.
- if(market&&path===root+"/shared"&&method==="GET"){
+ if(market&&(path===root+"/shared"||path===root+"/chip-shared")&&method==="GET"){
+  const chipShare=path===root+"/chip-shared";
   const job=url.searchParams.get("job")||"",key=url.searchParams.get("key")||"";
   if(!validJobId(job)||!validShareKey(key))return respond({ok:false,error:"唯讀連結參數錯誤"},403);
   const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(job));
   const qs=new URLSearchParams({format:url.searchParams.get("format")||"",
     code:url.searchParams.get("code")||"",year:url.searchParams.get("year")||"",
     part:url.searchParams.get("part")||""});
-  return stub.fetch(new Request("https://private/merge-shared?"+qs,{headers:{authorization:"Bearer "+key}}));
+  return stub.fetch(new Request("https://private/"+(chipShare?"chip-shared":"merge-shared")+"?"+qs,{headers:{authorization:"Bearer "+key}}));
  }
  if(market&&path===root+"/token"&&method==="POST"){
   const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
@@ -264,6 +265,29 @@ export async function stockFuturesRoute(request,env,mode="futures"){
     reason:String(e?.name||"Error"),version:"r55-status-guard"},503);
   }
  }
+ if(market&&path===root+"/chip-start"&&method==="POST"){
+  const bearer=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+  if(bearer&&(bearer.length<5||bearer.length>4096||/[\r\n]/.test(bearer)))
+   return respond({ok:false,error:"新 Token 格式錯誤"},401);
+  return stub.fetch(new Request("https://private/chip-start",{method:"POST",
+   headers:bearer?{authorization:"Bearer "+bearer}:{}}));
+ }
+ if(market&&["chip-resume","chip-pause"].includes(path.split("/").at(-1))&&method==="POST")
+  return stub.fetch(new Request("https://private/"+path.split("/").at(-1),{method:"POST"}));
+ if(market&&path===root+"/chip-merge-download"&&method==="GET")
+  return stub.fetch("https://private/chip-merge-download");
+ if(market&&path===root+"/chip-share"&&method==="POST"){
+  const resp=await stub.fetch(new Request("https://private/chip-share",{method:"POST"}));
+  const data=await resp.json().catch(()=>({ok:false,error:"籌碼唯讀連結產生失敗"}));
+  if(data.ok){
+   const u=new URL(root+"/chip-shared",url.origin);
+   u.searchParams.set("job",id);u.searchParams.set("key",data.key);
+   data.url=u.toString();delete data.key;data.statusUrl=data.url+"&format=status";
+  }
+  return respond(data,resp.status);
+ }
+ if(market&&path===root+"/chip-revoke"&&method==="POST")
+  return stub.fetch(new Request("https://private/chip-revoke",{method:"POST"}));
  if(market&&path===root+"/merge-start"&&method==="POST")return stub.fetch(new Request("https://private/merge-start",{method:"POST"}));
  if(market&&path===root+"/merge-resume"&&method==="POST")return stub.fetch(new Request("https://private/merge-resume",{method:"POST"}));
  if(market&&path===root+"/merge-download"&&method==="GET")return stub.fetch("https://private/merge-download");
@@ -279,6 +303,12 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   return respond(data,resp.status);
  }
  if(market&&path===root+"/merge-revoke"&&method==="POST")return stub.fetch(new Request("https://private/merge-revoke",{method:"POST"}));
+ if(market&&path===root+"/chip-export"&&method==="GET"){
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",part=url.searchParams.get("part")||"";
+  if(code&&!/^[0-9]{4}$/.test(code)||year&&!/^(20|21)\d{2}$/.test(year)||part&&!/^[1-9]\d{0,3}$/.test(part)||
+    !code&&(!year||!part))return respond({ok:false,error:"籌碼資料請選擇股票，或年份與分包"},400);
+  return stub.fetch("https://private/export?"+new URLSearchParams({code,year,part,chip:"1"}));
+ }
  if(market&&path===root+"/export"&&method==="GET"){
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   const part=url.searchParams.get("part")||"",all=url.searchParams.get("all")==="1";
