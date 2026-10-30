@@ -620,8 +620,8 @@ export class StockFuturesBatch{
     s=await st.get("state");
     if(!s||s.phase!=="done"||s.processed!==s.total||!s.catalog.length)
      return respond({ok:false,error:"必須先完成原本的全市場股價日K任務，才可只補抓法人與資券資料"},409);
-    const bearer=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
-    if(bearer&&(!/^[^\\r\\n]{5,4096}$/.test(bearer)))return respond({ok:false,error:"FinMind Token 格式不正確"},401);
+    const bearer=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+    if(bearer&&(bearer.length<5||bearer.length>4096||/[\r\n]/.test(bearer)))return respond({ok:false,error:"FinMind Token 格式不正確"},401);
     if(bearer)await st.put("token",bearer);
     if(!await st.get("token"))return respond({ok:false,error:"缺少 FinMind Token；請在上方填入會員 Token"},401);
     let chip=await st.get(CHIP_JOB_KEY);
@@ -670,7 +670,7 @@ export class StockFuturesBatch{
    await st.delete(CHIP_MERGE_KEY+":share");return respond({ok:true,revoked:true});
   }
   if(s.mode==="market-daily"&&p==="/chip-shared"){
-   const key=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
+   const key=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    const share=await st.get(CHIP_MERGE_KEY+":share");
    if(!validShareKey(key)||!share||share.key!==key||share.expiresAt<=Date.now())
     return respond({ok:false,error:"籌碼唯讀連結已失效或沒有權限"},403);
@@ -683,7 +683,7 @@ export class StockFuturesBatch{
    if(fmt)return respond({ok:false,error:"格式錯誤"},400);
    const code=u.searchParams.get("code")||"",year=u.searchParams.get("year")||"",part=u.searchParams.get("part")||"";
    if(code||year||part){
-    if(code&&!/^\\d{4}$/.test(code)||year&&!/^(20|21)\\d{2}$/.test(year)||part&&!/^[1-9]\\d{0,3}$/.test(part))
+    if(code&&!/^\d{4}$/.test(code)||year&&!/^(20|21)\d{2}$/.test(year)||part&&!/^[1-9]\d{0,3}$/.test(part))
      return respond({ok:false,error:"股票／年份／分包參數錯誤"},400);
     if(!code&&(!year||!part))return respond({ok:false,error:"請指定股票，或年份加分包"},400);
     return this.exportDailyData(s,new URL("https://private/export?"+new URLSearchParams({code,year,part,chip:"1"})))
