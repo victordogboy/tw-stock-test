@@ -39,7 +39,12 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  <input id="includeChips" type="checkbox" checked style="width:auto">
  <span>日 K 一起下載三大法人、融資融券，合併成回測 CSV（建議）</span>
 </label>
-<div class="minor" id="chipsNotice">會同時取得外資／投信／自營商買賣超、融資融券每日餘額與變動。2000 年沒有這些資料時保留空白，不填 0；法人自 2005 年、融資融券自 2001 年。</div>
+<div class="minor" id="chipsNotice">外資、投信、自營商買賣超，以及融資融券每日餘額／變動；2000 年沒有資料時保持空白，不填 0。</div>
+<label id="researchOption" style="margin-top:10px;display:flex;align-items:center;gap:10px">
+ <input id="includeResearch" type="checkbox" checked style="width:auto">
+ <span><strong>完整研究版：</strong>再加借券成交、外資持股比例、股期歷史契約觀測（建議）</span>
+</label>
+<div class="minor" id="researchNotice">新增 2001/05 起借券成交、2004/02 起外資持股、2010 年起可查到的股期歷史交易月份／未平倉量。注意第一筆股期成交不等於正式掛牌日；歷史契約調整規格可能不同。新增模式不覆蓋既有日 K。</div>
 <div class="note" id="formatHint">日 K＋籌碼：現股日 K、法人買賣超、融資融券餘額合成同一 CSV；2000–2004 法人欄位空白。資料僅供次一交易時段使用。</div>
 <div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2000-01-01" min="2000-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
 <label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
@@ -73,7 +78,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <details><summary>展開下載規格</summary><p class="minor" id="csvSpec">日 K：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread，來源 TaiwanStockPrice；不作除權息還原。</p></details>
 </section>
 <section class="card"><h2>關於下載速度與費用</h2>
-<p>日 K 最早 2000 年。勾選籌碼後會按最多 8 年分段抓 <strong>TaiwanStockPrice、TaiwanStockInstitutionalInvestorsBuySell、TaiwanStockMarginPurchaseShortSale</strong> 三種資料。長歷史每檔約 10–12 次 API，仍遠少於 1 分 K 逐日請求。純日 K、日 K＋籌碼、1 分 K 各自有獨立背景任務，不會清掉原資料。</p>
+<p>研究加強版分段下載現股日 K、法人、融資融券、借券、外資持股與股期歷史日交易，API 數量視歷史年數和大小股期數量而異。研究版、舊版日 K＋籌碼、純日 K、1 分 K 各自儲存在雲端獨立任務，不會清除舊資料。已下載股票需由新研究版另建任務補齊資料。</p>
 <p>如果 FinMind 回傳超額或無效 Token，背景工作會顯示錯誤並暫停，不會假裝已完成。完成的資料先保存在雲端私有儲存，請下載備份。</p>
 <div class="actions"><button id="deleteBtn" class="danger">清除這次的全部雲端資料</button></div>
 </section>
@@ -87,15 +92,17 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  let previousMode="day";const startDates={day:"2000-01-01",minute:"2021-01-01"};
  const isDaily=()=>$("granularity").value==="day";
  const isChips=()=>isDaily()&&$("includeChips").checked;
- const root=()=>!isDaily()?"/api/stock-kbar":isChips()?"/api/stock-daily-chip":"/api/stock-daily";
- const modeId=()=>!isDaily()?"stocks":isChips()?"daily-chip":"daily";
- const seriesName=()=>!isDaily()?"1 分 K":isChips()?"日 K＋籌碼":"日 K";
+ const isResearch=()=>isChips()&&$("includeResearch").checked;
+ const root=()=>!isDaily()?"/api/stock-kbar":isResearch()?"/api/stock-daily-research":isChips()?"/api/stock-daily-chip":"/api/stock-daily";
+ const modeId=()=>!isDaily()?"stocks":isResearch()?"daily-research":isChips()?"daily-chip":"daily";
+ const seriesName=()=>!isDaily()?"1 分 K":isResearch()?"日 K＋完整研究":isChips()?"日 K＋籌碼":"日 K";
  function setFormatHelp(){
   const daily=isDaily();
   $("chipsOption").classList.toggle("hidden",!daily);$("chipsNotice").classList.toggle("hidden",!daily);
+  $("researchOption").classList.toggle("hidden",!isChips());$("researchNotice").classList.toggle("hidden",!isChips());
   $("chipInfo").classList.toggle("hidden",!isChips());
-  $("formatHint").textContent=!daily?"1 分 K：2021/01/01 起可選，逐日下載 TaiwanStockKBar。":"日 K：從 2000/01/01 開始"+(isChips()?"；會自動依日期結合三大法人與融資融券。2000 年以前籌碼未開始公布，缺少資料不會填 0；籌碼只允許次一交易時段使用。":"；只下載純 OHLCV，不含籌碼。");
-  $("csvSpec").textContent=!daily?"1 分 K CSV：date、minute、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_raw；原始單位且未還原除權息。":isChips()?"日 K＋籌碼 CSV：日 K OHLCV 與三大法人買進／賣出／淨額（股）、融資融券買進／賣出／餘額（張），含 institutional_available、margin_available、chip_signal_use_next_session；不存在的觀測留空，絕不視為 0。":"純日 K CSV：date、stock_id、stock_name、qualifying_futures_id、open、high、low、close、volume_shares（股）、trading_money_twd、trading_turnover、spread；未還原除權息。";
+  $("formatHint").textContent=!daily?"1 分 K：2021 年起，逐日下載。":isResearch()?"完整研究版：2000 年起日 K＋法人＋融資融券＋借券成交＋外資持股比例＋歷史股期契約觀測；缺值不填 0，籌碼收盤後公布的只能用於之後交易。":isChips()?"日 K＋法人買賣超＋融資融券餘額，缺值留空。":"純日 K，不含籌碼。";
+  $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV，來源原始單位。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
   $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
   $("yearTitle").textContent="各年度：所選股票的現股"+seriesName();
   $("startBtn").textContent="▶ 啟動"+seriesName()+"雲端背景下載";
@@ -144,11 +151,11 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   job=s;$("progressCard").classList.remove("hidden");$("exports").classList.remove("hidden");$("startBtn").disabled=true;
   $("phase").textContent=({running:"下載中",paused:"已暫停",error:"需要處理",done:"已完成",expired:"已到期"})[s.phase]||s.phase;
   const pct=s.total?Math.min(100,100*s.processed/s.total):0;$("fill").style.width=pct+"%";$("percent").textContent=pct.toFixed(2)+"%";
-  $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+(s.mode==="daily"?" 檔股票":" 股票×日期");
-  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode==="daily"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode==="daily"?"—":fmt(s.skipped);$("preflight").textContent=s.mode==="daily"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
-  $("message").textContent=s.message+((s.mode==="daily"||s.mode==="daily-chip")&&s.start>$("start").value?" ⚠ 現有任務從 "+s.start+" 開始。若需要延長資料，請先備份該模式、再按重新下載；其他模式不受影響。":"");
-  $("chipCoverage").textContent=s.mode==="daily-chip"&&s.chipCoverage?
-   "完整籌碼觀測："+fmt(s.chipCoverage.both)+" 筆；有法人："+fmt(s.chipCoverage.institutional)+" 筆；有融資融券："+fmt(s.chipCoverage.margin)+" 筆。缺漏留空不補0。":"";$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
+  $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+(s.mode==="stocks"?" 股票×日期":" 檔股票");
+  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode!=="stocks"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode!=="stocks"?"—":fmt(s.skipped);$("preflight").textContent=s.mode!=="stocks"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
+  $("message").textContent=s.message+((s.mode==="daily"||s.mode==="daily-chip"||s.mode==="daily-research")&&s.start>$("start").value?" ⚠ 現有任務從 "+s.start+" 開始。若需要延長資料，請先備份該模式、再按重新下載；其他模式不受影響。":"");
+  $("chipCoverage").textContent=(s.mode==="daily-chip"||s.mode==="daily-research")&&s.chipCoverage?
+   "法人＋融資融券："+fmt(s.chipCoverage.both)+" 筆；外資持股："+fmt(s.chipCoverage.foreignHolding)+" 筆；借券成交："+fmt(s.chipCoverage.lendingTrades)+" 筆；股期歷史紀錄："+fmt(s.chipCoverage.futuresObservations)+" 筆；缺值留空。":"";$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
   $("errors").textContent=(s.errors||[]).slice(-15).map(x=>x.day+" "+x.code+" "+x.error).join("\n")||"沒有紀錄錯誤";
   $("pauseBtn").disabled=s.phase!=="running";$("resumeBtn").disabled=!["paused","error"].includes(s.phase);
   $("exportNote").textContent=s.phase==="done"?"✓ 雲端已查詢完指定商品與日期，請立即備份年度檔。":"⚠ 工作尚未全部完成，目前匯出的檔案僅包含已成功下載的日期。";
@@ -203,6 +210,10 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   setFormatHelp();updateCount();refresh();
  };
  $("includeChips").onchange=()=>{
+  job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
+  setFormatHelp();updateCount();refresh();
+ };
+ $("includeResearch").onchange=()=>{
   job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
   setFormatHelp();updateCount();refresh();
  };
