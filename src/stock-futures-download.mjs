@@ -665,7 +665,7 @@ export class StockFuturesBatch{
    return this.ctx.blockConcurrencyWhile(async()=>{
     const merge=await st.get(CHIP_MERGE_KEY),chip=await st.get(CHIP_JOB_KEY);
     if(chip?.phase!=="done")return respond({ok:false,error:"需先補齊法人融資融券資料"},409);
-    if(!merge)return this.completeMarketChip(s,chip,st);
+    if(!merge){await this.completeMarketChip(s,chip,st);return respond({ok:true,merge:this.summary(s,await st.get(CHIP_MERGE_KEY)).merge})}
     if(merge.phase!=="error")return respond({ok:false,error:"目前沒有失敗的籌碼合併需要恢復"},409);
     merge.phase="running";merge.retryCount=0;merge.error="";merge.updatedAt=Date.now();
     merge.message="從 "+merge.processed+"/"+merge.total+" 檔恢復合併（不再下載 FinMind）";
