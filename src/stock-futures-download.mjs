@@ -481,7 +481,10 @@ export function joinDailyChipRows(price,instRaw,marginRaw,stock,start,end){
   const fin=map?["Foreign_Investor","Foreign_Dealer_Self"]:null;
   const foreBuy=map?sum(fin,"buy"):null,foreSell=map?sum(fin,"sell"):null;
   const trustBuy=map?sum(["Investment_Trust"],"buy"):null,trustSell=map?sum(["Investment_Trust"],"sell"):null;
-  const dealerKinds=["Dealer","Dealer_self","Dealer_Hedging"];
+  // FinMind older consolidated "Dealer" and newer self/hedge splits must
+  // never be added together when both representations appear on the same date.
+  const dealerKinds=map&&(map.has("Dealer_self")||map.has("Dealer_Hedging"))
+   ?["Dealer_self","Dealer_Hedging"]:["Dealer"];
   const dealerBuy=map?sum(dealerKinds,"buy"):null,dealerSell=map?sum(dealerKinds,"sell"):null;
   const instCols=map?[
    1,foreBuy,foreSell,foreBuy-foreSell,values("Foreign_Dealer_Self").buy-values("Foreign_Dealer_Self").sell,
@@ -494,7 +497,7 @@ export function joinDailyChipRows(price,instRaw,marginRaw,stock,start,end){
   if(map)coverage.institutional++;else coverage.missingInstitutional++;
   if(margin)coverage.margin++;else coverage.missingMargin++;
   if(map&&margin)coverage.both++;
-  const line=[...p.values,...instCols,...marginCols,1].map(column).join(",")+"\n";
+  const line=[...p.values,...instCols,...marginCols,map||margin?1:0].map(column).join(",")+"\n";
   const year=d.slice(0,4);byYear[year]=(byYear[year]||"")+line;
  }
  return {csvByYear:byYear,coverage,bad};
