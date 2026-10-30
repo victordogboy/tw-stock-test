@@ -3,7 +3,7 @@ import {priceRowsFromText,chipSnapshot} from './market-chip.mjs';
 const DAY=86400000, COOKIE="__Host-sf5y", STOCK_COOKIE="__Host-underlying1m", HDR="date,minute,session,futures_id,underlying_stock,contract_size,contract_date,open,high,low,close,volume\n";
 const STOCK_HDR="date,minute,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_raw\n";
 const DAILY_HDR="date,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread\n";
-const DAILY_COOKIE="__Host-underlying-day", CHIP_COOKIE="__Host-underlying-chip", MARKET_COOKIE="__Host-tw-market-daily";
+const DAILY_COOKIE="__Host-underlying-day", CHIP_COOKIE="__Host-underlying-chip", MARKET_COOKIE="__Host-tw-market-daily", RESEARCH_COOKIE="__Host-stock-research";
 const MARKET_HDR="date,stock_id,stock_name,market,open,high,low,close,volume_shares,trading_money_twd,trading_turnover,spread\n";
 const MARKET_EXPORT_PART_SIZE=250; // Legacy per-year export option.
 const MERGE_STOCKS_PER_ALARM=2;  // Keep CPU/storage I/O modest; alarm runs even if phone is closed.
@@ -18,6 +18,7 @@ const validShareKey=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 
 const CHIP_HDR="institutional_available,institutional_foreign_buy_shares,institutional_foreign_sell_shares,institutional_foreign_net_shares,institutional_foreign_dealer_net_shares,institutional_trust_buy_shares,institutional_trust_sell_shares,institutional_trust_net_shares,institutional_dealer_buy_shares,institutional_dealer_sell_shares,institutional_dealer_net_shares,institutional_dealer_self_net_shares,institutional_dealer_hedge_net_shares,margin_available,margin_buy_lots,margin_sell_lots,margin_cash_repayment_lots,margin_balance_lots,margin_previous_balance_lots,margin_change_lots,short_buy_lots,short_sell_lots,short_cash_repayment_lots,short_balance_lots,short_previous_balance_lots,short_change_lots,chip_signal_use_next_session\n";
 const CHIP_COLUMNS=MARKET_HDR.trimEnd()+","+CHIP_HDR;
+const RESEARCH_HDR="foreign_holding_available,foreign_holding_shares,foreign_holding_ratio_pct,foreign_remaining_ratio_pct,foreign_shares_issued,lending_trade_available,lending_transaction_count,lending_volume_raw,lending_volume_unit_unverified,lending_weighted_fee_pct,futures_daily_observed,futures_observed_symbols,futures_observed_contract_months,futures_selected_observed_symbol,futures_nearest_contract_month,futures_nearest_day_volume_contracts,futures_nearest_day_open_interest_contracts,futures_observation_not_listing_proof,research_chip_use_next_session\n";
 const STOCK_MAX_PARALLEL=5, STOCK_REQUEST_SPACING_MS=750; // 4,800 calls/h, below Sponsor's 6,000 calls/h cap
 const STOCK_SCAN_CAP=3000;
 const respond=(v,status=200,h={})=>new Response(JSON.stringify(v),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...h}});
@@ -176,7 +177,7 @@ async function fetchMarketStockCatalog(token,includeDelisted=true){
  return parseMarketStockCatalog(info,delisted);
 }
 export async function stockFuturesRoute(request,env,mode="futures"){
- const market=mode==="market-daily",chip=mode==="daily-chip",daily=mode==="daily"||chip||market,isStock=mode==="stocks",isCash=isStock||daily,root=market?"/api/market-daily":chip?"/api/stock-daily-chip":daily?"/api/stock-daily":isStock?"/api/stock-kbar":"/api/stock-futures",cookieName=market?MARKET_COOKIE:chip?CHIP_COOKIE:daily?DAILY_COOKIE:isStock?STOCK_COOKIE:COOKIE;
+ const market=mode==="market-daily",research=mode==="daily-research",chip=mode==="daily-chip"||research,daily=mode==="daily"||chip||market,isStock=mode==="stocks",isCash=isStock||daily,root=market?"/api/market-daily":research?"/api/stock-daily-research":chip?"/api/stock-daily-chip":daily?"/api/stock-daily":isStock?"/api/stock-kbar":"/api/stock-futures",cookieName=market?MARKET_COOKIE:research?RESEARCH_COOKIE:chip?CHIP_COOKIE:daily?DAILY_COOKIE:isStock?STOCK_COOKIE:COOKIE;
  const url=new URL(request.url),path=url.pathname,method=request.method;
  if(!env.STOCK_FUTURES_BATCH||!env.STOCK_FUTURES_DATA)return respond({ok:false,error:"個股期貨雲端背景服務尚未部署"},503);
  if(!["GET","POST"].includes(method))return respond({ok:false,error:"不支援此方法"},405);
@@ -245,7 +246,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(!dateOk(args.start)||!dateOk(args.end)||args.start<earliest||args.end>today()||args.start>args.end)
    return respond({ok:false,error:"日期必須在 "+earliest+" 至今天"+(daily?"（日K）":"（1分K及期貨）")},400);
   const resId=known?id:randomId(),stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(resId));
-  const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],markets:args.markets||[],reset:args.reset===true,mode:market?"market-daily":chip?"daily-chip":daily?"daily":isStock?"stocks":"futures"})}));
+  const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],markets:args.markets||[],reset:args.reset===true,mode:market?"market-daily":research?"daily-research":chip?"daily-chip":daily?"daily":isStock?"stocks":"futures"})}));
   return new Response(data.body,{status:data.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":cookieName+"="+resId+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000"}});
  }
  if(!known)return respond({ok:false,error:"沒有這個瀏覽器的下載工作；請先按開始"},401);
@@ -502,6 +503,89 @@ export function joinDailyChipRows(price,instRaw,marginRaw,stock,start,end){
  }
  return {csvByYear:byYear,coverage,bad};
 }
+// Add THREE missing research families to the dated daily+institutional+margin CSV.
+// Future contract OBSERVATIONS are not official listing/adjustment events.
+// Borrow lending is daily securities-lending TRANSACTIONS, not lending short balances.
+export function joinResearchRows(prices,oldJoined,foreignRaw,lendingRaw,futuresRaw,stock,start,end,futureCodes=[],preferredFuture=""){
+ if(!Array.isArray(prices?.records)||!oldJoined?.csvByYear||![foreignRaw,lendingRaw,futuresRaw].every(Array.isArray))
+  throw Error("研究欄位合併資料格式錯誤");
+ const foreign=new Map(),lending=new Map(),futures=new Map(),allowed=new Set(futureCodes);
+ const counts={foreignHolding:0,lendingTrades:0,futuresObservations:0,missingForeignHolding:0,missingLending:0,missingFutures:0};
+ const num=(v,kind)=>{
+  if(v===undefined||v===null||v==="")return "";
+  const n=Number(v);if(!Number.isFinite(n)||(kind==="nonnegative"&&n<0))throw Error("研究資料數值欄位錯誤："+v);
+  return n;
+ };
+ for(const r of foreignRaw){
+  const d=String(r?.date||"");
+  if(String(r?.stock_id||"")!==stock||!dateOk(d)||d<start||d>end)continue;
+  const vals=["ForeignInvestmentShares","ForeignInvestmentSharesRatio","ForeignInvestmentRemainRatio","NumberOfSharesIssued"].map(x=>num(r[x],"nonnegative"));
+  if(vals[1]!==""&&vals[1]>100||vals[2]!==""&&vals[2]>100)throw Error("外資比例不合法："+d);
+  const sig=JSON.stringify(vals);if(foreign.has(d)&&foreign.get(d).sig!==sig)throw Error("外資持股同日重複且資料不一致："+stock+" "+d);
+  foreign.set(d,{vals,sig});
+ }
+ for(const r of lendingRaw){
+  const d=String(r?.date||"");
+  if(String(r?.stock_id||"")!==stock||!dateOk(d)||d<start||d>end)continue;
+  const volume=num(r.volume,"nonnegative"),fee=num(r.fee_rate,"nonnegative");
+  if(volume==="")continue;
+  let val=lending.get(d);
+  if(!val){val={transactions:0,volume:0,feeVolume:0,feeVolumeObserved:0};lending.set(d,val)}
+  val.transactions++;val.volume+=volume;
+  if(fee!==""){val.feeVolume+=volume*fee;val.feeVolumeObserved+=volume}
+ }
+ for(const r of futuresRaw){
+  const d=String(r?.date||""),symbol=String(r?.futures_id||"").trim();
+  if(!allowed.has(symbol)||!dateOk(d)||d<start||d>end)continue;
+  const month=String(r.contract_date||"").trim();
+  if(!/^\d{6}$/.test(month))continue; // exclude spread contracts.
+  if(!futures.has(d))futures.set(d,new Map());
+  const bucket=futures.get(d);
+  if(!bucket.has(symbol))bucket.set(symbol,new Map());
+  const group=bucket.get(symbol),session=String(r.trading_session||"");
+  // Keep only normal-session OI/volume for comparable contracts; night still proves a quote was observed.
+  const key=month+"|"+session;
+  const volume=num(r.volume,"nonnegative"),oi=num(r.open_interest,"nonnegative");
+  const value={volume,oi,month,session};
+  if(group.has(key)){
+   if(JSON.stringify(group.get(key))!==JSON.stringify(value))throw Error("股期同月同交易時段資料矛盾："+symbol+" "+d);
+   continue
+  }
+  group.set(key,value)
+ }
+ const grouped=new Map();
+ for(const p of prices.records){const y=p.date.slice(0,4);if(!grouped.has(y))grouped.set(y,[]);grouped.get(y).push(p)}
+ const merged={},availability={...counts};
+ for(const [year,records] of grouped){
+  const existing=String(oldJoined.csvByYear[year]||"").split("\n").filter(Boolean);
+  if(existing.length!==records.length)throw Error("研究檔行數與日K不一致："+stock+" "+year);
+  const lines=[];
+  for(let i=0;i<records.length;i++){
+   const d=records[i].date,hold=foreign.get(d),loan=lending.get(d),contractMap=futures.get(d);
+   if(hold)availability.foreignHolding++;else availability.missingForeignHolding++;
+   if(loan)availability.lendingTrades++;else availability.missingLending++;
+   if(contractMap)availability.futuresObservations++;else availability.missingFutures++;
+   const loanFee=loan&&loan.feeVolumeObserved>0?loan.feeVolume/loan.feeVolumeObserved:"";
+   const symbols=contractMap?[...contractMap.keys()].sort():[];
+   // Selected mini-future symbol takes priority; if it did not exist historically,
+   // fall back to another OBSERVED current-code contract, without mixing sizes.
+   const primary=contractMap?(contractMap.has(preferredFuture)?preferredFuture:symbols[0]):"";
+   const position=primary?[...contractMap.get(primary).values()].filter(x=>x.session==="position"&&x.month>=d.slice(0,4)+d.slice(5,7)):[];
+   const months=contractMap?[...new Set([...contractMap.values()].flatMap(x=>[...x.values()].map(y=>y.month)))].sort():[];
+   const frontMonth=position.length?position.map(x=>x.month).sort()[0]:"";
+   const front=position.find(x=>x.month===frontMonth);
+   const extra=[
+    hold?1:0,...(hold?.vals||["","","",""]),
+    loan?1:0,loan?.transactions??"",loan?.volume??"",loan?1:"",loanFee,
+    contractMap?1:0,symbols.join("|"),months.join("|"),primary,frontMonth,front?.volume??"",front?.oi??"",
+    1,1
+   ];
+   lines.push(existing[i]+","+extra.map(column).join(","));
+  }
+  merged[year]=lines.join("\n")+"\n";
+ }
+ return {csvByYear:merged,coverage:availability};
+}
 // Daily data goes back to 1994, but requests covering 2000-now can become large.
 // Limit EACH FinMind call to eight calendar years; 2021-now still uses one call.
 export function dailyPriceWindows(start,end,maxYears=8){
@@ -530,18 +614,18 @@ export class StockFuturesBatch{
   error:merge.error||"",updatedAt:merge.updatedAt,startedAt:merge.startedAt,
   completedAt:merge.completedAt||null,retryCount:merge.retryCount||0,
   message:merge.message||""
- }:null,rateLimitPerHour:s.mode==="stocks"||s.mode==="daily"||s.mode==="daily-chip"||s.mode==="market-daily"?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,chipCoverage:s.chipCoverage||null,mode:s.mode||"futures",dataset:s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":["daily","market-daily"].includes(s.mode)?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.mode==="market-daily"?[]:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="market-daily"?"現行上市上櫃普通股＋2018年後下市櫃股票（FinMind 名單）；排除 ETF／權證／興櫃，原始未還原日K":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
+ }:null,rateLimitPerHour:["stocks","daily","daily-chip","daily-research","market-daily"].includes(s.mode)?4800:null,barRatePerHour:s.barRatePerHour||0,skipped:s.skipped||0,calendarVerified:!!s.calendarVerified,preflightDone:s.preflightIndex||0,preflightTotal:s.mode==="stocks"?s.catalog.length:0,chipCoverage:s.chipCoverage||null,mode:s.mode||"futures",dataset:s.mode==="daily-research"?"TaiwanStockPrice+三大法人+融資融券+外資持股+借券成交+股期日線":s.mode==="daily-chip"?"TaiwanStockPrice+TaiwanStockInstitutionalInvestorsBuySell+TaiwanStockMarginPurchaseShortSale":["daily","market-daily"].includes(s.mode)?"TaiwanStockPrice":s.mode==="stocks"?"TaiwanStockKBar":"TaiwanFuturesKBar",phase:s.phase,start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,nonempty:s.nonempty,empty:s.empty,rows:s.rows,night:s.night,duplicates:s.duplicates,rejected:s.rejected,excludedFarMonth:s.excludedFarMonth||0,errors:s.errors.slice(-30),codes:s.mode==="market-daily"?[]:s.codes,codeCount:s.catalog.length,currentDate:s.date,currentCode:s.catalog[s.symbolIndex]?.code||null,lastError:s.lastError||"",updatedAt:s.updatedAt,createdAt:s.createdAt,coverage:s.mode==="daily-research"?"現股日K＋法人＋融資融券＋外資持股（2004/02起）＋借券成交（2001/05起）＋現有股期代碼歷史日成交觀測（不等於正式掛牌日期）":s.mode==="daily-chip"?"現股日K＋三大法人（2005起）＋融資融券（2001起）；籌碼收盤後可得，限下一交易時段使用":s.mode==="market-daily"?"現行上市上櫃普通股＋2018年後下市櫃股票（FinMind 名單）；排除 ETF／權證／興櫃，原始未還原日K":s.mode==="daily"?"TAIFEX 現行有期貨的普通股，每檔現股按多年分段查詢（日K）":s.mode==="stocks"?"TAIFEX 現行有期貨的普通股標的（每股票一次）；不含已終止掛牌商品":"TAIFEX 當前標的；歷史終止上市契約可能不在清單內；100 股小型優先；近月單一合約",message:s.message,version:s.version||1}}
  shard(code){return this.env.STOCK_FUTURES_DATA.get(this.env.STOCK_FUTURES_DATA.idFromName(code))}
  async fetch(r){
   const p=new URL(r.url).pathname,st=this.ctx.storage;
   if(p==="/start"&&r.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token)return respond({ok:false,error:"沒有 FinMind Token"},401);
-   const q=await r.json(),stocksMode=q.mode==="stocks",chipMode=q.mode==="daily-chip",marketMode=q.mode==="market-daily",dailyMode=q.mode==="daily"||chipMode||marketMode,cashMode=stocksMode||dailyMode;
+   const q=await r.json(),stocksMode=q.mode==="stocks",researchMode=q.mode==="daily-research",chipMode=q.mode==="daily-chip"||researchMode,marketMode=q.mode==="market-daily",dailyMode=q.mode==="daily"||chipMode||marketMode,cashMode=stocksMode||dailyMode;
     if(!dateOk(q.start)||!dateOk(q.end)||q.start>(q.end)||q.start<(dailyMode?"2000-01-01":"2021-01-01"))
      return respond({ok:false,error:"資料日期範圍無效"},400);
     let old=await st.get("state");
-   if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.mode!=="market-daily"&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
+   if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.mode!=="daily-research"&&old.mode!=="market-daily"&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
    if(marketMode){
     // IMPORTANT: do not fetch FinMind while holding blockConcurrencyWhile.
     // Cloudflare aborts blocked objects after ~30 seconds, which produced
@@ -567,7 +651,7 @@ export class StockFuturesBatch{
     const requested=new Set(Array.isArray(q.codes)?q.codes:[]);
     const preferred=preferMiniStockFutures(rawCatalog);
     if(cashMode){
-     catalog=preferred.map(c=>({...c,code:c.stock,futureCode:c.code,night:false}));
+     catalog=preferred.map(c=>({...c,code:c.stock,futureCode:c.code,night:false,futureCodes:rawCatalog.filter(f=>f.stock===c.stock).map(f=>f.code).sort()}));
      if(requested.size)catalog=catalog.filter(x=>requested.has(x.stock));
     }else{
      catalog=preferred;
@@ -581,7 +665,7 @@ export class StockFuturesBatch{
     // Each private job has its own randomized shard namespace. Old shards expire after 30 days.
     await st.deleteAll()
    }
-   const s={phase:"running",shardKey:randomId(),start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night,futureCode:x.futureCode||x.code})),date:q.start,symbolIndex:0,mode:marketMode?"market-daily":chipMode?"daily-chip":dailyMode?"daily":stocksMode?"stocks":"futures",version:marketMode?7:chipMode?6:dailyMode?5:stocksMode?4:2,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,excludedFarMonth:0,duplicates:0,retries:0,skipped:0,preflightIndex:0,firstDates:{},errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:marketMode?"已建立上市上櫃全市場 2018 年至今日K下載，含下市櫃代號，手機離線持續":chipMode?"已建立日K＋三大法人＋融資融券雲端任務；資料按日期合併、缺漏留空，手機可離線":dailyMode?"已建立日K雲端任務；長歷史每8年分段，手機可離線":stocksMode?"已建立現股 1 分 K 快速雲端任務；先核對交易日與股票掛牌期間，手機可離線":"已建立小型優先、各交易時段近月合約的雲端任務。手機可離線"};
+   const s={phase:"running",shardKey:randomId(),start:q.start,end:q.end,catalog,codes:catalog.map(x=>({code:x.code,name:x.name,stock:x.stock,units:x.units,night:x.night,futureCode:x.futureCode||x.code})),date:q.start,symbolIndex:0,mode:marketMode?"market-daily":researchMode?"daily-research":chipMode?"daily-chip":dailyMode?"daily":stocksMode?"stocks":"futures",version:marketMode?7:researchMode?9:chipMode?6:dailyMode?5:stocksMode?4:2,total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,excludedFarMonth:0,duplicates:0,retries:0,skipped:0,preflightIndex:0,firstDates:{},errors:[],createdAt:Date.now(),updatedAt:Date.now(),expiresAt:Date.now()+30*DAY,message:marketMode?"已建立上市上櫃全市場 2018 年至今日K下載，含下市櫃代號，手機離線持續":researchMode?"已建立完整個股研究任務（日K＋法人＋融資融券＋外資持股＋借券成交＋股期歷史觀測）":chipMode?"已建立日K＋三大法人＋融資融券雲端任務；資料按日期合併、缺漏留空，手機可離線":dailyMode?"已建立日K雲端任務；長歷史每8年分段，手機可離線":stocksMode?"已建立現股 1 分 K 快速雲端任務；先核對交易日與股票掛牌期間，手機可離線":"已建立小型優先、各交易時段近月合約的雲端任務。手機可離線"};
    if(dailyMode)s.total=catalog.length;
     else for(let d=q.start;d<=q.end;d=next(d)){const w=dayOf(d);if(w===0||w===6&&stocksMode)continue;for(const c of catalog)if(w!==6||c.night)s.total++}
    await st.put("token",token);await st.put("state",s);await st.setAlarm(Date.now()+100);
@@ -847,7 +931,7 @@ export class StockFuturesBatch{
   await st.setAlarm(Date.now()+120000);
   const token=await st.get("token");
   if(!token){s.phase="error";s.lastError="缺少 Token";await st.put("state",s);await st.setAlarm(s.expiresAt);return}
-  if(s.mode==="daily"||s.mode==="daily-chip"||s.mode==="market-daily"){await this.alarmDaily(s,token,st);return}
+  if(["daily","daily-chip","daily-research","market-daily"].includes(s.mode)){await this.alarmDaily(s,token,st);return}
   const stockMode=s.mode==="stocks";
   const commit=async(n,backoff=0)=>{
    const latest=await st.get("state");
@@ -973,7 +1057,7 @@ export class StockFuturesBatch{
  async alarmDaily(s,token,st){
   // Stay below Cloudflare's outbound-subrequest ceiling for 27 years × 1 stock.
   const yearCount=Number(s.end.slice(0,4))-Number(s.start.slice(0,4))+1;
-  const chipMode=s.mode==="daily-chip";
+  const researchMode=s.mode==="daily-research",chipMode=s.mode==="daily-chip"||researchMode;
   const batchSize=Math.min(STOCK_MAX_PARALLEL,Math.max(1,Math.floor(40/yearCount)));
   const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+batchSize);
   if(!stocks.length){
@@ -986,7 +1070,7 @@ export class StockFuturesBatch{
     let calls=0;
     try{
      const data=[];
-     for(const window of dailyPriceWindows(s.start,s.end)){
+     for(const window of dailyPriceWindows(s.start,s.end,researchMode?12:8)){
       calls++;
       const part=await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:c.code,start_date:window.start,end_date:window.end});
       data.push(...part);
@@ -994,12 +1078,12 @@ export class StockFuturesBatch{
      const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
      let merged=null;
      if(chipMode){
-      const requestDataset=async(dataset,earliest)=>{
+      const requestDataset=async(dataset,earliest,productCode=c.code)=>{
        if(s.end<earliest)return [];
        const rows=[];
-       for(const w of dailyPriceWindows(s.start<earliest?earliest:s.start,s.end)){
+       for(const w of dailyPriceWindows(s.start<earliest?earliest:s.start,s.end,researchMode?12:8)){
         calls++;
-        const part=await fetchFinMind(token,{dataset,data_id:c.code,start_date:w.start,end_date:w.end});
+        const part=await fetchFinMind(token,{dataset,data_id:productCode,start_date:w.start,end_date:w.end});
         rows.push(...part);
        }
        return rows;
@@ -1007,6 +1091,14 @@ export class StockFuturesBatch{
       const institutional=await requestDataset("TaiwanStockInstitutionalInvestorsBuySell","2005-01-01");
       const margin=await requestDataset("TaiwanStockMarginPurchaseShortSale","2001-01-01");
       merged=joinDailyChipRows(parsed,institutional,margin,c.stock,s.start,s.end);
+      if(researchMode){
+       const holding=await requestDataset("TaiwanStockShareholding","2004-02-01");
+       const lending=await requestDataset("TaiwanStockSecuritiesLending","2001-05-01");
+       const codes=[...new Set(c.futureCodes?.length?c.futureCodes:[c.futureCode])].filter(x=>/^[A-Z]{2}F$/.test(x));
+       const fut=[];
+       for(const symbol of codes)fut.push(...await requestDataset("TaiwanFuturesDaily","2010-01-01",symbol));
+       merged=joinResearchRows(parsed,merged,holding,lending,fut,c.stock,s.start,s.end,codes,c.futureCode);
+      }
      }
      const shard=this.shardFor(s,c.code);
      for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
@@ -1044,10 +1136,10 @@ export class StockFuturesBatch{
    }else s.message="日 K 上游暫時失敗，稍後自動重試";
   }else{
    s.symbolIndex=from+stocks.length;s.retries=0;
-   s.message=(chipMode?"日K＋三大法人＋融資融券":"日K")+" 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（每 8 年分段查詢）";
+   s.message=(researchMode?"日K＋完整研究資料":chipMode?"日K＋三大法人＋融資融券":"日K")+" 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（每 8 年分段查詢）";
   }
   if(s.symbolIndex>=s.catalog.length&&s.phase==="running"){
-   s.phase="done";s.message=(chipMode?"日K＋法人＋融資融券":"日K")+" 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
+   s.phase="done";s.message=(researchMode?"日K＋完整研究資料":chipMode?"日K＋法人＋融資融券":"日K")+" 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
   }
   const latest=await st.get("state");
   if(!latest||latest.shardKey!==s.shardKey)return;
@@ -1275,7 +1367,7 @@ export class StockFuturesBatch{
   // Only part 1 contains the CSV header. GZIP concatenated members form a
   // standards-valid single .gz when the browser appends all parts verbatim.
   const withHeader=!whole||part===1;
-  const self=this,head=withHeader?await zip(s.mode==="daily-chip"?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?(enriched?CHIP_COLUMNS:MARKET_HDR):DAILY_HDR):null;
+  const self=this,head=withHeader?await zip(s.mode==="daily-research"?DAILY_HDR.trimEnd()+","+CHIP_HDR.trimEnd()+","+RESEARCH_HDR:s.mode==="daily-chip"?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?(enriched?CHIP_COLUMNS:MARKET_HDR):DAILY_HDR):null;
   let ix=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{
@@ -1297,11 +1389,11 @@ export class StockFuturesBatch{
     }
    }catch(e){c.error(e)}
   }});
-  const name=s.mode==="market-daily"?"FinMind_All_TWSE_TPEX_Daily_"+(year||s.start+"_"+s.end)+"_"+(code||"part"+String(part).padStart(2,"0"))+(enriched?"_WITH_INSTITUTIONAL_MARGIN":"")+".csv.gz":"FinMind_FuturesEligibleStocks_"+(s.mode==="daily-chip"?"Daily_Chips_":"Daily_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
+  const name=s.mode==="market-daily"?"FinMind_All_TWSE_TPEX_Daily_"+(year||s.start+"_"+s.end)+"_"+(code||"part"+String(part).padStart(2,"0"))+(enriched?"_WITH_INSTITUTIONAL_MARGIN":"")+".csv.gz":"FinMind_FuturesEligibleStocks_"+(s.mode==="daily-research"?"Daily_Research_":s.mode==="daily-chip"?"Daily_Chips_":"Daily_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
   return new Response(stream,{headers:{"content-type":"application/gzip","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
  }
  async exportData(s,url){
-  if(s.mode==="daily"||s.mode==="daily-chip"||s.mode==="market-daily")return this.exportDailyData(s,url);
+  if(["daily","daily-chip","daily-research","market-daily"].includes(s.mode))return this.exportDailyData(s,url);
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"商品不在本次任務清單內"},404);
