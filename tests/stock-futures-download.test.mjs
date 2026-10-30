@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {gunzipSync} from "node:zlib";
-import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,joinDailyChipRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,joinDailyChipRows,joinResearchRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -448,6 +448,93 @@ test("old daily jobs still show unmodified OHLCV-only format",()=>{
  assert.match(html,/id="includeChips"/);assert.match(html,/api\/stock-daily-chip/);
  assert.match(html,/api\/stock-daily"/);
  assert.match(html,/api\/stock-kbar/);
+});
+test("research join keeps 2000 historic source gaps blank and distinguishes lending transactions vs ownership",()=>{
+ const stock="2330",start="2000-01-01",end="2026-01-06";
+ const price=(date)=>({date,stock_id:stock,open:100,max:110,min:90,close:103,Trading_Volume:1000,Trading_money:100000,Trading_turnover:50,spread:3});
+ const prices=filterUnderlyingDailyBars([price("2000-01-04"),price("2026-01-05")],stock,start,end,{name:"台積電",futureCode:"QFF"});
+ const old=joinDailyChipRows(prices,[{date:"2026-01-05",stock_id:stock,name:"Foreign_Investor",buy:1000,sell:200}],
+  [{date:"2026-01-05",stock_id:stock,MarginPurchaseTodayBalance:100,MarginPurchaseYesterdayBalance:90,
+  ShortSaleTodayBalance:10,ShortSaleYesterdayBalance:7}],stock,start,end);
+ const holding=[{date:"2026-01-05",stock_id:stock,ForeignInvestmentShares:900000000,
+  ForeignInvestmentSharesRatio:78.25,ForeignInvestmentRemainRatio:21.75,NumberOfSharesIssued:1200000000}];
+ const loans=[{date:"2026-01-05",stock_id:stock,transaction_type:"議借",volume:160,fee_rate:0.36},
+   {date:"2026-01-05",stock_id:stock,transaction_type:"競價",volume:40,fee_rate:0.2}];
+ const contracts=[{date:"2026-01-05",futures_id:"QFF",contract_date:"202601",trading_session:"position",volume:100,open_interest:150},
+  {date:"2026-01-05",futures_id:"CDF",contract_date:"202601",trading_session:"position",volume:999,open_interest:900},
+  {date:"2026-01-05",futures_id:"QFF",contract_date:"202602",trading_session:"position",volume:5,open_interest:12},
+  {date:"2026-01-05",futures_id:"TX",contract_date:"202601",trading_session:"position",volume:99999,open_interest:99999}];
+ const data=joinResearchRows(prices,old,holding,loans,contracts,stock,start,end,["QFF","CDF"],"QFF");
+ const get=(year)=>data.csvByYear[year].trim().split(",");
+ const oldCols=get("2000"),now=get("2026");
+ // The first 39 columns contain the existing 12 daily and 27 chip fields.
+ assert.equal(oldCols.length,58);assert.equal(now.length,58);
+ assert.equal(data.coverage.missingForeignHolding,1);
+ assert.equal(data.coverage.foreignHolding,1);
+ assert.equal(data.coverage.lendingTrades,1);
+ assert.equal(data.coverage.futuresObservations,1);
+ assert.equal(oldCols[39],"0");assert.equal(oldCols[40],"");
+ assert.equal(oldCols[44],"0");assert.equal(oldCols[45],"");
+ assert.equal(oldCols[49],"0");
+ assert.equal(now[39],"1");assert.equal(now[41],"78.25");
+ assert.equal(now[44],"1");assert.equal(now[45],"2");assert.equal(now[46],"200");
+ assert.equal(now[48],"0.328"); // weighted fee; not lending balance
+ assert.equal(now[49],"1");assert.equal(now[50],"CDF|QFF");
+ assert.equal(now[52],"QFF");assert.equal(now[53],"202601");
+ assert.equal(now[54],"100");assert.equal(now[55],"150");
+ assert.equal(now[56],"1");assert.equal(now[57],"1");
+
+});
+test("research API fetches lending, ownership and both active futures symbol codes; old daily jobs isolated",async()=>{
+ const x=fixture(),previous=globalThis.fetch,queries=[];
+ const price=(stock,d)=>({date:d,stock_id:stock,open:100,max:104,min:99,close:102,
+  Trading_Volume:1000,Trading_money:100000,Trading_turnover:2,spread:2});
+ globalThis.fetch=async(url,opt)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(url),dataset=u.searchParams.get("dataset"),data_id=u.searchParams.get("data_id");
+  queries.push({dataset,data_id,start:u.searchParams.get("start_date")});
+  assert.equal(opt.headers.authorization,"Bearer test-sponsor-token");
+  if(dataset==="TaiwanStockPrice")return Response.json({status:200,data:[price("2330","2026-01-05")]});
+  if(dataset==="TaiwanStockInstitutionalInvestorsBuySell")return Response.json({status:200,data:[]});
+  if(dataset==="TaiwanStockMarginPurchaseShortSale")return Response.json({status:200,data:[]});
+  if(dataset==="TaiwanStockShareholding")return Response.json({status:200,data:[
+   {date:"2026-01-05",stock_id:"2330",ForeignInvestmentShares:10000,ForeignInvestmentSharesRatio:50,
+    ForeignInvestmentRemainRatio:50,NumberOfSharesIssued:20000}]});
+  if(dataset==="TaiwanStockSecuritiesLending")return Response.json({status:200,data:[
+   {date:"2026-01-05",stock_id:"2330",volume:4,fee_rate:0.4,transaction_type:"議借"}]});
+  if(dataset==="TaiwanFuturesDaily")return Response.json({status:200,data:[
+   {date:"2026-01-05",futures_id:data_id,contract_date:"202601",trading_session:"position",volume:data_id==="QFF"?11:100,open_interest:13}]});
+  throw Error("unexpected dataset "+dataset)
+ };
+ try{
+  const res=await stockFuturesRoute(new Request(host+"/api/stock-daily-research/start",{method:"POST",
+   headers:{authorization:"Bearer test-sponsor-token",origin:host},
+   body:JSON.stringify({start:"2026-01-01",end:"2026-01-06",codes:["2330"]})}),x.env,"daily-research");
+  assert.equal(res.status,202);
+  const cookie=res.headers.get("set-cookie").split(";")[0];
+  assert.match(cookie,/__Host-stock-research=/);
+  const started=await res.json();assert.equal(started.mode,"daily-research");
+  await x.job.alarm();
+  const state=await (await stockFuturesRoute(new Request(host+"/api/stock-daily-research/status",{headers:{cookie}}),x.env,"daily-research")).json();
+  assert.equal(state.phase,"done");assert.equal(state.rows,1);
+  assert.ok(queries.some(q=>q.dataset==="TaiwanStockShareholding"));
+  assert.ok(queries.some(q=>q.dataset==="TaiwanStockSecuritiesLending"));
+  assert.deepEqual(queries.filter(q=>q.dataset==="TaiwanFuturesDaily").map(q=>q.data_id).sort(),["CDF","QFF"]);
+  const csvRes=await stockFuturesRoute(new Request(host+"/api/stock-daily-research/export?year=2026",{headers:{cookie}}),x.env,"daily-research");
+  assert.equal(csvRes.status,200);
+  const csv=gunzipSync(Buffer.from(await csvRes.arrayBuffer())).toString();
+  assert.match(csv,/foreign_holding_ratio_pct/);assert.match(csv,/lending_weighted_fee_pct/);
+  assert.match(csv,/futures_observed_contract_months/);
+  assert.match(csv,/2026-01-05,2330/);
+  const unauthorized=await stockFuturesRoute(new Request(host+"/api/stock-daily-research/status",{headers:{cookie:cookie.replace("__Host-stock-research","__Host-underlying-chip")}}),x.env,"daily-research");
+  assert.equal(unauthorized.status,401);
+ }finally{globalThis.fetch=previous}
+});
+test("research UI is visible and existing daily/minute mode routes remain distinct",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/id="includeResearch"/);assert.match(html,/api\/stock-daily-research/);
+ assert.match(html,/api\/stock-daily-chip/);assert.match(html,/api\/stock-kbar/);
+ assert.match(html,/futures_observed/);
 });
 test("daily OHLCV follows TaiwanStockPrice field names, raw shares, all years, and emerging open exceptions",()=>{
  const meta={name:"台積電",futureCode:"QFF"};
