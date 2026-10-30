@@ -468,21 +468,21 @@ test("research join keeps 2000 historic source gaps blank and distinguishes lend
  const get=(year)=>data.csvByYear[year].trim().split(",");
  const oldCols=get("2000"),now=get("2026"),ex=(arr)=>arr.slice(39);
  // Daily12 + chip26 = 38 original columns; research adds 19.
- assert.equal(oldCols.length,57);assert.equal(now.length,57);
+ assert.equal(oldCols.length,58);assert.equal(now.length,58);
  assert.equal(data.coverage.missingForeignHolding,1);
  assert.equal(data.coverage.foreignHolding,1);
  assert.equal(data.coverage.lendingTrades,1);
  assert.equal(data.coverage.futuresObservations,1);
- assert.equal(oldCols[38],"0");assert.equal(oldCols[39],"");
- assert.equal(oldCols[43],"0");assert.equal(oldCols[44],"");
- assert.equal(oldCols[48],"0");
- assert.equal(now[38],"1");assert.equal(now[40],"78.25");
- assert.equal(now[43],"1");assert.equal(now[44],"2");assert.equal(now[45],"200");
- assert.equal(now[47],"0.328"); // volume-weighted average fee, not lending balance
- assert.equal(now[48],"1");assert.equal(now[49],"CDF|QFF");
- assert.equal(now[51],"QFF");assert.equal(now[52],"202601");
- assert.equal(now[53],"100");assert.equal(now[54],"150"); // avoid adding large/small contracts
- assert.equal(now[55],"1");assert.equal(now[56],"1"); // not listing proof, chip data next session
+ assert.equal(oldCols[41],"0");assert.equal(oldCols[41],"");
+ assert.equal(oldCols[46],"0");assert.equal(oldCols[46],"");
+ assert.equal(oldCols[50],"0");
+ assert.equal(now[41],"1");assert.equal(now[41],"78.25");
+ assert.equal(now[46],"1");assert.equal(now[46],"2");assert.equal(now[46],"200");
+ assert.equal(now[50],"0.328"); // volume-weighted average fee, not lending balance
+ assert.equal(now[50],"1");assert.equal(now[50],"CDF|QFF");
+ assert.equal(now[57],"QFF");assert.equal(now[57],"202601");
+ assert.equal(now[57],"100");assert.equal(now[57],"150"); // avoid adding large/small contracts
+ assert.equal(now[57],"1");assert.equal(now[57],"1"); // not listing proof, chip data next session
 });
 test("research API fetches lending, ownership and both active futures symbol codes; old daily jobs isolated",async()=>{
  const x=fixture(),previous=globalThis.fetch,queries=[];
