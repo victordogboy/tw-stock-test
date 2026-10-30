@@ -12,12 +12,12 @@ const MERGE_SHARE_MAX_AGE=7*DAY;
 const MERGE_NAME="FinMind_All_TWSE_TPEX_Daily_";
 const CHIP_MERGE_KEY="merge-chip",CHIP_JOB_KEY="market-chip";
 const CHIP_RATE_SPACING_MS=1000; // <=3,600 FinMind calls/hour, conservative vs account limits.
-const CHIP_COLUMNS=MARKET_HDR.trimEnd()+","+CHIP_HDR;
 const validJobId=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 const validShareKey=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 
 
 const CHIP_HDR="institutional_available,institutional_foreign_buy_shares,institutional_foreign_sell_shares,institutional_foreign_net_shares,institutional_foreign_dealer_net_shares,institutional_trust_buy_shares,institutional_trust_sell_shares,institutional_trust_net_shares,institutional_dealer_buy_shares,institutional_dealer_sell_shares,institutional_dealer_net_shares,institutional_dealer_self_net_shares,institutional_dealer_hedge_net_shares,margin_available,margin_buy_lots,margin_sell_lots,margin_cash_repayment_lots,margin_balance_lots,margin_previous_balance_lots,margin_change_lots,short_buy_lots,short_sell_lots,short_cash_repayment_lots,short_balance_lots,short_previous_balance_lots,short_change_lots,chip_signal_use_next_session\n";
+const CHIP_COLUMNS=MARKET_HDR.trimEnd()+","+CHIP_HDR;
 const STOCK_MAX_PARALLEL=5, STOCK_REQUEST_SPACING_MS=750; // 4,800 calls/h, below Sponsor's 6,000 calls/h cap
 const STOCK_SCAN_CAP=3000;
 const respond=(v,status=200,h={})=>new Response(JSON.stringify(v),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...h}});
