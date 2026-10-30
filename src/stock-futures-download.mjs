@@ -515,6 +515,13 @@ export function dailyPriceWindows(start,end,maxYears=8){
 }
 export class StockFuturesBatch{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
+ chipSummary(c){return c?{
+  phase:c.phase,processed:c.processed,total:c.total,queries:c.queries,priceRows:c.priceRows,
+  institutionalRows:c.institutionalRows,marginRows:c.marginRows,bothRows:c.bothRows,
+  missingInstitutional:c.missingInstitutional,missingMargin:c.missingMargin,
+  lastCode:c.lastCode||"",error:c.error||"",message:c.message||"",
+  updatedAt:c.updatedAt,startedAt:c.startedAt,retryCount:c.retryCount
+ }:null}
  summary(s,merge=null){return {ok:true,merge:merge?{
   phase:merge.phase,processed:merge.processed,total:merge.total,bytes:merge.bytes,
   error:merge.error||"",updatedAt:merge.updatedAt,startedAt:merge.startedAt,
@@ -588,6 +595,12 @@ export class StockFuturesBatch{
      catch(e){mergeWarning=String(e?.name||"StorageError")}
     }
     const out=this.summary(s,merge);
+    if(s.mode==="market-daily"){
+     try{out.chip=this.chipSummary(await st.get(CHIP_JOB_KEY))}
+     catch(e){out.chipWarning="籌碼補抓進度暫時不可用"}
+     try{out.chipMerge=this.summary(s,await st.get(CHIP_MERGE_KEY)).merge}
+     catch(e){out.chipMergeWarning="籌碼合併進度暫時不可用"}
+    }
     if(mergeWarning)out.mergeWarning="雲端合併進度暫時不可讀（"+mergeWarning+"）；原始日K仍保留";
     return respond(out);
    }catch(e){
@@ -602,6 +615,81 @@ export class StockFuturesBatch{
    }
   }
   if(p==="/export")return this.exportData(s,new URL(r.url));
+  if(s.mode==="market-daily"&&p==="/chip-start"&&r.method==="POST")
+   return this.ctx.blockConcurrencyWhile(async()=>{
+    s=await st.get("state");
+    if(!s||s.phase!=="done"||s.processed!==s.total||!s.catalog.length)
+     return respond({ok:false,error:"必須先完成原本的全市場股價日K任務，才可只補抓法人與資券資料"},409);
+    const bearer=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
+    if(bearer&&(!/^[^\\r\\n]{5,4096}$/.test(bearer)))return respond({ok:false,error:"FinMind Token 格式不正確"},401);
+    if(bearer)await st.put("token",bearer);
+    if(!await st.get("token"))return respond({ok:false,error:"缺少 FinMind Token；請在上方填入會員 Token"},401);
+    let chip=await st.get(CHIP_JOB_KEY);
+    if(chip?.phase==="done"||chip?.phase==="running")
+     return respond({ok:true,existing:true,chip:this.chipSummary(chip)});
+    if(chip&&chip.phase==="paused"||chip?.phase==="error"){
+     chip.phase="running";chip.retryCount=0;chip.error="";
+     chip.updatedAt=Date.now();chip.message="沿用已抓好的籌碼資料，繼續補抓下一檔";
+    }else{
+     const now=Date.now();
+     chip={phase:"running",processed:0,total:s.catalog.length,queries:0,priceRows:0,
+      institutionalRows:0,marginRows:0,bothRows:0,missingInstitutional:0,missingMargin:0,
+      retryCount:0,error:"",lastCode:"",startedAt:now,updatedAt:now,
+      nextAllowedAt:0,message:"開始只補抓法人買賣及融資融券；原始日 K 不會重抓或覆蓋"};
+    }
+    await st.put(CHIP_JOB_KEY,chip);await st.setAlarm(Date.now()+100);
+    return respond({ok:true,chip:this.chipSummary(chip)},202)
+   });
+  if(s.mode==="market-daily"&&(p==="/chip-pause"||p==="/chip-resume")&&r.method==="POST")
+   return this.ctx.blockConcurrencyWhile(async()=>{
+    const chip=await st.get(CHIP_JOB_KEY);
+    if(!chip)return respond({ok:false,error:"尚未建立籌碼補抓任務"},404);
+    if(p==="/chip-pause"&&chip.phase==="running"){
+     chip.phase="paused";chip.message="籌碼補抓已暫停，原始日 K 不受影響";
+    }
+    if(p==="/chip-resume"&&["error","paused"].includes(chip.phase)){
+     if(!await st.get("token"))return respond({ok:false,error:"無 FinMind Token；請在上方填入後重新按開始"},401);
+     chip.phase="running";chip.error="";chip.retryCount=0;chip.message="從上次完成的股票續抓";
+    }
+    chip.updatedAt=Date.now();await st.put(CHIP_JOB_KEY,chip);
+    if(chip.phase==="running")await st.setAlarm(Date.now()+100);
+    return respond({ok:true,chip:this.chipSummary(chip)})
+   });
+  if(s.mode==="market-daily"&&p==="/chip-merge-download")return this.exportMerged(s,st,"chip");
+  if(s.mode==="market-daily"&&p==="/chip-share"&&r.method==="POST"){
+   const merge=await st.get(CHIP_MERGE_KEY);
+   if(merge?.phase!=="done")return respond({ok:false,error:"股價＋籌碼雲端合併尚未完成"},409);
+   let share=await st.get(CHIP_MERGE_KEY+":share");
+   if(!share||share.expiresAt<=Date.now()){
+    share={key:randomId(),expiresAt:Math.min(Date.now()+MERGE_SHARE_MAX_AGE,s.expiresAt)};
+    await st.put(CHIP_MERGE_KEY+":share",share)
+   }
+   return respond({ok:true,key:share.key,expiresAt:new Date(share.expiresAt).toISOString()});
+  }
+  if(s.mode==="market-daily"&&p==="/chip-revoke"&&r.method==="POST"){
+   await st.delete(CHIP_MERGE_KEY+":share");return respond({ok:true,revoked:true});
+  }
+  if(s.mode==="market-daily"&&p==="/chip-shared"){
+   const key=(r.headers.get("authorization")||"").match(/^Bearer\\s+(.+)$/i)?.[1]?.trim()||"";
+   const share=await st.get(CHIP_MERGE_KEY+":share");
+   if(!validShareKey(key)||!share||share.key!==key||share.expiresAt<=Date.now())
+    return respond({ok:false,error:"籌碼唯讀連結已失效或沒有權限"},403);
+   const u=new URL(r.url),fmt=u.searchParams.get("format")||"";
+   if(fmt==="status")return respond({ok:true,source:"FinMind TaiwanStockPrice + TaiwanStockInstitutionalInvestorsBuySell + TaiwanStockMarginPurchaseShortSale",
+    dateStart:s.start,dateEnd:s.end,totalStocks:s.total,totalPriceRows:s.rows,
+    chip:this.chipSummary(await st.get(CHIP_JOB_KEY)),
+    chipMerge:this.summary(s,await st.get(CHIP_MERGE_KEY)).merge,
+    columns:CHIP_COLUMNS.trimEnd(),shareExpiresAt:new Date(share.expiresAt).toISOString()});
+   if(fmt)return respond({ok:false,error:"格式錯誤"},400);
+   const code=u.searchParams.get("code")||"",year=u.searchParams.get("year")||"",part=u.searchParams.get("part")||"";
+   if(code||year||part){
+    if(code&&!/^\\d{4}$/.test(code)||year&&!/^(20|21)\\d{2}$/.test(year)||part&&!/^[1-9]\\d{0,3}$/.test(part))
+     return respond({ok:false,error:"股票／年份／分包參數錯誤"},400);
+    if(!code&&(!year||!part))return respond({ok:false,error:"請指定股票，或年份加分包"},400);
+    return this.exportDailyData(s,new URL("https://private/export?"+new URLSearchParams({code,year,part,chip:"1"})))
+   }
+   return this.exportMerged(s,st,"chip");
+  }
   if(s.mode==="market-daily"&&p==="/merge-start"&&r.method==="POST")
    return this.ctx.blockConcurrencyWhile(async()=>{
     s=await st.get("state");
