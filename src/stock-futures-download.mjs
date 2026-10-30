@@ -1,3 +1,4 @@
+import {priceRowsFromText,chipSnapshot} from './market-chip.mjs';
 // Isolated all-STOCK-futures minute-bar service. No TX code or storage is shared.
 const DAY=86400000, COOKIE="__Host-sf5y", STOCK_COOKIE="__Host-underlying1m", HDR="date,minute,session,futures_id,underlying_stock,contract_size,contract_date,open,high,low,close,volume\n";
 const STOCK_HDR="date,minute,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_raw\n";
@@ -9,6 +10,9 @@ const MERGE_STOCKS_PER_ALARM=2;  // Keep CPU/storage I/O modest; alarm runs even
 const MERGE_STORAGE_CHUNK=384*1024; // Strictly below Durable Object's 2 MB/value limit.
 const MERGE_SHARE_MAX_AGE=7*DAY;
 const MERGE_NAME="FinMind_All_TWSE_TPEX_Daily_";
+const CHIP_MERGE_KEY="merge-chip",CHIP_JOB_KEY="market-chip";
+const CHIP_RATE_SPACING_MS=1000; // <=3,600 FinMind calls/hour, conservative vs account limits.
+const CHIP_COLUMNS=MARKET_HDR.trimEnd()+","+CHIP_HDR;
 const validJobId=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 const validShareKey=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 
@@ -290,20 +294,22 @@ export class StockFuturesData{
  constructor(ctx,env){this.ctx=ctx;this.env=env}
  async fetch(request){
   const u=new URL(request.url),p=u.pathname;
-  if(p==="/put"&&request.method==="POST"){
+  if((p==="/put"||p==="/put-chip")&&request.method==="POST"){
+   const chip=p==="/put-chip",pref=chip?"chip:":"";
    const day=u.searchParams.get("date");
    if(!dateOk(day))return respond({ok:false,error:"日期錯誤"},400);
    const bytes=new Uint8Array(await request.arrayBuffer());
    if(bytes.byteLength>8*1024*1024)return respond({ok:false,error:"單日原始資料過大"},413);
    const size=500*1024,parts=Math.ceil(bytes.length/size);
-   for(let i=0;i<parts;i++)await this.ctx.storage.put("day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
-   await this.ctx.storage.put("meta:"+day,{parts,bytes:bytes.byteLength});
+   for(let i=0;i<parts;i++)await this.ctx.storage.put(pref+"day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
+   await this.ctx.storage.put(pref+"meta:"+day,{parts,bytes:bytes.byteLength});
    const expires=Date.now()+30*DAY;
    await this.ctx.storage.put("expiresAt",expires);
    await this.ctx.storage.setAlarm(expires);
    return respond({ok:true});
   }
-  if(p==="/get-years"){
+  if(p==="/get-years"||p==="/get-chip-years"){
+   const pref=p==="/get-chip-years"?"chip:":"";
    // Daily OHLCV shards are stored only on YYYY-01-01; reading those
    // keys directly avoids ~3,000 redundant day lookups per stock.
    const startYear=Number(u.searchParams.get("startYear")),endYear=Number(u.searchParams.get("endYear"));
@@ -317,19 +323,20 @@ export class StockFuturesData{
       if(year>endYear){c.close();return}
       const key=year+"-01-01";
       if(part===null){
-       part=await st.get("meta:"+key);idx=0;
-       if(!part||!Number.isInteger(part.parts)||part.parts<1)throw Error("雲端日K缺少年份："+year);
+       part=await st.get(pref+"meta:"+key);idx=0;
+       if(!part||!Number.isInteger(part.parts)||part.parts<1)throw Error("雲端日K或籌碼缺少年份："+year);
       }
       if(idx>=part.parts){year++;part=null;continue}
-      const bytes=await st.get("day:"+key+":"+(idx++));
-      if(!bytes)throw Error("雲端日K儲存區塊毀損："+key);
+      const bytes=await st.get(pref+"day:"+key+":"+(idx++));
+      if(!bytes)throw Error("雲端日K／籌碼儲存區塊毀損："+key);
       c.enqueue(new Uint8Array(bytes));return
      }
     }catch(e){c.error(e)}
    }});
    return new Response(stream,{headers:{"content-type":"application/gzip","cache-control":"private, no-store"}});
   }
-  if(p==="/get"){
+  if(p==="/get"||p==="/get-chip"){
+   const pref=p==="/get-chip"?"chip:":"";
    const start=u.searchParams.get("start"),end=u.searchParams.get("end");
    if(!dateOk(start)||!dateOk(end)||start>end)return respond({ok:false,error:"日期錯誤"},400);
    let d=start,idx=0,part=null;
@@ -337,9 +344,9 @@ export class StockFuturesData{
    const stream=new ReadableStream({async pull(c){
     try{
      while(d<=end){
-      if(part===null){part=await st.get("meta:"+d);idx=0}
+      if(part===null){part=await st.get(pref+"meta:"+d);idx=0}
       if(!part||idx>=part.parts){d=next(d);part=null;continue}
-      const bytes=await st.get("day:"+d+":"+(idx++));
+      const bytes=await st.get(pref+"day:"+d+":"+(idx++));
       if(!bytes)throw Error("雲端暫存區塊損毀："+d);
       c.enqueue(new Uint8Array(bytes));return
      }
