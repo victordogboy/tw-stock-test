@@ -26,7 +26,9 @@ export function priceRowsFromText(text,stock,year){
   const v=parseCsvRecord(raw);
   if(v.length!==PRICE_COLUMN_COUNT)throw Error("股價 CSV 欄位數異常："+stock+" "+year+" ("+v.length+")");
   const day=String(v[0]||"");
-  if(!new RegExp("^"+year+"-\\\\d{2}-\\\\d{2}$").test(day)&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(day))
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||
+     !Number.isFinite(Date.parse(day+"T00:00:00Z"))||
+     new Date(day+"T00:00:00Z").toISOString().slice(0,10)!==day)
    throw Error("股價日期格式異常："+stock+" "+day);
   if(day.slice(0,4)!==year||v[1]!==stock)throw Error("股價代號／年份不一致："+stock+" "+day);
   if(unique.has(day))throw Error("股價出現重複日期："+stock+" "+day);
