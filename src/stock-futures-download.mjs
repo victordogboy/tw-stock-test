@@ -276,6 +276,8 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   return stub.fetch(new Request("https://private/"+path.split("/").at(-1),{method:"POST"}));
  if(market&&path===root+"/chip-merge-download"&&method==="GET")
   return stub.fetch("https://private/chip-merge-download");
+ if(market&&path===root+"/chip-merge-resume"&&method==="POST")
+  return stub.fetch(new Request("https://private/chip-merge-resume",{method:"POST"}));
  if(market&&path===root+"/chip-share"&&method==="POST"){
   const resp=await stub.fetch(new Request("https://private/chip-share",{method:"POST"}));
   const data=await resp.json().catch(()=>({ok:false,error:"籌碼唯讀連結產生失敗"}));
@@ -659,6 +661,17 @@ export class StockFuturesBatch{
     return respond({ok:true,chip:this.chipSummary(chip)})
    });
   if(s.mode==="market-daily"&&p==="/chip-merge-download")return this.exportMerged(s,st,"chip");
+  if(s.mode==="market-daily"&&p==="/chip-merge-resume"&&r.method==="POST")
+   return this.ctx.blockConcurrencyWhile(async()=>{
+    const merge=await st.get(CHIP_MERGE_KEY),chip=await st.get(CHIP_JOB_KEY);
+    if(chip?.phase!=="done")return respond({ok:false,error:"需先補齊法人融資融券資料"},409);
+    if(!merge)return this.completeMarketChip(s,chip,st);
+    if(merge.phase!=="error")return respond({ok:false,error:"目前沒有失敗的籌碼合併需要恢復"},409);
+    merge.phase="running";merge.retryCount=0;merge.error="";merge.updatedAt=Date.now();
+    merge.message="從 "+merge.processed+"/"+merge.total+" 檔恢復合併（不再下載 FinMind）";
+    await st.put(CHIP_MERGE_KEY,merge);await st.setAlarm(Date.now()+100);
+    return respond({ok:true,merge:this.summary(s,merge).merge});
+   });
   if(s.mode==="market-daily"&&p==="/chip-share"&&r.method==="POST"){
    const merge=await st.get(CHIP_MERGE_KEY);
    if(merge?.phase!=="done")return respond({ok:false,error:"股價＋籌碼雲端合併尚未完成"},409);
