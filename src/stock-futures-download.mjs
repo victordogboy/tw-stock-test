@@ -14,7 +14,7 @@ const validShareKey=s=>/^[a-f0-9]{64}$/.test(String(s||""));
 
 
 const CHIP_HDR="institutional_available,institutional_foreign_buy_shares,institutional_foreign_sell_shares,institutional_foreign_net_shares,institutional_foreign_dealer_net_shares,institutional_trust_buy_shares,institutional_trust_sell_shares,institutional_trust_net_shares,institutional_dealer_buy_shares,institutional_dealer_sell_shares,institutional_dealer_net_shares,institutional_dealer_self_net_shares,institutional_dealer_hedge_net_shares,margin_available,margin_buy_lots,margin_sell_lots,margin_cash_repayment_lots,margin_balance_lots,margin_previous_balance_lots,margin_change_lots,short_buy_lots,short_sell_lots,short_cash_repayment_lots,short_balance_lots,short_previous_balance_lots,short_change_lots,chip_signal_use_next_session\n";
-const RESEARCH_HDR="foreign_holding_available,foreign_holding_shares,foreign_holding_ratio_pct,foreign_remaining_ratio_pct,foreign_shares_issued,lending_trade_available,lending_transaction_count,lending_volume_raw,lending_volume_unit_unverified,lending_weighted_fee_pct,futures_daily_observed,futures_observed_symbols,futures_observed_contract_months,futures_nearest_contract_month,futures_nearest_day_volume_contracts,futures_nearest_day_open_interest_contracts,futures_observation_not_listing_proof,research_chip_use_next_session\n";
+const RESEARCH_HDR="foreign_holding_available,foreign_holding_shares,foreign_holding_ratio_pct,foreign_remaining_ratio_pct,foreign_shares_issued,lending_trade_available,lending_transaction_count,lending_volume_raw,lending_volume_unit_unverified,lending_weighted_fee_pct,futures_daily_observed,futures_observed_symbols,futures_observed_contract_months,futures_selected_observed_symbol,futures_nearest_contract_month,futures_nearest_day_volume_contracts,futures_nearest_day_open_interest_contracts,futures_observation_not_listing_proof,research_chip_use_next_session\n";
 const STOCK_MAX_PARALLEL=5, STOCK_REQUEST_SPACING_MS=750; // 4,800 calls/h, below Sponsor's 6,000 calls/h cap
 const STOCK_SCAN_CAP=3000;
 const respond=(v,status=200,h={})=>new Response(JSON.stringify(v),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store",...h}});
@@ -940,7 +940,7 @@ export class StockFuturesBatch{
     let calls=0;
     try{
      const data=[];
-     for(const window of dailyPriceWindows(s.start,s.end)){
+     for(const window of dailyPriceWindows(s.start,s.end,researchMode?12:8)){
       calls++;
       const part=await fetchFinMind(token,{dataset:"TaiwanStockPrice",data_id:c.code,start_date:window.start,end_date:window.end});
       data.push(...part);
@@ -948,12 +948,12 @@ export class StockFuturesBatch{
      const parsed=filterUnderlyingDailyBars(data,c.stock,s.start,s.end,c);
      let merged=null;
      if(chipMode){
-      const requestDataset=async(dataset,earliest)=>{
+      const requestDataset=async(dataset,earliest,productCode=c.code)=>{
        if(s.end<earliest)return [];
        const rows=[];
-       for(const w of dailyPriceWindows(s.start<earliest?earliest:s.start,s.end)){
+       for(const w of dailyPriceWindows(s.start<earliest?earliest:s.start,s.end,researchMode?12:8)){
         calls++;
-        const part=await fetchFinMind(token,{dataset,data_id:c.code,start_date:w.start,end_date:w.end});
+        const part=await fetchFinMind(token,{dataset,data_id:productCode,start_date:w.start,end_date:w.end});
         rows.push(...part);
        }
        return rows;
@@ -961,6 +961,14 @@ export class StockFuturesBatch{
       const institutional=await requestDataset("TaiwanStockInstitutionalInvestorsBuySell","2005-01-01");
       const margin=await requestDataset("TaiwanStockMarginPurchaseShortSale","2001-01-01");
       merged=joinDailyChipRows(parsed,institutional,margin,c.stock,s.start,s.end);
+      if(researchMode){
+       const holding=await requestDataset("TaiwanStockShareholding","2004-02-01");
+       const lending=await requestDataset("TaiwanStockSecuritiesLending","2001-05-01");
+       const codes=[...new Set(c.futureCodes?.length?c.futureCodes:[c.futureCode])].filter(x=>/^[A-Z]{2}F$/.test(x));
+       const fut=[];
+       for(const symbol of codes)fut.push(...await requestDataset("TaiwanFuturesDaily","2010-01-01",symbol));
+       merged=joinResearchRows(parsed,merged,holding,lending,fut,c.stock,s.start,s.end,codes,c.futureCode);
+      }
      }
      const shard=this.shardFor(s,c.code);
      for(let year=+s.start.slice(0,4);year<=+s.end.slice(0,4);year++){
@@ -998,10 +1006,10 @@ export class StockFuturesBatch{
    }else s.message="日 K 上游暫時失敗，稍後自動重試";
   }else{
    s.symbolIndex=from+stocks.length;s.retries=0;
-   s.message=(chipMode?"日K＋三大法人＋融資融券":"日K")+" 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（每 8 年分段查詢）";
+   s.message=(researchMode?"日K＋完整研究資料":chipMode?"日K＋三大法人＋融資融券":"日K")+" 已完成 "+s.processed+"/"+s.total+" 檔股票，共 "+s.rows+" 根（每 8 年分段查詢）";
   }
   if(s.symbolIndex>=s.catalog.length&&s.phase==="running"){
-   s.phase="done";s.message=(chipMode?"日K＋法人＋融資融券":"日K")+" 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
+   s.phase="done";s.message=(researchMode?"日K＋完整研究資料":chipMode?"日K＋法人＋融資融券":"日K")+" 已完成 "+s.processed+" 檔股票、"+s.rows+" 根，請下載年度 CSV.gz";
   }
   const latest=await st.get("state");
   if(!latest||latest.shardKey!==s.shardKey)return;
