@@ -67,7 +67,41 @@ footer{color:#93adbd;font-size:12px;margin-top:25px}
 <div class="note" id="message">—</div><div class="small" id="stats">—</div>
 <div class="row"><button class="secondary" id="pause">⏸ 暫停</button><button class="secondary" id="resume">▶ 繼續</button><button class="secondary" id="refresh2">↻ 刷新</button></div>
 <details><summary>查看異常紀錄</summary><pre id="errors"></pre></details></section>
-<section id="exports" class="hidden"><h2>③ 雲端背景合併：單一日 K 檔</h2>
+<section id="exports" class="hidden">
+<section id="chipPanel" style="border-color:#368b80;background:#112b34">
+ <p class="badge">NEW · 回測籌碼資料</p>
+ <h2>③ 全市場補抓三大法人＋融資融券餘額</h2>
+ <div class="note"><strong>沿用你已下載完成的 2018 至今日 K，不重抓股價、不刪除原始資料。</strong>雲端依股票代號、交易日期對齊三大法人當日買賣超（股）與融資／融券餘額（張），完成後自動合併成另一包 <strong>股價＋籌碼 CSV.GZ</strong>。關閉手機、切換 App 都不會停止雲端背景任務。</div>
+ <div class="row"><button id="chipStartBtn">☁ 只補抓法人、融資融券（雲端）</button>
+ <button id="chipPauseBtn" class="secondary hidden">⏸ 暫停籌碼補抓</button>
+ <button id="chipResumeBtn" class="secondary hidden">▶ 繼續籌碼補抓</button></div>
+ <div class="note warn">籌碼資料源：FinMind <code>TaiwanStockInstitutionalInvestorsBuySell</code>、<code>TaiwanStockMarginPurchaseShortSale</code>。法人買賣統計通常 20:00 更新、資券 21:00 更新，實際以 API 為準。<strong>回測只能在公布後的下一交易時段使用。</strong>缺漏保持空白，不能假設為 0。貼上上方新的 Token 後按「只補抓」可更新無效 Token。</div>
+ <div id="chipProgressPanel" class="hidden">
+  <progress id="chipProgress" max="100" value="0"></progress>
+  <div class="row" style="justify-content:space-between"><strong id="chipPct">0%</strong><span id="chipCounts" class="small">0 / 0 檔</span></div>
+  <div id="chipMessage" class="note">—</div>
+  <div id="chipCoverage" class="small">—</div>
+  <div id="chipMergeProgress" class="note hidden">
+   <strong>④ 雲端將所有股價＋籌碼合成一包</strong>
+   <progress id="chipMergeBar" max="100" value="0"></progress>
+   <div id="chipMergeMsg" class="small">—</div>
+  </div>
+ </div>
+ <div id="chipReady" class="hidden">
+  <div class="note">✅ 全部股價與籌碼已在雲端合併成單一 <strong>CSV.GZ</strong>。原本純日 K 檔仍可另外下載。</div>
+  <div class="row"><a href="/api/market-daily/chip-merge-download" class="download" id="chipCombinedDownload" download>⬇ 下載全部：股價＋法人＋資券 CSV.GZ</a></div>
+  <div class="row"><button id="chipShareBtn" class="secondary">🔗 產生籌碼版唯讀 API</button><button id="chipRevokeBtn" class="danger">撤銷籌碼版分享權限</button></div>
+  <label for="chipShareUrl">可分享的籌碼版資料連結（持有連結者可讀取，7 天有效）</label>
+  <input id="chipShareUrl" type="text" readonly placeholder="按「產生籌碼版唯讀 API」">
+  <div class="row"><button id="chipCopyBtn" class="secondary">複製籌碼資料連結</button><a id="chipStatusUrl" class="download secondary hidden" href="#" target="_blank" rel="noopener noreferrer">查看籌碼 JSON 索引</a></div>
+ </div>
+ <details id="chipYearsPanel" class="hidden"><summary>備用：逐年、每 250 股匯出股價＋法人＋資券 CSV.GZ</summary>
+  <div class="packs" id="chipYearLinks"></div>
+  <div class="row"><input id="chipStockCode" type="text" inputmode="numeric" maxlength="4" placeholder="例如 2330" style="max-width:200px"><button id="chipStockBtn" class="secondary">下載指定股票全部年份籌碼版</button></div>
+ </details>
+ <p class="small">欄位包含三大法人買／賣／買賣超、融資買賣及餘額／餘額變化、融券買賣及餘額／餘額變化，另有資料可用標記。買賣超不是持股餘額；融資融券也不是所有借券餘額。</p>
+</section>
+<h2>⑤ 原始日 K：保留原本背景合併／純價格匯出</h2>
 <div class="note"><strong>不用開著網頁。</strong>按下「開始背景合併」後由 Cloudflare 自動將先前下載的所有年份、所有股票日 K 合成一包 CSV.GZ，並保存在雲端。手機關閉、鎖定、切換 App 都不會終止任務。<strong>不會再次呼叫 FinMind。</strong></div>
 <div class="row">
 <button id="cloudMergeBtn">☁ 開始雲端背景合併</button>
@@ -171,6 +205,37 @@ function render(s){
  $("pause").disabled=!["running","preparing"].includes(s.phase);$("resume").disabled=!["paused","error"].includes(s.phase);
  $("startBtn").disabled=["running","preparing"].includes(s.phase);$("exports").classList.toggle("hidden",!s.total);
  const merge=s.merge,ready=s.phase==="done"&&s.codeCount>0&&s.processed===s.total;
+ const chip=s.chip,chipMerge=s.chipMerge;
+ $("chipStartBtn").disabled=!ready||busy||chip?.phase==="running"||chip?.phase==="done";
+ $("chipStartBtn").classList.toggle("hidden",chip?.phase==="running"||chip?.phase==="done");
+ $("chipPauseBtn").classList.toggle("hidden",chip?.phase!=="running");
+ $("chipResumeBtn").classList.toggle("hidden",!["paused","error"].includes(chip?.phase));
+ $("chipProgressPanel").classList.toggle("hidden",!chip);
+ if(chip){
+  const pct=chip.total?Math.min(100,chip.processed*100/chip.total):0;
+  $("chipProgress").value=pct;$("chipPct").textContent=pct.toFixed(1)+"%";
+  $("chipCounts").textContent=fmt(chip.processed)+" / "+fmt(chip.total)+" 檔";
+  $("chipMessage").textContent=chip.message+(chip.error?" · "+chip.error:"");
+  $("chipCoverage").textContent="已補查 "+fmt(chip.queries)+" 次 API · 對應日K "+fmt(chip.priceRows)+" 根 · 有法人紀錄 "+fmt(chip.institutionalRows)+" 根 · 有融資融券 "+fmt(chip.marginRows)+" 根 · 最後股票 "+(chip.lastCode||"—");
+ }
+ $("chipMergeProgress").classList.toggle("hidden",!chipMerge);
+ $("chipReady").classList.toggle("hidden",chipMerge?.phase!=="done");
+ $("chipYearsPanel").classList.toggle("hidden",chip?.phase!=="done");
+ if(chipMerge){
+  const pct=chipMerge.total?chipMerge.processed*100/chipMerge.total:0;
+  $("chipMergeBar").value=pct;
+  $("chipMergeMsg").textContent=(chipMerge.message||"背景合併中")+" · "+fmt(chipMerge.processed)+"/"+fmt(chipMerge.total)+" 檔 · "+bytesText(chipMerge.bytes||0)+(chipMerge.error?" · "+chipMerge.error:"");
+ }
+ if(chip?.phase==="done"&&!$("chipYearLinks").childElementCount){
+  for(const year of yearsOf(s)){
+   const d=document.createElement("details"),title=document.createElement("summary");
+   title.textContent=year+" 年 · 每250股分包";d.append(title);
+   const links=document.createElement("div");links.className="packs";
+   for(let p=1;p<=Math.ceil(s.codeCount/250);p++)addDownload(links,year+" 年 第 "+p+" 包",root+"/chip-export?year="+year+"&part="+p);
+   d.append(links);$("chipYearLinks").append(d);
+  }
+ }
+
  $("cloudMergeBtn").classList.toggle("hidden",["running","done","error"].includes(merge?.phase));
  $("cloudMergeBtn").disabled=!ready||busy;
  $("mergeResumeBtn").classList.toggle("hidden",merge?.phase!=="error");
@@ -293,6 +358,44 @@ async function copyShare(){
  catch{$("shareUrl").focus();$("shareUrl").select();alert("請長按輸入框，選擇全選並複製連結")}
 }
 
+async function startChipBackfill(){
+ if(busy)return;busy=true;clearError();
+ $("chipStartBtn").disabled=true;
+ try{
+  // Only a newly typed token overwrites the server-side existing credential.
+  // Existing completed price data does NOT require re-validation or a reset.
+  const bearer=$("token").value.trim();
+  const headers=bearer?{authorization:"Bearer "+bearer}:{};
+  await api("/chip-start",{method:"POST",headers});
+  if(bearer)try{persistVerifiedToken(bearer)}catch{}
+  $("token").value="";await refresh();
+  $("chipPanel").scrollIntoView({behavior:"smooth"});
+ }catch(e){fail(e)}
+ finally{busy=false;$("chipStartBtn").disabled=false}
+}
+async function chipAction(action){
+ if(busy)return;busy=true;clearError();
+ try{await api("/"+action,{method:"POST"});await refresh()}catch(e){fail(e)}finally{busy=false}
+}
+async function shareChipData(){
+ if(busy)return;busy=true;
+ try{
+  const r=await api("/chip-share",{method:"POST"});
+  $("chipShareUrl").value=r.url;
+  $("chipStatusUrl").href=r.statusUrl;$("chipStatusUrl").classList.remove("hidden");
+  $("chipShareUrl").focus();$("chipShareUrl").select();
+ }catch(e){fail(e)}finally{busy=false}
+}
+async function revokeChipShare(){
+ if(!confirm("確定撤銷籌碼版唯讀連結？"))return;
+ try{await api("/chip-revoke",{method:"POST"});$("chipShareUrl").value="";$("chipStatusUrl").classList.add("hidden")}
+ catch(e){fail(e)}
+}
+async function copyChipShare(){
+ if(!$("chipShareUrl").value)return fail("請先產生籌碼版唯讀 API 連結");
+ try{await navigator.clipboard.writeText($("chipShareUrl").value);alert("籌碼唯讀連結已複製")}
+ catch{$("chipShareUrl").focus();$("chipShareUrl").select()}
+}
 async function action(kind){
  if(busy)return;busy=true;
  try{await api("/"+kind,{method:"POST"});
@@ -306,6 +409,16 @@ $("verifyTokenBtn").onclick=verifyAndContinue;
 $("cloudMergeBtn").onclick=startCloudMerge;
 $("mergeResumeBtn").onclick=resumeCloudMerge;
 $("shareBtn").onclick=createShare;
+$("chipStartBtn").onclick=startChipBackfill;
+$("chipResumeBtn").onclick=startChipBackfill;
+$("chipPauseBtn").onclick=()=>chipAction("chip-pause");
+$("chipShareBtn").onclick=shareChipData;
+$("chipRevokeBtn").onclick=revokeChipShare;
+$("chipCopyBtn").onclick=copyChipShare;
+$("chipStockBtn").onclick=()=>{const code=$("chipStockCode").value.trim();
+ if(!/^[0-9]{4}$/.test(code))return fail("股票代號需為4位數");
+ location.href=root+"/chip-export?code="+code;
+};
 $("revokeBtn").onclick=revokeShare;
 $("copyShareBtn").onclick=copyShare;
 $("startBtn").onclick=()=>launch(false);$("resetBtn").onclick=()=>launch(true);
@@ -324,6 +437,6 @@ $("stockExportBtn").onclick=()=>{
  location.href=root+"/export?code="+encodeURIComponent(code)
 };
 refresh(); // Preview is optional; avoid a blocking remote catalog call on every page open.
-setInterval(()=>{if(!document.hidden&&(["running","preparing","deleting"].includes(current?.phase)||current?.merge?.phase==="running"))refresh()},12000);
+setInterval(()=>{if(!document.hidden&&(["running","preparing","deleting"].includes(current?.phase)||current?.merge?.phase==="running"||current?.chip?.phase==="running"||current?.chipMerge?.phase==="running"))refresh()},12000);
 })();
 </script></body></html>
