@@ -96,5 +96,27 @@ test("cloud-only FinMind chip backfill preserves original price and merges gzip"
   assert.equal(empty.institutional_foreign_net_shares,"");
   const plain=await batch.fetch(new Request("https://test/export?year=2025&part=1"));
   assert.equal(plain.status,200);
+  // Sharing combined chips is opt-in, protected by a separate short-lived key.
+  const before=await batch.fetch(new Request("https://test/chip-shared?format=status",
+   {headers:{authorization:"Bearer "+ "f".repeat(64)}}));
+  assert.equal(before.status,403);
+  const permission=await batch.fetch(new Request("https://test/chip-share",{method:"POST"}));
+  assert.equal(permission.status,200);
+  const share=await permission.json();
+  assert.equal(share.key.length,64);
+  const valid=await batch.fetch(new Request("https://test/chip-shared?format=status",
+   {headers:{authorization:"Bearer "+share.key}}));
+  assert.equal(valid.status,200);
+  const publicStatus=await valid.json();
+  assert.ok(!JSON.stringify(publicStatus).includes(share.key));
+  assert.equal(publicStatus.columns.includes("margin_balance_lots"),true);
+  const partial=await batch.fetch(new Request("https://test/chip-shared?code=2330",
+   {headers:{authorization:"Bearer "+share.key}}));
+  assert.equal(partial.status,200);
+  const revoked=await batch.fetch(new Request("https://test/chip-revoke",{method:"POST"}));
+  assert.equal(revoked.status,200);
+  const denied=await batch.fetch(new Request("https://test/chip-shared?format=status",
+   {headers:{authorization:"Bearer "+share.key}}));
+  assert.equal(denied.status,403);
  }finally{globalThis.fetch=oldFetch}
 });
