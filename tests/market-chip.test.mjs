@@ -74,7 +74,7 @@ test("cloud-only FinMind chip backfill preserves original price and merges gzip"
    if((await db.get("merge-chip"))?.phase==="done")break;
   }
   const chip=await db.get("market-chip"),combined=await db.get("merge-chip");
-  assert.equal(chip.phase,"done");assert.equal(chip.processed,2);
+  assert.equal(chip.phase,"done","CHIP_PROGRESS="+JSON.stringify(chip));assert.equal(chip.processed,2);
   assert.equal(combined.phase,"done");assert.equal(combined.processed,2);
   assert.ok(requested.every(x=>x!=="TaiwanStockPrice"));
   for(const code of codes){
