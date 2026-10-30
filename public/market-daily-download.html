@@ -369,8 +369,9 @@ async function startChipBackfill(){
   const bearer=$("token").value.trim();
   const headers=bearer?{authorization:"Bearer "+bearer}:{};
   await api("/chip-start",{method:"POST",headers});
-  if(bearer)try{persistVerifiedToken(bearer)}catch{}
-  $("token").value="";await refresh();
+  // Do not label a freshly submitted token as "verified" until FinMind
+  // actually accepts a backfill query. The server never returns the token.
+  await refresh();
   $("chipPanel").scrollIntoView({behavior:"smooth"});
  }catch(e){fail(e)}
  finally{busy=false;$("chipStartBtn").disabled=false}
