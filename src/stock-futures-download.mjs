@@ -812,6 +812,10 @@ export class StockFuturesBatch{
   if(s.mode==="market-daily"){
    const merge=await st.get("merge");
    if(merge?.phase==="running"){await this.alarmMerge(s,merge,st);return}
+   const chips=await st.get(CHIP_JOB_KEY);
+   if(chips?.phase==="running"){await this.alarmMarketChip(s,chips,st);return}
+   const chipMerge=await st.get(CHIP_MERGE_KEY);
+   if(chipMerge?.phase==="running"){await this.alarmMerge(s,chipMerge,st,"chip");return}
   }
   if(s.phase==="preparing"&&s.mode==="market-daily"){
    const token=await st.get("token");
@@ -1048,6 +1052,107 @@ export class StockFuturesBatch{
   if(latest.phase==="error"&&s.phase==="running")s.phase="error";
   s.updatedAt=Date.now();await st.put("state",s);
   await st.setAlarm(s.phase==="running"?Math.max(Date.now()+150,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
+ }
+
+ async alarmMarketChip(s,job,st){
+  // Only add the missing datasets. Raw price history (the original price
+  // shards, merge archive and share key) is never overwritten here.
+  if(s.phase!=="done"||s.processed!==s.total){
+   job.phase="error";job.error="股價任務尚未完成或狀態已改變";
+   await st.put(CHIP_JOB_KEY,job);await st.setAlarm(s.expiresAt);return
+  }
+  if(job.processed>=job.total){
+   await this.completeMarketChip(s,job,st);return
+  }
+  const token=String(await st.get("token")||"").trim();
+  if(!token){
+   job.phase="error";job.error="FinMind Token 不存在，請在網頁輸入並繼續";
+   await st.put(CHIP_JOB_KEY,job);await st.setAlarm(s.expiresAt);return
+  }
+  const current=s.catalog[job.processed],code=current?.code;
+  if(!/^[0-9]{4}$/.test(String(code||""))){
+   job.phase="error";job.error="商品清單中有無效股票代號";
+   await st.put(CHIP_JOB_KEY,job);await st.setAlarm(s.expiresAt);return
+  }
+  const requestedAt=Date.now(),startYear=Number(s.start.slice(0,4)),endYear=Number(s.end.slice(0,4));
+  let calls=0;
+  try{
+   const collect=async dataset=>{
+    const items=[];
+    for(const w of dailyPriceWindows(s.start,s.end)){
+     calls++;
+     const values=await fetchFinMind(token,{dataset,data_id:code,start_date:w.start,end_date:w.end});
+     items.push(...values);
+    }
+    return items
+   };
+   const institutional=await collect("TaiwanStockInstitutionalInvestorsBuySell");
+   const margin=await collect("TaiwanStockMarginPurchaseShortSale");
+   const shard=this.shardFor(s,code),totalStats={
+    priceRows:0,institutionalRows:0,marginRows:0,bothRows:0,missingInstitutional:0,missingMargin:0
+   };
+   for(let year=startYear;year<=endYear;year++){
+    const yy=String(year),day=yy+"-01-01";
+    // Each year is exactly one original GZIP member (not a concatenation).
+    // Decompress locally in the Cloudflare worker, then left join by stock/date.
+    const source=await shard.fetch("https://private/get?"+new URLSearchParams({start:day,end:day}));
+    if(!source.ok||!source.body)throw Error("找不到原始股票日K："+code+" "+yy);
+    const plain=await new Response(source.body.pipeThrough(new DecompressionStream("gzip"))).text();
+    const price=priceRowsFromText(plain,code,yy);
+    const joined=joinDailyChipRows(price,institutional,margin,code,s.start,s.end);
+    const stats=chipSnapshot(joined,price.records.length);
+    for(const k of Object.keys(totalStats))totalStats[k]+=stats[k]||0;
+    const compressed=await zip(joined.csvByYear[yy]||"");
+    const saved=await shard.fetch(new Request("https://private/put-chip?date="+day,{
+     method:"POST",body:compressed
+    }));
+    if(!saved.ok)throw Error("籌碼合併存檔失敗："+code+" "+yy+"（HTTP "+saved.status+"）");
+   }
+   // Only advance after every year's enriched CSV has been committed.
+   const latest=await st.get(CHIP_JOB_KEY);
+   if(!latest||latest.processed!==job.processed)return;
+   for(const [k,v] of Object.entries(totalStats))job[k]=(job[k]||0)+v;
+   job.processed++;job.queries+=calls;job.retryCount=0;job.error="";job.lastCode=code;
+   job.updatedAt=Date.now();
+   job.nextAllowedAt=Math.max(requestedAt,job.nextAllowedAt||0)+calls*CHIP_RATE_SPACING_MS;
+   job.message="已補 "+job.processed+"/"+job.total+" 檔；法人與融資券已併入獨立壓縮檔。";
+   if(latest.phase==="paused"){job.phase="paused";job.message="已暫停；這一檔已安全完成存檔"}
+   if(job.processed>=job.total&&job.phase==="running"){
+    await this.completeMarketChip(s,job,st);return
+   }
+   await st.put(CHIP_JOB_KEY,job);
+   await st.setAlarm(job.phase==="running"?Math.max(Date.now()+150,job.nextAllowedAt):s.expiresAt);
+  }catch(e){
+   const latest=await st.get(CHIP_JOB_KEY);
+   if(!latest||latest.processed!==job.processed)return;
+   const codeNum=Number(e.code||0),str=String(e.message||e).slice(0,250);
+   job.retryCount=(job.retryCount||0)+1;job.queries+=calls;
+   job.error=code+"："+str;job.updatedAt=Date.now();
+   job.nextAllowedAt=Math.max(requestedAt,job.nextAllowedAt||0)+calls*CHIP_RATE_SPACING_MS;
+   const authFail=[400,401,402,403,429].includes(codeNum);
+   if(authFail||job.retryCount>=5){
+    job.phase="error";
+    job.message="FinMind 權限、額度或儲存錯誤；已停止且保留已完成籌碼及全部原始日K。";
+   }else job.message="籌碼暫時讀取失敗，保留進度並自動退避重試";
+   await st.put(CHIP_JOB_KEY,job);
+   await st.setAlarm(job.phase==="running"?Math.max(job.nextAllowedAt,Date.now()+Math.min(300000,15000*2**job.retryCount)):s.expiresAt);
+  }
+ }
+ async completeMarketChip(s,job,st){
+  job.phase="done";job.error="";job.updatedAt=Date.now();
+  job.message="全部股票籌碼已補完；開始雲端背景合併成單一股價＋法人＋資券 CSV.GZ";
+  await st.put(CHIP_JOB_KEY,job);
+  // Keep the preexisting price-only merged archive and readonly links intact.
+  const old=await st.get(CHIP_MERGE_KEY);
+  if(old?.phase==="done"){await st.setAlarm(s.expiresAt);return}
+  const now=Date.now(),header=await zip(CHIP_COLUMNS);
+  await st.put(CHIP_MERGE_KEY+":header",header);
+  await st.delete(CHIP_MERGE_KEY+":share");
+  const merged={phase:"running",processed:old?.processed||0,total:s.catalog.length,
+   bytes:old?.bytes||header.byteLength,retryCount:0,error:"",
+   startedAt:old?.startedAt||now,updatedAt:now,completedAt:null,
+   message:"股價＋籌碼合併已排入雲端背景工作，無需開著手機"};
+  await st.put(CHIP_MERGE_KEY,merged);await st.setAlarm(Date.now()+100)
  }
 
  // Existing daily K bars are already compressed by year and symbol.
