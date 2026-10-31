@@ -62,7 +62,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <div class="top"><h2 style="margin:0">雲端下載進度</h2><span class="status" id="phase">—</span></div>
 <div class="bar"><div id="fill"></div></div>
 <div class="top"><b id="percent">0%</b><small id="count">0/0 股票</small></div>
-<div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="nonempty">0</b><small id="nonemptyLabel">有資料股票數</small></div><div class="stat"><b id="speed">—</b><small id="speedLabel">1 分 K 每小時筆數</small></div><div class="stat"><b id="skipped">0</b><small id="skippedLabel">省下的股票×日請求</small></div><div class="stat"><b id="preflight">—</b><small id="preflightLabel">歷史有效期預檢</small></div></div>
+<div class="stats"><div class="stat"><b id="requests">0</b><small>API 查詢數</small></div><div class="stat"><b id="apiRate">—</b><small>實際 API／小時</small></div><div class="stat"><b id="eta">—</b><small>預估剩餘時間</small></div><div class="stat"><b id="records">0</b><small>已下載 K 棒</small></div><div class="stat"><b id="nonempty">0</b><small id="nonemptyLabel">有資料股票數</small></div><div class="stat"><b id="speed">—</b><small id="speedLabel">1 分 K 每小時筆數</small></div><div class="stat"><b id="skipped">0</b><small id="skippedLabel">省下的股票×日請求</small></div><div class="stat"><b id="preflight">—</b><small id="preflightLabel">歷史有效期預檢</small></div></div>
 <p id="message">—</p><div class="minor" id="chipCoverage"></div><div class="minor" id="cursor"></div>
 <div class="actions"><button id="pauseBtn" class="secondary">暫停</button><button id="resumeBtn" class="secondary">繼續下載</button><button id="refreshBtn" class="secondary">更新狀態</button><button id="resetBtn" class="secondary">重新下載現股資料</button></div>
 <details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
@@ -92,6 +92,8 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 </section>
 <section class="card"><h2>關於下載速度與費用</h2>
 <p>研究加強版分段下載現股日 K、法人、融資融券、借券、外資持股與股期歷史日交易，API 數量視歷史年數和大小股期數量而異。研究版、舊版日 K＋籌碼、純日 K、1 分 K 各自儲存在雲端獨立任務，不會清除舊資料。已下載股票需由新研究版另建任務補齊資料。</p>
+<p><strong>FinMind Sponsor S 級加速模式：</strong>每小時上限 6,000 次 API，下載器單一任務目標控制在約 5,100 次／小時以保留重試額度。1 分 K 每輪最多 12 個股票×日期、同時最多 5 個 API 工作；日 K＋研究資料將互相獨立的日期／資料集並行查詢，並行存檔。上方顯示的「實際 API／小時」與 ETA 會以最近進度滾動計算，<strong>不是保證速度</strong>。</p>
+<p class="minor">⚠️ 同時跑「1 分 K」與「日 K 完整研究版」，會共用同一個 Sponsor Token 的每小時 6,000 次額度。若上游回應 402 額度不足，任務會保留進度並停止；建議先讓其中一個下載完再啟動另一個。Sponsor Pro 才能一次下載當日全市場分 K。<strong>既有已下載資料及雲端任務不會重設。</strong></p>
 <p>如果 FinMind 回傳超額或無效 Token，背景工作會顯示錯誤並暫停，不會假裝已完成。完成的資料先保存在雲端私有儲存，請下載備份。</p>
 <div class="actions"><button id="deleteBtn" class="danger">清除這次的全部雲端資料</button></div>
 </section>
@@ -185,7 +187,11 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("phase").textContent=({running:"下載中",paused:"已暫停",error:"需要處理",done:"已完成",expired:"已到期"})[s.phase]||s.phase;
   const pct=s.total?Math.min(100,100*s.processed/s.total):0;$("fill").style.width=pct+"%";$("percent").textContent=pct.toFixed(2)+"%";
   $("count").textContent=fmt(s.processed)+" / "+fmt(s.total)+(s.mode==="stocks"?" 股票×日期":" 檔股票");
-  $("requests").textContent=fmt(s.queries);$("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode!=="stocks"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode!=="stocks"?"—":fmt(s.skipped);$("preflight").textContent=s.mode!=="stocks"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
+  $("requests").textContent=fmt(s.queries);
+  $("apiRate").textContent=s.apiRatePerHour?fmt(s.apiRatePerHour)+" / h":"統計中";
+  $("eta").textContent=s.phase==="done"?"已完成":s.etaHours!==null&&s.etaHours!==undefined?
+    s.etaHours<1?Math.max(1,Math.ceil(s.etaHours*60))+" 分鐘":s.etaHours.toFixed(1)+" 小時":"統計中";
+  $("records").textContent=fmt(s.rows);$("nonempty").textContent=fmt(s.nonempty);$("speed").textContent=s.mode!=="stocks"?"—":s.barRatePerHour?fmt(s.barRatePerHour):"統計中";$("skipped").textContent=s.mode!=="stocks"?"—":fmt(s.skipped);$("preflight").textContent=s.mode!=="stocks"?"—":s.preflightTotal?(fmt(s.preflightDone)+"/"+fmt(s.preflightTotal)):"—";
   $("message").textContent=s.message+((s.mode==="daily"||s.mode==="daily-chip"||s.mode==="daily-research")&&s.start>$("start").value?" ⚠ 現有任務從 "+s.start+" 開始。若需要延長資料，請先備份該模式、再按重新下載；其他模式不受影響。":"");
   $("chipCoverage").textContent=(s.mode==="daily-chip"||s.mode==="daily-research")&&s.chipCoverage?
    "法人＋融資融券："+fmt(s.chipCoverage.both)+" 筆；外資持股："+fmt(s.chipCoverage.foreignHolding)+" 筆；借券成交："+fmt(s.chipCoverage.lendingTrades)+" 筆；股期歷史紀錄："+fmt(s.chipCoverage.futuresObservations)+" 筆；缺值留空。":"";$("cursor").textContent="目前："+(s.mode==="daily"?"股票":"日期 "+(s.currentDate||"—")+" · 股票")+(s.currentCode||"—")+" · 已選 "+s.codeCount+" 檔。範圍 "+s.start+" 至 "+s.end;
