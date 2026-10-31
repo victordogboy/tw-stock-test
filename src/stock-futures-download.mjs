@@ -1197,7 +1197,7 @@ export class StockFuturesBatch{
     const bytes=await zip(parsed.csv);
     const obj=this.shardFor(s,c.code),resp=await obj.fetch(new Request("https://private/put?date="+day+(s.mode==="all-stocks"?"&ttl=120":""),{method:"POST",body:bytes}));
     if(!resp.ok)throw Error("雲端儲存失敗："+resp.status);
-    return {day,c,index,success:true,...parsed.audit}
+    return {...parsed.audit,day,c,index,success:true}
    }catch(e){return {day,c,index,success:false,error:String(e.message||e).slice(0,180),status:Number(e.code||0)}}
   },stockMode?STOCK_MINUTE_CONCURRENCY:4);
   spend(tasks.length,started);
