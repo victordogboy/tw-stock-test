@@ -315,6 +315,11 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(market||!["stocks","daily","daily-chip","daily-research","all-stocks","all-daily","all-daily-chip","all-daily-research"].includes(mode))
    return respond({ok:false,error:"目前只支援個股日K、分K和日頻研究整包下載"},400);
   const include=url.searchParams.get("include")||"none";
+  const archiveYear=url.searchParams.get("year")||"";
+  const partText=url.searchParams.get("part")||"";
+  const safePartSize=75;
+  if(archiveYear&&!/^20\d{2}$/.test(archiveYear)||partText&&!/^[1-9]\d{0,3}$/.test(partText)||partText&&!archiveYear)
+   return respond({ok:false,error:"ZIP 分年／分包參數錯誤"},400);
   if(!["none","chip","research"].includes(include)||!isStock&&include!=="none")
    return respond({ok:false,error:"備份參數不合法"},400);
   const primary=await stub.fetch("https://private/status");
@@ -337,21 +342,46 @@ export async function stockFuturesRoute(request,env,mode="futures"){
      side.codeCount!==source.codeCount||!a||a!==b)
     return respond({ok:false,error:"日頻配套與分K股票／日期不一致，或下載尚未完成，不能混合打包"},409);
   }
-  const manifest=stockArchiveManifest({minute:source,companion:side,mode,startedAt:new Date().toISOString()});
+  if(archiveYear&&(archiveYear<source.start.slice(0,4)||archiveYear>source.end.slice(0,4)))
+   return respond({ok:false,error:"ZIP 年份不在本次雲端資料範圍內"},400);
+  const ordered=[...(source.codes||[])].map(c=>c.code).sort();
+  const part=partText?Number(partText):0;
+  const partCount=Math.ceil(ordered.length/safePartSize);
+  if(part>partCount)return respond({ok:false,error:"ZIP 分包序號超出股票範圍"},400);
+  const subset=part?ordered.slice((part-1)*safePartSize,part*safePartSize):ordered;
+  if(!subset.length)return respond({ok:false,error:"沒有可打包的股票"},409);
+  const keySet=new Set(subset);
+  const recordCounts=source.recordRowsByStockYear||null,hasRecordCounts=!!recordCounts;
+  let expectedRecords=null;
+  if(archiveYear&&hasRecordCounts){
+   const missing=subset.some(code=>!Object.hasOwn(recordCounts,code+"-"+archiveYear));
+   if(!missing)expectedRecords=subset.reduce((sum,code)=>sum+recordCounts[code+"-"+archiveYear],0)
+  }
+  const manifest={...stockArchiveManifest({minute:source,companion:side,mode,startedAt:new Date().toISOString()}),
+   archiveYear:archiveYear||"all",archivePart:part||"all",archivePartCount:partCount,stockCodes:subset,
+   expectedPrimaryRecords:expectedRecords,sourceReportedTotalRecords:source.rows,
+   verification:"Archive contains gzip data from existing cloud shards. Validate ZIP directory, gzip CRC and extracted row count before backtesting. Unverified source records are not certified complete.",
+   notes:["A successful background job does not prove that the exported ZIP reached the client intact.",
+    "If this file lacks the ZIP central directory (EOCD), the transfer was interrupted and must not be used for backtesting.",
+    "If expectedPrimaryRecords is null, the legacy job predates per-stock/year record auditing; retain the original data."]};
   const entries=[{name:"manifest.json",open:async()=>new Response(JSON.stringify(manifest,null,2)+"\n")}];
-  const startYear=Number(source.start.slice(0,4)),endYear=Number(source.end.slice(0,4));
+  const startYear=archiveYear?Number(archiveYear):Number(source.start.slice(0,4)),
+   endYear=archiveYear?Number(archiveYear):Number(source.end.slice(0,4));
+  const exportCodes=part?subset.join(","):"";
   for(let y=startYear;y<=endYear;y++){
    const year=String(y),owner=stub;
    entries.push({name:"01_price/"+(isStock?"minute_1min":"daily")+"_"+year+".csv.gz",
-    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year,codes:exportCodes}))})
   }
   if(sideStub)for(let y=startYear;y<=endYear;y++){
    const year=String(y),owner=sideStub;
    entries.push({name:"02_daily_research/"+(include==="research"?"research_full":"institutional_margin")+"_"+year+".csv.gz",
     open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
   }
-  const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+(isStock?"1min":mode.replace("daily-","daily_"))+
-    "_"+source.start.replaceAll("-","")+"_"+source.end.replaceAll("-","")+".zip";
+  const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+
+   (isStock?"1min":mode.replace("daily-","daily_"))+"_"+
+   (archiveYear||source.start.replaceAll("-","")+"_"+source.end.replaceAll("-",""))+
+   (part?"_part"+String(part).padStart(2,"0")+"of"+partCount:"")+".zip";
   return new Response(streamZip64(entries),{headers:{
    "content-type":"application/zip","content-disposition":'attachment; filename="'+file+'"',
    "cache-control":"private, no-store","x-content-type-options":"nosniff"
