@@ -376,7 +376,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(sideStub)for(let y=startYear;y<=endYear;y++){
    const year=String(y),owner=sideStub;
    entries.push({name:"02_daily_research/"+(include==="research"?"research_full":"institutional_margin")+"_"+year+".csv.gz",
-    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year,codes:exportCodes}))})
   }
   const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+
    (isStock?"1min":mode.replace("daily-","daily_"))+"_"+
@@ -1535,7 +1535,12 @@ export class StockFuturesBatch{
 
  async exportDailyData(s,url){
   if(!["running","paused","done","error"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
-  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",
+   requestedCodes=url.searchParams.get("codes")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
+  const selectedCodes=requestedCodes?requestedCodes.split(","):[];
+  if(selectedCodes.length>75||selectedCodes.some(x=>!/^[0-9]{4}$/.test(x))||
+    new Set(selectedCodes).size!==selectedCodes.length||code&&selectedCodes.length)
+   return respond({ok:false,error:"ZIP 股票分包清單錯誤"},400);
   const enriched=s.mode==="market-daily"&&url.searchParams.get("chip")==="1";
   if(enriched&&(await this.ctx.storage.get(CHIP_JOB_KEY))?.phase!=="done")
    return respond({ok:false,error:"法人與融資券資料仍在背景補抓"},409);
@@ -1547,7 +1552,10 @@ export class StockFuturesBatch{
   if(s.mode==="market-daily"&&!code&&(!year||!part)&&!whole)return respond({ok:false,error:"全市場日K請依年份＋每250檔分包下載"},400);
   if(whole&&(!part||!Number.isInteger(part)))return respond({ok:false,error:"必須指定分包編號"},400);
   if(part&&(!Number.isSafeInteger(part)||part<1||part>Math.ceil(s.catalog.length/MARKET_EXPORT_PART_SIZE)))return respond({ok:false,error:"分包序號錯誤"},400);
-  const codes=code?[code]:part?s.catalog.slice((part-1)*MARKET_EXPORT_PART_SIZE,part*MARKET_EXPORT_PART_SIZE).map(c=>c.code):s.catalog.map(c=>c.code);
+  const valid=new Set(s.catalog.map(c=>c.code));
+  if(selectedCodes.some(c=>!valid.has(c)))return respond({ok:false,error:"ZIP 含非本次任務股票"},400);
+  const codes=selectedCodes.length?selectedCodes:code?[code]:
+   part?s.catalog.slice((part-1)*MARKET_EXPORT_PART_SIZE,part*MARKET_EXPORT_PART_SIZE).map(c=>c.code):s.catalog.map(c=>c.code);
   const first=Number(s.start.slice(0,4)),last=Number(s.end.slice(0,4));
   const years=year?[Number(year)]:Array.from({length:last-first+1},(_,i)=>first+i);
   const segments=whole?codes.map(stock=>({stock,whole:true})):codes.flatMap(stock=>years.map(y=>({stock,day:y+"-01-01"})));
@@ -1582,12 +1590,18 @@ export class StockFuturesBatch{
  async exportData(s,url){
   if(["daily","daily-chip","daily-research","market-daily","all-daily","all-daily-chip","all-daily-research"].includes(s.mode))return this.exportDailyData(s,url);
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
-  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",
+   requestedCodes=url.searchParams.get("codes")||"";
+  const selectedCodes=requestedCodes?requestedCodes.split(","):[];
+  if(selectedCodes.length>75||selectedCodes.some(x=>!/^[0-9]{4}$/.test(x))||
+   new Set(selectedCodes).size!==selectedCodes.length||code&&selectedCodes.length||
+   selectedCodes.some(c=>!s.catalog.some(x=>x.code===c)))
+   return respond({ok:false,error:"ZIP 股票分包清單錯誤"},400);
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"商品不在本次任務清單內"},404);
   if(year&&(!/^\d{4}$/.test(year)||year<s.start.slice(0,4)||year>s.end.slice(0,4)))return respond({ok:false,error:"年份不在範圍內"},400);
   if(!code&&!year)return respond({ok:false,error:"請選年度或股票代碼，避免手機下載巨型檔案"},400);
   const first=year&&year+"-01-01">s.start?year+"-01-01":s.start,last=year&&year+"-12-31"<s.end?year+"-12-31":s.end;
-  const codes=code?[s.catalog.find(c=>c.code===code)]:s.catalog;
+  const codes=selectedCodes.length?selectedCodes.map(c=>s.catalog.find(x=>x.code===c)):code?[s.catalog.find(c=>c.code===code)]:s.catalog;
   const self=this,head=await zip(["stocks","all-stocks"].includes(s.mode)?STOCK_HDR:HDR);let ci=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{
