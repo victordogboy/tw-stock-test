@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {gunzipSync,gzipSync} from "node:zlib";
 import {spawnSync} from "node:child_process";
 import {streamZip64} from "../src/stock-archive.mjs";
-import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,joinDailyChipRows,joinResearchRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
+import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,mapBounded,joinDailyChipRows,joinResearchRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
  const html=readFileSync(new URL("./fixtures/taifex-stockLists-2026-09-23.html",import.meta.url),"utf8");
@@ -18,6 +18,33 @@ function fixture(){
 }
 const host="https://example.com";
 const bar=(date,minute,code="CDF",contract_date="202101",volume=80)=>({date,minute,futures_id:code,contract_date,open:600,high:602,low:599,close:601,volume});
+test("Sponsor parallel scheduler overlaps 5 independent calls, preserves result order and errors",async()=>{
+ const tasks=Array.from({length:17},(_,i)=>i);
+ let active=0,peak=0;
+ const done=await mapBounded(tasks,async i=>{
+  active++;peak=Math.max(peak,active);
+  await new Promise(resolve=>setTimeout(resolve,(i%3+1)*4));
+  active--;return i*10
+ },5);
+ assert.equal(peak,5);
+ assert.deepEqual(done,tasks.map(i=>i*10));
+ assert.equal(active,0);
+ await assert.rejects(()=>mapBounded([0,1,2],async i=>{
+  if(i===1)throw Error("upstream failure");
+  await new Promise(resolve=>setTimeout(resolve,2));return i
+ },3),/upstream failure/);
+ assert.equal(active,0);
+});
+test("Sponsor speed UI reports real-time rate and ETA, warns against shared token quota contention",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/id="apiRate"/);assert.match(html,/id="eta"/);
+ assert.match(html,/6,000 次 API/);
+ assert.match(html,/同時跑「1 分 K」與「日 K 完整研究版」/);
+ const script=html.match(/<script>([\s\S]+?)<\/script>/)?.[1];
+ assert.doesNotThrow(()=>new Function(script));
+ assert.match(script,/s\.apiRatePerHour/);
+ assert.match(script,/s\.etaHours/);
+});
 test("TAIFEX fixture produces verified stock-futures-only universe, including normal and mini contract",()=>{
  const {catalog}=fixture(),map=new Map(catalog.map(x=>[x.code,x]));
  assert.ok(catalog.length>=100);
@@ -196,7 +223,7 @@ test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and ex
   assert.deepEqual(queries.sort(),[["2330","2021-01-01"],["2303","2021-01-01"],["2330","2021-01-04"],["2303","2021-01-04"]].sort());
   const status=await (await stockFuturesRoute(new Request(host+"/api/stock-kbar/status",{headers:{cookie}}),x.env,"stocks")).json();
   assert.equal(status.phase,"done");assert.equal(status.rows,4);
-  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");assert.equal(status.rateLimitPerHour,4800);assert.equal(status.preflightDone,2);assert.ok(status.calendarVerified);
+  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");assert.equal(status.rateLimitPerHour,5142);assert.equal(status.preflightDone,2);assert.ok(status.calendarVerified);
   const output=await stockFuturesRoute(new Request(host+"/api/stock-kbar/export?code=2330",{headers:{cookie}}),x.env,"stocks");
   assert.equal(output.status,200);
   const csv=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
