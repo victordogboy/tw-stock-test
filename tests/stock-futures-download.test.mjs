@@ -223,7 +223,7 @@ test("stock 1-minute API uses TaiwanStockKBar by stock_id, avoids weekend and ex
   assert.deepEqual(queries.sort(),[["2330","2021-01-01"],["2303","2021-01-01"],["2330","2021-01-04"],["2303","2021-01-04"]].sort());
   const status=await (await stockFuturesRoute(new Request(host+"/api/stock-kbar/status",{headers:{cookie}}),x.env,"stocks")).json();
   assert.equal(status.phase,"done");assert.equal(status.rows,4);
-  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");assert.equal(status.rateLimitPerHour,4800);assert.equal(status.preflightDone,2);assert.ok(status.calendarVerified);
+  assert.equal(status.night,0);assert.equal(status.dataset,"TaiwanStockKBar");assert.equal(status.rateLimitPerHour,5142);assert.equal(status.preflightDone,2);assert.ok(status.calendarVerified);
   const output=await stockFuturesRoute(new Request(host+"/api/stock-kbar/export?code=2330",{headers:{cookie}}),x.env,"stocks");
   assert.equal(output.status,200);
   const csv=gunzipSync(Buffer.from(await output.arrayBuffer())).toString();
