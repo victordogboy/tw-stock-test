@@ -45,6 +45,107 @@ test("Sponsor speed UI reports real-time rate and ETA, warns against shared toke
  assert.match(script,/s\.apiRatePerHour/);
  assert.match(script,/s\.etaHours/);
 });
+test("universe selector provides all TWSE/TPEX catalog separately from TAIFEX and protects cookies",async()=>{
+ const x=fixture(),old=globalThis.fetch,requests=[];
+ const stockInfo=Array.from({length:1000},(_,i)=>({stock_id:String(1000+i),stock_name:"公司"+i,date:"2026-10-01",type:i%2?"twse":"tpex",industry_category:"半導體"}));
+ stockInfo.push({stock_id:"2330",stock_name:"台積電",date:"2026-10-01",type:"twse",industry_category:"半導體"});
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(String(url)),dataset=u.searchParams.get("dataset");requests.push(dataset);
+  if(dataset==="TaiwanStockInfo")return Response.json({status:200,data:stockInfo});
+  throw Error("No other dataset should be queried for catalog: "+dataset)
+ };
+ try{
+  const options=await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/catalog",{headers:{authorization:"Bearer test-sponsor-token"}}),x.env,"all-stocks");
+  assert.equal(options.status,200);
+  const j=await options.json();
+  assert.equal(j.count,1001);assert.equal(j.policy,"current-twse-tpex-stocks");
+  assert.equal(j.catalog.find(c=>c.code==="2330").futureCode,"");
+  assert.equal(new Set(j.catalog.map(c=>c.code)).size,j.catalog.length);
+  assert.deepEqual(requests,["TaiwanStockInfo"]);
+  const futures=await stockFuturesRoute(new Request(host+"/api/stock-kbar/catalog"),x.env,"stocks");
+  assert.equal(futures.status,200);
+  const futureData=await futures.json();
+  assert.ok(futureData.count<j.count);
+  const noToken=await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/catalog"),x.env,"all-stocks");
+  assert.equal(noToken.status,401);
+ }finally{globalThis.fetch=old}
+});
+test("all-market minute cloud job asynchronously prepares current-listed universe and never uses only futures list",async()=>{
+ const x=fixture(),old=globalThis.fetch,requests=[];
+ const list=Array.from({length:1000},(_,i)=>({stock_id:String(1000+i),stock_name:"公司"+i,date:"2026-10-01",type:i%2?"twse":"tpex",industry_category:"電子"}));
+ list.push({stock_id:"2330",stock_name:"台積電",date:"2026-10-01",type:"twse",industry_category:"半導體"});
+ const trading=[];for(let i=0;i<950;i++){let d=new Date(Date.parse("2023-01-01")+i*86400000);trading.push({date:d.toISOString().slice(0,10)})}
+ trading.push({date:"2026-10-26"});
+ globalThis.fetch=async(url)=>{
+  const dest=String(url);
+  if(dest.includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(dest),dataset=u.searchParams.get("dataset"),code=u.searchParams.get("data_id");requests.push(dataset);
+  if(dataset==="TaiwanStockInfo")return Response.json({status:200,data:list});
+  if(dataset==="TaiwanStockTradingDate")return Response.json({status:200,data:trading});
+  if(dataset==="TaiwanStockPrice")return Response.json({status:200,data:[{stock_id:code,date:"2026-10-26",open:100,max:105,min:99,close:104,Trading_Volume:2000}]});
+  if(dataset==="TaiwanStockKBar")return Response.json({status:200,data:[{date:"2026-10-26",minute:"09:00:00",stock_id:code,open:100,high:101,low:98,close:99,volume:20}]});
+  throw Error("Unexpected "+dataset)
+ };
+ try{
+  const r=await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/start",{method:"POST",
+    headers:{origin:host,authorization:"Bearer test-sponsor-token"},
+    body:JSON.stringify({start:"2026-10-26",end:"2026-10-26",codes:["2330"],markets:["twse","tpex"]})}),x.env,"all-stocks");
+  assert.equal(r.status,202);
+  const cookie=r.headers.get("set-cookie");assert.match(cookie,/__Host-allstock-1min=/);
+  assert.match(cookie,/Max-Age=10368000/);
+  let state=await r.json();assert.equal(state.phase,"preparing");
+  await x.job.alarm();
+  state=await(await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/status",{headers:{cookie}}),x.env,"all-stocks")).json();
+  assert.equal(state.codeCount,1);assert.equal(state.total,1);assert.equal(state.mode,"all-stocks");
+  assert.equal(state.universe,"all-twse-tpex");
+  assert.equal(state.codes[0].code,"2330");assert.equal(state.phase,"running");
+  await x.job.alarm();await x.job.alarm();await x.job.alarm();
+  state=await(await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/status",{headers:{cookie}}),x.env,"all-stocks")).json();
+  assert.equal(state.phase,"done");assert.equal(state.rows,1);
+  const exportRes=await stockFuturesRoute(new Request(host+"/api/all-stock-kbar/export?year=2026",{headers:{cookie}}),x.env,"all-stocks");
+  assert.equal(exportRes.status,200);
+  const csv=gunzipSync(Buffer.from(await exportRes.arrayBuffer())).toString();
+  assert.match(csv,/2026-10-26,09:00:00,2330/);
+  assert.match(exportRes.headers.get("content-disposition"),/FinMind_All_TWSE_TPEX_1min/);
+  assert.ok(requests.includes("TaiwanStockInfo"));assert.ok(requests.includes("TaiwanStockKBar"));
+ }finally{globalThis.fetch=old}
+});
+test("all-market daily full research job exports same OHLCV/chip schema, empty futures for ordinary shares",async()=>{
+ const x=fixture(),old=globalThis.fetch;
+ const list=Array.from({length:1001},(_,i)=>({stock_id:String(1000+i),stock_name:"公司"+i,date:"2026-10-01",type:i%2?"twse":"tpex",industry_category:"電子"}));
+ globalThis.fetch=async url=>{
+  if(String(url).includes("taifex.com.tw"))return new Response(x.html,{status:200});
+  const u=new URL(String(url)),dataset=u.searchParams.get("dataset"),code=u.searchParams.get("data_id");
+  if(dataset==="TaiwanStockInfo")return Response.json({status:200,data:list});
+  if(dataset==="TaiwanStockPrice")return Response.json({status:200,data:[{date:"2026-10-26",stock_id:code,open:10,max:11,min:9,close:10.5,Trading_Volume:1500,Trading_money:15000,Trading_turnover:2,spread:0.5}]});
+  return Response.json({status:200,data:[]})
+ };
+ try{
+  const r=await stockFuturesRoute(new Request(host+"/api/all-stock-daily-research/start",{method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},
+   body:JSON.stringify({start:"2026-10-26",end:"2026-10-26",codes:["1000"],markets:["tpex"]})}),x.env,"all-daily-research");
+  assert.equal(r.status,202);const cookie=r.headers.get("set-cookie");assert.match(cookie,/__Host-allstock-research=/);
+  await x.job.alarm();await x.job.alarm();
+  const state=await(await stockFuturesRoute(new Request(host+"/api/all-stock-daily-research/status",{headers:{cookie}}),x.env,"all-daily-research")).json();
+  assert.equal(state.phase,"done");assert.equal(state.mode,"all-daily-research");assert.equal(state.codeCount,1);
+  const exported=await stockFuturesRoute(new Request(host+"/api/all-stock-daily-research/export?year=2026",{headers:{cookie}}),x.env,"all-daily-research");
+  assert.equal(exported.status,200);
+  const csv=gunzipSync(Buffer.from(await exported.arrayBuffer())).toString();
+  assert.match(csv,/foreign_holding_ratio_pct/);assert.match(csv,/futures_observed_contract_months/);
+  assert.match(csv,/2026-10-26,1000,/);
+ }finally{globalThis.fetch=old}
+});
+test("page switches all-market and futures scopes with isolated APIs and retains separate selections",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/id="universe"/);assert.match(html,/value="futures"/);assert.match(html,/value="all"/);
+ assert.match(html,/catalogsByScope/);assert.match(html,/selectionsByScope/);
+ assert.match(html,/\/api\/all-stock-kbar/);assert.match(html,/\/api\/all-stock-daily-research/);
+ assert.match(html,/\/api\/stock-kbar/);
+ const script=html.match(/<script>([\s\S]+?)<\/script>/)?.[1];
+ assert.doesNotThrow(()=>new Function(script));
+ assert.match(script,/\$\("universe"\)\.onchange/);
+ assert.match(script,/const allMarket=\(\)=>/);
+});
 test("TAIFEX fixture produces verified stock-futures-only universe, including normal and mini contract",()=>{
  const {catalog}=fixture(),map=new Map(catalog.map(x=>[x.code,x]));
  assert.ok(catalog.length>=100);
