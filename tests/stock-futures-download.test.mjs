@@ -746,9 +746,11 @@ test("1-minute download UI can pair independent daily institution/margin or full
  assert.match(script,/const isChips=\(\)=>\$\("includeChips"\)\.checked/);
  assert.match(script,/const root=\(\)=>allMarket\(\)\?/);
  assert.match(script,/\/api\/stock-kbar/);
- assert.match(script,/const companionRoot=\(\)=>isResearch\(\)\?"\/api\/stock-daily-research":"\/api\/stock-daily-chip"/);
+ assert.match(script,/const companionRoot=\(\)=>allMarket\(\)\?/);
+ assert.match(script,/\/api\/stock-daily-research/);
  assert.match(script,/if\(!isDaily\(\)&&isChips\(\)\)await startCompanion\(token,true\)/);
- assert.match(script,/body:JSON\.stringify\(\{start,end,codes,reset:false\}\)/);
+ assert.match(script,/body:JSON\.stringify\(\{start,end,codes:/);
+ assert.match(script,/markets:\["twse","tpex"\]/);
  assert.match(script,/if\(!isDaily\(\)&&isChips\(\)\)refreshCompanion\(\)/);
  assert.match(script,/for\(let year=Number\(s\.start\.slice\(0,4\)\);year<=Number\(s\.end\.slice\(0,4\)\);year\+\+\)/);
  assert.match(script,/fileRow\(\$\("companionYears"\)/);
