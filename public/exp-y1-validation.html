@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EXP-Y1｜回撤驗收</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#17304d;background:#f3f7fb}
+*{box-sizing:border-box}main{max-width:1100px;margin:auto;padding:20px 14px 70px}
+h1{font-size:1.65rem;margin:12px 0 4px}.sub{color:#65768b;margin:0 0 22px}
+.card{background:white;border:1px solid #dce5ee;border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 5px 20px #163a6010}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stat{background:#f1f7fa;border-radius:12px;padding:16px}.lbl{color:#5d7186;font-size:.88rem}.num{font-size:1.7rem;font-weight:750;margin-top:6px}
+.warn{background:#fff6db;border-left:5px solid #d89317;padding:14px;border-radius:9px;line-height:1.7}
+button,.filebtn{padding:11px 16px;background:#156e81;border:0;border-radius:9px;color:white;font-weight:700;cursor:pointer;display:inline-block}
+button:disabled{opacity:.4;cursor:default}
+input[type=file]{max-width:100%;margin:8px 0 10px}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:10px;border-bottom:1px solid #e3ebf2;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{background:#e9f2f8;position:sticky;top:0}
+.negative{color:#ba3b40;font-weight:600}.positive{color:#067a65;font-weight:600}
+.scroll{overflow:auto;max-height:67vh}pre{white-space:pre-wrap;word-break:break-all;max-height:170px;overflow:auto;color:#637080}
+@media(max-width:650px){.grid{grid-template-columns:1fr}h1{font-size:1.35rem}.card{padding:13px}}
+</style></head><body><main>
+<h1>EXP-Y1｜五年最大回撤驗收</h1>
+<p class="sub">2021–2025｜個股期貨研究｜交易成本 0｜只在此裝置讀取檔案，不上傳資料</p>
+<section class="warn" id="status"><b>尚未通過驗收，禁止視為正式交易訊號。</b><br>請選擇 R1480 全研究包 ZIP 或兩套版本的每日淨值 CSV／CSV.GZ；只有完整逐日序列才能計算真實最大回撤。</section>
+<div class="card"><b>載入研究資料</b><p>支援 ZIP、CSV、CSV.GZ。ZIP 裡若沒有兩版每日淨值，請改選兩個每日淨值 CSV。</p>
+<input type="file" id="files" multiple accept=".zip,.csv,.gz"><br>
+<button id="run">分析檔案</button><button id="download" disabled>匯出逐月 CSV</button>
+<pre id="debug">尚無檔案</pre></div>
+<div class="grid">
+<div class="stat"><div class="lbl">EXP-Y1 五年累積報酬</div><div class="num" id="ret">未驗證</div></div>
+<div class="stat"><div class="lbl">EXP-Y1 真實最大回撤</div><div class="num" id="mdd">未驗證</div></div>
+<div class="stat"><div class="lbl">最嚴重回撤期間</div><div class="num" id="period" style="font-size:1.13rem">未驗證</div></div>
+</div>
+<div class="card"><h2>60個月｜報酬與最大回撤</h2><p class="sub">月報酬：月底淨值相對上月底淨值；月回撤：含上月最後淨值作為當月初基準，不使用事後資訊。</p>
+<div class="scroll"><table><thead><tr><th>月份</th><th>使用策略</th><th>月報酬</th><th>月最大回撤</th><th>月底淨值</th></tr></thead><tbody id="monthly"></tbody></table></div></div>
+<div class="card"><h2>檢核條件</h2><p>2021：兩策略各 50%，各自保有獨立淨值，年中不重配。2022、2023：R1481；2024、2025：R1480；年度切換依前一年已知績效。採兩版同日每日淨值，不能把年度收益均分成每日。</p>
+<p>原研究年度複利試算：<b>+804.56%</b>，但這不是本頁已驗證績效。只有年度回報與實際每日淨值核對一致，才可作為上線驗收依據。這是研究代理淨值，不是實際期貨成交與口數回測。</p></div>
+</main><script>
+const $=id=>document.getElementById(id);
+let exportCSV='', debug=[];
+const dateClean=s=>{s=String(s||'').trim().replace(/^["']|["']$/g,'');let m=s.match(/^(20\d\d)[-\/.]?(\d\d)[-\/.]?(\d\d)/);return m?m[1]+'-'+m[2]+'-'+m[3]:null};
+function parseCSV(txt){txt=txt.replace(/^\ufeff/,'');let rows=[],a=[],cur='',q=false;for(let i=0;i<txt.length;i++){let c=txt[i];if(c==='"'){if(q&&txt[i+1]==='"'){cur+='"';i++}else q=!q}else if(!q&&c===','){a.push(cur);cur=''}else if(!q&&(c==='\n'||c==='\r')){if(c==='\r'&&txt[i+1]==='\n')i++;a.push(cur);if(a.some(x=>x.trim()))rows.push(a);a=[];cur=''}else cur+=c}if(cur||a.length){a.push(cur);rows.push(a)}return rows}
+async function unzip(buf){let v=new DataView(buf),u=new Uint8Array(buf),e=-1;for(let i=u.length-22;i>=Math.max(0,u.length-70000);i--)if(v.getUint32(i,true)===0x06054b50){e=i;break}if(e<0)throw Error('無法辨識ZIP結尾');let pos=v.getUint32(e+16,true),n=v.getUint16(e+10,true),out=[];for(let k=0;k<n;k++){if(v.getUint32(pos,true)!==0x02014b50)throw Error('ZIP目錄毀損');let method=v.getUint16(pos+10,true),size=v.getUint32(pos+20,true),namelen=v.getUint16(pos+28,true),extralen=v.getUint16(pos+30,true),comment=v.getUint16(pos+32,true),loc=v.getUint32(pos+42,true),name=new TextDecoder().decode(u.slice(pos+46,pos+46+namelen));pos+=46+namelen+extralen+comment;if(name.endsWith('/')||size===0)continue;if(v.getUint32(loc,true)!==0x04034b50)continue;let start=loc+30+v.getUint16(loc+26,true)+v.getUint16(loc+28,true);out.push({name,size,method,bytes:u.slice(start,start+size)})}return out}
+async function unzipEntry(e){if(e.method===0)return e.bytes;if(e.method!==8)throw Error('不支援ZIP壓縮法 '+e.method);let s=new Blob([e.bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Uint8Array(await new Response(s).arrayBuffer())}
+async function toText(name,bytes){if(/\.gz$/i.test(name)){let s=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));bytes=new Uint8Array(await new Response(s).arrayBuffer())}return new TextDecoder('utf-8').decode(bytes)}
+function norm(s){return String(s||'').trim().replace(/[\s_\-]/g,'').toLowerCase()}
+function records(name,txt,dest){const rows=parseCSV(txt);if(rows.length<4)return 0;const hdr=rows[0].map(norm);let di=hdr.findIndex(x=>['date','datetime','timestamp','日期','交易日期','trade_date','年月日'].includes(x));if(di<0)di=hdr.findIndex(x=>x.includes('date')||x.includes('日期'));if(di<0)return 0;
+const names=['equity','nav','portfolioequity','end_equity','endnav','total_equity','portfolio_value','balance','asset','wealth','淨值','資金淨值','總資產','資產淨值','累積淨值','totalvalue'].map(norm);
+let candidates=[];for(let i=0;i<hdr.length;i++)if(names.includes(hdr[i])||/equity|nav|淨值|總資產/.test(hdr[i]))candidates.push(i);
+let vi=hdr.findIndex(x=>x==='version'||x==='版本'||x==='strategy'||x==='策略');
+let fileVersion=/r1480/i.test(name)?'R1480':/r1481/i.test(name)?'R1481':null;
+let n=0;for(const row of rows.slice(1)){let d=dateClean(row[di]);if(!d||d<'2021-01-01'||d>'2025-12-31')continue;
+let rv=(vi>=0?String(row[vi]):'').toUpperCase();let ver=rv.includes('R1480')?'R1480':rv.includes('R1481')?'R1481':fileVersion;
+for(const ci of candidates){let col=hdr[ci],vv=ver||(/r1480/i.test(col)?'R1480':/r1481/i.test(col)?'R1481':null);
+let val=Number(String(row[ci]||'').replaceAll(',','').trim());if(!vv||!Number.isFinite(val)||val<=0)continue;dest[vv].set(d,val);n++;}}
+return n}
+function pct(x){return Number.isFinite(x)?(x*100).toFixed(2)+'%':'—'}
+async function main(){
+ $('run').disabled=true;$('status').innerHTML='<b>資料檢查中…</b>';debug=[];let datasets={R1480:new Map,R1481:new Map};try{
+ let files=[...$('files').files];if(!files.length)throw Error('請先選擇檔案');
+ for(const file of files){let items;if(/\.zip$/i.test(file.name))items=await unzip(await file.arrayBuffer());else items=[{name:file.name,method:0,size:file.size,bytes:new Uint8Array(await file.arrayBuffer())}];
+ debug.push('容器：'+file.name+'；內含 '+items.length+' 項');
+ for(const it of items){debug.push(' · '+it.name+' ('+it.size+' bytes)');
+ if(!/\.csv(\.gz)?$/i.test(it.name)||it.size>10000000)continue;
+ try{let txt=await toText(it.name,await unzipEntry(it));let n=records(it.name,txt,datasets);if(n)debug.push('   ✓ 找到每日淨值 '+n+' 筆');}catch(e){debug.push('   ⚠ '+e.message)}
+ }}
+ $('debug').textContent=debug.join('\n');
+ let a=datasets.R1480,b=datasets.R1481;
+ if(a.size<200||b.size<200)throw Error('尚未找到兩套策略完整的每日淨值：R1480 '+a.size+'天；R1481 '+b.size+'天。此ZIP可能只包含逐筆訂單、研究引擎或年度報表，無法直接推算EXP-Y1最大回撤。');
+ let dates=[...new Set([...a.keys(),...b.keys()])].sort().filter(d=>{let y=+d.slice(0,4);return y===2021?(a.has(d)&&b.has(d)):(y===2022||y===2023)?b.has(d):a.has(d)});
+ let count=Object.fromEntries([2021,2022,2023,2024,2025].map(y=>[y,dates.filter(d=>d.startsWith(String(y))).length]));
+ if(Object.values(count).some(n=>n<170))throw Error('有效每日淨值覆蓋不足：'+JSON.stringify(count)+'，不能當完整五年回測');
+ let firstA=a.get(dates[0]),firstB=b.get(dates[0]),firstYear=dates[0].slice(0,4);
+ if(firstYear!=='2021')throw Error('缺少2021年度開頭資料');
+ let equity=1,prevDate=dates[0],prevA=a.get(prevDate),prevB=b.get(prevDate),peak=1,peakDate=prevDate,mdd=0,from='',to='',daily=[];
+ for(const d of dates){let y=+d.slice(0,4);if(d!==prevDate){if(y===2021){equity=.5*a.get(d)/firstA+.5*b.get(d)/firstB}else if(y===2022||y===2023){let p=b.get(d),pre=b.get(prevDate);if(pre)equity*=p/pre}else{let p=a.get(d),pre=a.get(prevDate);if(pre)equity*=p/pre}}
+ if(equity>peak){peak=equity;peakDate=d}let dd=equity/peak-1;if(dd<mdd){mdd=dd;from=peakDate;to=d}daily.push({date:d,equity,dd});prevDate=d;}
+ let annualTarget={'2021':1.623804,'2022':-.128968,'2023':.663571,'2024':.310041,'2025':.816121};
+ let yrPrev=1,yearDiff=[];for(const y of [2021,2022,2023,2024,2025]){let ds=daily.filter(x=>x.date.startsWith(String(y)));let r=ds.at(-1).equity/yrPrev-1;yearDiff.push(y+': '+pct(r)+' / 原報表 '+pct(annualTarget[y]));yrPrev=ds.at(-1).equity}
+ let r=(equity-1),expected=8.0456;
+ let passed=Math.abs(equity-expected)<.07;
+ let keys=[...new Set(daily.map(x=>x.date.slice(0,7)))].sort(),previous=1,monthly=[];
+ for(const k of keys){let ds=daily.filter(x=>x.date.startsWith(k)),localPeak=previous,localMdd=0;for(const v of ds){localPeak=Math.max(localPeak,v.equity);localMdd=Math.min(localMdd,v.equity/localPeak-1)}
+ let ending=ds.at(-1).equity,ret=ending/previous-1;monthly.push({month:k,ret,mdd:localMdd,nav:ending,version:k.slice(0,4)==='2021'?'各50%':+k.slice(0,4)<=2023?'R1481':'R1480'});previous=ending;}
+ if(monthly.length!==60)throw Error('僅有'+monthly.length+'個月，非完整60個月：'+keys.join(','));
+ $('ret').textContent=pct(r);$('mdd').textContent=pct(mdd);$('period').textContent=from+' → '+to;
+ $('monthly').innerHTML=monthly.map(x=>'<tr><td>'+x.month+'</td><td>'+x.version+'</td><td class="'+(x.ret<0?'negative':'positive')+'">'+pct(x.ret)+'</td><td class="negative">'+pct(x.mdd)+'</td><td>'+x.nav.toFixed(4)+'</td></tr>').join('');
+ let lines=[['month','strategy','return_pct','monthly_mdd_pct','month_end_nav'],...monthly.map(x=>[x.month,x.version,(x.ret*100).toFixed(6),(x.mdd*100).toFixed(6),x.nav.toFixed(8)])];exportCSV=lines.map(row=>row.join(',')).join('\r\n');$('download').disabled=false;
+ let msg='<b>'+(passed?'每日淨值計算完成，已符合年度報酬核對容差':'注意：每日淨值與原年度報酬不一致，暫不通過驗收')+'</b><br>完整最大回撤 '+pct(mdd)+'；報酬 '+pct(r)+'；期末淨值 '+equity.toFixed(4)+'，原年度試算 9.0456。<br>'+yearDiff.join('｜');
+ $('status').innerHTML=msg;$('debug').textContent += '\n'+'兩版本交易日 '+a.size+'/'+b.size+'；檢核逐年：'+yearDiff.join('；');
+ }catch(err){$('status').innerHTML='<b>未通過驗收：'+String(err.message).replaceAll('<','&lt;')+'</b>';debug.push('錯誤：'+err.message);$('debug').textContent=debug.join('\n')}finally{$('run').disabled=false}
+}
+$('run').onclick=main;
+$('download').onclick=()=>{if(!exportCSV)return;let blob=new Blob(['\ufeff'+exportCSV],{type:'text/csv;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='EXP-Y1_monthly_MDD_2021-2025.csv';a.click();setTimeout(()=>URL.revokeObjectURL(u),3000)};
+</script></body></html>
