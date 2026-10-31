@@ -605,6 +605,25 @@ test("daily-mode main UI defaults to daily and retains separate minute API and p
  assert.match(html,/api\/stock-kbar/);
  assert.match(html,/granularity/);
 });
+test("1-minute download UI can pair independent daily institution/margin or full research datasets",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ const script=html.match(/<script>([\s\S]+?)<\/script>/)?.[1];
+ assert.ok(script,"embedded UI script missing");
+ assert.doesNotThrow(()=>new Function(script),"UI JavaScript must parse");
+ assert.match(html,/id="includeChips"/);assert.match(html,/id="includeResearch"/);
+ assert.match(html,/id="minuteCompanion"/);assert.match(html,/id="companionStart"/);
+ assert.match(html,/id="companionYears"/);assert.match(html,/id="companionSymbol"/);
+ assert.match(script,/const isChips=\(\)=>\$\("includeChips"\)\.checked/);
+ assert.match(script,/const root=\(\)=>!isDaily\(\)\?"\/api\/stock-kbar"/);
+ assert.match(script,/const companionRoot=\(\)=>isResearch\(\)\?"\/api\/stock-daily-research":"\/api\/stock-daily-chip"/);
+ assert.match(script,/if\(!isDaily\(\)&&isChips\(\)\)await startCompanion\(token,true\)/);
+ assert.match(script,/body:JSON\.stringify\(\{start,end,codes,reset:false\}\)/);
+ assert.match(script,/if\(!isDaily\(\)&&isChips\(\)\)refreshCompanion\(\)/);
+ assert.match(script,/for\(let year=Number\(s\.start\.slice\(0,4\)\);year<=Number\(s\.end\.slice\(0,4\)\);year\+\+\)/);
+ assert.match(script,/fileRow\(\$\("companionYears"\)/);
+ assert.match(html,/stock_id/);
+ assert.match(html,/公布時間/);
+});
 test("new main page calls stock KBar API while archived futures downloader keeps original endpoint",()=>{
  const newHtml=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  const oldHtml=readFileSync(new URL("../public/stock-futures-contract-download.html",import.meta.url),"utf8");
