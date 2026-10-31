@@ -276,10 +276,10 @@ export async function stockFuturesRoute(request,env,mode="futures"){
    }
    const r=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},signal:AbortSignal.timeout(15000)});
    if(!r.ok)throw Error("TAIFEX HTTP "+r.status);
-   const all=parseStockFutureUniverse(await r.text());
-   const selected=preferMiniStockFutures(all);
+   const futuresList=parseStockFutureUniverse(await r.text());
+   const selected=preferMiniStockFutures(futuresList);
    const catalog=isCash?selected.map(c=>({code:c.stock,stock:c.stock,name:c.name,futureCode:c.code,units:c.units,night:false})):selected;
-   return respond({ok:true,source:"TAIFEX 股票期貨/選擇權交易標的",asOf:new Date().toISOString(),count:catalog.length,rawCount:all.length,miniCount:selected.filter(x=>x.units===100).length,policy:isCash?"unique-underlying-cash-stock":"one-stock-mini-first-nearest-expiry",dataset:daily?"TaiwanStockPrice":isStock?"TaiwanStockKBar":"TaiwanFuturesKBar",catalog});
+   return respond({ok:true,source:"TAIFEX 股票期貨/選擇權交易標的",asOf:new Date().toISOString(),count:catalog.length,rawCount:futuresList.length,miniCount:selected.filter(x=>x.units===100).length,policy:isCash?"unique-underlying-cash-stock":"one-stock-mini-first-nearest-expiry",dataset:daily?"TaiwanStockPrice":isStock?"TaiwanStockKBar":"TaiwanFuturesKBar",catalog});
   }catch(e){return respond({ok:false,error:(market?"FinMind 全市場清單讀取失敗：":"取得期交所個股期貨商品清單失敗：")+e.message},502)}
  }
  if(path===root+"/start"&&method==="POST"){
