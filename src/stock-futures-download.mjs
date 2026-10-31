@@ -260,7 +260,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
    if(all){
     const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
     if(token.length<5||token.length>4096)return respond({ok:false,error:"全市場名單需要 FinMind S Token"},401);
-    const items=await fetchMarketStockCatalog(token,false);
+    const items=(await fetchMarketStockCatalog(token,false)).map(c=>({...c,futureCode:"",futureCodes:[]}));
     return respond({ok:true,source:"FinMind TaiwanStockInfo 上市上櫃普通股",dataset:daily?"TaiwanStockPrice":"TaiwanStockKBar",
       count:items.length,rawCount:items.length,policy:"current-twse-tpex-stocks",catalog:items});
    }
@@ -292,7 +292,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
    return respond({ok:false,error:"日期必須在 "+earliest+" 至今天"+(daily?"（日K）":"（1分K及期貨）")},400);
   const resId=known?id:randomId(),stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(resId));
   const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],markets:args.markets||[],reset:args.reset===true,mode:all?mode:market?"market-daily":research?"daily-research":chip?"daily-chip":daily?"daily":isStock?"stocks":"futures"})}));
-  return new Response(data.body,{status:data.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":cookieName+"="+resId+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000"}});
+  return new Response(data.body,{status:data.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":cookieName+"="+resId+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age="+(all?10368000:2592000)}});
  }
  if(!known)return respond({ok:false,error:"沒有這個瀏覽器的下載工作；請先按開始"},401);
  const stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(id));
@@ -350,7 +350,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
    entries.push({name:"02_daily_research/"+(include==="research"?"research_full":"institutional_margin")+"_"+year+".csv.gz",
     open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
   }
-  const file="FinMind_FuturesEligibleStocks_ALL_"+(isStock?"1min":mode.replace("daily-","daily_"))+
+  const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+(isStock?"1min":mode.replace("daily-","daily_"))+
     "_"+source.start.replaceAll("-","")+"_"+source.end.replaceAll("-","")+".zip";
   return new Response(streamZip64(entries),{headers:{
    "content-type":"application/zip","content-disposition":'attachment; filename="'+file+'"',
@@ -1040,6 +1040,7 @@ export class StockFuturesBatch{
     let catalog=items.filter(c=>markets.has(c.market)&&(!wanted.size||wanted.has(c.code)));
     const allMode=String(s.mode||"").startsWith("all-");
     if(allMode){
+     catalog=catalog.map(c=>({...c,futureCode:"",futureCodes:[]}));
      try{
       const response=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},
        signal:AbortSignal.timeout(15000)});
