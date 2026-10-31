@@ -130,6 +130,8 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("minuteCompanion").classList.toggle("hidden",daily||!isChips());
   $("researchOption").classList.toggle("hidden",!isChips());$("researchNotice").classList.toggle("hidden",!isChips());
   $("chipInfo").classList.toggle("hidden",!isChips());
+  $("universeCaution").textContent=allMarket()?"全市場指目前上市＋上櫃普通股，不包含已下市櫃及 ETF／權證。歷史回測會有存活者偏差。全市場 1分K 大幅增加 API 呼叫，若全選約 2,000 多檔需長時間背景下載。資料未還原除權息。":
+  "有股期模式依目前期交所標的，不含已終止上市的股期商品。日 K 2000 年起、1 分 K 2021 年起，資料未還原除權息。";
   $("formatHint").textContent=!daily?"1 分 K：2021 年起，逐日下載。勾選籌碼會額外建立獨立的日頻配套下載任務。":isResearch()?"完整研究版：2000 年起日 K＋法人＋融資融券＋借券成交＋外資持股比例＋歷史股期契約觀測；缺值不填 0，籌碼收盤後公布的只能用於之後交易。":isChips()?"日 K＋法人買賣超＋融資融券餘額，缺值留空。":"純日 K，不含籌碼。";
   $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV；配套 CSV：法人、融資融券及可選借券、外資持股、股期觀測。用 stock_id＋date 合併，盤後資料不可用於當天盤中。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉（futures_observed_contract_months）；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
   $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
@@ -151,26 +153,41 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   const f=document.createDocumentFragment();
   for(const x of arr){
    const line=document.createElement("label");line.className="catalogrow";
-   const ch=document.createElement("input");ch.type="checkbox";ch.checked=selected.has(x.code);ch.onchange=()=>{if(ch.checked)selected.add(x.code);else selected.delete(x.code);updateCount()};
+   const ch=document.createElement("input");ch.type="checkbox";ch.checked=selected.has(x.code);ch.onchange=()=>{if(ch.checked)selected.add(x.code);else selected.delete(x.code);selectionsByScope[$("universe").value]=new Set(selected);updateCount()};
    const txt=document.createElement("div");txt.className="grow";txt.textContent=x.code+" · "+x.name;
-   const detail=document.createElement("small");detail.textContent="現股 "+x.stock+" · 有個股期貨（"+x.futureCode+"） · 下載現股分 K";
+   const detail=document.createElement("small");detail.textContent=allMarket()?"現股 "+x.code+" · "+(x.market==="twse"?"上市":"上櫃")+" · "+(x.futureCode?"有股期（"+x.futureCode+"）":"一般股票"):"現股 "+x.stock+" · 有個股期貨（"+x.futureCode+"）";
    txt.append(detail);line.append(ch,txt);f.append(line);
   }
   $("catalog").append(f);updateCount();
  }
  function updateCount(){
-  $("catalogStatus").textContent=catalog.length?"從 "+rawCount+" 個期貨合約確認 "+catalog.length+" 檔不同股票，已選 "+selected.size+" 檔":"尚未取得可驗證的期交所名單";
+  $("catalogStatus").textContent=catalog.length?(allMarket()?"FinMind 共 "+fmt(catalog.length)+" 檔目前上市／上櫃股票，已選 "+fmt(selected.size)+" 檔":
+    "從 "+rawCount+" 個期貨合約確認 "+catalog.length+" 檔不同股票，已選 "+selected.size+" 檔"):
+    (allMarket()?"尚未取得 FinMind 上市／上櫃股票清單":"尚未取得期交所股期名單");
   $("startBtn").disabled=selected.size===0||busy||!!job;
  }
  async function loadCatalog(){
-  $("loadCatalog").disabled=true;$("catalogStatus").textContent="正在取得期交所官方名單…";
-  try{const x=await call("/api/stock-kbar/catalog");catalog=x.catalog;rawCount=x.rawCount||x.count;miniCount=x.miniCount||0;selected=new Set(catalog.map(x=>x.code));catalogRender()}
-  catch(e){$("catalogStatus").textContent=e.message}
-  finally{$("loadCatalog").disabled=false}
+  const scope=$("universe").value;
+  $("loadCatalog").disabled=true;
+  $("catalogStatus").textContent=scope==="all"?"正在取得 FinMind 全市場普通股清單…":"正在取得期交所股期標的…";
+  try{
+   const token=$("token").value.trim()||savedToken();
+   if(scope==="all"&&!token)throw Error("全大盤名單需要 FinMind S Token；請在上方輸入，然後按「更新 FinMind 上市櫃名單」。");
+   const path=scope==="all"?"/api/all-stock-kbar/catalog":"/api/stock-kbar/catalog";
+   const x=await call(path,{headers:token?{authorization:"Bearer "+token}:{}});
+   if(scope!==$("universe").value)return;
+   catalog=x.catalog;rawCount=x.rawCount||x.count;miniCount=x.miniCount||0;
+   catalogsByScope[scope]=catalog;
+   const saved=selectionsByScope[scope];
+   selected=saved?new Set([...saved].filter(code=>catalog.some(c=>c.code===code))):new Set(catalog.map(x=>x.code));
+   selectionsByScope[scope]=new Set(selected);
+   catalogRender()
+  }catch(e){if(scope===$("universe").value)$("catalogStatus").textContent=e.message}
+  finally{if(scope===$("universe").value)$("loadCatalog").disabled=false}
  }
  $("filter").oninput=catalogRender;$("loadCatalog").onclick=loadCatalog;
- $("allBtn").onclick=()=>{selected=new Set(catalog.map(x=>x.code));catalogRender()};
- $("noneBtn").onclick=()=>{selected.clear();catalogRender()};
+ $("allBtn").onclick=()=>{selected=new Set(catalog.map(x=>x.code));selectionsByScope[$("universe").value]=new Set(selected);catalogRender()};
+ $("noneBtn").onclick=()=>{selected.clear();selectionsByScope[$("universe").value]=new Set();catalogRender()};
  function fileRow(where,label,desc,href){
   const line=document.createElement("div");line.className="fileline";
   const left=document.createElement("div"),b=document.createElement("b"),sm=document.createElement("small");b.textContent=label;sm.textContent=desc;left.append(b,sm);
@@ -262,7 +279,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
    if(!codes.length)throw Error("還沒有取得可下載的股票");
    const start=current?.start||$("start").value,end=current?.end||$("end").value;
    const r=await call(companionRoot()+"/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},
-    body:JSON.stringify({start,end,codes,markets:["twse","tpex"],reset:false})});
+    body:JSON.stringify({start,end,codes:allMarket()&&codes.length===catalog.length?[]:codes,markets:["twse","tpex"],reset:false})});
    renderCompanion(r);
    if(r.existing&&(r.start!==start||r.end!==end||r.codeCount!==codes.length))
     $("companionMsg").textContent+=" ⚠ 已有不同範圍的配套任務；為保護舊資料未覆蓋，請核對範圍。";
@@ -304,6 +321,17 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  }
  $("pauseBtn").onclick=()=>action("pause");$("resumeBtn").onclick=()=>action("resume");
  $("deleteBtn").onclick=()=>{if(job&&confirm("確定刪除這次雲端資料？已下載至手機的檔案不受影響。"))action("delete")};
+ $("universe").onchange=()=>{
+  const scope=$("universe").value;
+  job=null;companionJob=null;catalog=catalogsByScope[scope]||[];
+  selected=new Set(selectionsByScope[scope]||[]);
+  $("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
+  $("companionYears").replaceChildren();$("companionStats").textContent="";
+  $("catalog").replaceChildren();$("filter").value="";
+  setFormatHelp();catalogRender();refresh();if(!isDaily()&&isChips())refreshCompanion();
+  if(!catalog.length)loadCatalog();
+ };
+ $("token").addEventListener("change",()=>{if(allMarket()&&!catalog.length)loadCatalog()});
  $("granularity").onchange=()=>{
   startDates[previousMode]=$("start").value;
   previousMode=isDaily()?"day":"minute";
