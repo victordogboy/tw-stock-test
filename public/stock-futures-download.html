@@ -187,6 +187,57 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
    else {$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");updateCount()}
   }
  }
+ function renderCompanion(s){
+  companionJob=s;$("minuteCompanion").classList.remove("hidden");
+  $("companionPhase").textContent=({running:"下載中",paused:"已暫停",error:"需處理",done:"已完成"})[s.phase]||s.phase;
+  $("companionMsg").textContent=(s.message||"—")+"；日期 "+s.start+" 至 "+s.end+(s.phase==="done"?"；可下載完整資料。":"；尚未完成，匯出可能只有部分股票。");
+  $("companionStats").textContent="已完成 "+fmt(s.processed)+"/"+fmt(s.total)+" 檔股票；日頻資料 "+fmt(s.rows)+" 列；使用 API "+fmt(s.queries)+" 次。";
+  $("companionYears").replaceChildren();
+  for(let year=Number(s.start.slice(0,4));year<=Number(s.end.slice(0,4));year++)
+   fileRow($("companionYears"),year+" 年日頻研究","CSV.gz（與 1 分 K 分開，可依股票代碼、日期合併）",companionRoot()+"/export?year="+year);
+  const prior=$("companionSymbol").value;
+  $("companionSymbol").replaceChildren();
+  for(const c of s.codes||[]){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.code+" "+c.name;$("companionSymbol").append(opt)}
+  if([...$("companionSymbol").options].some(x=>x.value===prior))$("companionSymbol").value=prior;
+  $("companionOne").href=companionRoot()+"/export?code="+encodeURIComponent($("companionSymbol").value);
+ }
+ async function refreshCompanion(){
+  if(isDaily()||!isChips())return;
+  const path=companionRoot();
+  try{const s=await call(path+"/status");if(!isDaily()&&isChips()&&companionRoot()===path)renderCompanion(s)}
+  catch(e){
+   if(isDaily()||!isChips()||companionRoot()!==path)return;
+   companionJob=null;$("companionPhase").textContent="尚未建立";
+   $("companionMsg").textContent="配套狀態："+e.message+"。原 1 分 K 不受影響。";
+   $("companionStats").textContent="";$("companionYears").replaceChildren();$("companionSymbol").replaceChildren()
+  }
+ }
+ async function startCompanion(tokenArg="",silent=false){
+  if(!isChips()||isDaily()||companionBusy)return;
+  const token=tokenArg||$("token").value.trim()||savedToken();
+  if(!token){if(!silent)alert("請先輸入 FinMind Token 才能下載日頻配套資料。");return}
+  companionBusy=true;$("companionStart").disabled=true;
+  try{
+   const current=job?.mode==="stocks"?job:null;
+   const codes=current?.codes?.map(x=>x.code)||[...selected];
+   if(!codes.length)throw Error("還沒有取得可下載的股票");
+   const start=current?.start||$("start").value,end=current?.end||$("end").value;
+   const r=await call(companionRoot()+"/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},
+    body:JSON.stringify({start,end,codes,reset:false})});
+   renderCompanion(r);
+   if(r.existing&&(r.start!==start||r.end!==end||r.codeCount!==codes.length))
+    $("companionMsg").textContent+=" ⚠ 已有不同範圍的配套任務；為保護舊資料未覆蓋，請核對範圍。";
+  }catch(e){
+   $("companionMsg").textContent="配套任務未建立："+e.message;
+   if(!silent)alert("原有 1 分 K 保留；日頻配套建立失敗："+e.message)
+  }finally{companionBusy=false;$("companionStart").disabled=false}
+ }
+ $("companionStart").onclick=()=>startCompanion();
+ $("companionRefresh").onclick=refreshCompanion;
+ $("companionSymbol").onchange=()=>{
+  $("companionOne").href=companionRoot()+"/export?code="+encodeURIComponent($("companionSymbol").value);
+ };
+
  $("refreshBtn").onclick=refresh;
  async function startJob(reset){
   if(busy||!selected.size)return;
@@ -198,7 +249,9 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   busy=true;$("startBtn").disabled=true;
   try{
    const x=await call(root()+"/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:$("start").value,end:$("end").value,codes:[...selected],reset:!!reset})});
-   $("token").value="";render(x);$("progressCard").scrollIntoView({behavior:"smooth"})
+   $("token").value="";render(x);
+   if(!isDaily()&&isChips())await startCompanion(token,true);
+   $("progressCard").scrollIntoView({behavior:"smooth"})
   }catch(e){alert(e.message);updateCount()}finally{busy=false}
  }
  $("startBtn").onclick=()=>startJob(false);
@@ -219,15 +272,15 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("start").value=startDates[previousMode]||$("start").min;
   if($("start").value<$("start").min)$("start").value=$("start").min;
   job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
-  setFormatHelp();updateCount();refresh();
+  setFormatHelp();updateCount();refresh();if(!isDaily()&&isChips())refreshCompanion();
  };
  $("includeChips").onchange=()=>{
   job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
-  setFormatHelp();updateCount();refresh();
+  setFormatHelp();updateCount();refresh();if(!isDaily()&&isChips())refreshCompanion();
  };
  $("includeResearch").onchange=()=>{
   job=null;$("progressCard").classList.add("hidden");$("exports").classList.add("hidden");
-  setFormatHelp();updateCount();refresh();
+  setFormatHelp();updateCount();refresh();if(!isDaily()&&isChips())refreshCompanion();
  };
  $("start").onchange=()=>{startDates[isDaily()?"day":"minute"]=$("start").value};
  setFormatHelp();Promise.all([loadCatalog(),refresh(),refreshCompanion()]).then(()=>{});
