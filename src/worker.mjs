@@ -33,6 +33,10 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/r26/'))return r26BridgeRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
+  if(new URL(request.url).pathname.startsWith('/api/all-stock-kbar/'))return stockFuturesRoute(request,env,'all-stocks');
+  if(new URL(request.url).pathname.startsWith('/api/all-stock-daily/'))return stockFuturesRoute(request,env,'all-daily');
+  if(new URL(request.url).pathname.startsWith('/api/all-stock-daily-chip/'))return stockFuturesRoute(request,env,'all-daily-chip');
+  if(new URL(request.url).pathname.startsWith('/api/all-stock-daily-research/'))return stockFuturesRoute(request,env,'all-daily-research');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily/'))return stockFuturesRoute(request,env,'daily');
   if(new URL(request.url).pathname.startsWith('/api/market-daily/')){
    return Promise.resolve().then(()=>stockFuturesRoute(request,env,'market-daily')).catch(e=>
