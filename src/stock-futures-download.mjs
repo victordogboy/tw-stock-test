@@ -351,9 +351,14 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   const subset=part?ordered.slice((part-1)*safePartSize,part*safePartSize):ordered;
   if(!subset.length)return respond({ok:false,error:"沒有可打包的股票"},409);
   const keySet=new Set(subset);
-  const recordCounts=source.recordRowsByStockYear||null,hasRecordCounts=!!recordCounts;
+  const recordCounts=source.recordRowsByStockYear||null,partCounts=source.recordRowsByPartYear||null;
   let expectedRecords=null;
-  if(archiveYear&&hasRecordCounts){
+  if(archiveYear&&partCounts&&all){
+   const keys=part?[archiveYear+"/"+part]:
+    Array.from({length:partCount},(_,i)=>archiveYear+"/"+(i+1));
+   if(keys.every(k=>Object.hasOwn(partCounts,k)))
+    expectedRecords=keys.reduce((sum,k)=>sum+partCounts[k],0);
+  }else if(archiveYear&&recordCounts){
    const missing=subset.some(code=>!Object.hasOwn(recordCounts,code+"-"+archiveYear));
    if(!missing)expectedRecords=subset.reduce((sum,code)=>sum+recordCounts[code+"-"+archiveYear],0)
   }
@@ -834,7 +839,7 @@ export class StockFuturesBatch{
      catch(e){out.chipMergeWarning="籌碼合併進度暫時不可用"}
     }
     if(mergeWarning)out.mergeWarning="雲端合併進度暫時不可讀（"+mergeWarning+"）；原始日K仍保留";
-    if(new URL(r.url).searchParams.get("audit")==="1")out.recordRowsByStockYear=s.recordRowsByStockYear||null;
+    if(new URL(r.url).searchParams.get("audit")==="1"){out.recordRowsByStockYear=s.recordRowsByStockYear||null;out.recordRowsByPartYear=s.recordRowsByPartYear||null}
     return respond(out);
    }catch(e){
     // Return safe minimal state, not an unhandled 500. Do not return
@@ -1209,9 +1214,15 @@ export class StockFuturesBatch{
    const x=result[i];
    if(x.success&&(!firstFailed||i<failIndex)){
     s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;
-    if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
-    const rowKey=x.c.code+"-"+x.day.slice(0,4);
-    s.recordRowsByStockYear[rowKey]=(s.recordRowsByStockYear[rowKey]||0)+x.rows;
+    if(s.mode.startsWith("all-")){
+     if(!s.recordRowsByPartYear)s.recordRowsByPartYear={};
+     const key=x.day.slice(0,4)+"/"+(Math.floor(x.index/75)+1);
+     s.recordRowsByPartYear[key]=(s.recordRowsByPartYear[key]||0)+x.rows;
+    }else{
+     if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
+     const key=x.c.code+"-"+x.day.slice(0,4);
+     s.recordRowsByStockYear[key]=(s.recordRowsByStockYear[key]||0)+x.rows;
+    }
     s.night+=x.night;s.duplicates+=x.duplicates;
     s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid;s.excludedFarMonth+=x.rejectedFarMonth;
    }
@@ -1314,9 +1325,17 @@ export class StockFuturesBatch{
    const x=result[i];
    if(x.ok&&(firstFailure<0||i<firstFailure)){
     s.processed++;s.rows+=x.rows;s.nonempty+=x.nonempty;s.empty+=x.empty;
-    if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
-    for(const [year,rows] of Object.entries(x.rowsByYear||{}))
-     s.recordRowsByStockYear[x.c.code+"-"+year]=rows;
+    if(s.mode.startsWith("all-")){
+     if(!s.recordRowsByPartYear)s.recordRowsByPartYear={};
+     for(const [year,rows] of Object.entries(x.rowsByYear||{})){
+      const key=year+"/"+(Math.floor((from+i)/75)+1);
+      s.recordRowsByPartYear[key]=(s.recordRowsByPartYear[key]||0)+rows;
+     }
+    }else{
+     if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
+     for(const [year,rows] of Object.entries(x.rowsByYear||{}))
+      s.recordRowsByStockYear[x.c.code+"-"+year]=rows;
+    }
     s.rejected+=x.rejected;s.duplicates+=x.duplicates;
     if(x.coverage){
      if(!s.chipCoverage)s.chipCoverage={institutional:0,margin:0,both:0,missingInstitutional:0,missingMargin:0};
