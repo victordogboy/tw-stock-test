@@ -1,4 +1,5 @@
 import {priceRowsFromText,chipSnapshot} from './market-chip.mjs';
+import {streamZip64,stockArchiveManifest} from './stock-archive.mjs';
 // Isolated all-STOCK-futures minute-bar service. No TX code or storage is shared.
 const DAY=86400000, COOKIE="__Host-sf5y", STOCK_COOKIE="__Host-underlying1m", HDR="date,minute,session,futures_id,underlying_stock,contract_size,contract_date,open,high,low,close,volume\n";
 const STOCK_HDR="date,minute,stock_id,stock_name,qualifying_futures_id,open,high,low,close,volume_raw\n";
@@ -265,6 +266,52 @@ export async function stockFuturesRoute(request,env,mode="futures"){
     error:"雲端任務進度查詢失敗；既有日K未被此操作刪除",
     reason:String(e?.name||"Error"),version:"r55-status-guard"},503);
   }
+ }
+ if(path===root+"/archive"&&method==="GET"){
+  if(market||!["stocks","daily","daily-chip","daily-research"].includes(mode))
+   return respond({ok:false,error:"目前只支援個股日K、分K和日頻研究整包下載"},400);
+  const include=url.searchParams.get("include")||"none";
+  if(!["none","chip","research"].includes(include)||mode!=="stocks"&&include!=="none")
+   return respond({ok:false,error:"備份參數不合法"},400);
+  const primary=await stub.fetch("https://private/status");
+  if(!primary.ok)return respond({ok:false,error:"無法讀取下載進度"},503);
+  const source=await primary.json();
+  if(!source.ok||source.mode!==mode||source.phase!=="done"||source.processed!==source.total||!source.codeCount)
+   return respond({ok:false,error:"請先完成主要下載任務，再一鍵下載全部資料"},409);
+  let side=null,sideStub=null;
+  if(include!=="none"){
+   const sideId=cookie(request,include==="research"?RESEARCH_COOKIE:CHIP_COOKIE);
+   if(!validJobId(sideId))return respond({ok:false,error:"沒有日頻配套資料工作，請先完成配套下載"},409);
+   sideStub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(sideId));
+   const resp=await sideStub.fetch("https://private/status");
+   if(!resp.ok)return respond({ok:false,error:"讀取配套日頻進度失敗"},503);
+   side=await resp.json();
+   const a=(source.codes||[]).map(x=>x.code).sort().join(","),
+    b=(side.codes||[]).map(x=>x.code).sort().join(",");
+   if(!side.ok||side.mode!==(include==="research"?"daily-research":"daily-chip")||side.phase!=="done"||
+     side.processed!==side.total||side.start!==source.start||side.end!==source.end||
+     side.codeCount!==source.codeCount||!a||a!==b)
+    return respond({ok:false,error:"日頻配套與分K股票／日期不一致，或下載尚未完成，不能混合打包"},409);
+  }
+  const manifest=stockArchiveManifest({minute:source,companion:side,mode,startedAt:new Date().toISOString()});
+  const entries=[{name:"manifest.json",open:async()=>new Response(JSON.stringify(manifest,null,2)+"\n")}];
+  const startYear=Number(source.start.slice(0,4)),endYear=Number(source.end.slice(0,4));
+  for(let y=startYear;y<=endYear;y++){
+   const year=String(y),owner=stub;
+   entries.push({name:"01_price/"+(mode==="stocks"?"minute_1min":"daily")+"_"+year+".csv.gz",
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+  }
+  if(sideStub)for(let y=startYear;y<=endYear;y++){
+   const year=String(y),owner=sideStub;
+   entries.push({name:"02_daily_research/"+(include==="research"?"research_full":"institutional_margin")+"_"+year+".csv.gz",
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+  }
+  const file="FinMind_FuturesEligibleStocks_ALL_"+(mode==="stocks"?"1min":mode.replace("daily-","daily_"))+
+    "_"+source.start.replaceAll("-","")+"_"+source.end.replaceAll("-","")+".zip";
+  return new Response(streamZip64(entries),{headers:{
+   "content-type":"application/zip","content-disposition":'attachment; filename="'+file+'"',
+   "cache-control":"private, no-store","x-content-type-options":"nosniff"
+  }})
  }
  if(market&&path===root+"/chip-start"&&method==="POST"){
   const bearer=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
