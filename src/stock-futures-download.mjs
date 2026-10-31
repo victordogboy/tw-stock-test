@@ -427,7 +427,8 @@ export class StockFuturesData{
    const size=500*1024,parts=Math.ceil(bytes.length/size);
    for(let i=0;i<parts;i++)await this.ctx.storage.put(pref+"day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
    await this.ctx.storage.put(pref+"meta:"+day,{parts,bytes:bytes.byteLength});
-   const expires=Date.now()+30*DAY;
+   const duration=Math.max(30,Math.min(Number(u.searchParams.get("ttl"))||30,120));
+   const expires=Date.now()+duration*DAY;
    await this.ctx.storage.put("expiresAt",expires);
    await this.ctx.storage.setAlarm(expires);
    return respond({ok:true});
@@ -1080,8 +1081,8 @@ export class StockFuturesBatch{
   await st.setAlarm(Date.now()+120000);
   const token=await st.get("token");
   if(!token){s.phase="error";s.lastError="缺少 Token";await st.put("state",s);await st.setAlarm(s.expiresAt);return}
-  if(["daily","daily-chip","daily-research","market-daily"].includes(s.mode)){await this.alarmDaily(s,token,st);return}
-  const stockMode=s.mode==="stocks";
+  if(["daily","daily-chip","daily-research","market-daily","all-daily","all-daily-chip","all-daily-research"].includes(s.mode)){await this.alarmDaily(s,token,st);return}
+  const stockMode=s.mode==="stocks"||s.mode==="all-stocks";
   const commit=async(n,backoff=0)=>{
    const latest=await st.get("state");
    if(!latest||latest.shardKey!==s.shardKey)return;
@@ -1162,7 +1163,7 @@ export class StockFuturesBatch{
     const data=await fetchFinMind(token,{dataset:stockMode?"TaiwanStockKBar":"TaiwanFuturesKBar",data_id:c.code,start_date:day});
     const parsed=stockMode?filterUnderlyingStockBars(data,c.stock,day,c):filterStockFutureBars(data,c.code,day,c);
     const bytes=await zip(parsed.csv);
-    const obj=this.shardFor(s,c.code),resp=await obj.fetch(new Request("https://private/put?date="+day,{method:"POST",body:bytes}));
+    const obj=this.shardFor(s,c.code),resp=await obj.fetch(new Request("https://private/put?date="+day+(s.mode==="all-stocks"?"&ttl=120":""),{method:"POST",body:bytes}));
     if(!resp.ok)throw Error("雲端儲存失敗："+resp.status);
     return {day,c,index,success:true,...parsed.audit}
    }catch(e){return {day,c,index,success:false,error:String(e.message||e).slice(0,180),status:Number(e.code||0)}}
@@ -1207,7 +1208,7 @@ export class StockFuturesBatch{
  async alarmDaily(s,token,st){
   // Stay below Cloudflare's outbound-subrequest ceiling for 27 years × 1 stock.
   const yearCount=Number(s.end.slice(0,4))-Number(s.start.slice(0,4))+1;
-  const researchMode=s.mode==="daily-research",chipMode=s.mode==="daily-chip"||researchMode;
+  const researchMode=s.mode==="daily-research"||s.mode==="all-daily-research",chipMode=s.mode==="daily-chip"||s.mode==="all-daily-chip"||researchMode;
   const batchSize=Math.min(STOCK_MAX_PARALLEL,Math.max(1,Math.floor(40/yearCount)));
   const from=s.symbolIndex||0,stocks=s.catalog.slice(from,from+batchSize);
   if(!stocks.length){
@@ -1256,7 +1257,7 @@ export class StockFuturesBatch{
       (_,i)=>Number(s.start.slice(0,4))+i);
      await mapBounded(years,async year=>{
       const payload=await zip((chipMode?merged.csvByYear:parsed.csvByYear)[String(year)]||"");
-      const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01",
+      const response=await shard.fetch(new Request("https://private/put?date="+year+"-01-01"+(s.mode.startsWith("all-")?"&ttl=120":""),
        {method:"POST",body:payload}));
       if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status)
      },4);
@@ -1522,7 +1523,7 @@ export class StockFuturesBatch{
   // Only part 1 contains the CSV header. GZIP concatenated members form a
   // standards-valid single .gz when the browser appends all parts verbatim.
   const withHeader=!whole||part===1;
-  const self=this,head=withHeader?await zip(s.mode==="daily-research"?DAILY_HDR.trimEnd()+","+CHIP_HDR.trimEnd()+","+RESEARCH_HDR:s.mode==="daily-chip"?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?(enriched?CHIP_COLUMNS:MARKET_HDR):DAILY_HDR):null;
+  const self=this,head=withHeader?await zip(["daily-research","all-daily-research"].includes(s.mode)?DAILY_HDR.trimEnd()+","+CHIP_HDR.trimEnd()+","+RESEARCH_HDR:["daily-chip","all-daily-chip"].includes(s.mode)?DAILY_HDR.trimEnd()+","+CHIP_HDR:s.mode==="market-daily"?(enriched?CHIP_COLUMNS:MARKET_HDR):DAILY_HDR):null;
   let ix=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{
@@ -1544,11 +1545,11 @@ export class StockFuturesBatch{
     }
    }catch(e){c.error(e)}
   }});
-  const name=s.mode==="market-daily"?"FinMind_All_TWSE_TPEX_Daily_"+(year||s.start+"_"+s.end)+"_"+(code||"part"+String(part).padStart(2,"0"))+(enriched?"_WITH_INSTITUTIONAL_MARGIN":"")+".csv.gz":"FinMind_FuturesEligibleStocks_"+(s.mode==="daily-research"?"Daily_Research_":s.mode==="daily-chip"?"Daily_Chips_":"Daily_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
+  const name=s.mode==="market-daily"?"FinMind_All_TWSE_TPEX_Daily_"+(year||s.start+"_"+s.end)+"_"+(code||"part"+String(part).padStart(2,"0"))+(enriched?"_WITH_INSTITUTIONAL_MARGIN":"")+".csv.gz":"FinMind_FuturesEligibleStocks_"+(["daily-research","all-daily-research"].includes(s.mode)?"Daily_Research_":["daily-chip","all-daily-chip"].includes(s.mode)?"Daily_Chips_":"Daily_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
   return new Response(stream,{headers:{"content-type":"application/gzip","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
  }
  async exportData(s,url){
-  if(["daily","daily-chip","daily-research","market-daily"].includes(s.mode))return this.exportDailyData(s,url);
+  if(["daily","daily-chip","daily-research","market-daily","all-daily","all-daily-chip","all-daily-research"].includes(s.mode))return this.exportDailyData(s,url);
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
   const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"商品不在本次任務清單內"},404);
@@ -1556,7 +1557,7 @@ export class StockFuturesBatch{
   if(!code&&!year)return respond({ok:false,error:"請選年度或股票代碼，避免手機下載巨型檔案"},400);
   const first=year&&year+"-01-01">s.start?year+"-01-01":s.start,last=year&&year+"-12-31"<s.end?year+"-12-31":s.end;
   const codes=code?[s.catalog.find(c=>c.code===code)]:s.catalog;
-  const self=this,head=await zip(s.mode==="stocks"?STOCK_HDR:HDR);let ci=-1,reader=null;
+  const self=this,head=await zip(["stocks","all-stocks"].includes(s.mode)?STOCK_HDR:HDR);let ci=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{
     if(ci<0){ci=0;c.enqueue(head);return}
@@ -1573,7 +1574,7 @@ export class StockFuturesBatch{
     }
    }catch(e){c.error(e)}
   }});
-  const name=(s.mode==="stocks"?"FinMind_FuturesEligibleStocks_1min_":"FinMind_StockFutures_1min_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
+  const name=(s.mode==="all-stocks"?"FinMind_All_TWSE_TPEX_1min_":s.mode==="stocks"?"FinMind_FuturesEligibleStocks_1min_":"FinMind_StockFutures_1min_")+(code||"ALL")+"_"+(year||s.start+"_"+s.end)+".csv.gz";
   return new Response(stream,{headers:{"content-type":"application/gzip","content-disposition":'attachment; filename="'+name+'"',"cache-control":"private, no-store","x-content-type-options":"nosniff"}})
  }
 }
