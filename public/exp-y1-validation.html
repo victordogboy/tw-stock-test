@@ -50,7 +50,7 @@ let vi=hdr.findIndex(x=>x==='version'||x==='版本'||x==='strategy'||x==='策略
 let fileVersion=/r1480/i.test(name)?'R1480':/r1481/i.test(name)?'R1481':null;
 let n=0;for(const row of rows.slice(1)){let d=dateClean(row[di]);if(!d||d<'2021-01-01'||d>'2025-12-31')continue;
 let rv=(vi>=0?String(row[vi]):'').toUpperCase();let ver=rv.includes('R1480')?'R1480':rv.includes('R1481')?'R1481':fileVersion;
-for(const ci of candidates){let col=hdr[ci],vv=ver||(/r1480/i.test(col)?'R1480':/r1481/i.test(col)?'R1481':null);
+for(const ci of candidates){let col=hdr[ci],vv=(/r1480/i.test(col)?'R1480':/r1481/i.test(col)?'R1481':null)||ver;
 let val=Number(String(row[ci]||'').replaceAll(',','').trim());if(!vv||!Number.isFinite(val)||val<=0)continue;dest[vv].set(d,val);n++;}}
 return n}
 function pct(x){return Number.isFinite(x)?(x*100).toFixed(2)+'%':'—'}
