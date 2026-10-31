@@ -257,6 +257,13 @@ export async function stockFuturesRoute(request,env,mode="futures"){
  }
  if(path===root+"/catalog"&&method==="GET"){
   try{
+   if(all){
+    const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
+    if(token.length<5||token.length>4096)return respond({ok:false,error:"全市場名單需要 FinMind S Token"},401);
+    const items=await fetchMarketStockCatalog(token,false);
+    return respond({ok:true,source:"FinMind TaiwanStockInfo 上市上櫃普通股",dataset:daily?"TaiwanStockPrice":"TaiwanStockKBar",
+      count:items.length,rawCount:items.length,policy:"current-twse-tpex-stocks",catalog:items});
+   }
    if(market){
     const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
     // Catalog preview intentionally fetches the smaller current universe only.
@@ -284,7 +291,7 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(!dateOk(args.start)||!dateOk(args.end)||args.start<earliest||args.end>today()||args.start>args.end)
    return respond({ok:false,error:"日期必須在 "+earliest+" 至今天"+(daily?"（日K）":"（1分K及期貨）")},400);
   const resId=known?id:randomId(),stub=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName(resId));
-  const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],markets:args.markets||[],reset:args.reset===true,mode:market?"market-daily":research?"daily-research":chip?"daily-chip":daily?"daily":isStock?"stocks":"futures"})}));
+  const data=await stub.fetch(new Request("https://private/start",{method:"POST",headers:{authorization:"Bearer "+token,"content-type":"application/json"},body:JSON.stringify({start:args.start,end:args.end,codes:args.codes||[],markets:args.markets||[],reset:args.reset===true,mode:all?mode:market?"market-daily":research?"daily-research":chip?"daily-chip":daily?"daily":isStock?"stocks":"futures"})}));
   return new Response(data.body,{status:data.status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"no-store","set-cookie":cookieName+"="+resId+"; Path=/; Secure; HttpOnly; SameSite=Strict; Max-Age=2592000"}});
  }
  if(!known)return respond({ok:false,error:"沒有這個瀏覽器的下載工作；請先按開始"},401);
@@ -707,11 +714,32 @@ export class StockFuturesBatch{
   if(p==="/start"&&r.method==="POST")return this.ctx.blockConcurrencyWhile(async()=>{
    const token=(r.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1]?.trim()||"";
    if(!token)return respond({ok:false,error:"沒有 FinMind Token"},401);
-   const q=await r.json(),stocksMode=q.mode==="stocks",researchMode=q.mode==="daily-research",chipMode=q.mode==="daily-chip"||researchMode,marketMode=q.mode==="market-daily",dailyMode=q.mode==="daily"||chipMode||marketMode,cashMode=stocksMode||dailyMode;
+   const q=await r.json(),allMode=String(q.mode||"").startsWith("all-"),
+    stocksMode=q.mode==="stocks"||q.mode==="all-stocks",
+    researchMode=q.mode==="daily-research"||q.mode==="all-daily-research",
+    chipMode=q.mode==="daily-chip"||q.mode==="all-daily-chip"||researchMode,
+    marketMode=q.mode==="market-daily",dailyMode=q.mode==="daily"||q.mode==="all-daily"||chipMode||marketMode,
+    cashMode=stocksMode||dailyMode;
     if(!dateOk(q.start)||!dateOk(q.end)||q.start>(q.end)||q.start<(dailyMode?"2000-01-01":"2021-01-01"))
      return respond({ok:false,error:"資料日期範圍無效"},400);
     let old=await st.get("state");
-   if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.mode!=="daily-research"&&old.mode!=="market-daily"&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
+   if(old&&!q.reset){await st.put("token",token);const legacy=old.mode!=="stocks"&&old.mode!=="daily"&&old.mode!=="daily-chip"&&old.mode!=="daily-research"&&old.mode!=="market-daily"&&!String(old.mode||"").startsWith("all-")&&old.version!==2;return respond({...this.summary(old),existing:true,message:legacy?"這是舊版全月份／大、小合約混用的任務。請先匯出舊資料，再重建近月任務。":old.message,legacy})}
+   if(allMode){
+    if(!["all-stocks","all-daily","all-daily-chip","all-daily-research"].includes(q.mode))
+     return respond({ok:false,error:"全市場資料週期錯誤"},400);
+    if(old&&q.reset)await st.deleteAll();
+    const markets=Array.isArray(q.markets)&&q.markets.length?q.markets.filter(x=>["twse","tpex"].includes(x)):["twse","tpex"];
+    if(!markets.length)return respond({ok:false,error:"請至少選擇上市或上櫃"},400);
+    const codes=Array.isArray(q.codes)?q.codes.filter(c=>/^[1-9][0-9]{3}$/.test(c)):[];
+    if(codes.length>3500)return respond({ok:false,error:"股票清單超出上限"},400);
+    const now=Date.now(),s={phase:"preparing",shardKey:randomId(),start:q.start,end:q.end,mode:q.mode,version:12,
+     catalog:[],codes:[],requestedMarkets:markets,requestedCodes:codes,date:q.start,symbolIndex:0,
+     total:0,processed:0,queries:0,nonempty:0,empty:0,rows:0,night:0,rejected:0,excludedFarMonth:0,
+     duplicates:0,retries:0,skipped:0,preflightIndex:0,firstDates:{},errors:[],createdAt:now,
+     updatedAt:now,expiresAt:now+ALL_MARKET_TTL,message:"全市場準備中：背景取得 FinMind 上市櫃普通股名單，已下載股期資料不受影響"};
+    await st.put("token",token);await st.put("state",s);await st.setAlarm(now+100);
+    return respond(this.summary(s),202);
+   }
    if(marketMode){
     // IMPORTANT: do not fetch FinMind while holding blockConcurrencyWhile.
     // Cloudflare aborts blocked objects after ~30 seconds, which produced
@@ -1001,19 +1029,43 @@ export class StockFuturesBatch{
    const chipMerge=await st.get(CHIP_MERGE_KEY);
    if(chipMerge?.phase==="running"){await this.alarmMerge(s,chipMerge,st,"chip");return}
   }
-  if(s.phase==="preparing"&&s.mode==="market-daily"){
+  if(s.phase==="preparing"&&(s.mode==="market-daily"||String(s.mode||"").startsWith("all-"))){
    const token=await st.get("token");
    try{
     if(!token)throw Error("缺少 FinMind Token");
     const markets=new Set(s.requestedMarkets||[]);
-    const all=await fetchMarketStockCatalog(token,markets.has("delisted"));
+    const items=await fetchMarketStockCatalog(token,markets.has("delisted"));
     const wanted=new Set(s.requestedCodes||[]);
-    const catalog=all.filter(c=>markets.has(c.market)&&(!wanted.size||wanted.has(c.code)));
+    let catalog=items.filter(c=>markets.has(c.market)&&(!wanted.size||wanted.has(c.code)));
+    const allMode=String(s.mode||"").startsWith("all-");
+    if(allMode){
+     try{
+      const response=await fetch(SOURCE,{headers:{accept:"text/html","user-agent":"Mozilla/5.0"},
+       signal:AbortSignal.timeout(15000)});
+      if(response.ok){
+       const futures=parseStockFutureUniverse(await response.text()),
+        preferred=preferMiniStockFutures(futures),best=new Map(preferred.map(c=>[c.stock,c]));
+       catalog=catalog.map(c=>{
+        const x=best.get(c.stock);
+        return {...c,futureCode:x?.code||"",futureCodes:futures.filter(f=>f.stock===c.stock).map(f=>f.code).sort()}
+       })
+      }
+     }catch{} // TAIFEX mapping failure cannot exclude listed/OTC cash equities.
+    }
     if(!catalog.length)throw Error("FinMind 名單沒有符合市場條件的普通股");
     const latest=await st.get("state");
     if(!latest||latest.shardKey!==s.shardKey||latest.phase!=="preparing")return;
-    s.catalog=catalog;s.codes=[];s.total=catalog.length;s.phase="running";s.queries+=markets.has("delisted")?2:1;
-    s.message="已確認 "+catalog.length+" 檔股票，開始按股票下載日 K";
+    s.catalog=catalog;
+    if(allMode){
+     s.codes=catalog.map(c=>({code:c.code,name:c.name,stock:c.stock,market:c.market,
+      futureCode:c.futureCode||"",futureCodes:c.futureCodes||[]}));
+     if(s.mode==="all-stocks"){
+      let days=0;for(let d=s.start;d<=s.end;d=next(d)){const wd=dayOf(d);if(wd!==0&&wd!==6)days++}
+      s.total=days*catalog.length;
+     }else s.total=catalog.length;
+    }else{s.codes=[];s.total=catalog.length}
+    s.phase="running";s.queries+=markets.has("delisted")?2:1;
+    s.message="已確認 "+catalog.length+" 檔股票，開始下載"+(s.mode==="all-stocks"?"全市場 1 分 K":"日 K");
     s.updatedAt=Date.now();await st.put("state",s);await st.setAlarm(Date.now()+100);
    }catch(e){
     const latest=await st.get("state");
