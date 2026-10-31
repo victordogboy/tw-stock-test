@@ -80,10 +80,16 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <div class="actions"><a id="companionOne" class="file" href="#">下載單股日頻研究 CSV.gz</a></div>
 </section>
 <section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
-<div class="note" id="archiveBox"><h3 style="margin-top:0">📦 一鍵下載全部資料到本地（ZIP）</h3>
+<div class="note" id="archiveBox"><h3 style="margin-top:0">📦 完整 ZIP（超大檔案需謹慎）</h3>
 <p id="archiveStatus" class="minor">所有雲端下載工作完成後，這裡會開放整包 ZIP 備份；所有已抓好的股票、年度 CSV.gz 都會包入，不重抓 FinMind。</p>
 <div class="actions"><a id="archiveDownload" class="file hidden" href="#" download>⬇ 下載完整一包 ZIP</a></div>
-<div class="minor">整包可能有數 GB，支援 ZIP64 串流，不必先將全部資料載入手機記憶體。<strong>檔案下載期間請保持網路連線，直到完整存入本機。</strong>先不要清除雲端備份。</div></div>
+<div class="minor warn">⚠ 這是即時串流 ZIP64：瀏覽器／Cloudflare 中途斷線時，結尾索引可能不見，救回前面 GZIP 不代表整包完整。<strong>下載後必須驗證 ZIP 能正常列出所有檔案、CRC 沒錯，且筆數符合預期，才能拿來回測。</strong>建議優先使用下方較小的「安全分年 ZIP」，雲端原資料不會被刪除。</div></div>
+<div class="note" id="safeArchivePanel"><h3>✅ 安全分年 ZIP（推薦）</h3>
+<p class="minor">每個年份獨立產生完整 ZIP 結尾索引；即使其他年份下載中斷，成功下載的年份仍能保留。大型資料還可以每 75 檔股票拆成小包；<strong>仍需在本地驗證 ZIP 與資料筆數，不會把未驗證的下載當作完成。</strong></p>
+<div class="grid"><div><label for="safeYear">選擇年度</label><select id="safeYear"></select></div>
+<div><label for="safePart">檔案大小</label><select id="safePart"><option value="">整年度（全部股票）</option></select></div></div>
+<div class="actions"><a id="safeArchiveDownload" href="#" class="file hidden" download>⬇ 下載該年度獨立 ZIP</a></div>
+<div id="safeArchiveInfo" class="minor">請先完成所有已勾選的背景下載。</div></div>
 <p id="exportIntro">每年度包含所選股票的現股日 K＋籌碼，按股票與交易日整合；也可下載單一股票全期間。切換週期或勾選籌碼後顯示對應獨立的任務。</p>
 <div class="note warn" id="exportNote">任務尚未完成，年度檔可能只有部分資料。請核對下方進度。</div>
 <div class="minor" id="chipInfo">重要：法人約在交易日 20:00、融資融券約 21:00 公布。回測不能使用同日法人、融資融券決定同日收盤前的交易；應向後至少移一交易時段。</div>
@@ -194,6 +200,18 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   const a=document.createElement("a");a.className="file";a.href=href;a.textContent="下載";a.setAttribute("download","");
   line.append(left,a);where.append(line)
  }
+ function updateSafeArchive(ready){
+  const yearSelect=$("safeYear"),partSelect=$("safePart");
+  const year=yearSelect.value,part=partSelect.value;
+  const effectivePart=part?"&part="+encodeURIComponent(part):"";
+  const include=!isDaily()&&isChips()?(isResearch()?"research":"chip"):"none";
+  const allow=!!ready&&/^20\d{2}$/.test(year);
+  $("safeArchiveDownload").classList.toggle("hidden",!allow);
+  $("safeArchiveDownload").href=allow?root()+"/archive?include="+include+"&year="+year+effectivePart:"#";
+  $("safeArchiveInfo").textContent=allow?"下載 "+year+" 年"+(part?"，第 "+part+" 包（最多 75 檔）":"，全部 "+job.codeCount+" 檔")+
+   "；使用獨立 ZIP 索引。請在本地解壓測試，並核對 manifest.json 的筆數。":
+   "等待主要 K 線與研究配套全部下載完成，才可建立可核對的年份 ZIP。";
+ }
  function updateArchive(){
   const primaryReady=job?.phase==="done"&&job.total>0&&job.processed===job.total;
   const needSide=!isDaily()&&isChips();
@@ -203,11 +221,12 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
     companionJob.codeCount===job?.codeCount;
   const ready=primaryReady&&(!needSide||hasMatch);
   $("archiveDownload").classList.toggle("hidden",!ready);
+  updateSafeArchive(ready);
   $("archiveDownload").href=ready?root()+"/archive?include="+(needSide?(isResearch()?"research":"chip"):"none"):"#";
   $("archiveStatus").textContent=!job?"尚未取得主要下載任務。":!primaryReady?
    "主要工作尚未完成，必須先到 100% 才能下載整包。":needSide&&!hasMatch?
    "1 分 K 已完成，但日頻"+(isResearch()?"完整研究":"法人融資融券")+"配套未完成或資料日期／股票範圍不同；請先完成配套。":
-   "✓ 已準備好，將 "+job.codeCount+" 檔股票的"+(isDaily()?"全部日 K／籌碼":"全部 1 分 K"+(needSide?"＋日頻研究資料":""))+
+   "✓ 雲端背景工作已完成，但 ZIP 傳輸及解壓結果尚未驗證。可備份 "+job.codeCount+" 檔股票的"+(isDaily()?"全部日 K／籌碼":"全部 1 分 K"+(needSide?"＋日頻研究資料":""))+
    "按年度放進同一個 ZIP，每個 CSV.gz 保持完整原樣。";
  }
  function render(s){
@@ -227,12 +246,24 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("pauseBtn").disabled=s.phase!=="running";$("resumeBtn").disabled=!["paused","error"].includes(s.phase);
   $("exportNote").textContent=s.phase==="done"?"✓ 雲端已查詢完指定商品與日期，請立即備份年度檔。":"⚠ 工作尚未全部完成，目前匯出的檔案僅包含已成功下載的日期。";
   $("years").replaceChildren();const sy=Number(s.start.slice(0,4)),ey=Number(s.end.slice(0,4));
+  const previousYear=$("safeYear").value;
+  $("safeYear").replaceChildren();
+  for(let y=sy;y<=ey;y++){const option=document.createElement("option");option.value=String(y);option.textContent=y+" 年";$("safeYear").append(option)}
+  if([...$("safeYear").options].some(o=>o.value===previousYear))$("safeYear").value=previousYear;
+  else $("safeYear").value=String(sy);
+  const previousPart=$("safePart").value,parts=Math.max(1,Math.ceil(s.codeCount/75));
+  $("safePart").replaceChildren();
+  const whole=document.createElement("option");whole.value="";whole.textContent="整年度（"+fmt(s.codeCount)+" 檔）";$("safePart").append(whole);
+  for(let i=1;i<=parts;i++){const opt=document.createElement("option");opt.value=String(i);opt.textContent="第 "+i+"/"+parts+" 包（最多 75 檔）";$("safePart").append(opt)}
+  if([...$("safePart").options].some(o=>o.value===previousPart))$("safePart").value=previousPart;
+  else if(s.codeCount>400)$("safePart").value="1";
   for(let year=sy;year<=ey;year++)fileRow($("years"),year+" 年","所有已取得商品，CSV.gz",root()+"/export?year="+year);
   $("oneSymbol").replaceChildren();for(const c of s.codes){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.stock+" "+c.name+"（現股"+seriesName()+"）";$("oneSymbol").append(opt)}
   updateOne();updateArchive();
  }
  function updateOne(){$("oneFile").href=root()+"/export?code="+encodeURIComponent($("oneSymbol").value)}
  $("oneSymbol").onchange=updateOne;
+ $("safeYear").onchange=updateArchive;$("safePart").onchange=updateArchive;
  async function refresh(){
   const expectedMode=modeId();
   try{const s=await call(root()+"/status");if(modeId()===expectedMode)render(s)}

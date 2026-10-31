@@ -315,9 +315,14 @@ export async function stockFuturesRoute(request,env,mode="futures"){
   if(market||!["stocks","daily","daily-chip","daily-research","all-stocks","all-daily","all-daily-chip","all-daily-research"].includes(mode))
    return respond({ok:false,error:"目前只支援個股日K、分K和日頻研究整包下載"},400);
   const include=url.searchParams.get("include")||"none";
+  const archiveYear=url.searchParams.get("year")||"";
+  const partText=url.searchParams.get("part")||"";
+  const safePartSize=75;
+  if(archiveYear&&!/^20\d{2}$/.test(archiveYear)||partText&&!/^[1-9]\d{0,3}$/.test(partText)||partText&&!archiveYear)
+   return respond({ok:false,error:"ZIP 分年／分包參數錯誤"},400);
   if(!["none","chip","research"].includes(include)||!isStock&&include!=="none")
    return respond({ok:false,error:"備份參數不合法"},400);
-  const primary=await stub.fetch("https://private/status");
+  const primary=await stub.fetch("https://private/status?audit=1");
   if(!primary.ok)return respond({ok:false,error:"無法讀取下載進度"},503);
   const source=await primary.json();
   if(!source.ok||source.mode!==mode||source.phase!=="done"||source.processed!==source.total||!source.codeCount)
@@ -337,21 +342,51 @@ export async function stockFuturesRoute(request,env,mode="futures"){
      side.codeCount!==source.codeCount||!a||a!==b)
     return respond({ok:false,error:"日頻配套與分K股票／日期不一致，或下載尚未完成，不能混合打包"},409);
   }
-  const manifest=stockArchiveManifest({minute:source,companion:side,mode,startedAt:new Date().toISOString()});
+  if(archiveYear&&(archiveYear<source.start.slice(0,4)||archiveYear>source.end.slice(0,4)))
+   return respond({ok:false,error:"ZIP 年份不在本次雲端資料範圍內"},400);
+  const ordered=[...(source.codes||[])].map(c=>c.code).sort();
+  const part=partText?Number(partText):0;
+  const partCount=Math.ceil(ordered.length/safePartSize);
+  if(part>partCount)return respond({ok:false,error:"ZIP 分包序號超出股票範圍"},400);
+  const subset=part?ordered.slice((part-1)*safePartSize,part*safePartSize):ordered;
+  if(!subset.length)return respond({ok:false,error:"沒有可打包的股票"},409);
+  const keySet=new Set(subset);
+  const recordCounts=source.recordRowsByStockYear||null,partCounts=source.recordRowsByPartYear||null;
+  let expectedRecords=null;
+  if(archiveYear&&partCounts&&all){
+   const keys=part?[archiveYear+"/"+part]:
+    Array.from({length:partCount},(_,i)=>archiveYear+"/"+(i+1));
+   if(keys.every(k=>Object.hasOwn(partCounts,k)))
+    expectedRecords=keys.reduce((sum,k)=>sum+partCounts[k],0);
+  }else if(archiveYear&&recordCounts){
+   const missing=subset.some(code=>!Object.hasOwn(recordCounts,code+"-"+archiveYear));
+   if(!missing)expectedRecords=subset.reduce((sum,code)=>sum+recordCounts[code+"-"+archiveYear],0)
+  }
+  const manifest={...stockArchiveManifest({minute:source,companion:side,mode,startedAt:new Date().toISOString()}),
+   archiveYear:archiveYear||"all",archivePart:part||"all",archivePartCount:partCount,stockCodes:subset,
+   expectedPrimaryRecords:expectedRecords,sourceReportedTotalRecords:source.rows,
+   verification:"Archive contains gzip data from existing cloud shards. Validate ZIP directory, gzip CRC and extracted row count before backtesting. Unverified source records are not certified complete.",
+   notes:["A successful background job does not prove that the exported ZIP reached the client intact.",
+    "If this file lacks the ZIP central directory (EOCD), the transfer was interrupted and must not be used for backtesting.",
+    "If expectedPrimaryRecords is null, the legacy job predates per-stock/year record auditing; retain the original data."]};
   const entries=[{name:"manifest.json",open:async()=>new Response(JSON.stringify(manifest,null,2)+"\n")}];
-  const startYear=Number(source.start.slice(0,4)),endYear=Number(source.end.slice(0,4));
+  const startYear=archiveYear?Number(archiveYear):Number(source.start.slice(0,4)),
+   endYear=archiveYear?Number(archiveYear):Number(source.end.slice(0,4));
+  const exportCodes=part?subset.join(","):"";
   for(let y=startYear;y<=endYear;y++){
    const year=String(y),owner=stub;
    entries.push({name:"01_price/"+(isStock?"minute_1min":"daily")+"_"+year+".csv.gz",
-    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year,codes:exportCodes}))})
   }
   if(sideStub)for(let y=startYear;y<=endYear;y++){
    const year=String(y),owner=sideStub;
    entries.push({name:"02_daily_research/"+(include==="research"?"research_full":"institutional_margin")+"_"+year+".csv.gz",
-    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year}))})
+    open:()=>owner.fetch("https://private/export?"+new URLSearchParams({year,codes:exportCodes}))})
   }
-  const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+(isStock?"1min":mode.replace("daily-","daily_"))+
-    "_"+source.start.replaceAll("-","")+"_"+source.end.replaceAll("-","")+".zip";
+  const file=(all?"FinMind_All_TWSE_TPEX_":"FinMind_FuturesEligibleStocks_")+"ALL_"+
+   (isStock?"1min":mode.replace("daily-","daily_"))+"_"+
+   (archiveYear||source.start.replaceAll("-","")+"_"+source.end.replaceAll("-",""))+
+   (part?"_part"+String(part).padStart(2,"0")+"of"+partCount:"")+".zip";
   return new Response(streamZip64(entries),{headers:{
    "content-type":"application/zip","content-disposition":'attachment; filename="'+file+'"',
    "cache-control":"private, no-store","x-content-type-options":"nosniff"
@@ -804,6 +839,7 @@ export class StockFuturesBatch{
      catch(e){out.chipMergeWarning="籌碼合併進度暫時不可用"}
     }
     if(mergeWarning)out.mergeWarning="雲端合併進度暫時不可讀（"+mergeWarning+"）；原始日K仍保留";
+    if(new URL(r.url).searchParams.get("audit")==="1"){out.recordRowsByStockYear=s.recordRowsByStockYear||null;out.recordRowsByPartYear=s.recordRowsByPartYear||null}
     return respond(out);
    }catch(e){
     // Return safe minimal state, not an unhandled 500. Do not return
@@ -1166,7 +1202,7 @@ export class StockFuturesBatch{
     const bytes=await zip(parsed.csv);
     const obj=this.shardFor(s,c.code),resp=await obj.fetch(new Request("https://private/put?date="+day+(s.mode==="all-stocks"?"&ttl=120":""),{method:"POST",body:bytes}));
     if(!resp.ok)throw Error("雲端儲存失敗："+resp.status);
-    return {day,c,index,success:true,...parsed.audit}
+    return {...parsed.audit,day,c,index,success:true}
    }catch(e){return {day,c,index,success:false,error:String(e.message||e).slice(0,180),status:Number(e.code||0)}}
   },stockMode?STOCK_MINUTE_CONCURRENCY:4);
   spend(tasks.length,started);
@@ -1178,6 +1214,15 @@ export class StockFuturesBatch{
    const x=result[i];
    if(x.success&&(!firstFailed||i<failIndex)){
     s.processed++;s.nonempty+=Number(x.rows>0);s.empty+=Number(x.rows===0);s.rows+=x.rows;
+    if(s.mode.startsWith("all-")){
+     if(!s.recordRowsByPartYear)s.recordRowsByPartYear={};
+     const key=x.day.slice(0,4)+"/"+(Math.floor(x.index/75)+1);
+     s.recordRowsByPartYear[key]=(s.recordRowsByPartYear[key]||0)+x.rows;
+    }else{
+     if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
+     const key=x.c.code+"-"+x.day.slice(0,4);
+     s.recordRowsByStockYear[key]=(s.recordRowsByStockYear[key]||0)+x.rows;
+    }
     s.night+=x.night;s.duplicates+=x.duplicates;
     s.rejected+=x.rejectedProduct+x.rejectedContract+x.rejectedInvalid;s.excludedFarMonth+=x.rejectedFarMonth;
    }
@@ -1262,7 +1307,12 @@ export class StockFuturesBatch{
        {method:"POST",body:payload}));
       if(!response.ok)throw Error("年份 "+year+" 雲端存檔失敗："+response.status)
      },4);
-     return {ok:true,c,calls,coverage:merged?.coverage||null,rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
+     return {ok:true,c,calls,coverage:merged?.coverage||null,rowsByYear:Object.fromEntries(
+       Array.from({length:Number(s.end.slice(0,4))-Number(s.start.slice(0,4))+1},(_,i)=>{
+        const year=String(Number(s.start.slice(0,4))+i),text=parsed.csvByYear[year]||"";
+        return [year,text?text.trimEnd().split("\n").length:0];
+       })
+      ),rows:parsed.audit.rows,nonempty:Number(parsed.audit.rows>0),empty:Number(parsed.audit.rows===0),
       rejected:parsed.audit.rejectedInvalid+parsed.audit.rejectedProduct,duplicates:parsed.audit.duplicates};
     }catch(e){return {ok:false,c,calls,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
    }catch(e){return {ok:false,c,calls:0,error:String(e.message||e).slice(0,180),code:Number(e.code||0)}}
@@ -1275,6 +1325,17 @@ export class StockFuturesBatch{
    const x=result[i];
    if(x.ok&&(firstFailure<0||i<firstFailure)){
     s.processed++;s.rows+=x.rows;s.nonempty+=x.nonempty;s.empty+=x.empty;
+    if(s.mode.startsWith("all-")){
+     if(!s.recordRowsByPartYear)s.recordRowsByPartYear={};
+     for(const [year,rows] of Object.entries(x.rowsByYear||{})){
+      const key=year+"/"+(Math.floor((from+i)/75)+1);
+      s.recordRowsByPartYear[key]=(s.recordRowsByPartYear[key]||0)+rows;
+     }
+    }else{
+     if(!s.recordRowsByStockYear)s.recordRowsByStockYear={};
+     for(const [year,rows] of Object.entries(x.rowsByYear||{}))
+      s.recordRowsByStockYear[x.c.code+"-"+year]=rows;
+    }
     s.rejected+=x.rejected;s.duplicates+=x.duplicates;
     if(x.coverage){
      if(!s.chipCoverage)s.chipCoverage={institutional:0,margin:0,both:0,missingInstitutional:0,missingMargin:0};
@@ -1505,7 +1566,12 @@ export class StockFuturesBatch{
 
  async exportDailyData(s,url){
   if(!["running","paused","done","error"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
-  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",
+   requestedCodes=url.searchParams.get("codes")||"",whole=url.searchParams.get("all")==="1"&&s.mode==="market-daily";
+  const selectedCodes=requestedCodes?requestedCodes.split(","):[];
+  if(selectedCodes.length>75||selectedCodes.some(x=>!/^[0-9]{4}$/.test(x))||
+    new Set(selectedCodes).size!==selectedCodes.length||code&&selectedCodes.length)
+   return respond({ok:false,error:"ZIP 股票分包清單錯誤"},400);
   const enriched=s.mode==="market-daily"&&url.searchParams.get("chip")==="1";
   if(enriched&&(await this.ctx.storage.get(CHIP_JOB_KEY))?.phase!=="done")
    return respond({ok:false,error:"法人與融資券資料仍在背景補抓"},409);
@@ -1517,7 +1583,10 @@ export class StockFuturesBatch{
   if(s.mode==="market-daily"&&!code&&(!year||!part)&&!whole)return respond({ok:false,error:"全市場日K請依年份＋每250檔分包下載"},400);
   if(whole&&(!part||!Number.isInteger(part)))return respond({ok:false,error:"必須指定分包編號"},400);
   if(part&&(!Number.isSafeInteger(part)||part<1||part>Math.ceil(s.catalog.length/MARKET_EXPORT_PART_SIZE)))return respond({ok:false,error:"分包序號錯誤"},400);
-  const codes=code?[code]:part?s.catalog.slice((part-1)*MARKET_EXPORT_PART_SIZE,part*MARKET_EXPORT_PART_SIZE).map(c=>c.code):s.catalog.map(c=>c.code);
+  const valid=new Set(s.catalog.map(c=>c.code));
+  if(selectedCodes.some(c=>!valid.has(c)))return respond({ok:false,error:"ZIP 含非本次任務股票"},400);
+  const codes=selectedCodes.length?selectedCodes:code?[code]:
+   part?s.catalog.slice((part-1)*MARKET_EXPORT_PART_SIZE,part*MARKET_EXPORT_PART_SIZE).map(c=>c.code):s.catalog.map(c=>c.code);
   const first=Number(s.start.slice(0,4)),last=Number(s.end.slice(0,4));
   const years=year?[Number(year)]:Array.from({length:last-first+1},(_,i)=>first+i);
   const segments=whole?codes.map(stock=>({stock,whole:true})):codes.flatMap(stock=>years.map(y=>({stock,day:y+"-01-01"})));
@@ -1552,12 +1621,18 @@ export class StockFuturesBatch{
  async exportData(s,url){
   if(["daily","daily-chip","daily-research","market-daily","all-daily","all-daily-chip","all-daily-research"].includes(s.mode))return this.exportDailyData(s,url);
   if(!["running","paused","done","error","expired"].includes(s.phase))return respond({ok:false,error:"任務尚不可匯出"},400);
-  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"";
+  const code=url.searchParams.get("code")||"",year=url.searchParams.get("year")||"",
+   requestedCodes=url.searchParams.get("codes")||"";
+  const selectedCodes=requestedCodes?requestedCodes.split(","):[];
+  if(selectedCodes.length>75||selectedCodes.some(x=>!/^[0-9]{4}$/.test(x))||
+   new Set(selectedCodes).size!==selectedCodes.length||code&&selectedCodes.length||
+   selectedCodes.some(c=>!s.catalog.some(x=>x.code===c)))
+   return respond({ok:false,error:"ZIP 股票分包清單錯誤"},400);
   if(code&&!s.catalog.some(c=>c.code===code))return respond({ok:false,error:"商品不在本次任務清單內"},404);
   if(year&&(!/^\d{4}$/.test(year)||year<s.start.slice(0,4)||year>s.end.slice(0,4)))return respond({ok:false,error:"年份不在範圍內"},400);
   if(!code&&!year)return respond({ok:false,error:"請選年度或股票代碼，避免手機下載巨型檔案"},400);
   const first=year&&year+"-01-01">s.start?year+"-01-01":s.start,last=year&&year+"-12-31"<s.end?year+"-12-31":s.end;
-  const codes=code?[s.catalog.find(c=>c.code===code)]:s.catalog;
+  const codes=selectedCodes.length?selectedCodes.map(c=>s.catalog.find(x=>x.code===c)):code?[s.catalog.find(c=>c.code===code)]:s.catalog;
   const self=this,head=await zip(["stocks","all-stocks"].includes(s.mode)?STOCK_HDR:HDR);let ci=-1,reader=null;
   const stream=new ReadableStream({async pull(c){
    try{

@@ -862,6 +862,44 @@ with zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())) as z:
   assert.match(result.daily,/2021-01-04,2330/);
   assert.equal(result.manifest.stockCount,1);
   assert.equal(result.manifest.dailyCompanion.mode,"daily-research");
+  const safe=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=research&year=2021&part=1",{
+    headers:{cookie:minuteCookie+"; "+sideCookie}
+  }),env,"stocks");
+  assert.equal(safe.status,200);
+  assert.match(safe.headers.get("content-disposition"),/_2021_part01of1\.zip/);
+  const content=Buffer.from(await safe.arrayBuffer());
+  const tested=spawnSync("python3",["-c",String.raw`
+import json,gzip,zipfile,io,sys
+content=sys.stdin.buffer.read()
+with zipfile.ZipFile(io.BytesIO(content)) as z:
+ assert z.testzip() is None
+ m=json.loads(z.read("manifest.json"))
+ assert m["archiveYear"]=="2021"
+ assert m["archivePart"]==1
+ assert m["expectedPrimaryRecords"]==2,m
+ assert m["stockCodes"]==["2330"]
+ assert gzip.decompress(z.read("01_price/minute_1min_2021.csv.gz")).count(b"\n")>=3
+ assert gzip.decompress(z.read("02_daily_research/research_full_2021.csv.gz")).count(b"\n")>=3
+try:
+ zipfile.ZipFile(io.BytesIO(content[:-26]))
+except zipfile.BadZipFile:
+ pass
+else:
+ raise AssertionError("ZIP with missing ending directory index must not validate")
+print("verified")
+`],{input:content,encoding:"utf8"});
+  assert.equal(tested.status,0,tested.stderr);
+  assert.match(tested.stdout,/verified/);
+  assert.equal(requests.length,before,"safe year bundle must only use existing cloud shards");
+  const badYear=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=none&year=2020",{
+    headers:{cookie:minuteCookie}
+  }),env,"stocks");
+  assert.equal(badYear.status,400);
+  const badPart=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=none&year=2021&part=2",{
+    headers:{cookie:minuteCookie}
+  }),env,"stocks");
+  assert.equal(badPart.status,400);
+
   const absent=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=research",{headers:{cookie:minuteCookie}}),env,"stocks");
   assert.equal(absent.status,409,"must never pretend complete if sidecar cookie missing");
   const minuteOnly=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=none",{headers:{cookie:minuteCookie}}),env,"stocks");
@@ -871,6 +909,7 @@ with zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())) as z:
 test("complete archive button is exposed and only enabled when selected jobs report done",()=>{
  const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
  assert.match(html,/id="archiveDownload"/);assert.match(html,/id="archiveStatus"/);
+ assert.match(html,/id="safeArchiveDownload"/);assert.match(html,/id="safeYear"/);assert.match(html,/id="safePart"/);
  const script=html.match(/<script>([\s\S]+?)<\/script>/)?.[1];
  assert.doesNotThrow(()=>new Function(script));
  assert.match(script,/function updateArchive\(\)/);
