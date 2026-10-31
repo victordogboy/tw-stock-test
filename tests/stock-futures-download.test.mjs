@@ -1,7 +1,9 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {gunzipSync} from "node:zlib";
+import {gunzipSync,gzipSync} from "node:zlib";
+import {spawnSync} from "node:child_process";
+import {streamZip64} from "../src/stock-archive.mjs";
 import {parseStockFutureUniverse,preferMiniStockFutures,parseTradingCalendar,firstDailyPriceDate,dailyPriceWindows,joinDailyChipRows,joinResearchRows,filterUnderlyingDailyBars,filterUnderlyingStockBars,filterStockFutureBars,stockFuturesRoute,StockFuturesBatch,StockFuturesData} from "../src/stock-futures-download.mjs";
 class Store{constructor(){this.map=new Map()}async get(k){return this.map.get(k)}async put(k,v){this.map.set(k,v)}async deleteAll(){this.map.clear()}async deleteAlarm(){}async setAlarm(t){this.nextAlarm=t}}
 function fixture(){
@@ -623,6 +625,127 @@ test("1-minute download UI can pair independent daily institution/margin or full
  assert.match(script,/fileRow\(\$\("companionYears"\)/);
  assert.match(html,/stock_id/);
  assert.match(html,/公布時間/);
+});
+test("streaming ZIP64 archive remains standards-readable with original gzip members and manifest",async()=>{
+ const entries=[
+  {name:"manifest.json",open:async()=>new Response(JSON.stringify({schema:1}))},
+  {name:"01_price/minute_1min_2021.csv.gz",open:async()=>new Response(gzipSync("date,minute\n2021-01-04,09:00:00\n"))},
+  {name:"02_daily_research/research_full_2021.csv.gz",open:async()=>new Response(gzipSync("date,stock_id\n2021-01-04,2330\n"))}
+ ];
+ const buf=Buffer.from(await new Response(streamZip64(entries)).arrayBuffer());
+ assert.ok(buf.length>200);
+ const script=String.raw`
+import io,sys,json,gzip,zipfile
+with zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())) as z:
+ names=z.namelist()
+ result={"files":names,"manifest":json.loads(z.read("manifest.json")),
+  "minutes":gzip.decompress(z.read("01_price/minute_1min_2021.csv.gz")).decode(),
+  "daily":gzip.decompress(z.read("02_daily_research/research_full_2021.csv.gz")).decode(),
+  "test":z.testzip()}
+ print(json.dumps(result))
+`;
+ const run=spawnSync("python3",["-c",script],{input:buf,encoding:"utf8",maxBuffer:1024*1024});
+ assert.equal(run.status,0,run.stderr);
+ const out=JSON.parse(run.stdout);
+ assert.equal(out.files.length,3);assert.equal(out.test,null);
+ assert.match(out.minutes,/2021-01-04,09:00:00/);
+ assert.match(out.daily,/2021-01-04,2330/);
+ assert.equal(out.manifest.schema,1);
+});
+test("archive endpoint bundles an existing completed 1-minute job and separate research sidecar; no FinMind redownload",async()=>{
+ const fixtureHtml=fixture().html,batches=new Map(),data=new Map(),requests=[];
+ const env={
+  STOCK_FUTURES_DATA:{idFromName:x=>x,get(id){
+   if(!data.has(id))data.set(id,new StockFuturesData({storage:new Store()},{}));
+   return {fetch:request=>data.get(id).fetch(request instanceof Request?request:new Request(request))}
+  }},
+  STOCK_FUTURES_BATCH:{idFromName:x=>x,get(id){
+   if(!batches.has(id))batches.set(id,new StockFuturesBatch({storage:new Store(),blockConcurrencyWhile:fn=>fn()},env));
+   return {fetch:request=>batches.get(id).fetch(request instanceof Request?request:new Request(request))}
+  }}
+ };
+ const previous=globalThis.fetch;
+ globalThis.fetch=async(url)=>{
+  const target=String(url);
+  if(target.includes("taifex.com.tw"))return new Response(fixtureHtml,{status:200});
+  const u=new URL(target),dataset=u.searchParams.get("dataset"),stock=u.searchParams.get("data_id"),date=u.searchParams.get("start_date");
+  requests.push(dataset);
+  if(dataset==="TaiwanStockTradingDate"){
+   const rows=[];for(let t=Date.parse("2019-01-01");t<=Date.parse("2022-12-31");t+=86400000){
+    const dt=new Date(t),d=dt.toISOString().slice(0,10);
+    if(dt.getUTCDay()!==0&&dt.getUTCDay()!==6)rows.push({date:d})
+   }
+   return Response.json({status:200,data:rows})
+  }
+  if(dataset==="TaiwanStockPrice")return Response.json({status:200,data:[
+   {stock_id:stock,date:"2021-01-04",open:100,max:110,min:90,close:102,Trading_Volume:2000,Trading_money:204000,Trading_turnover:20,spread:2},
+   {stock_id:stock,date:"2021-01-05",open:102,max:113,min:99,close:111,Trading_Volume:2500,Trading_money:277500,Trading_turnover:25,spread:9}
+  ]});
+  if(dataset==="TaiwanStockKBar")return Response.json({status:200,data:[
+   {stock_id:stock,date,minute:"09:00:00",open:100,high:110,low:90,close:102,volume:3}
+  ]});
+  if(["TaiwanStockInstitutionalInvestorsBuySell","TaiwanStockMarginPurchaseShortSale",
+      "TaiwanStockShareholding","TaiwanStockSecuritiesLending","TaiwanFuturesDaily"].includes(dataset))
+   return Response.json({status:200,data:[]});
+  throw Error("Unexpected "+dataset)
+ };
+ try{
+  const start=async(mode,api)=>{
+   const res=await stockFuturesRoute(new Request(host+api+"/start",{
+    method:"POST",headers:{origin:host,authorization:"Bearer test-sponsor-token"},
+    body:JSON.stringify({start:"2021-01-04",end:"2021-01-05",codes:["2330"]})
+   }),env,mode);
+   assert.equal(res.status,202);
+   return res.headers.get("set-cookie").split(";")[0]
+  };
+  const minuteCookie=await start("stocks","/api/stock-kbar");
+  const sideCookie=await start("daily-research","/api/stock-daily-research");
+  const fetchArchive=include=>stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include="+include,{
+   headers:{cookie:minuteCookie+"; "+sideCookie}
+  }),env,"stocks");
+  const tooSoon=await fetchArchive("research");
+  assert.equal(tooSoon.status,409);
+  for(let i=0;i<4;i++)await batches.get(minuteCookie.split("=")[1]).alarm();
+  await batches.get(sideCookie.split("=")[1]).alarm();
+  const before=requests.length;
+  const response=await fetchArchive("research");
+  assert.equal(response.status,200);
+  assert.match(response.headers.get("content-type"),/application\/zip/);
+  assert.match(response.headers.get("content-disposition"),/\.zip/);
+  const archive=Buffer.from(await response.arrayBuffer());
+  assert.equal(requests.length,before,"ZIP must only read existing cloud shards");
+  const script=String.raw`
+import sys,json,io,zipfile,gzip
+with zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())) as z:
+ files=z.namelist()
+ minute=gzip.decompress(z.read("01_price/minute_1min_2021.csv.gz")).decode()
+ daily=gzip.decompress(z.read("02_daily_research/research_full_2021.csv.gz")).decode()
+ print(json.dumps({"files":files,"manifest":json.loads(z.read("manifest.json")),"minute":minute,"daily":daily,"bad":z.testzip()}))
+`;
+  const py=spawnSync("python3",["-c",script],{input:archive,encoding:"utf8",maxBuffer:1024*1024});
+  assert.equal(py.status,0,py.stderr);
+  const result=JSON.parse(py.stdout);
+  assert.equal(result.bad,null);
+  assert.equal(result.files.length,3);
+  assert.match(result.minute,/2021-01-04,09:00:00,2330/);
+  assert.match(result.daily,/2021-01-04,2330/);
+  assert.equal(result.manifest.stockCount,1);
+  assert.equal(result.manifest.dailyCompanion.mode,"daily-research");
+  const absent=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=research",{headers:{cookie:minuteCookie}}),env,"stocks");
+  assert.equal(absent.status,409,"must never pretend complete if sidecar cookie missing");
+  const minuteOnly=await stockFuturesRoute(new Request(host+"/api/stock-kbar/archive?include=none",{headers:{cookie:minuteCookie}}),env,"stocks");
+  assert.equal(minuteOnly.status,200);
+ }finally{globalThis.fetch=previous}
+});
+test("complete archive button is exposed and only enabled when selected jobs report done",()=>{
+ const html=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
+ assert.match(html,/id="archiveDownload"/);assert.match(html,/id="archiveStatus"/);
+ const script=html.match(/<script>([\s\S]+?)<\/script>/)?.[1];
+ assert.doesNotThrow(()=>new Function(script));
+ assert.match(script,/function updateArchive\(\)/);
+ assert.match(script,/companionJob\?\.phase==="done"/);
+ assert.match(script,/job\?\.phase==="done"/);
+ assert.match(script,/\/archive\?include=/);
 });
 test("new main page calls stock KBar API while archived futures downloader keeps original endpoint",()=>{
  const newHtml=readFileSync(new URL("../public/stock-futures-download.html",import.meta.url),"utf8");
