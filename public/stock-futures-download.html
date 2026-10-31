@@ -77,6 +77,10 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <div class="actions"><a id="companionOne" class="file" href="#">下載單股日頻研究 CSV.gz</a></div>
 </section>
 <section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
+<div class="note" id="archiveBox"><h3 style="margin-top:0">📦 一鍵下載全部資料到本地（ZIP）</h3>
+<p id="archiveStatus" class="minor">所有雲端下載工作完成後，這裡會開放整包 ZIP 備份；所有已抓好的股票、年度 CSV.gz 都會包入，不重抓 FinMind。</p>
+<div class="actions"><a id="archiveDownload" class="file hidden" href="#" download>⬇ 下載完整一包 ZIP</a></div>
+<div class="minor">整包可能有數 GB，支援 ZIP64 串流，不必先將全部資料載入手機記憶體。<strong>檔案下載期間請保持網路連線，直到完整存入本機。</strong>先不要清除雲端備份。</div></div>
 <p id="exportIntro">每年度包含所選股票的現股日 K＋籌碼，按股票與交易日整合；也可下載單一股票全期間。切換週期或勾選籌碼後顯示對應獨立的任務。</p>
 <div class="note warn" id="exportNote">任務尚未完成，年度檔可能只有部分資料。請核對下方進度。</div>
 <div class="minor" id="chipInfo">重要：法人約在交易日 20:00、融資融券約 21:00 公布。回測不能使用同日法人、融資融券決定同日收盤前的交易；應向後至少移一交易時段。</div>
@@ -123,6 +127,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("speedLabel").textContent=daily?"速度統計（不適用）":"1 分 K 每小時筆數";
   $("skippedLabel").textContent=daily?"日 K 無需逐日查詢":"省下的股票×日請求";
   $("preflightLabel").textContent=daily?"日 K 無需額外預檢":"歷史有效期預檢";
+  updateArchive();
  }
  $("end").value=new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
  const t=savedToken();$("tokenStatus").textContent=t?"✓ 已找到個股分析使用的 Token（尾碼 "+t.slice(-4)+"），直接按開始即可":"這個瀏覽器沒有已儲存的 Token，請在上方輸入一次";
@@ -159,6 +164,22 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   const a=document.createElement("a");a.className="file";a.href=href;a.textContent="下載";a.setAttribute("download","");
   line.append(left,a);where.append(line)
  }
+ function updateArchive(){
+  const primaryReady=job?.phase==="done"&&job.total>0&&job.processed===job.total;
+  const needSide=!isDaily()&&isChips();
+  const companionMode=isResearch()?"daily-research":"daily-chip";
+  const hasMatch=companionJob?.phase==="done"&&companionJob.processed===companionJob.total&&
+    companionJob.mode===companionMode&&companionJob.start===job?.start&&companionJob.end===job?.end&&
+    companionJob.codeCount===job?.codeCount;
+  const ready=primaryReady&&(!needSide||hasMatch);
+  $("archiveDownload").classList.toggle("hidden",!ready);
+  $("archiveDownload").href=ready?root()+"/archive?include="+(needSide?(isResearch()?"research":"chip"):"none"):"#";
+  $("archiveStatus").textContent=!job?"尚未取得主要下載任務。":!primaryReady?
+   "主要工作尚未完成，必須先到 100% 才能下載整包。":needSide&&!hasMatch?
+   "1 分 K 已完成，但日頻"+(isResearch()?"完整研究":"法人融資融券")+"配套未完成或資料日期／股票範圍不同；請先完成配套。":
+   "✓ 已準備好，將 "+job.codeCount+" 檔股票的"+(isDaily()?"全部日 K／籌碼":"全部 1 分 K"+(needSide?"＋日頻研究資料":""))+
+   "按年度放進同一個 ZIP，每個 CSV.gz 保持完整原樣。";
+ }
  function render(s){
   job=s;$("progressCard").classList.remove("hidden");$("exports").classList.remove("hidden");$("startBtn").disabled=true;
   $("phase").textContent=({running:"下載中",paused:"已暫停",error:"需要處理",done:"已完成",expired:"已到期"})[s.phase]||s.phase;
@@ -174,7 +195,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   $("years").replaceChildren();const sy=Number(s.start.slice(0,4)),ey=Number(s.end.slice(0,4));
   for(let year=sy;year<=ey;year++)fileRow($("years"),year+" 年","所有已取得商品，CSV.gz",root()+"/export?year="+year);
   $("oneSymbol").replaceChildren();for(const c of s.codes){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.stock+" "+c.name+"（現股"+seriesName()+"）";$("oneSymbol").append(opt)}
-  updateOne();
+  updateOne();updateArchive();
  }
  function updateOne(){$("oneFile").href=root()+"/export?code="+encodeURIComponent($("oneSymbol").value)}
  $("oneSymbol").onchange=updateOne;
@@ -200,6 +221,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   for(const c of s.codes||[]){const opt=document.createElement("option");opt.value=c.code;opt.textContent=c.code+" "+c.name;$("companionSymbol").append(opt)}
   if([...$("companionSymbol").options].some(x=>x.value===prior))$("companionSymbol").value=prior;
   $("companionOne").href=companionRoot()+"/export?code="+encodeURIComponent($("companionSymbol").value);
+  updateArchive();
  }
  async function refreshCompanion(){
   if(isDaily()||!isChips())return;
@@ -209,7 +231,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
    if(isDaily()||!isChips()||companionRoot()!==path)return;
    companionJob=null;$("companionPhase").textContent="尚未建立";
    $("companionMsg").textContent="配套狀態："+e.message+"。原 1 分 K 不受影響。";
-   $("companionStats").textContent="";$("companionYears").replaceChildren();$("companionSymbol").replaceChildren()
+   $("companionStats").textContent="";$("companionYears").replaceChildren();$("companionSymbol").replaceChildren();updateArchive()
   }
  }
  async function startCompanion(tokenArg="",silent=false){
