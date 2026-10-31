@@ -37,14 +37,14 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <select id="granularity"><option value="day" selected>日 K（快速，預設）</option><option value="minute">1 分 K（大量資料，較慢）</option></select>
 <label id="chipsOption" style="margin-top:10px;display:flex;align-items:center;gap:10px">
  <input id="includeChips" type="checkbox" checked style="width:auto">
- <span>日 K 一起下載三大法人、融資融券，合併成回測 CSV（建議）</span>
+ <span>一起下載三大法人、融資融券（適用日 K／1 分 K）</span>
 </label>
 <div class="minor" id="chipsNotice">外資、投信、自營商買賣超，以及融資融券每日餘額／變動；2000 年沒有資料時保持空白，不填 0。</div>
 <label id="researchOption" style="margin-top:10px;display:flex;align-items:center;gap:10px">
  <input id="includeResearch" type="checkbox" checked style="width:auto">
  <span><strong>完整研究版：</strong>再加借券成交、外資持股比例、股期歷史契約觀測（建議）</span>
 </label>
-<div class="minor" id="researchNotice">新增 2001/05 起借券成交、2004/02 起外資持股、2010 年起可查到的股期歷史交易月份／未平倉量。注意第一筆股期成交不等於正式掛牌日；歷史契約調整規格可能不同。新增模式不覆蓋既有日 K。</div>
+<div class="minor" id="researchNotice">包含借券成交、外資持股與歷史股期契約觀測。1 分 K 下載時採配套日頻 CSV.gz，不重複擴充每根分 K；資料須按公布時間用於下一交易時段，避免前視偏差。既有雲端任務不受影響。</div>
 <div class="note" id="formatHint">日 K＋籌碼：現股日 K、法人買賣超、融資融券餘額合成同一 CSV；2000–2004 法人欄位空白。資料僅供次一交易時段使用。</div>
 <div class="grid"><div><label for="start">從</label><input id="start" type="date" value="2000-01-01" min="2000-01-01"></div><div><label for="end">到</label><input id="end" type="date"></div></div>
 <label for="token">FinMind Sponsor Token（沿用個股分析）</label><input id="token" type="password" placeholder="已有個股分析 Token，可留空" autocomplete="off" spellcheck="false">
@@ -66,6 +66,15 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
 <p id="message">—</p><div class="minor" id="chipCoverage"></div><div class="minor" id="cursor"></div>
 <div class="actions"><button id="pauseBtn" class="secondary">暫停</button><button id="resumeBtn" class="secondary">繼續下載</button><button id="refreshBtn" class="secondary">更新狀態</button><button id="resetBtn" class="secondary">重新下載現股資料</button></div>
 <details><summary>查看失敗請求與來源資訊</summary><div id="errors"></div></details>
+</section>
+<section class="card hidden" id="minuteCompanion">
+<div class="top"><h2 style="margin:0">1 分 K 配套日頻研究資料</h2><span class="status" id="companionPhase">未建立</span></div>
+<p class="minor">勾選後，1 分 K 和日頻研究資料會各自在雲端背景下載；配套 CSV.gz 以 <strong>stock_id＋date</strong> 對應分 K，資料日期為原始交易日，回測必須依公布時間決定何時可用。舊分 K 不用重抓。</p>
+<div class="actions"><button id="companionStart" class="secondary">為現有 1 分 K 補建配套資料</button><button id="companionRefresh" class="secondary">更新配套進度</button></div>
+<div class="minor" id="companionMsg">尚未建立配套資料背景任務。</div><div class="minor" id="companionStats"></div>
+<div id="companionYears"></div>
+<label for="companionSymbol">單一股票配套資料</label><select id="companionSymbol"></select>
+<div class="actions"><a id="companionOne" class="file" href="#">下載單股日頻研究 CSV.gz</a></div>
 </section>
 <section class="card hidden" id="exports"><h2>下載 CSV.gz 檔案</h2>
 <p id="exportIntro">每年度包含所選股票的現股日 K＋籌碼，按股票與交易日整合；也可下載單一股票全期間。切換週期或勾選籌碼後顯示對應獨立的任務。</p>
@@ -89,20 +98,23 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
  "use strict";const $=id=>document.getElementById(id),fmt=x=>Number(x||0).toLocaleString("zh-TW");
  const savedToken=()=>{try{const s=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"null");return String(s?.tokens?.[Number(s?.active)===1?1:0]||localStorage.getItem("twq_finmind_token_v1")||"").trim()}catch{return ""}};
  let catalog=[],selected=new Set(),job=null,busy=false,rawCount=0,miniCount=0;
- let previousMode="day";const startDates={day:"2000-01-01",minute:"2021-01-01"};
+ let previousMode="day",companionJob=null,companionBusy=false;const startDates={day:"2000-01-01",minute:"2021-01-01"};
  const isDaily=()=>$("granularity").value==="day";
- const isChips=()=>isDaily()&&$("includeChips").checked;
+ const isChips=()=>$("includeChips").checked;
  const isResearch=()=>isChips()&&$("includeResearch").checked;
  const root=()=>!isDaily()?"/api/stock-kbar":isResearch()?"/api/stock-daily-research":isChips()?"/api/stock-daily-chip":"/api/stock-daily";
  const modeId=()=>!isDaily()?"stocks":isResearch()?"daily-research":isChips()?"daily-chip":"daily";
- const seriesName=()=>!isDaily()?"1 分 K":isResearch()?"日 K＋完整研究":isChips()?"日 K＋籌碼":"日 K";
+ const seriesName=()=>!isDaily()?(isResearch()?"1 分 K＋完整研究配套":isChips()?"1 分 K＋籌碼配套":"1 分 K"):isResearch()?"日 K＋完整研究":isChips()?"日 K＋籌碼":"日 K";
+ const companionRoot=()=>isResearch()?"/api/stock-daily-research":"/api/stock-daily-chip";
  function setFormatHelp(){
   const daily=isDaily();
-  $("chipsOption").classList.toggle("hidden",!daily);$("chipsNotice").classList.toggle("hidden",!daily);
+  $("chipsOption").classList.remove("hidden");$("chipsNotice").classList.remove("hidden");
+  $("chipsNotice").textContent=daily?"日 K 將籌碼按股票、日期合併至同一 CSV，缺資料留空。":"1 分 K 另下載日頻籌碼配套 CSV.gz；不用把同一天的籌碼重複塞進每分鐘。回測須依公布時間使用。";
+  $("minuteCompanion").classList.toggle("hidden",daily||!isChips());
   $("researchOption").classList.toggle("hidden",!isChips());$("researchNotice").classList.toggle("hidden",!isChips());
   $("chipInfo").classList.toggle("hidden",!isChips());
-  $("formatHint").textContent=!daily?"1 分 K：2021 年起，逐日下載。":isResearch()?"完整研究版：2000 年起日 K＋法人＋融資融券＋借券成交＋外資持股比例＋歷史股期契約觀測；缺值不填 0，籌碼收盤後公布的只能用於之後交易。":isChips()?"日 K＋法人買賣超＋融資融券餘額，缺值留空。":"純日 K，不含籌碼。";
-  $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV，來源原始單位。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉（futures_observed_contract_months）；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
+  $("formatHint").textContent=!daily?"1 分 K：2021 年起，逐日下載。勾選籌碼會額外建立獨立的日頻配套下載任務。":isResearch()?"完整研究版：2000 年起日 K＋法人＋融資融券＋借券成交＋外資持股比例＋歷史股期契約觀測；缺值不填 0，籌碼收盤後公布的只能用於之後交易。":isChips()?"日 K＋法人買賣超＋融資融券餘額，缺值留空。":"純日 K，不含籌碼。";
+  $("csvSpec").textContent=!daily?"1 分 K CSV：現股每分鐘 OHLCV；配套 CSV：法人、融資融券及可選借券、外資持股、股期觀測。用 stock_id＋date 合併，盤後資料不可用於當天盤中。":isResearch()?"完整研究版 CSV：日 K、三大法人、融資融券、外資持股比例、借券每日成交量與費率、股期可觀測代碼／到期月／近月成交量／未平倉（futures_observed_contract_months）；含 available 缺值標記，不能把期貨第一筆成交誤認掛牌日，借券成交不等於借券餘額。":isChips()?"日 K＋籌碼 CSV：法人買賣超、融資融券額度與當日／昨日餘額；缺漏不填 0。":"純日 K OHLCV CSV，未還原除權息。";
   $("exportIntro").textContent="每年度所選股票的現股"+seriesName()+"，可分年下載 CSV.gz，或下載單一股票的完整期間。";
   $("yearTitle").textContent="各年度：所選股票的現股"+seriesName();
   $("startBtn").textContent="▶ 啟動"+seriesName()+"雲端背景下載";
@@ -218,7 +230,7 @@ footer{font-size:12px;color:#90a5ba;line-height:1.6;margin-top:30px}
   setFormatHelp();updateCount();refresh();
  };
  $("start").onchange=()=>{startDates[isDaily()?"day":"minute"]=$("start").value};
- setFormatHelp();Promise.all([loadCatalog(),refresh()]).then(()=>{});
- setInterval(()=>{if(!document.hidden&&job?.phase==="running")refresh()},14000);
+ setFormatHelp();Promise.all([loadCatalog(),refresh(),refreshCompanion()]).then(()=>{});
+ setInterval(()=>{if(!document.hidden&&job?.phase==="running")refresh();if(!document.hidden&&companionJob?.phase==="running")refreshCompanion()},14000);
 })();
 </script></body></html>
