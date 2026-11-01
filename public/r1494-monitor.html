@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark"><title>R1494-A｜股期標的股票策略監控（驗收中）</title>
+<style>
+:root{font-family:system-ui,'Noto Sans TC',sans-serif;background:#091421;color:#e8f2ff;color-scheme:dark}*{box-sizing:border-box}body{margin:0}a{color:#91cfff}header{padding:22px max(16px,calc((100vw - 1100px)/2));background:linear-gradient(125deg,#163954,#0c182b);border-bottom:1px solid #33546b}h1{font-size:clamp(24px,4vw,38px);margin:10px 0}h2{font-size:19px;margin:0 0 11px}.muted,small{color:#a9bad0}main{max-width:1100px;margin:auto;padding:16px}.badge{display:inline-block;border-radius:30px;padding:6px 11px;font-size:12px;background:#5d362d;color:#ffdec2}.card{background:#15283b;border:1px solid #344b64;border-radius:12px;padding:16px;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}.grid .card{margin-bottom:0}.big{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;margin:7px 0}.good{color:#82e4b7}.bad{color:#ffc199}.warn{border-color:#9c6852;background:#3b292a}button{border:1px solid #628cac;border-radius:7px;background:#225584;color:white;padding:10px 15px;cursor:pointer;font:inherit}button:disabled{opacity:.4}p{line-height:1.7}table{border-collapse:collapse;min-width:720px;width:100%}th,td{font-size:13px;padding:10px 8px;text-align:left;border-bottom:1px solid #334659}.scroll{overflow:auto}.top{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.stack{display:flex;gap:10px;flex-wrap:wrap}.detail{white-space:pre-wrap;overflow-wrap:anywhere}footer{padding:20px 0;color:#a3b8cd;font-size:13px}
+</style></head><body>
+<header><span class="badge">R1494-A · 研究上線驗收中 · 禁止自動下單</span><h1>股期標的股票策略監控</h1><p class="muted">沿用 R26 網站架構 · 台指 R26 原始策略完全獨立 · 模型持倉 ≠ 券商實際持倉</p><div class="stack"><a href="/r26-monitor.html">← 返回台指 R26</a><a href="/market-daily-download.html">股價＋法人資料下載器 ↗</a></div></header>
+<main>
+<section class="card warn"><h2>⚠ 正式交易訊號尚未開放</h2><p id="tradeNotice">歷史回測可重現，但最新日期的233檔完整指標、雲端交易引擎、委託與券商成交回報尚未通過驗收。<strong>本頁不得作為實際下單指令。</strong></p><p class="muted">不會把10/27舊持倉當成今天的實際持倉，也不會把日K曾碰到突破價當成券商已成交。</p></section>
+<section class="grid" aria-label="歷史研究結果"><div class="card"><small>歷史模擬累積報酬</small><div class="big good">+2,301.79%</div><small>2021/01/06～2026/10/27</small></div><div class="card"><small>歷史最大回撤</small><div class="big bad">−21.53%</div><small>現股日K／零成本模擬</small></div><div class="card"><small>研究股票池</small><div class="big">233 檔</div><small>同時持有最多8檔</small></div><div class="card"><small>盤前正式訊號</small><div class="big bad" id="ready">停用</div><small id="asof">凍結研究截至2026/10/27</small></div></section>
+<section class="card" id="health"><div class="top"><h2>資料增量同步與策略驗收</h2><button id="refresh">↻ 立即重新檢查</button></div><div class="grid"><div><small>最新已確認資料日</small><p id="lastDate">尚未取得伺服器快照</p></div><div><small>應更新至</small><p id="targetDate">檢查中</p></div><div><small>雲端工作</small><p id="jobPhase">檢查中</p></div><div><small>覆蓋檔數</small><p id="coverage">未知 / 233</p></div></div><p id="syncMessage" class="muted" role="status" aria-live="polite">啟動資料完整性檢查中。</p><p class="muted">開頁會嘗試使用專屬 R1494 更新 API：缺日只補缺日、舊資料不覆寫，更新完成才公布新盤前計畫。若後端尚未接通，會如實顯示失敗，<strong>不會假裝已同步完成</strong>。盤中報價不改寫前一晚鎖定的委託訊號。</p><div class="stack"><a href="/market-daily-download.html">查看既有背景下載工作</a></div></section>
+<section class="card"><div class="top"><h2>全部股票狀態</h2><span id="tableState" class="badge">未取得經驗證的模型快照</span></div><div class="scroll"><table><thead><tr><th>股票</th><th>資料日期</th><th>策略狀態</th><th>預定動作</th><th>突破觸發價</th><th>模型持倉</th><th>券商成交</th></tr></thead><tbody id="stocks"><tr><td colspan="7">最新完整快照尚未可用；不顯示舊名單以免誤下單。</td></tr></tbody></table></div></section>
+<section class="card"><h2>已凍結的執行規則</h2><p>前一交易日產生候選與突破觸發價；隔日開盤已超過突破價時嘗試以開盤價買入，否則盤中真正突破才觸發。全天未觸發不買、不尾盤補買；賣出訊號優先於買入，隔日開盤嘗試平倉。觸發不等於送單，送單不等於成交。</p><p class="muted">正式交易介接前，任何報價、持倉、成交均僅限研究展示。現股價格不能直接當股期實際委託價格；真正股期報價、契約及08:45開盤需分開驗證。</p></section>
+<footer>版本：R1494-A read-only audit v1 · 來源資料、策略狀態及券商成交各自標示時間戳 · 台指 R26 不受本頁影響</footer>
+</main>
+<script type="module">
+// Read-only orchestrator: it cannot place orders or invent stock holdings.
+class R26StockAutoSync {
+ constructor({onStatus=()=>{},onSnapshot=()=>{},onError=()=>{},pollMs=15000}={}){
+  this.onStatus=onStatus;this.onSnapshot=onSnapshot;this.onError=onError;
+  this.pollMs=Math.max(5000,pollMs);this.working=false;this.timer=null;this.syncedDate=null;
+ }
+ async api(path,options={}){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  try{
+   const resp=await fetch('/api/stock-r1494'+path,{cache:'no-store',credentials:'same-origin',signal:controller.signal,...options});
+   const data=await resp.json().catch(()=>{throw Error('R1494 後端尚未回傳有效 JSON')});
+   if(!resp.ok||data?.ok!==true)throw Error(data?.error||'HTTP '+resp.status);
+   return data;
+  }finally{clearTimeout(timer)}
+ }
+ async once(){
+  if(this.working)return;this.working=true;
+  try{
+   let status=await this.api('/status');
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(status.targetDate||'')||!/^\d{4}-\d{2}-\d{2}$/.test(status.lastCompleteDate||''))throw Error('缺少最新完整交易日');
+   this.onStatus({phase:status.job?.phase||'idle',targetDate:status.targetDate,lastCompleteDate:status.lastCompleteDate,processed:status.job?.processed,total:status.job?.total,updatedAt:status.updatedAt});
+   if(status.lastCompleteDate<status.targetDate&&!['queued','running'].includes(status.job?.phase)&&this.syncedDate!==status.targetDate){
+    await this.api('/sync',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'sync_missing',targetDate:status.targetDate})});
+    this.syncedDate=status.targetDate;
+    status=await this.api('/status');
+   }
+   const snapshot=await this.api('/snapshot');
+   const count=Number(snapshot.universeCount||0);
+   const valid=count===233&&Array.isArray(snapshot.stocks)&&snapshot.stocks.length===233&&snapshot.dataDate===status.targetDate&&snapshot.dataComplete===true&&snapshot.engineVerified===true;
+   this.onSnapshot({...snapshot,isFresh:valid,stocks:Array.isArray(snapshot.stocks)?snapshot.stocks:[]});
+  }catch(e){this.onError(e)}finally{this.working=false}
+ }
+ start(){void this.once();if(!this.timer)this.timer=setInterval(()=>{if(document.visibilityState==='visible')void this.once()},this.pollMs);return this}
+ refreshNow(){return this.once()}
+}
+
+const $=id=>document.getElementById(id),text=(id,val)=>$(id).textContent=val;
+function status(s){text('lastDate',s.lastCompleteDate||'尚未確認');text('targetDate',s.targetDate||'無法判定');text('jobPhase',`${s.phase||'未知'} · ${s.processed||0}/${s.total||233}`);if(s.updatedAt)text('syncMessage','上次更新：'+s.updatedAt+'；等待引擎完整驗證。');}
+function snapshot(s){
+ text('coverage',`${Array.isArray(s.stocks)?s.stocks.length:0} / ${s.universeCount||233}`);
+ const ready= s.isFresh&&s.engineVerified===true&&s.dataComplete===true&&s.universeCount===233;
+ text('ready',ready?'訊號待實盤確認':'停用');text('asof','模型資料截至 '+(s.dataDate||'尚未確認'));
+ text('tableState',ready?'模型資料完整；不代表已成交':'模型快照未通過完整驗證');
+ const rows=Array.isArray(s.stocks)?s.stocks:[],box=$('stocks');box.replaceChildren();
+ if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='無可用的最新模型資料，禁止使用歷史持倉推測今日買賣。';tr.append(td);box.append(tr);return}
+ for(const r of rows){const tr=document.createElement('tr');for(const v of [r.code+' '+(r.name||''),r.signalDate||'—',r.status||'—',r.action||'—',r.trigger_price??'—',r.modelPosition??'未知',r.brokerFill??'未連接']){const td=document.createElement('td');td.textContent=String(v);tr.append(td)}box.append(tr)}
+}
+function error(e){const msg=String(e?.message||e);text('syncMessage','⚠ 自動同步尚不可用：'+msg+'。保留現有展示，不發布新的買賣訊號。');text('ready','停用')}
+const controller=new R26StockAutoSync({onStatus:status,onSnapshot:snapshot,onError:error,pollMs:15000});
+controller.start();$('refresh').addEventListener('click',()=>controller.refreshNow());
+</script></body></html>
