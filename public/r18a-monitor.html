@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R18-A 台指期｜自動補資料與交易決策驗收台</title>
+<style>
+:root{font-family:system-ui,"Noto Sans TC",sans-serif;color-scheme:dark;background:#0a1424;color:#e7effb}*{box-sizing:border-box}body{margin:0}header{padding:20px max(16px,calc((100vw - 1100px)/2));background:#10253e;border-bottom:1px solid #334960}main{max-width:1100px;margin:auto;padding:16px}h1{margin:.2em 0;font-size:clamp(24px,5vw,36px)}h2{font-size:19px;margin:0 0 12px}.tag{font-size:12px;display:inline-block;background:#244465;padding:5px 9px;border-radius:16px}.hint{color:#afc1d7;font-size:13px;line-height:1.65}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}.box{background:#16283d;border:1px solid #35516d;border-radius:12px;padding:17px;margin-bottom:13px}.value{font-size:24px;margin-top:8px;font-weight:700;overflow-wrap:anywhere}.warn{border-color:#ae6849;background:#382a2d}.warn .value{color:#ffd2ad}label{font-size:13px;color:#cbd9e9;display:block;margin:8px 0 4px}input,button{font:inherit;padding:10px 11px;border-radius:7px;border:1px solid #59799d;background:#10283e;color:white}input[type=password]{width:min(430px,100%)}input[type=date]{min-width:150px}button{background:#235585;cursor:pointer}button:disabled{opacity:.5;cursor:default}.row{display:flex;flex-wrap:wrap;gap:10px;align-items:end}#log{height:200px;overflow:auto;white-space:pre-wrap;background:#0a1929;border:1px solid #36506c;border-radius:8px;padding:11px;font-size:12px;line-height:1.55}a{color:#92cfff}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border-bottom:1px solid #304962;padding:8px;text-align:left}.scroller{overflow:auto;max-height:380px}.pills{display:flex;gap:7px;flex-wrap:wrap}.pill{border:1px solid #54718c;border-radius:12px;padding:4px 9px;font-size:12px}
+</style>
+</head>
+<body>
+<header><span class="tag">R18-A · 資料接續與部署驗收</span><h1>台指期 R18-A 決策台</h1><div class="hint">歷史 K 線每日自動補查／近月報價 5 秒輪詢。未驗證的研究策略不會顯示可交易的進場、出場或口數。</div></header>
+<main>
+<section class="box warn" role="status" aria-live="polite"><h2>交易安全鎖</h2><div class="value" id="tradeStatus">NO-TRADE · R18-A 委託引擎尚未驗收</div><p class="hint">目前僅可核對資料，不可依本頁下單。P193／P196 的影子回測、分數曝險與實際 TX 整口委託尚未完成一對一成交路徑驗收；不能拿 R26 規則冒充 R18-A。</p></section>
+<section class="grid">
+ <div class="box"><div class="hint">近月行情（非指定月份成交價）</div><div class="value" id="lastPrice">—</div><div class="hint" id="quoteSource">連線中</div></div>
+ <div class="box"><div class="hint">來源成交時間與延遲</div><div class="value" id="quoteAge">—</div><div class="hint" id="quoteTime">—</div></div>
+ <div class="box"><div class="hint">本機已驗證來源分鐘 K</div><div class="value" id="barsCount">—</div><div class="hint" id="barRange">—</div></div>
+ <div class="box"><div class="hint">來源狀態</div><div class="value" id="dataStatus">檢查中</div><div class="hint" id="dataTime">—</div></div>
+</section>
+<section class="box"><h2>FinMind 歷史 1 分 K 自動補查</h2>
+ <p class="hint">本頁可讀取此瀏覽器已保存的 FinMind Token；透過同網域 /api/r26/kbar 讀取 <b>TaiwanFuturesKBar</b> 的 TX 歷史數據（僅共用資料來源，非共用策略）。FinMind 支援 2011/01/03 起，超過此範圍無法從它補齊。官方歷史分鐘資料不是盤中即時分鐘資料。</p>
+ <div class="row"><div><label for="startDate">接續補查起點</label><input id="startDate" type="date" min="2011-01-03" value="2026-10-22"></div><div><label for="finmindToken">FinMind Token（僅保存在此瀏覽器）</label><input id="finmindToken" type="password" autocomplete="off" placeholder="已保存 Token 時可留空"></div><button id="startBtn">立即檢查／補齊</button><button id="clearBtn">清除 Token</button><button id="exportBtn">匯出已抓分鐘資料</button></div>
+ <p class="hint" id="resumeInfo">每次開啟／恢復此網頁自動檢查近期缺日；手機休眠或關閉頁面不會持續下載。已抓到的 K 線存於 IndexedDB，刷新後仍可接續。</p>
+ <div class="pills"><span class="pill" id="dayCount">檢查日數 —</span><span class="pill" id="progress">進度 —</span><span class="pill" id="contractCount">合約 —</span></div><p class="hint" id="sourceLimits">成交日、指定合約、換月、期貨日／夜盤的首末 K 必須在引擎驗收時逐項核對。無成交分鐘不得捏造或前值補 K。</p>
+ <div id="log" aria-live="polite">資料檢查日誌</div></section>
+<section class="box"><h2>來源逐日完整性</h2><div class="scroller"><table><thead><tr><th>日期</th><th>回傳 K 數（含各月份）</th><th>合約月份</th><th>檢查結果</th><th>最後檢查</th></tr></thead><tbody id="days"></tbody></table></div></section>
+<section class="box"><h2>下一盤盤前交易計畫</h2><div class="grid"><div><div class="hint">策略方向／可否開倉</div><div class="value">待原版重播</div></div><div><div class="hint">進場觸發價</div><div class="value">—</div></div><div><div class="hint">停損／停利</div><div class="value">—／—</div></div><div><div class="hint">TX 口數（0–10）</div><div class="value">0（禁止下單）</div></div></div><p class="hint">資料補齊不等於交易引擎已通過驗收；在原版策略、整口撮合、費用、跨盤持倉及換月全數對齊前，一律 NO-TRADE。</p></section>
+<p class="hint">資料代理：<a href="/api/r26/health">檢查歷史行情接口</a>　·　<a href="/api/r26/live-quote">檢查報價接口</a>　·　資料與模擬決策請勿誤認為券商實際委託。</p>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id), DAY=86400000, LIMIT=40;
+const dateTaipei=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());
+const dms=d=>Date.parse(d+'T00:00:00Z');
+const dadd=(d,n)=>new Date(dms(d)+n*DAY).toISOString().slice(0,10);
+const valid=d=>/^\d{4}-\d\d-\d\d$/.test(d)&&Number.isFinite(dms(d))&&new Date(dms(d)).toISOString().slice(0,10)===d;
+const stamp=()=>new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei',hour12:false});
+const log=s=>{const box=$('log');box.textContent='['+stamp()+'] '+s+'\n'+box.textContent.slice(0,18000)};
+function storedToken(){try{const own=localStorage.getItem('R18A_FinMind_Token');if(own)return own;if(localStorage.getItem('R18A_token_disabled')==='1')return '';const e=localStorage.getItem('R26_FinMind_Token');if(e)return e;const j=JSON.parse(localStorage.getItem('twq_finmind_tokens_v2')||'null');return j?.tokens?.[Number(j.active)===1?1:0]||localStorage.getItem('twq_finmind_token_v1')||''}catch{return ''}}
+function chosenToken(){return $('finmindToken').value.trim()||storedToken()}
+async function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('r18a-tx-history-v1',1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('bars'))r.result.createObjectStore('bars',{keyPath:'key'});if(!r.result.objectStoreNames.contains('dates'))r.result.createObjectStore('dates',{keyPath:'date'})};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||Error('IndexedDB failed'))})}
+async function transact(db,store,mode,run){return new Promise((resolve,reject)=>{const t=db.transaction(store,mode);const q=t.objectStore(store);let val;try{val=run(q)}catch(e){reject(e);return}t.oncomplete=()=>resolve(val);t.onerror=()=>reject(t.error||Error('Transaction failed'))})}
+async function all(db,store){return new Promise((resolve,reject)=>{const r=db.transaction(store).objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function upsert(db,store,records){await transact(db,store,'readwrite',q=>{for(const x of records)q.put(x)})}
+let db=null, syncing=false, lastCheck=0, quoteInFlight=false;
+async function show(){if(!db)return;const [bars,days]=await Promise.all([all(db,'bars'),all(db,'dates')]);$('barsCount').textContent=bars.length.toLocaleString();const sorted=bars.map(x=>x.timestamp_tpe).sort();$('barRange').textContent=sorted.length?sorted[0]+' → '+sorted.at(-1):'尚未有已完成的歷史 K';$('dayCount').textContent=days.length+' 個日曆日檢查紀錄';$('contractCount').textContent=new Set(bars.map(x=>x.contract_date)).size+' 個合約月';$('days').replaceChildren();for(const x of days.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,40)){const tr=document.createElement('tr');for(const v of [x.date,x.rows,x.contracts,x.ok?'來源已回傳':'未取得／待補',x.checked_at]){const td=document.createElement('td');td.textContent=String(v??'—');tr.appendChild(td)}$('days').appendChild(tr)}}
+async function checkQuote(){if(quoteInFlight||document.visibilityState==='hidden')return;quoteInFlight=true;try{const r=await fetch('/api/r26/live-quote',{cache:'no-store',signal:AbortSignal.timeout(9000)}),j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'HTTP '+r.status);$('lastPrice').textContent=Number(j.price).toLocaleString('zh-TW',{maximumFractionDigits:2});$('quoteSource').textContent=j.source+(j.contract_verified?'（已核對合約）':'（近月概覽，未核對指定月份）');$('quoteTime').textContent=j.source_time||'—';let age=(Date.now()-Date.parse(j.source_time))/1000;$('quoteAge').textContent=Number.isFinite(age)?Math.max(0,Math.round(age))+' 秒':'—';if(j.quote_status==='stale')$('quoteSource').textContent+=' · 來源時間過舊'}catch(e){$('quoteSource').textContent='來源暫不可用：'+String(e.message).slice(0,120)}finally{quoteInFlight=false}}
+async function sync(manual=false){if(syncing||!db||document.visibilityState==='hidden')return;
+ const token=chosenToken();if(!token){$('dataStatus').textContent='缺 FinMind Token';if(manual)log('請輸入 Token；也可沿用同瀏覽器先前保存的 Token。');return}
+ const start=$('startDate').value;if(!valid(start)||start<'2011-01-03'||start>dateTaipei()){log('起點日期不合法：FinMind TX 分 K 最早 2011-01-03');return}
+ syncing=true;lastCheck=Date.now();$('startBtn').disabled=true;$('dataStatus').textContent='補查中';let fetched=0,errors=0;
+ try{const dates=await all(db,'dates');const checked=new Map(dates.map(x=>[x.date,x]));const today=dateTaipei();const todo=[];for(let x=start;x<=today;x=dadd(x,1)){const c=checked.get(x);const recent=x>=dadd(today,-4);if(!c||!c.ok||recent||(manual&&x>=dadd(today,-30)))todo.push(x)}
+ const picked=todo.slice(0,LIMIT);$('progress').textContent='本輪 0 / '+picked.length+' 日（待查 '+todo.length+'）';log('開始查核：'+picked.length+' 天；其餘下次開啟繼續。');
+ for(let n=0;n<picked.length;n++){if(document.visibilityState==='hidden')break;const date=picked[n];try{const r=await fetch('/api/r26/kbar?date='+encodeURIComponent(date),{cache:'no-store',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(30000)});const j=await r.json();if(!r.ok||!j.ok||!Array.isArray(j.data)){if(r.status===401)throw Error('Token 無效／權限不足');throw Error(j.error||j.reason||'HTTP '+r.status)}
+ const bars=j.data.filter(x=>x.contract_verified===true&&x.source==='FinMind TaiwanFuturesKBar'&&valid(x.timestamp_tpe.slice(0,10))).map(x=>({...x,key:x.contract_date+'|'+x.timestamp_tpe}));if(bars.length)await upsert(db,'bars',bars);
+ await upsert(db,'dates',[{date,rows:bars.length,contracts:[...new Set(bars.map(x=>x.contract_date))].sort().join(', '),ok:bars.length>0,checked_at:stamp()}]);fetched+=bars.length;log(date+' '+bars.length+' 根 '+(bars.length?'已快取':'無資料；可能休市，未視為完整盤'));}
+ catch(e){errors++;log(date+' 補查失敗：'+String(e.message).slice(0,140));if(/Token 無效/.test(e.message))break}
+ $('progress').textContent='本輪 '+(n+1)+' / '+picked.length+' 日（待查 '+todo.length+'）';if((n+1)%5===0)await show()}
+ $('dataStatus').textContent=errors?'部分失敗':'本輪已檢查';$('dataTime').textContent='新增 '+fetched+' 根；'+errors+' 個失敗日';await show()}
+ catch(e){$('dataStatus').textContent='同步錯誤';log('同步中斷：'+e.message)}finally{syncing=false;$('startBtn').disabled=false}}
+$('startBtn').onclick=()=>{const t=$('finmindToken').value.trim();if(t){try{localStorage.setItem('R18A_FinMind_Token',t);localStorage.removeItem('R18A_token_disabled')}catch{}$('finmindToken').value=''}sync(true)};
+$('clearBtn').onclick=()=>{try{localStorage.removeItem('R18A_FinMind_Token');localStorage.setItem('R18A_token_disabled','1')}catch{}$('finmindToken').value='';log('已停用 R18-A 此頁 Token；不會刪除 R26 或其他網站的設定')};
+$('exportBtn').onclick=async()=>{if(!db)return;const data={generated_at:new Date().toISOString(),source:'FinMind TaiwanFuturesKBar',note:'DATA_ONLY; NOT R18A SIGNAL',rows:await all(db,'bars'),dates:await all(db,'dates')};const url=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='R18A_TX_FinMind_history_'+dateTaipei()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000)};
+try{db=await openDB();$('resumeInfo').textContent=storedToken()?'已找到此瀏覽器儲存的 Token，開頁自動補查。':'尚無此網域保存的 Token；輸入一次後，後續開頁自動補查。';await show();await Promise.all([checkQuote(),sync()])}catch(e){$('dataStatus').textContent='瀏覽器儲存不可用';log(e.message)}
+setInterval(checkQuote,5000);setInterval(()=>{if(Date.now()-lastCheck>10*60000)sync()},60000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){checkQuote();sync()}});
+window.addEventListener('online',()=>{checkQuote();sync()});
+</script></body></html>
