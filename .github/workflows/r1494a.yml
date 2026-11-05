@@ -1,6 +1,11 @@
 name: R1494-A data refresh
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'r1494a/**'
+      - '.github/workflows/r1494a.yml'
   workflow_dispatch:
   schedule:
     - cron: '30 11 * * *'
