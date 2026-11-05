@@ -1,3 +1,9 @@
+// Company announcement published 2026-10-27. Only these dates are exempt.
+function confirmedSuspensions1494(date) {
+ return date>='2026-11-05'&&date<='2026-11-13'
+  ? [{code:'3714',type:'confirmed suspension',url:'https://m.moneydj.com/f1a.aspx?a=80E8B6EA-1B62-4870-93F1-6CCE1D660ED1'}]
+  : [];
+}
 const usablePrice1494 = row => row && Number.isFinite(row.value) && row.value >= 0 &&
  Number.isFinite(row.volume) && row.volume >= 0 &&
  (row.volume === 0 || [row.open, row.high, row.low, row.close].every(v => Number.isFinite(v) && v > 0) &&
@@ -36,7 +42,9 @@ async function multiSourceDay1494(date, env, st) {
  const results = await Promise.allSettled(markets.map(type => officialMarket(date,type)));
  const official = results.filter(r => r.status === 'fulfilled').map(r => r.value);
  const errors = results.filter(r => r.status === 'rejected').map(r => r.reason.message);
- const required = [...new Set([...st.codes,...st.marketCodes.filter(k=>st.stocks[k]?.c.at(-1)>0)])];
+ const suspensions = confirmedSuspensions1494(date);
+ const suspended = new Set(suspensions.map(s=>s.code));
+ const required = [...new Set([...st.codes,...st.marketCodes.filter(k=>st.stocks[k]?.c.at(-1)>0)])].filter(k=>!suspended.has(k));
  const rows = new Map();
  const sources = [];
  for (const feed of official) {
@@ -72,6 +80,7 @@ async function multiSourceDay1494(date, env, st) {
  if (missing.length || ((official.length !== 2 || official.some(feed=>feed.closed)) && !sources.some(s=>s.type==='FinMind'))) {
   throw Error([...errors,'日線缺漏 '+missing.length+' 檔（'+missing.slice(0,8).join(',')+'）；Yahoo 須有同日實際成交金額才能補 OHLC'].join('；'));
  }
- return {date,closed:false,rows:[...rows.values()],sources};
+ for(const code of suspended)rows.delete(code);
+ return {date,closed:false,rows:[...rows.values()],sources:[...sources,...suspensions],suspensions};
 }
 export {multiSourceDay1494, yahooPrice1494};
