@@ -48,6 +48,8 @@ jobs:
           const current=fs.existsSync(path)?JSON.parse(fs.readFileSync(path)):null;
           if(!current||current.date<JSON.parse(bootstrap).date)fs.writeFileSync(path,bootstrap);
           JS
+      - name: Verify 5% chase-cap buy execution cases
+        run: node test-cap5-execution.mjs
       - name: Update strategy and generate site
         run: node scripts/build.mjs --sync
         env:
