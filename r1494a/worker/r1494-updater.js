@@ -48,6 +48,29 @@ async function finmindMargin1494(env,date,market,codes){
  if(!codes.length||records.length!==codes.length)throw Error('當日覆蓋 '+records.length+'/'+codes.length+' 檔');
  return {market,kind:'margin',url:endpoint+'?dataset='+dataset,raw:{date:date.replaceAll('-',''),fields:['股票代號','融資今日餘額','融券今日餘額'],data:records}};
 }
+async function finmindInstitutional1494(env,date,market,codes){
+ const dataset='TaiwanStockInstitutionalInvestorsBuySell';
+ const endpoint='https://api.finmindtrade.com/api/v4/data';
+ if(!env.FINMIND_TOKEN)throw Error('缺少 Actions Secret FINMIND_TOKEN');
+ const params=new URLSearchParams({dataset,start_date:date,end_date:date});
+ const response=await fetch(endpoint+'?'+params,{signal:AbortSignal.timeout(23000),headers:{Authorization:'Bearer '+env.FINMIND_TOKEN}});
+ if(!response.ok)throw Error('HTTP '+response.status);
+ const result=await response.json();
+ if(result.status!==200||!Array.isArray(result.data))throw Error('API 狀態 '+result.status);
+ const expected=new Set(codes), fields=['Foreign_Investor','Investment_Trust','Dealer_Hedging'], records=new Map();
+ for(const row of result.data){
+  if(row.date!==date)throw Error('法人日期不符');
+  if(!expected.has(row.stock_id)||!fields.includes(row.name))continue;
+  const buy=number(row.buy),sell=number(row.sell);
+  const values=records.get(row.stock_id)??new Map();
+  if(values.has(row.name)||![buy,sell].every(v=>Number.isSafeInteger(v)&&v>=0))throw Error('法人欄位或代號異常');
+  values.set(row.name,buy-sell);records.set(row.stock_id,values);
+ }
+ const data=codes.map(code=>[code,...fields.map(field=>records.get(code)?.get(field))]);
+ const missing=data.filter(row=>row.slice(1).some(v=>v==null));
+ if(!data.length||missing.length)throw Error('法人欄位覆蓋 '+(data.length-missing.length)+'/'+data.length+' 檔');
+ return {market,kind:'inst',url:endpoint+'?dataset='+dataset,raw:{date:date.replaceAll('-',''),fields:['股票代號','外資買賣超股數','投信買賣超股數','自營商買賣超股數(避險)'],data}};
+}
 async function stageChipSource1494(env,{date,market,kind,raw}){
  const {st}=await load1494(env);
  if(date!==nextSession1494(st.lastChecked||st.date)||date>cutoff()||dateOf(raw?.date)!==date)throw Error('匯入日期不符');
@@ -70,7 +93,11 @@ async function officialChips1494(date,rows,env,st){const ds=date.replaceAll('-',
   const label=(market==='twse'?'上市':'上櫃')+(kind==='inst'?'三大法人':'融資券');
   const alternate=market==='twse'?url.replace('/fund/','/rwd/zh/fund/').replace('/exchangeReport/','/rwd/zh/marginTrading/'):url.replace('/zh-tw/','/en/');
   const errors=[];
-  for(const candidate of new Set([url,...(market==='twse'?[alternate]:[])])){
+  const datedT86='https://www.twse.com.tw/rwd/zh/fund/T86?date='+ds+'&selectType=';
+  const candidates=market==='twse'&&kind==='inst'
+   ? [datedT86+'ALLBUT0999&response=json',datedT86+'ALL&response=json',url,alternate]
+   : market==='twse'?[url,alternate]:[url];
+  for(const candidate of new Set(candidates)){
    try{
     const raw=await fetchOfficialJSON(candidate,label);
     if(!raw.date&&/沒有符合條件|查無資料/.test(raw.stat||''))throw Error(label+'尚無該日資料');
@@ -78,11 +105,10 @@ async function officialChips1494(date,rows,env,st){const ds=date.replaceAll('-',
     return {market,kind,url:candidate,raw};
    }catch(e){errors.push(sourceError(e,label))}
   }
-  if(kind==='margin'){
-   const markets=new Map(rows.map(r=>[r.code,r.market]));
-   const codes=st.codes.filter(k=>(markets.get(k)||st.stocks[k]?.market)===market);
-   try{return await finmindMargin1494(env,date,market,codes)}catch(e){errors.push('FinMind '+e.message)}
-  }
+  const markets=new Map(rows.map(r=>[r.code,r.market]));
+  const codes=st.codes.filter(k=>(markets.get(k)||st.stocks[k]?.market)===market);
+  try{return await (kind==='margin'?finmindMargin1494:finmindInstitutional1494)(env,date,market,codes)}
+  catch(e){errors.push('FinMind '+e.message)}
   throw Error(label+'取得失敗：'+[...new Set(errors)].join('；'));
  }));return parseChips1494(date,rows,rawSources);}
 function parseChips1494(date,rows,rawSources){const chips={},marketRows=new Map(rows.map(r=>[r.code,r]));for(const {market,kind,url,raw} of rawSources){const tab=chipTable1494(raw,date,kind),f=tab.fields.map(x=>String(x).replace(/\s|<[^>]*>/g,''));const codeIdx=f.findIndex(x=>/^(證券代號|代號|股票代號)$/.test(x));let count=0;
@@ -99,15 +125,15 @@ function validate1494Day(st,day){if(day.rows.some(r=>r.date&&r.date!==day.date))
 async function doSync1494(env,{through=cutoff(),maxDays=3}={}){if(through>cutoff())throw Error('當日19:00前不使用未完成資料');let {st,etag}=await load1494(env);if(!env.BUCKET)throw Error('永久儲存未連線');const report=[];
  if(!st.backupDone){const legacy=await env.BUCKET.get('r290/state-v2.json');if(legacy)await env.BUCKET.put('r1494-a/migration-backup/legacy_R290_state.json',await legacy.text(),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});st.backupDone=true}
  st.planHistory??={};st.planHistory[st.date]=await freeze1494(env,st);let cursor=st.lastChecked||st.date;for(let n=0;n<Math.min(7,Math.max(1,maxDays));n++){const date=nextDate(cursor);if(date>through)break;if([0,6].includes(new Date(date+'T00:00:00Z').getUTCDay())){cursor=date;st.lastChecked=date;continue}
- try{const cached=await env.BUCKET.get('r290/daily/'+date+'.json');let day;if(cached)day=await cached.json();else try{day=await officialDay(date)}catch(e){if(!env.FINMIND_TOKEN)throw e;day=await finmindDay(date,env.FINMIND_TOKEN)}if(day.closed){cursor=date;st.lastChecked=date;report.push({date,status:'closed'});continue}day=structuredClone(day);const stored=await env.BUCKET.get('r1494-a/chips/'+date+'.json');let source;if(stored)source=await stored.json();else if(SUPPLEMENT1494[date]){const x=SUPPLEMENT1494[date];for(const r of day.rows){if(x[r.code]&&r.close>0&&Math.abs(x[r.code].close-r.close)>.00051)throw Error('使用者籌碼檔與官方收盤不一致：'+r.code)}source={chips:x,sources:[{kind:'user_research_dataset',date,name:'FinMind_FuturesEligibleStocks_ALL_daily_research_20260101_20261031.zip'}]}}else source=await officialChips1494(date,day.rows,env,st);day.chips=source.chips;day.chipSources=source.sources;validate1494Day(st,day);
- const inputVersion=await hash1494(JSON.stringify(day)),candidate=structuredClone(st);const result=advance1494(candidate,day);ingest1494(candidate,day);candidate.newSnapshots.push(result.snapshot);candidate.newOrders.push(...result.events);candidate.lastChecked=date;candidate.lastUpdatedAt=new Date().toISOString();candidate.dataVersion=inputVersion;candidate.revision++;candidate.lastError=null;await env.BUCKET.put('r1494-a/daily/'+date+'.json',JSON.stringify(day),{httpMetadata:{contentType:'application/json'}});await env.BUCKET.put('r1494-a/chips/'+date+'.json',JSON.stringify(source),{httpMetadata:{contentType:'application/json'}});candidate.planHistory[candidate.date]=await freeze1494(env,candidate);etag=await save1494(env,candidate,etag);st=candidate;cursor=date;report.push({date,status:'updated',rows:233,nav:result.snapshot.nav,events:result.events.length});
+ try{const cached=await env.BUCKET.get('r290/daily/'+date+'.json');let day;if(cached)day=await cached.json();else day=await multiSourceDay1494(date,env,st);if(day.closed){cursor=date;st.lastChecked=date;report.push({date,status:'closed'});continue}day=structuredClone(day);const stored=await env.BUCKET.get('r1494-a/chips/'+date+'.json');let source;if(stored)source=await stored.json();else if(SUPPLEMENT1494[date]){const x=SUPPLEMENT1494[date];for(const r of day.rows){if(x[r.code]&&r.close>0&&Math.abs(x[r.code].close-r.close)>.00051)throw Error('使用者籌碼檔與官方收盤不一致：'+r.code)}source={chips:x,sources:[{kind:'user_research_dataset',date,name:'FinMind_FuturesEligibleStocks_ALL_daily_research_20260101_20261031.zip'}]}}else source=await officialChips1494(date,day.rows,env,st);day.chips=source.chips;day.chipSources=source.sources;validate1494Day(st,day);
+ const inputVersion=await hash1494(JSON.stringify(day)),candidate=structuredClone(st);const result=advance1494(candidate,day);ingest1494(candidate,day);candidate.newSnapshots.push(result.snapshot);candidate.newOrders.push(...result.events);candidate.lastChecked=date;candidate.lastUpdatedAt=new Date().toISOString();candidate.dataVersion=inputVersion;candidate.revision++;candidate.lastError=null;candidate.lastSources=[...day.sources,...day.chipSources];await env.BUCKET.put('r1494-a/daily/'+date+'.json',JSON.stringify(day),{httpMetadata:{contentType:'application/json'}});await env.BUCKET.put('r1494-a/chips/'+date+'.json',JSON.stringify(source),{httpMetadata:{contentType:'application/json'}});candidate.planHistory[candidate.date]=await freeze1494(env,candidate);etag=await save1494(env,candidate,etag);st=candidate;cursor=date;report.push({date,status:'updated',rows:233,nav:result.snapshot.nav,events:result.events.length});
  }catch(e){st.lastError={date,message:sourceError(e),at:new Date().toISOString()};report.push({date,status:'blocked',message:st.lastError.message});break}}
  st.lastAttemptAt=new Date().toISOString();etag=await save1494(env,st,etag);return {model_version:MODEL1494,to:st.date,checkedThrough:st.lastChecked,report,lastError:st.lastError,more:st.lastChecked<through,revision:st.revision};}
 async function sync1494(env,options){if(running1494)return running1494;
  running1494=(async()=>{if(!env.BUCKET)throw Error('永久儲存未連線');const key='r1494-a/sync-lease.json',obj=await env.BUCKET.get(key),old=obj?await obj.json():null;if(old?.expires>Date.now())return {status:'running',...(await status1494(env))};const lease=await env.BUCKET.put(key,JSON.stringify({expires:Date.now()+120000}),{onlyIf:obj?{etagMatches:obj.etag}:{etagDoesNotMatch:'*'}});if(!lease)return {status:'running'};
  try{return await doSync1494(env,options)}finally{await env.BUCKET.put(key,JSON.stringify({expires:0}),{onlyIf:{etagMatches:lease.etag}})}})().finally(()=>running1494=null);return running1494}
 
-async function status1494(env){const {st}=await load1494(env),leaseObj=env.BUCKET?await env.BUCKET.get('r1494-a/sync-lease.json'):null,lease=leaseObj?await leaseObj.json():null;const isRunning=!!running1494||lease?.expires>Date.now();return {model_version:MODEL1494,ledger:'R1494_A_paper',data_as_of:st.date,signal_as_of:st.date,price_updated_at:st.lastUpdatedAt||null,lastAttemptAt:st.lastAttemptAt||null,checkedThrough:st.lastChecked,latestExpected:cutoff(),sync_status:isRunning?'running':st.lastError?'blocked':st.lastChecked>=cutoff()?'current':'pending',trade_status:'paper_only_broker_unconfirmed',lastError:st.lastError?{...st.lastError,message:sourceError(st.lastError.message)}:null,universe_count:st.codes.length,universe_sha256:st.universe_sha256,revision:st.revision,actualBrokerConnected:false}}
+async function status1494(env){const {st}=await load1494(env),leaseObj=env.BUCKET?await env.BUCKET.get('r1494-a/sync-lease.json'):null,lease=leaseObj?await leaseObj.json():null;const isRunning=!!running1494||lease?.expires>Date.now();return {model_version:MODEL1494,ledger:'R1494_A_paper',data_as_of:st.date,signal_as_of:st.date,price_updated_at:st.lastUpdatedAt||null,lastAttemptAt:st.lastAttemptAt||null,checkedThrough:st.lastChecked,latestExpected:cutoff(),sync_status:isRunning?'running':st.lastError?'blocked':st.lastChecked>=cutoff()?'current':'pending',trade_status:'paper_only_broker_unconfirmed',lastError:st.lastError?{...st.lastError,message:sourceError(st.lastError.message)}:null,universe_count:st.codes.length,universe_sha256:st.universe_sha256,revision:st.revision,actualBrokerConnected:false,sources:st.lastSources||[]}}
 async function snapshot1494(env){const {st}=await load1494(env),planObj=env.BUCKET?await env.BUCKET.get('r1494-a/plans/'+st.date+'.json'):null,plan=planObj?await planObj.json():plan1494(st),status=await status1494(env),ready=status.sync_status==='current';const planHistory={...HISTORY1494.planHistory,...st.planHistory};for(const s of st.newSnapshots)if(!planHistory[s.date]&&env.BUCKET){const obj=await env.BUCKET.get('r1494-a/plans/'+s.date+'.json');if(obj)planHistory[s.date]=await obj.json()}return {...HISTORY1494,planHistory,snapshots:[...HISTORY1494.snapshots,...st.newSnapshots],dates:[...HISTORY1494.dates,...st.newSnapshots.map(s=>s.date)],orders:[...HISTORY1494.orders,...st.newOrders],status,plan:{...plan,readiness:ready?'ready':'blocked',blockedReason:ready?null:(st.lastError?sourceError(st.lastError.message):null)||'先補足連續完整日線與籌碼；舊日期價位僅供回放'},names:{...HISTORY1494.names,...st.names},broker:{connected:false,holdings:null,trade_status:'unconfirmed'},assumptions:HISTORY1494.assumptions}}
 export {ingest1494,load1494,save1494,freeze1494,validate1494Day,sync1494,status1494,snapshot1494};
 

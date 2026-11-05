@@ -15,7 +15,7 @@ const sources = await Promise.all([
 ].map(async ([name, file]) => `const ${name} = ${gunzipSync(await readFile(new URL(file + '.gz', worker))).toString('utf8')};\n`));
 const modules = await Promise.all([
   'accounting.js', 'engine.js', 'updater.js', 'r1494-engine.js',
-  'r1494-updater.js', 'normalize.js',
+  'r1494-updater.js', 'normalize.js', 'market-fallback.js',
 ].map(read));
 await writeFile(new URL('index.js', worker), [...sources, ...modules].join('\n'));
 

@@ -16,10 +16,15 @@ function parseLatestOfficial(raw,type,date){
  if(!Array.isArray(raw)||raw.length<500)throw Error('官方OpenAPI資料筆數不足');if(raw.some(r=>dateOf(r.Date)!==date))throw Error('官方OpenAPI日期不是 '+date+'，拒絕使用舊資料');
  const rows=raw.map(r=>({...normalize(r,type),market:type})).filter(r=>/^\d{4}$/.test(r.code));if(rows.length<500)throw Error('官方OpenAPI普通股資料不足');return {closed:false,rows};
 }
+function parseEnglishTpex1494(raw,date){
+ const headers = {Code:'代號',Name:'名稱',Open:'開盤',High:'最高',Low:'最低',Close:'收盤','Trading Shares':'成交股數','Trans. Amount (NTD)':'成交金額(元)'};
+ const tables = raw.tables?.map(t=>({...t,fields:t.fields?.map(f=>headers[f]??f)}));
+ return parseOfficial({...raw,tables},'tpex',date);
+}
 async function officialMarket(date,type){
  const latest={twse:'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',tpex:'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'},label=type==='twse'?'上市日線':'上櫃日線',failures=[];
  // Latest OpenAPI can recover the current session only, never relabel old dates.
- for(const [url,parse] of [[URLS[type](date),r=>parseOfficial(r,type,date)],[latest[type],r=>parseLatestOfficial(r,type,date)]])try{return {type,url,...parse(await fetchOfficialJSON(url,label))}}catch(e){failures.push(sourceError(e,label))}
+ for(const [url,parse] of [[URLS[type](date),r=>parseOfficial(r,type,date)],...(type==='tpex'?[[URLS[type](date).replace('/zh-tw/','/en-us/'),r=>parseEnglishTpex1494(r,date)]]:[]),[latest[type],r=>parseLatestOfficial(r,type,date)]])try{return {type,url,...parse(await fetchOfficialJSON(url,label))}}catch(e){failures.push(sourceError(e,label))}
  throw Error(label+'取得失敗：'+[...new Set(failures)].join('；'));
 }
 async function officialDay(date){const v=await Promise.all(['twse','tpex'].map(type=>officialMarket(date,type)));if(v.every(x=>x.closed))return {date,closed:true,rows:[],sources:v.map(x=>({type:x.type,url:x.url}))};if(v.some(x=>x.closed))throw Error('上市／上櫃來源對交易日判定不一致');const rows=v.flatMap(x=>x.rows);if(new Set(rows.map(r=>r.code)).size!==rows.length)throw Error('同日上市上櫃出現重複股票代號');return {date,closed:false,rows,sources:v.map(x=>({type:x.type,url:x.url,rows:x.rows.length}))}}

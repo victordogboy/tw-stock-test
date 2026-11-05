@@ -40,6 +40,14 @@ jobs:
             status=$?
             if [ "$status" -ne 2 ]; then exit "$status"; fi
           fi
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import {gunzipSync} from 'node:zlib';
+          const path='.state/r1494-a/state-v1.json';
+          const bootstrap=gunzipSync(fs.readFileSync('worker/bootstrap-20261030.json.gz'));
+          const current=fs.existsSync(path)?JSON.parse(fs.readFileSync(path)):null;
+          if(!current||current.date<JSON.parse(bootstrap).date)fs.writeFileSync(path,bootstrap);
+          JS
       - name: Update strategy and generate site
         run: node scripts/build.mjs --sync
         env:
