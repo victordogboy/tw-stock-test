@@ -1,0 +1,108 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>R18-A｜單口大台日夜盤盤前計畫（驗收版）</title><style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:#081320;color:#ebf3ff}*{box-sizing:border-box}body{margin:0}header{background:#12283d;border-bottom:1px solid #2e506f;padding:22px max(16px,calc((100vw - 1150px)/2))}h1{margin:8px 0;font-size:clamp(24px,4vw,36px)}p{color:#c5d3e2;line-height:1.6}small,.tiny{color:#a8b9cd}b,strong{color:#fff}main{max-width:1150px;padding:18px;margin:auto}.chip{display:inline-flex;padding:5px 11px;background:#203c55;color:#b7dffc;border:1px solid #466788;border-radius:999px;font-size:12px}.red{color:#ffadac}.amber{color:#ffce8d}.green{color:#85ddb5}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}.box{background:#14253a;border:1px solid #365271;border-radius:12px;padding:18px;margin:12px 0;min-width:0}.box.warn{border-color:#a96662;background:#32292e}.display{font-size:clamp(21px,3vw,31px);font-weight:800;margin:8px 0;overflow-wrap:anywhere}label{display:block;font-size:13px;color:#bed0e7;margin-bottom:3px}input,select,button{background:#0d2136;border:1px solid #6080a0;border-radius:7px;color:white;font:inherit;padding:10px;width:100%}button{background:#245a89;cursor:pointer;font-weight:700}input:focus,button:focus,select:focus{outline:2px solid #8cc6ff}.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}.kv{display:grid;grid-template-columns:minmax(105px,36%) 1fr;gap:11px;margin:14px 0;font-size:14px}.kv span:nth-child(2n-1){color:#adc4dc}.tag{font-size:12px;color:#e7effb;display:inline-block;border:1px solid #55718d;border-radius:9px;padding:4px 9px;margin:3px}table{border-collapse:collapse;width:100%;font-size:13px;min-width:440px}td,th{border-bottom:1px solid #32485b;padding:8px;text-align:right}td:first-child,th:first-child{text-align:left}.scroller{overflow:auto}#notice{white-space:pre-wrap}.out{border:1px solid #56759a;background:#092236;padding:12px;border-radius:8px;line-height:1.9}a{color:#9dd6ff}footer{text-align:center;padding:30px;color:#839db7;font-size:13px}
+</style></head><body><header><span class="chip">R18-A / TX 1 口 · 盤前計畫與研究稽核</span><h1>台指期｜日夜盤盤前決策台</h1><p>同一時間永遠只能持有 <b>−1／0／+1 口 TX</b>。日盤、夜盤各自有盤前計畫；研究版不能假裝成券商已成交。<b>本頁是等待正式策略驗收的紙上操作版。</b></p></header>
+<main><section class="box warn"><span class="chip">部署驗收狀態</span><div class="display red">PAPER ONLY · 尚未允許下單</div><p>原版 P193 一口歷史回測雖優於大盤，但網站還缺原版核心的最新盤前權重和當盤真實分鐘委託帳本。下方 MA100 是獨立候選，回測不如大盤，不能冒充原版 R18-A。即時報價僅供觀察，沒有連動下單。</p></section>
+<div class="grid"><section class="box"><small>最新 TX 快照（非券商成交價）</small><div class="display" id="quote">—</div><p id="quoteState">等待來源</p><button id="refreshQuote" style="width:auto">更新報價</button></section><section class="box"><small>1 口 P193 原始研究基準（非當盤委託）</small><div class="display green">+43,171 點</div><p>2021/10/22～2026/10/22；最大分鐘回撤 −2,256 點；每側含手續費與假設滑價合計 5.5 點。日盤 +13,945.5、夜盤 +29,225.5。</p></section><section class="box"><small>可預設價格的盤前 MA100 候選</small><div class="display amber">+18,639 點</div><p>最大分鐘回撤約 −12,439 點；約為同期大盤 +29,603 點的 <strong>0.63 倍</strong>，不建議取代 P193。研究版；不可宣稱完成上線。</p></section></div>
+<section class="box"><h2>開盤前輸入已完成資料</h2><p>可直接輸入已驗證的上一個完整日盤資料，或匯入至少 101 個完整日盤的 CSV 算 MA100／ATR20。<span class="amber">切勿輸入正在交易的當日收盤價。</span></p>
+<div class="fields"><div><label>下一個期貨交易日</label><input type="date" id="tradeDate"></div><div><label>合約月份 YYYYMM</label><input type="text" id="contract" value="202611" maxlength="6" inputmode="numeric"></div><div><label>前一個已完整日盤日期</label><input id="completedDayDate" type="date"></div><div><label>上一完整日盤收盤價</label><input id="completedDayClose" type="number" step="1" placeholder="需輸入" /></div><div><label>前 100 完整日盤收盤均線</label><input id="sma100" type="number" step=".01" placeholder="需輸入" /></div><div><label>前 20 完整日盤 ATR</label><input id="atr20" type="number" step=".01" placeholder="需輸入" /></div><div><label>已確認實際 TX 口數</label><select id="position"><option value="0">0 口（空手）</option><option value="1">+1 口（做多）</option><option value="-1">−1 口（放空）</option></select></div><div><label>原有多單停損價（可空白）</label><input id="oldStop" type="number" step="1" placeholder="不清楚就留空" /></div><div><label>載入日盤 CSV（date/open/high/low/close/contract）</label><input id="dailyFile" type="file" accept=".csv,text/csv"></div></div>
+<div class="grid" style="margin-top:16px"><button id="calculate">同時計算日盤／夜盤計畫</button><button id="clear">清除本機欄位</button></div><p class="tiny" id="inputState">輸入來源：手動、未驗證。這些值無法證明當盤合約或實際帳戶持倉正確。</p></section>
+<div class="grid" id="plans"><section class="box"><h2>日盤 · 08:45 開盤</h2><div id="dayPlan" class="out">填入盤前已完成資料後產生計畫</div></section><section class="box"><h2>夜盤 · 15:00 開盤</h2><div id="nightPlan" class="out">填入盤前已完成資料後產生計畫</div></section></div>
+<section class="box"><h2>原始 P193 的分鐘進出條件（保留，不偷換）</h2><p><b>日盤：</b>保留原版 R26／P40 核心進出；不能只靠前一日收盤價冒充原版具體進場價。<br><b>夜盤：</b>若核心與避險部位允許，Q3 在完成第 19 根分鐘K後判斷，Q2 在第 46 根、Q1 在第 121 根才可判斷。觸發後下一根開盤才計進場。<br>Q3 逆勢門檻 ±0.10 ATR；Q2 逆勢 ±0.20 ATR；Q1 順勢 ±0.05 ATR；Q3 浮盈超過 0.25 ATR 時下一根開盤出場。</p><div class="out" id="p193Rules">開盤後才知道開盤參考價與是否觸發，無法盤前承諾確切成交價格。</div></section>
+<section class="box"><h2>績效對照｜同一個 2021/10/22～2026/10/22 樣本</h2><div class="scroller"><table><thead><tr><th>年度</th><th>P193 一口四捨五入版</th><th>新 MA100 盤前候選</th></tr></thead><tbody><tr><td>2021 (10/22 起)</td><td>+1,247.5</td><td>0</td></tr><tr><td>2022</td><td>+5,695.5</td><td>−796</td></tr><tr><td>2023</td><td>+745.5</td><td>+3,304.5</td></tr><tr><td>2024</td><td>+8,086.5</td><td>+2,658</td></tr><tr><td>2025</td><td>+9,370.5</td><td>+3,897</td></tr><tr><td>2026（至10/22）</td><td>+18,025.5</td><td>+9,575.5</td></tr><tr><th>合計</th><th>+43,171</th><th>+18,639</th></tr></tbody></table></div><p>均為歷史一分鐘 OHLC 模擬，並非真實券商逐筆成交。MA100 研究使用 2021–23 訓練、2024–25 驗證、2026 壓測；2026 已被先前研究反覆查看，不是全新盲測。</p></section>
+<section class="box"><h2>系統來源與資料風控</h2><p id="status">無即時交易訊號；本頁研究資料只到 2026/10/22。尚未接入原 Site 的正式發布權限、完整券商委託／即時分鐘 K，狀態維持 PAPER ONLY。</p><ul><li>盤前價格來自「上一個已完成日盤」，禁止用正在交易的日盤收盤價。</li><li>開盤市價單的 <strong>實際成交價未知</strong>；網頁只列可以預先設定的保護價格與條件。</li><li>如果換月、資料延遲、夜盤當日日盤未完成、停損／停利同根不知先後，一律保守處理或禁止發布可下單指令。</li><li>不自動下單、不會持續背景更新；關閉頁面後不監控成交或警示。</li></ul></section></main><footer>R18-A 1TX Pre-open V1 · 研究與紙上操作，不構成已驗證實盤建議</footer>
+<script>/** R18-A 1TX pre-open research bridge.
+ * New V1 experimental MA100 swing branch (NOT original R18-A/P193).
+ * P193 Q1/Q2/Q3 are separately shown as after-opening research conditions,
+ * never passed off as preopen exact-price orders.
+ */
+const finite = x => typeof x === 'number' && Number.isFinite(x);
+const asMoney = x=>Math.round(x);
+const validDay = d=>/^\d{4}-\d{2}-\d{2}$/.test(d||'')&&!Number.isNaN(Date.parse(d+'T00:00:00Z'));
+const sourceBlocked=(code,reason)=>({status:'BLOCKED',code,reason,orderReady:false,targetPosition:0,entryPrice:null,stopPrice:null,takePrice:null,showAsPaper:true});
+const V1=Object.freeze({id:'R18A_1TX_EXPERIMENTAL_MA100_PREOPEN_V1',maxLots:1,maLength:100,atrLength:20,atrStop:1.5,atrTake:6,side:'LONG_OR_FLAT',
+  simulationWindow:'2021-10-22..2026-10-22',commissionSlippageOneSidePoints:5.5,
+  historicalPnlPoints:18639,historicalMinuteDrawdownPoints:12439,originalR18A:false,
+  warning:'此為新研究候選；回測不如同期大盤及P193一口，不能取代原版策略。'});
+function getPreopenPlan({tradeDate,session,contract,completedDayDate,completedDayClose,sma100,atr20,
+  currentTxPosition,previousProtectiveStop=null,sourceVerified=false,liveContractVerified=false,livePositionVerified=false}={}){
+ const missing=[];
+ if(!validDay(tradeDate)||!validDay(completedDayDate)||completedDayDate>=tradeDate)missing.push('tradeDate/completedDayDate');
+ if(!['night','day'].includes(session))missing.push('session');
+ if(!/^20\d{4}$/.test(String(contract||'')))missing.push('contract');
+ if(!finite(completedDayClose)||completedDayClose<=0)missing.push('completedDayClose');
+ if(!finite(sma100)||sma100<=0)missing.push('sma100');
+ if(!finite(atr20)||atr20<=0)missing.push('atr20');
+ if(![-1,0,1].includes(currentTxPosition))missing.push('currentTxPosition');
+ if(missing.length)return {...sourceBlocked('MISSING_PREOPEN_FEATURES',missing.join(', ')),missing};
+ const trend=completedDayClose>sma100, target=trend?1:0;
+ const newStop=asMoney(completedDayClose-V1.atrStop*atr20);
+ const take=asMoney(completedDayClose+V1.atrTake*atr20);
+ const stop=(target&&currentTxPosition===1&&finite(previousProtectiveStop))?Math.max(newStop,asMoney(previousProtectiveStop)):newStop;
+ const action=currentTxPosition===target?'HOLD':(target===1?'BUY_1_AT_SESSION_OPEN':'EXIT_AT_SESSION_OPEN');
+ const p={status:'PAPER_PLAN',code:'PREOPEN_CONDITIONAL_ONE_TX',strategy:V1.id,tradeDate,session,contract,completedDayDate,
+  maxLots:1,currentTxPosition,targetPosition:target,action,
+  entryOrderType:action==='BUY_1_AT_SESSION_OPEN'?'MARKET_AT_SESSION_OPEN':'NONE',entryPrice:null,referenceEntry:asMoney(completedDayClose),
+  stopPrice:target?stop:null,takePrice:target?take:null,
+  exitTimeRule:'當盤或次盤預先計算方向反轉，下一盤開盤出場；觸價停損停利則先出場',
+  sourceVerified,liveContractVerified,livePositionVerified,orderReady:false,showAsPaper:true,
+  reason:trend?'昨日已完成日盤收盤價 > 已完成100日均線，目標持有1口': '昨日已完成日盤收盤價未站上已完成100日均線，目標空手',
+  p193NightConditionalPlan: session==='night'?[{leg:'Q3',afterClosedMinutes:19,thresholdATR:0.10,side:'OPPOSITE',status:'AFTER_OPEN_ONLY'},
+     {leg:'Q2',afterClosedMinutes:46,thresholdATR:0.20,side:'OPPOSITE',status:'AFTER_OPEN_ONLY'},
+     {leg:'Q1',afterClosedMinutes:121,thresholdATR:0.05,side:'FOLLOW',status:'AFTER_OPEN_ONLY'}]:[],
+  risk:'不以紙上預測代替券商成交；成交價在開盤前未知；保護價須依實際開盤及委託種類重新確認。'};
+ if(!sourceVerified || !liveContractVerified || !livePositionVerified){p.code='REQUIRES_VERIFIED_LIVE_DATA';p.status='PAPER_ONLY_UNVERIFIED';}
+ return p;
+}
+function monitorClosedMinute(plan, bar, currentPosition, hasConfirmedOrder){
+ if(!plan||!bar||![-1,0,1].includes(currentPosition)||!hasConfirmedOrder||
+    ![bar.open,bar.high,bar.low,bar.close].every(finite)||bar.low>bar.high||bar.open<bar.low||bar.open>bar.high||bar.close<bar.low||bar.close>bar.high||bar.complete!==true||
+    currentPosition!==1||!finite(plan.stopPrice)||!finite(plan.takePrice))
+  return {status:'BLOCKED',reason:'沒有已確認實際委託／完整分鐘K／持倉不一致，不能宣稱成交'};
+ const stopped=bar.low<=plan.stopPrice, profited=bar.high>=plan.takePrice;
+ if(stopped)return {status:'PAPER_STOP_TOUCH',exitTrigger:plan.stopPrice,reason:profited?'同根1分K同時碰到停損停利，按停損優先':'1分K觸及停損；實際成交需向券商確認'};
+ if(profited)return {status:'PAPER_TAKE_TOUCH',exitTrigger:plan.takePrice,reason:'1分K觸及停利；實際成交需向券商確認'};
+ return {status:'HOLD_PAPER',reason:'尚未觸及停損／停利'};
+}
+function completedDayIndicators(daily, asOfDate){
+ // daily expected historical completed daytime continuous-contract canonical bars,
+ // sorted as-of day; never include current session/day. No future close leak.
+ if(!validDay(asOfDate)||!Array.isArray(daily))return {ok:false,code:'BAD_INPUT'};
+ const sorted=daily.filter(x=>validDay(x.date)&&x.date<asOfDate&&
+   [x.open,x.high,x.low,x.close].every(finite)&&x.low>0&&x.high>=Math.max(x.close,x.open)&&x.low<=Math.min(x.close,x.open))
+   .sort((a,b)=>a.date.localeCompare(b.date));
+ const unique=[];for(const x of sorted){if(unique.length&&x.date===unique.at(-1).date)return {ok:false,code:'DUPLICATE_DAILY_DATE'};unique.push(x);}
+ if(unique.length<101)return {ok:false,code:'NEED_101_COMPLETED_DAY_BARS',have:unique.length};
+ const last=unique.at(-1),slice=unique.slice(-100);const sma=slice.reduce((p,x)=>p+x.close,0)/100;
+ // ATR20 TR computed over last 20 completed daily candles. On monthly roll, exclude prior-month cross-gap and use high-low only.
+ const trs=[];
+ for(let i=unique.length-20;i<unique.length;i++){
+   const x=unique[i],prev=unique[i-1];
+   const tr=prev.contract===x.contract?Math.max(x.high-x.low,Math.abs(x.high-prev.close),Math.abs(x.low-prev.close)):x.high-x.low;
+   trs.push(tr);
+ }
+ const atr20=trs.reduce((a,b)=>a+b,0)/20;
+ if(!finite(atr20)||atr20<=0)return {ok:false,code:'BAD_ATR'};
+ return {ok:true,completedDayDate:last.date,completedDayClose:last.close,sma100:sma,atr20,contract:last.contract||'',dateCount:unique.length,
+  warning:'ATR為「可取得日K」重新計算；若日K拼接來源與原R26 ATR不同，須先做交叉驗證才可視作正式訊號'};
+}
+
+const $=x=>document.getElementById(x),n=x=>x==null?'—':Number(x).toLocaleString('zh-TW',{maximumFractionDigits:2});
+function todayTaiwan(){return new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(new Date());}
+function addDay(d,days){const e=new Date(d+'T00:00:00Z');e.setUTCDate(e.getUTCDate()+days);return e.toISOString().slice(0,10);}
+function setDate(){const d=todayTaiwan();$('tradeDate').value=d;$('completedDayDate').value=addDay(d,-1);}
+setDate();
+function readForm(){const pos=Number($('position').value),stop=$('oldStop').value.trim();return {tradeDate:$('tradeDate').value,contract:$('contract').value.trim(),completedDayDate:$('completedDayDate').value,completedDayClose:+$('completedDayClose').value,sma100:+$('sma100').value,atr20:+$('atr20').value,
+ currentTxPosition:pos,previousProtectiveStop:stop===''?null:+stop,sourceVerified:false,liveContractVerified:false,livePositionVerified:false};}
+function showPlan(session,form){const p=getPreopenPlan({...form,session}),ele=$(session+'Plan');if(p.status==='BLOCKED'){ele.textContent='不能計算：'+p.reason;return;}
+ const act={HOLD:'保持 '+(p.targetPosition?'+1':'0')+' 口',BUY_1_AT_SESSION_OPEN:'條件允許才在開盤買進 +1 口',EXIT_AT_SESSION_OPEN:'開盤先平倉至 0 口'}[p.action];
+ ele.innerHTML='';for(const [key,value] of [['研究狀態','PAPER ONLY · 資料未驗證'],['盤前方向',act],['最大口數','1 口 TX'],['上次日盤收盤參考',n(p.referenceEntry)],['進場委託','開盤市價；實際成交價開盤前無法預知'],['盤前保護停損',n(p.stopPrice)],['盤前保護停利',n(p.takePrice)],['盤前策略理由',p.reason],['持倉來源','手動輸入，未與券商核對']]){const row=document.createElement('div');row.className='kv';const a=document.createElement('span'),b=document.createElement('span');a.textContent=key;b.textContent=value;row.append(a,b);ele.append(row);}}
+function calc(){const p=readForm();showPlan('day',p);showPlan('night',p);$('p193Rules').textContent='夜盤 Q3 觀察第19根完整分鐘K；幅度門檻＝'+(Math.abs(p.atr20)*.1||'—')+' 點；Q2＝'+(Math.abs(p.atr20)*.2||'—')+' 點；Q1＝'+(Math.abs(p.atr20)*.05||'—')+' 點。以上需以當盤開盤價為基準，在開盤後才能產生實際絕對價位。';}
+$('calculate').addEventListener('click',calc);$('clear').onclick=()=>{for(const id of ['completedDayClose','sma100','atr20','oldStop'])$(id).value='';$('position').value='0';$('inputState').textContent='本機輸入已清空';calc();};
+function csvSplit(text){return text.trim().split(/\r?\n/).map(t=>t.split(',').map(x=>x.trim().replace(/^"|"$/g,'')));}
+$('dailyFile').addEventListener('change',async e=>{const file=e.target.files?.[0];if(!file)return;try{const lines=csvSplit(await file.text());const cols=lines.shift().map(x=>x.toLowerCase()),idx=x=>cols.indexOf(x);
+ if(!['date','open','high','low','close'].every(x=>idx(x)>=0))throw Error('CSV 必須含 date/open/high/low/close');const records=lines.map(r=>({date:r[idx('date')],open:+r[idx('open')],high:+r[idx('high')],low:+r[idx('low')],close:+r[idx('close')],contract:idx('contract')>=0?r[idx('contract')]:''}));const k=completedDayIndicators(records,$('tradeDate').value);if(!k.ok)throw Error('日K不足或無效：'+k.code+'，有 '+(k.have??records.length)+' 筆');
+ $('completedDayDate').value=k.completedDayDate;$('completedDayClose').value=k.completedDayClose;$('sma100').value=k.sma100.toFixed(3);$('atr20').value=k.atr20.toFixed(3);if(/^20\d{4}$/.test(k.contract))$('contract').value=k.contract;
+ $('inputState').textContent='已由CSV計算 '+k.dateCount+' 根日K（不代表來源與真實合約已驗證）。請確認是否換月及資料截止時間。';calc();}catch(err){$('inputState').textContent='匯入失敗：'+err.message;}});
+let busy=false;async function quote(){if(busy||document.hidden)return;busy=true;try{const base=new URLSearchParams(location.search).get('api')||((location.hostname.endsWith('workers.dev'))?location.origin:'https://tw-stock-api.victordogboy.workers.dev');const u=base.replace(/\/$/,'')+'/api/r26/live-quote';const r=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(9000)});const j=await r.json();if(!r.ok||j.ok!==true)throw Error(j.reason||j.error||String(r.status));$('quote').textContent=n(j.price);$('quoteState').textContent=(j.source||'未標來源')+' · '+(j.source_time||'無時間戳')+(j.contract_verified?' · 合約已核對':' · 合約未核對，不能用於交易');}catch(e){$('quoteState').textContent='報價來源不可用：'+e.message;}finally{busy=false;}}
+$('refreshQuote').onclick=quote;quote();setInterval(quote,5000);
+</script></body></html>
