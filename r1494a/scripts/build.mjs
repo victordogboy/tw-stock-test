@@ -2,6 +2,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { extendBenchmarks } from './benchmarks.mjs';
 
 const worker = new URL('../worker/', import.meta.url);
 const output = new URL('../dist/', import.meta.url);
@@ -44,13 +45,17 @@ const bucket = {
     return this.get(key);
   },
 };
-const { sync1494, snapshot1494 } = await import(new URL('index.js', worker));
+const { sync1494, snapshot1494, load1494, save1494, multiSourceDay1494 } = await import(new URL('index.js', worker));
 const env = { BUCKET: bucket, FINMIND_TOKEN: process.env.FINMIND_TOKEN };
 if (process.argv.includes('--sync')) {
   const result = await sync1494(env, { maxDays: 7 });
   console.log(JSON.stringify(result));
 }
 const snapshot = await snapshot1494(env);
+const {st,etag}=await load1494(env);
+const seed=JSON.parse(gunzipSync(await readFile(new URL('r1494-seed.json.gz',worker))));
+await extendBenchmarks(snapshot,st,seed,bucket,env,multiSourceDay1494);
+if(process.argv.includes('--sync'))await save1494(env,st,etag);
 await mkdir(output, { recursive: true });
 
 await writeFile(new URL('snapshot.json.gz', output), gzipSync(JSON.stringify(snapshot)));

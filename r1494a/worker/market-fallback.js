@@ -37,6 +37,23 @@ async function repairYahoo1494(date, row, market) {
  return null;
 }
 
+async function diagnoseMissing1494(date, code, market, env, field) {
+ const endpoint='https://api.finmindtrade.com/api/v4/data';
+ const start=new Date(Date.parse(date+'T00:00:00Z')-30*86400000).toISOString().slice(0,10);
+ const headers=env.FINMIND_TOKEN?{Authorization:'Bearer '+env.FINMIND_TOKEN}:{};
+ const params=new URLSearchParams({dataset:'TaiwanStockSuspended',data_id:code,start_date:start,end_date:date});
+ try {
+  const r=await fetch(endpoint+'?'+params,{headers,signal:AbortSignal.timeout(6000)});
+  if(!r.ok)throw Error('HTTP '+r.status);
+  const result=await r.json();
+  if(result.status!==200||!Array.isArray(result.data))throw Error('API '+result.status);
+  const event=result.data.find(x=>x.stock_id===code&&dateOf(x.date)<=date&&dateOf(x.resumption_date)>date);
+  if(event)return {code,field,type:'confirmed suspension',reason:'FinMind 暫停交易公告',url:endpoint+'?dataset=TaiwanStockSuspended'};
+ } catch(e) {
+  return {code,field,type:'unconfirmed gap',reason:field+'缺漏；停牌公告查詢失敗（'+sourceError(e)+'）'};
+ }
+ return {code,field,type:'unconfirmed gap',reason:field+'缺漏；未查到符合日期的停牌公告'};
+}
 async function multiSourceDay1494(date, env, st) {
  const markets = ['twse','tpex'];
  const results = await Promise.allSettled(markets.map(type => officialMarket(date,type)));
@@ -77,10 +94,12 @@ async function multiSourceDay1494(date, env, st) {
  }
  if (repaired) sources.push({type:'Yahoo Finance',rows:repaired});
  const missing = required.filter(k=>!usablePrice1494(rows.get(k)));
- if (missing.length || ((official.length !== 2 || official.some(feed=>feed.closed)) && !sources.some(s=>s.type==='FinMind'))) {
+ if (missing.length > 2 || ((official.length !== 2 || official.some(feed=>feed.closed)) && !sources.some(s=>s.type==='FinMind'))) {
   throw Error([...errors,'日線缺漏 '+missing.length+' 檔（'+missing.slice(0,8).join(',')+'）；Yahoo 須有同日實際成交金額才能補 OHLC'].join('；'));
  }
- for(const code of suspended)rows.delete(code);
- return {date,closed:false,rows:[...rows.values()],sources:[...sources,...suspensions],suspensions};
+ const gaps=await Promise.all(missing.map(code=>diagnoseMissing1494(date,code,st.stocks[code]?.market,env,'日線')));
+ const exclusions=[...suspensions.map(s=>({...s,reason:'現金減資停止買賣'})),...gaps];
+ for(const {code} of exclusions)rows.delete(code);
+ return {date,closed:false,rows:[...rows.values()],sources:[...sources,...exclusions],suspensions:exclusions};
 }
 export {multiSourceDay1494, yahooPrice1494};
