@@ -1,0 +1,4 @@
+/dist/
+/.state/
+/worker/index.js
+.env

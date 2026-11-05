@@ -1,0 +1,1 @@
+{"name":"r1494a-monitor","private":true,"type":"module","scripts":{"build":"node scripts/build.mjs","test":"npm run build && node test-r1494-chip-parser.mjs"}}

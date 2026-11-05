@@ -1,0 +1,7 @@
+import {gunzipSync} from 'node:zlib';import fs from 'node:fs';import assert from 'node:assert/strict';import {parseChips1494} from './worker/index.js';
+const st=JSON.parse(gunzipSync(fs.readFileSync('worker/r1494-seed.json.gz'))),date='2026-10-28',rows=st.codes.map(code=>({code,volume:1000000})),groups=[st.codes.slice(0,130),st.codes.slice(130)],sources=[];
+for(const [i,market] of ['twse','tpex'].entries()){
+const codes=groups[i];sources.push({market,kind:'inst',raw:{date:'20261028',fields:['證券代號','外陸資買賣超股數(不含外資自營商)','投信買賣超股數','自營商買賣超股數(避險)'],data:codes.map(code=>[code,'-2,000','100','300'])},url:'official-fixture'});
+sources.push({market,kind:'margin',raw:{date:'20261028',tables:[{fields:i?['代號','前資餘額','資餘額','前券餘額','券餘額']:['股票代號','前日餘額','今日餘額','前日餘額','今日餘額'],data:codes.map(code=>[code,'200','210','10','12'])}]},url:'official-fixture'});
+}
+const parsed=parseChips1494(date,rows,sources);assert.equal(Object.keys(parsed.chips).length,233);for(const c of Object.values(parsed.chips)){assert.equal(c.foreign,-2000);assert.equal(c.margin,210);assert.equal(c.short,12);assert.ok(c.institutionalAvailable&&c.marginAvailable)}const wrong=structuredClone(sources);wrong[0].raw.date='20261027';assert.throws(()=>parseChips1494(date,rows,wrong),/日期/);const missing=structuredClone(sources);missing[0].raw.fields[3]='未驗證避險欄位';assert.throws(()=>parseChips1494(date,rows,missing),/欄位/);console.log('Dated institutional/margin parsers: TWSE duplicate headings, TPEx balance headings, missing column and wrong-date rejection passed');

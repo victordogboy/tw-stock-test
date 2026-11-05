@@ -1,0 +1,66 @@
+name: R1494-A data refresh
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 11 * * *'
+    - cron: '15 14,22 * * *'
+
+concurrency:
+  group: r1494a-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    defaults:
+      run:
+        working-directory: r1494a
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Restore model checkpoint
+        run: |
+          set -euo pipefail
+          mkdir -p .state/r1494-a
+          if git ls-remote --exit-code --heads origin r1494-state; then
+            git fetch --no-tags origin refs/heads/r1494-state
+            git show FETCH_HEAD:checkpoint.json > .state/r1494-a/state-v1.json
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+          fi
+      - name: Update strategy and generate site
+        run: node scripts/build.mjs --sync
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+      - name: Persist the model checkpoint
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          checkpoint=$(git hash-object -w .state/r1494-a/state-v1.json)
+          tree=$(printf '100644 blob %s\tcheckpoint.json\n' "$checkpoint" | git mktree)
+          if git ls-remote --exit-code --heads origin r1494-state; then
+            parent=$(git rev-parse FETCH_HEAD)
+            commit=$(git commit-tree "$tree" -p "$parent" -m 'Update R1494-A checkpoint')
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+            commit=$(git commit-tree "$tree" -m 'Initialize R1494-A checkpoint')
+          fi
+          git push origin "$commit:refs/heads/r1494-state"
+      - name: Update deployed snapshot
+        run: |
+          set -euo pipefail
+          cp dist/snapshot.json.gz ../public/r1494a/snapshot.bin
+          git add ../public/r1494a/snapshot.bin
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Refresh R1494-A dashboard snapshot'
+          git pull --rebase origin main
+          git push origin HEAD:main
