@@ -61,7 +61,7 @@ function counter(s,name){return s.stats[name]||(s.stats[name]={completed:0,empty
 function stats(s){return {ok:true,phase:s.phase,version:"research-raw-v1",mode:s.scope,stages:s.stages,
  start:s.start,end:s.end,total:s.total,processed:s.processed,queries:s.queries,rows:s.rows,
  count:s.codes?.length||0,stockUniverseSource:s.universeSource||"",
- datasetStats:s.stats||{},lastError:s.lastError||"",errors:(s.errors||[]).slice(-30),
+ datasetStats:s.stats||{},message:s.message||"",lastError:s.lastError||"",errors:(s.errors||[]).slice(-30),
  lastCode:s.lastCode||"",lastDataset:s.lastDataset||"",updatedAt:s.updatedAt,
  observedLatest:s.observedLatest||null,
  zipPolicy:"year-plus-dataset/stock-part; ZIP64 streaming. Verify CRC and manifest before backtesting.",
@@ -230,7 +230,7 @@ export async function researchFetch(ctx,env,request){
   }
   const q=await request.json(),stages=(q.stages||[1]).filter(n=>Number.isInteger(n)&&n>=1&&n<=4);
   const start=q.start||START,end=q.end||TARGET_END;
-  if(!iso.test(start)||!iso.test(end)||start>end||end>new Date().toISOString().slice(0,10)||!stages.length)
+  if(!iso.test(start)||!iso.test(end)||start<START||start>end||end>new Date().toISOString().slice(0,10)||!stages.length)
    return response({ok:false,error:"日期或批次設定錯誤"},400);
   const codes=[...new Set(Array.isArray(q.codes)?q.codes.map(String):[])].filter(x=>/^\d{4}$/.test(x));
   if(codes.length>4000)return response({ok:false,error:"股票代碼過多"},400);
