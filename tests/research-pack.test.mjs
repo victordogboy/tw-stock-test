@@ -99,9 +99,13 @@ test("research cloud job stores actual source raw rows in gzip, rejects cross-st
    if(phase.phase==="done")break
   }
   assert.equal(phase.phase,"done",JSON.stringify(phase.errors));
-  assert.equal(phase.rows,4); // price 1 + institutional 2 + yearly TaiwanStockInfo 1
+  assert.equal(phase.rows,4); // actual raw rows: stock-info 1, price 1, institutional two categories
   assert.equal(phase.datasetStats.TaiwanStockPrice.rows,1);
   assert.equal(phase.datasetStats.TaiwanStockInstitutionalInvestorsBuySell.rows,2);
+  assert.equal(phase.datasetStats.TaiwanStockInfo.rows,1);
+  const badLegacyFutureCatalog=await task.ctx.storage.get("rp:meta:TaiwanStockInfo:GLOBAL:2000");
+  assert.equal(badLegacyFutureCatalog,undefined,"a 2026 company record must never be stamped as 2000");
+
   const before=calls.length;
   const zipResponse=await researchPackRoute(new Request(host+"/api/research-pack/export?year=2026&priority=1&part=1",{headers:{cookie}}),f.env);
   assert.equal(zipResponse.status,200);
