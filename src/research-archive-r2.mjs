@@ -96,13 +96,17 @@ async function complete(ctx,bucket,state){
  const dir=cat(...state.entries.map(centralHeader)),start=BigInt(state.offset);
  const end=zip64End(state.entries.length,BigInt(dir.length),start,start+BigInt(dir.length));
  const all=cat(await pendingBytes(bucket,state),dir,end);
- const upload=bucket.resumeMultipartUpload(state.key,state.uploadId);
+ // If multipart completion succeeded but a later status write failed, resume by validating
+ // the already completed object instead of trying to complete an expired upload ID.
+ const existing=await bucket.head(state.key);
+ const alreadyComplete=!!existing&&existing.size===Number(start)+dir.length+end.length;
+ const upload=alreadyComplete?null:bucket.resumeMultipartUpload(state.key,state.uploadId);
  let at=0,nextPart=state.nextPart,parts=[...state.parts];
- while(all.length-at>CHUNK){parts.push(await upload.uploadPart(nextPart++,all.slice(at,at+CHUNK)));at+=CHUNK}
- if(all.length>at)parts.push(await upload.uploadPart(nextPart++,all.slice(at)));
+ while(!alreadyComplete&&all.length-at>CHUNK){parts.push(await upload.uploadPart(nextPart++,all.slice(at,at+CHUNK)));at+=CHUNK}
+ if(!alreadyComplete&&all.length>at)parts.push(await upload.uploadPart(nextPart++,all.slice(at)));
  const size=Number(start)+dir.length+end.length;
  if(!Number.isSafeInteger(size))throw Error("ZIP length exceeds safe-integer range");
- await upload.complete(parts);
+ if(!alreadyComplete)await upload.complete(parts);
  const head=await bucket.head(state.key);
  if(!head||head.size!==size)throw Error("R2 stored ZIP size mismatch");
  const footer=await bucket.get(state.key,{range:{suffix:22}});
@@ -132,7 +136,12 @@ export async function archiveAlarm(ctx,env,job,fetchPartial){
    const r=await fetchPartial(target);
    if(!r.ok)throw Error("Source research ZIP not accessible: "+target.name+" HTTP "+r.status);
    const raw=new Uint8Array(await r.arrayBuffer());
-   if(!raw.length||raw.length>75*1024*1024)throw Error("Source pack empty or exceeds 75MiB; use smaller per-pack download: "+target.name);
+   if(raw.length<98||raw.length>75*1024*1024)
+    throw Error("Source ZIP truncated or exceeds 75MiB: "+target.name);
+   const view=new DataView(raw.buffer,raw.byteOffset,raw.byteLength);
+   if(view.getUint32(raw.length-22,true)!==0x06054b50||
+      view.getUint32(raw.length-98,true)!==0x06064b50)
+    throw Error("Source ZIP missing ZIP64 central-directory footer; abort to avoid incomplete backup: "+target.name);
    await append(ctx,bucket,state,target.name,raw)
   }else await complete(ctx,bucket,state);
  }catch(e){
