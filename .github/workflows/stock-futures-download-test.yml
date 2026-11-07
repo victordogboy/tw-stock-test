@@ -3,6 +3,9 @@ on:
   push:
     paths:
       - "src/stock-futures-download.mjs"
+      - "src/research-pack.mjs"
+      - "public/research-pack-download.html"
+      - "tests/research-pack.test.mjs"
       - "src/market-chip.mjs"
       - "tests/market-chip.test.mjs"
       - "public/market-daily-download.html"
@@ -14,6 +17,9 @@ on:
   pull_request:
     paths:
       - "src/stock-futures-download.mjs"
+      - "src/research-pack.mjs"
+      - "public/research-pack-download.html"
+      - "tests/research-pack.test.mjs"
       - "src/market-chip.mjs"
       - "tests/market-chip.test.mjs"
       - "public/market-daily-download.html"
@@ -33,6 +39,7 @@ jobs:
       - name: Syntax check
         run: |
           node --check src/stock-futures-download.mjs
+          node --check src/research-pack.mjs
           node --check src/market-chip.mjs
           node --check src/worker.mjs
           node - <<'NODE'
@@ -41,6 +48,10 @@ jobs:
           const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
           if(scripts.length!==1) throw Error('Expected one dashboard script');
           new vm.Script(scripts[0]);
+          const study=fs.readFileSync('public/research-pack-download.html','utf8');
+          const studyScript=[...study.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
+          if(studyScript.length!==1)throw Error('Research downloader page missing script');
+          new vm.Script(studyScript[0]);
           const market=fs.readFileSync('public/market-daily-download.html','utf8');
           const marketScripts=[...market.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(x=>x[1]);
           if(marketScripts.length!==1)throw Error('Market data downloader script missing');
@@ -56,4 +67,4 @@ jobs:
           }
           NODE
       - name: API and data integrity tests
-        run: node --test tests/stock-futures-download.test.mjs tests/market-chip.test.mjs
+        run: node --test tests/stock-futures-download.test.mjs tests/market-chip.test.mjs tests/research-pack.test.mjs
