@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台股全市場飆股歷史研究資料下載</title>
+<style>
+:root{color-scheme:light dark}body{font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;max-width:960px;margin:auto;padding:16px;background:#f5f7fb;color:#162438}
+main{background:white;border-radius:18px;box-shadow:0 5px 20px #1a355016;padding:22px;margin:16px 0}h1{font-size:1.7rem}h2{font-size:1.2rem}
+input,textarea,select,button{box-sizing:border-box;font:inherit;padding:12px;border:1px solid #a7b6c7;border-radius:8px;width:100%;margin:6px 0 13px}
+button{background:#175ab7;color:white;border:0;cursor:pointer;font-weight:bold}button.secondary{background:#64748b}
+button:disabled{opacity:.45;cursor:not-allowed}label{font-weight:bold;display:block;margin-top:9px}.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.notice{padding:14px;border-radius:9px;background:#edf6ff;line-height:1.7}.warn{background:#fff2db;color:#6b3900}
+small,.hint{color:#6e7884;line-height:1.6}pre{white-space:pre-wrap;word-break:break-word;background:#edf1f5;padding:12px;border-radius:6px;max-height:240px;overflow:auto}
+a{color:#1a62b5}table{width:100%;border-collapse:collapse;font-size:.9rem}th,td{border-bottom:1px solid #dce4ed;padding:7px;text-align:left}section[hidden]{display:none}
+progress{width:100%;height:20px}strong{font-weight:700}
+</style></head><body><main><a href="/stock-futures-download.html">← 返回原本的日K／1分K下載器</a>
+<h1>台股全市場飆股特徵｜原始歷史資料研究包</h1>
+<p>為 R1494-A、R1748、R1800 研究保留原始 FinMind 資料。使用既有雲端下載器的 Durable Object，背景依資料集、股票與年度逐批下載；手機可離開頁面，稍後回來查看狀態。</p>
+<div class="notice warn">⚠️ <strong>這個下載器不會宣稱 API 下載完成就等於資料完整。</strong>將保留 FinMind 來源原始欄位、多類別法人、週持股、公司事件及原始報表期間。沒有可靠發布時間的財報／月營收資料標記為「不可直接用於因果回測」，不會擅自推算。ZIP 可能因傳輸中斷而損毀，必須下載後核對 CRC、manifest 與實際筆數。</div>
+<label for="token">FinMind S Token（只傳送到你的私有雲端背景任務）</label>
+<input id="token" type="password" autocomplete="off" placeholder="輸入你的 FinMind S Token"><small>不會寫入研究 ZIP；同帳號其他下載任務共用 6,000 次／小時額度。已存在的私有背景任務可以直接查詢。</small>
+<div class="row"><div><label>研究股票範圍</label><select id="scope"><option value="futures">目前有股票期貨的個股優先</option><option value="all">全部上市、上櫃＋可辨識下市櫃股票</option></select></div>
+<div><label>資料起始日</label><input type="date" id="start" value="2000-01-01" min="2000-01-01"></div>
+<div><label>資料截止日</label><input type="date" id="end" value="2026-11-06"></div></div>
+<label for="codes">自訂研究股票代碼（可選）：貼上233檔代碼，以逗號、空白或換行分隔</label>
+<textarea id="codes" rows="3" placeholder="例如：2330, 2454, 2303&#10;不填則先抓目前有股期的個股；選全市場則包含目前普通股與下市櫃名單。"></textarea>
+<label for="priority">第一輪要下載的資料</label><select id="priority">
+<option value="1">第一批：原始／還原日K、漲跌停、三大法人、融資券、借券</option>
+<option value="1,2">第一＋二批：加外資、大戶持股、月營收、財報、公司事件</option>
+<option value="1,2,3">第一至三批：加市場總額、產業資金；股期仍需歷史契約驗證</option>
+<option value="1,2,3,4">第一至四批：加可使用標準查詢的進階籌碼</option>
+</select>
+<div class="row"><button id="startBtn">▶ 建立雲端原始資料任務</button><button id="refresh" class="secondary">更新進度</button><button id="pause" class="secondary">暫停</button><button id="resume" class="secondary">繼續（可更新 Token）</button></div>
+<div id="message" class="notice">尚未查詢任務。</div></main>
+<main id="state" hidden><h2>背景研究進度</h2><progress id="progress" max="100" value="0"></progress>
+<div class="row"><div>任務階段：<strong id="phase">—</strong></div><div>已處理：<strong id="processed">—</strong></div>
+<div>實際取得：<strong id="rows">—</strong> 筆</div><div>實際最晚日期：<strong id="latest">—</strong></div></div>
+<h2>資料集統計</h2><div style="overflow-x:auto"><table><thead><tr><th>資料集</th><th>完成工作數</th><th>已取得筆數</th><th>失敗工作數</th><th>最新觀測</th></tr></thead><tbody id="stats"></tbody></table></div>
+<h2>最新錯誤／缺漏</h2><pre id="errors">—</pre><p><a id="manifest" href="/api/research-pack/manifest" target="_blank">查看完整研究資料清單與缺漏 JSON</a></p>
+<h2>下載目前已取得的原始資料（ZIP64）</h2>
+<p class="notice warn">安全優先：每個 ZIP 只含一個年度、一個優先批次和一部分股票，盡量降低數 GB 單包中斷風險。下載後需測試 ZIP／GZIP CRC；某資料集缺漏會在包內 manifest.json 明列，不會當成已完成。</p>
+<div class="row"><div><label>年度</label><select id="year"></select></div>
+<div><label>資料批次</label><select id="exportPriority"><option value="1">第一批</option><option value="2">第二批</option><option value="3">第三批</option><option value="4">第四批</option></select></div>
+<div><label>股票分包（每包約 20～60 檔）</label><input id="part" type="number" min="1" step="1" value="1"></div></div>
+<a id="download" href="#" download>⬇ 下載此年度／此分包的原始資料 ZIP</a>
+</main>
+<main><h2>資料完整性與歷史限制</h2>
+<p>所有資料取自 FinMind，按資料集隔離保存為 CSV.gz；原始 stock_id 為文字、不變更原始價格、沒有用技術指標覆寫歷史欄位。長表同一天可能有多列，不依日期粗暴去重。法人盤後資料、月營收、財報都需要「當時可取得日期」才能進策略，尚無歷史公告日期者不得用來回填前一交易日。</p>
+<p>歷史下市／合併與股期契約正式生效／乘數資訊不能僅從目前標的表推斷；沒有證據的欄位保持未知。股期完整合約資料、分點專屬 API 及全市場分鐘 K 在缺少可核對來源／權限時列入缺漏，不會拖延已完成的優先批次。</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let saved=null;
+const oldToken=()=>{try{const x=JSON.parse(localStorage.getItem("twq_finmind_tokens_v2")||"{}");return typeof x==="string"?x:String(x?.token||x?.finmind||"")}catch{return ""}};
+async function call(path,options){const r=await fetch("/api/research-pack/"+path,{credentials:"same-origin",cache:"no-store",...options});
+ let x;try{x=await r.json()}catch{throw Error("服務未回傳 JSON（HTTP "+r.status+"）")}
+ if(!r.ok||x.ok===false)throw Error(x.error||"HTTP "+r.status);return x}
+async function load(){try{render(await call("status"))}catch(e){$("message").textContent="尚未取得雲端任務："+e.message}}
+function yearOptions(s){const old=$("year").value;$("year").replaceChildren();
+for(let y=Number(s.start.slice(0,4));y<=Number(s.end.slice(0,4));y++){
+ const o=document.createElement("option");o.value=String(y);o.textContent=y+" 年";$("year").append(o)}
+if([...$("year").options].some(x=>x.value===old))$("year").value=old;
+else $("year").value=String(s.end.slice(0,4));
+const priors=String(s.stages||[1]).split(",");for(const opt of $("exportPriority").options)opt.disabled=!s.stages?.includes(Number(opt.value));
+if($("exportPriority").selectedOptions[0]?.disabled)$("exportPriority").value=String(s.stages?.[0]||1);
+}
+function href(){const y=$("year").value,part=$("part").value,pr=$("exportPriority").value;
+$("download").href="/api/research-pack/export?year="+encodeURIComponent(y)+"&priority="+encodeURIComponent(pr)+"&part="+encodeURIComponent(part)}
+function render(s){saved=s;$("state").hidden=false;yearOptions(s);
+$("message").textContent=(s.message||"")+"｜狀態："+s.phase+"。資料尚未全面核對，請勿把下載100%當作完整回測。";
+$("phase").textContent=s.phase;$("processed").textContent=(s.processed||0).toLocaleString()+" / "+(s.total||0).toLocaleString();
+$("progress").value=s.total?Math.min(100,(s.processed||0)*100/s.total):0;
+$("rows").textContent=(s.rows||0).toLocaleString();$("latest").textContent=s.observedLatest||"尚無觀測";
+$("stats").replaceChildren();
+for(const [name,st] of Object.entries(s.datasetStats||{})){
+ const row=document.createElement("tr");
+ for(const text of [name,st.completed||0,st.rows||0,st.failed||0,st.last||"—"]){const td=document.createElement("td");td.textContent=String(text);row.append(td)}
+ $("stats").append(row)}
+$("errors").textContent=JSON.stringify(s.errors||[],null,2);
+href()}
+function token(){return $("token").value.trim()||oldToken()}
+$("startBtn").onclick=async()=>{try{
+$("startBtn").disabled=true;
+const raw=$("codes").value.trim(),codes=raw?Array.from(new Set(raw.split(/[\s,;，]+/).filter(Boolean))):[];
+const stages=$("priority").value.split(",").map(Number);
+render(await call("start",{method:"POST",headers:{"authorization":"Bearer "+token(),"content-type":"application/json"},
+body:JSON.stringify({scope:$("scope").value,codes,start:$("start").value,end:$("end").value,stages})}))
+}catch(e){$("message").textContent="無法啟動："+e.message}finally{$("startBtn").disabled=false}};
+$("refresh").onclick=load;
+$("pause").onclick=async()=>{try{render(await call("pause",{method:"POST"}))}catch(e){alert(e.message)}};
+$("resume").onclick=async()=>{try{render(await call("resume",{method:"POST",headers:{"authorization":"Bearer "+token()}}))}catch(e){alert(e.message)}};
+for(const id of ["year","exportPriority","part"])$(id).onchange=href;
+setInterval(()=>{if(!document.hidden&&saved&&["running","preparing"].includes(saved.phase))load()},15000);
+load();
+</script></body></html>
