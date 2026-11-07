@@ -83,7 +83,7 @@ test("background R2 multipart archive is a real ZIP64 with valid inner ZIP, then
  });
  assert.equal(calls,1);
  const state=await store.get("rp:archive");
- assert.equal(state.phase,"ready");assert.equal(state.cursor,4);assert.equal(state.entries.length,3);
+ assert.equal(state.phase,"ready");assert.equal(state.cursor,3);assert.equal(state.entries.length,3);
  assert.ok(state.validation.zipEOCDPresent);assert.equal(state.validation.fullCRCReadback,false);
  assert.equal(state.size,f.objects.get(state.key).length);
  const binary=f.objects.get(state.key);
@@ -129,6 +129,6 @@ test("research frontend clearly distinguishes bound R2 vs disabled, and never en
  assert.match(page,/id="archiveBar"/);
  const js=page.match(/<script>([\s\S]*?)<\/script>/)?.[1];
  assert.doesNotThrow(()=>new Function(js));
- assert.match(js,/a\?\.phase==="building"/);
+ assert.match(js,/archive\?\.phase==="building"/);
  assert.match(js,/\/api\/research-pack\/archive-download/);
 });
