@@ -115,12 +115,29 @@ test("large 9MiB source triggers uniform 8MiB multipart and checkpointed upload"
  const f=memoryR2(),store=storage(),ctx={storage:store},env={RESEARCH_ARCHIVES:f.bucket},job=dummyJob();
  assert.equal((await startArchive(ctx,env,job)).status,"started");
  const payload=new Uint8Array(9*1024*1024);payload.fill(36);
- for(let i=0;i<4;i++)await archiveAlarm(ctx,env,job,async()=>new Response(payload));
+ const zipBytes=await new Response(streamZip64([{name:"raw_data.bin",open:async()=>new Response(payload)}])).arrayBuffer();
+ for(let i=0;i<4;i++)await archiveAlarm(ctx,env,job,async()=>new Response(zipBytes));
  const done=await store.get("rp:archive");
  assert.equal(done.phase,"ready");
  assert.ok(done.parts.length>=2);
  assert.equal(f.uploads.get(done.uploadId).parts.get(1).length,8*1024*1024);
  assert.equal(f.objects.get(done.key).length,done.size);
+});
+test("source truncated ZIP refuses to publish finished R2 archive, keeps last committed checkpoint",async()=>{
+ const f=memoryR2(),store=storage(),ctx={storage:store},env={RESEARCH_ARCHIVES:f.bucket},job=dummyJob();
+ await startArchive(ctx,env,job);
+ await archiveAlarm(ctx,env,job,async()=>{throw Error("source not needed yet")});
+ await archiveAlarm(ctx,env,job,async()=>{throw Error("source not needed yet")});
+ let state=await store.get("rp:archive");assert.equal(state.cursor,2);
+ await archiveAlarm(ctx,env,job,async()=>new Response(new Uint8Array([1,2,3,4])));
+ state=await store.get("rp:archive");
+ assert.equal(state.cursor,2);assert.equal(state.phase,"building");
+ assert.match(state.error,/truncated/);
+ assert.equal(f.objects.get(state.key),undefined);
+ const valid=await new Response(streamZip64([{name:"test.csv.gz",open:async()=>new Response(new Uint8Array([1,2,3]))}])).arrayBuffer();
+ await archiveAlarm(ctx,env,job,async()=>new Response(valid));
+ await archiveAlarm(ctx,env,job,async()=>new Response(valid));
+ state=await store.get("rp:archive");assert.equal(state.phase,"ready");
 });
 test("research frontend clearly distinguishes bound R2 vs disabled, and never enables button early",()=>{
  const page=readFileSync(new URL("../public/research-pack-download.html",import.meta.url),"utf8");
