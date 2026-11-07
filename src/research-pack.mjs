@@ -2,6 +2,7 @@
 // Uses the existing STOCK_FUTURES_BATCH + STOCK_FUTURES_DATA Durable Object bindings;
 // no migrations, new secrets, or public raw-data sharing.
 import {streamZip64} from "./stock-archive.mjs";
+import {startArchive,archiveAlarm,archiveResponse,archivePublic} from "./research-archive-r2.mjs";
 import {parseStockFutureUniverse,preferMiniStockFutures} from "./stock-futures-download.mjs";
 
 const spec=(name,group,priority,scope="stock",earliest="2000-01-01",unit="source_native")=>({name,group,priority,scope,earliest,unit});
@@ -176,7 +177,16 @@ async function buildCatalog(ctx,env,s,token){
 }
 export async function researchAlarm(ctx,env){
  const st=ctx.storage,s=await st.get("rp:state");
- if(!s||!["running","preparing"].includes(s.phase))return;
+ if(!s)return;
+ if(!["running","preparing"].includes(s.phase)){
+  if(s.phase==="done"){
+   await archiveAlarm(ctx,env,s,task=>researchFetch(ctx,env,
+    new Request(DO_ROOT+"rp/export?"+new URLSearchParams({
+     year:String(task.year),priority:String(task.priority),part:String(task.part),size:"20"
+    }))))
+  }
+  return
+ }
  const token=await st.get("rp:token");
  if(!token){s.phase="error";s.lastError="FinMind token missing";await st.put("rp:state",s);return}
  if(s.phase==="preparing"){
@@ -220,7 +230,10 @@ export async function researchAlarm(ctx,env){
  }
  s.errors=s.errors.slice(-100);s.updatedAt=Date.now();
  await st.put("rp:state",s);
- await st.setAlarm(s.phase==="running"?Date.now()+800:Date.now()+30*86400000)
+ if(s.phase==="done"&&env.RESEARCH_ARCHIVES){
+  const started=await startArchive(ctx,env,s).catch(e=>({status:"error",error:String(e.message||e)}));
+  if(started.status==="error"){s.archiveError=started.error;await st.put("rp:state",s)}
+ }else await st.setAlarm(s.phase==="running"?Date.now()+800:Date.now()+30*86400000)
 }
 export async function researchFetch(ctx,env,request){
  const path=new URL(request.url).pathname,st=ctx.storage;
@@ -246,7 +259,15 @@ export async function researchFetch(ctx,env,request){
   return response(stats(s),202)
  }
  const s=await st.get("rp:state");if(!s)return response({ok:false,error:"尚未建立研究下載任務"},404);
- if(path==="/rp/status")return response(stats(s));
+ if(path==="/rp/status")return response({...stats(s),archive:archivePublic(await st.get("rp:archive"),env)});
+ if(path==="/rp/archive-status")return response({ok:true,archive:archivePublic(await st.get("rp:archive"),env)});
+ if(path==="/rp/archive-start"&&request.method==="POST"){
+  const result=await startArchive(ctx,env,s);
+  return response({ok:result.status==="started"||result.status==="existing",...result},
+   result.status==="needs_r2"?503:result.status==="waiting_for_data"?409:200)
+ }
+ if(path==="/rp/archive-download"&&request.method==="GET")
+  return archiveResponse(env,await st.get("rp:archive"),request);
  if(path==="/rp/manifest"){
   const meta={...stats(s),stockCatalog:s.codes,missingDatasets:RESEARCH_DATASETS.filter(x=>s.stages.includes(x.priority)&&["special_endpoint","needs_verified_contract_codes","minute"].includes(x.scope))
    .map(x=>({dataset:x.name,status:"not_fetched",reason:"needs separate contract/broker/date parameters; no fabricated data"})),
@@ -267,7 +288,7 @@ export async function researchFetch(ctx,env,request){
    !/^[1-4]$/.test(selectedPriority)||!s.stages.includes(+selectedPriority)||part<1)
    return response({ok:false,error:"請選正確年度／研究批次／股票分包"},400);
   const datasets=RESEARCH_DATASETS.filter(x=>x.priority===+selectedPriority&&!["special_endpoint","needs_verified_contract_codes","minute"].includes(x.scope));
-  const partSize=Math.max(10,Math.min(60,Math.floor(800/Math.max(1,datasets.length))));
+  const partSize=u.searchParams.get("size")==="20"?20:Math.max(10,Math.min(60,Math.floor(800/Math.max(1,datasets.length))));
   const stockCodes=s.codes.slice((part-1)*partSize,part*partSize).map(x=>x.code);
   if(!stockCodes.length)return response({ok:false,error:"這個分包沒有股票"},404);
   const entries=[],manifest={schema:"research-pack-partial-v1",createdAt:new Date().toISOString(),year,part,partSize,
@@ -279,7 +300,7 @@ export async function researchFetch(ctx,env,request){
     "Adjusted prices may use future corporate action information (no lookahead allowed in signals)."]};
   for(const ds of datasets){
    const codes=scopedCodes(s,ds);
-   const pick=ds.scope==="global"?[""]:codes.filter(code=>stockCodes.includes(code));
+   const pick=ds.scope==="global"?(part===1?[""]:[]):codes.filter(code=>stockCodes.includes(code));
    for(const code of pick){
     const meta=await st.get(taskKey(ds.name,code,year));
     if(!meta||meta.status==="failed"){
@@ -317,9 +338,9 @@ export async function researchPackRoute(request,env){
  }
  if(!id)return response({ok:false,error:"本瀏覽器尚無研究下載任務"},401);
  const obj=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName("research-pack:"+id));
- if(["status","manifest","export"].includes(op)&&request.method==="GET")
+ if(["status","manifest","export","archive-status","archive-download"].includes(op)&&request.method==="GET")
   return obj.fetch(JOB_ROOT+op+u.search);
- if(["pause","resume"].includes(op)&&request.method==="POST")
+ if(["pause","resume","archive-start"].includes(op)&&request.method==="POST")
   return obj.fetch(new Request(JOB_ROOT+op,{method:"POST",
    headers:{authorization:request.headers.get("authorization")||""}}));
  return response({ok:false,error:"不支援的研究下載操作"},404)

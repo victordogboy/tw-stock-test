@@ -4,6 +4,9 @@ on:
     paths:
       - "src/stock-futures-download.mjs"
       - "src/research-pack.mjs"
+      - "src/research-archive-r2.mjs"
+      - "docs/research-r2-setup.md"
+      - "tests/research-archive-r2.test.mjs"
       - "public/research-pack-download.html"
       - "tests/research-pack.test.mjs"
       - "src/market-chip.mjs"
@@ -40,6 +43,7 @@ jobs:
         run: |
           node --check src/stock-futures-download.mjs
           node --check src/research-pack.mjs
+          node --check src/research-archive-r2.mjs
           node --check src/market-chip.mjs
           node --check src/worker.mjs
           node - <<'NODE'
@@ -67,4 +71,4 @@ jobs:
           }
           NODE
       - name: API and data integrity tests
-        run: node --test tests/stock-futures-download.test.mjs tests/market-chip.test.mjs tests/research-pack.test.mjs
+        run: node --test tests/stock-futures-download.test.mjs tests/market-chip.test.mjs tests/research-pack.test.mjs tests/research-archive-r2.test.mjs
