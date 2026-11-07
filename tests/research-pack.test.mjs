@@ -18,7 +18,7 @@ function setup(){
   STOCK_FUTURES_BATCH:{idFromName:x=>x,get(id){
    if(!tasks.has(id)){
     const storage=new Storage(),ctx={storage};
-    tasks.set(id,{ctx,fetch:request=>researchFetch(ctx,env,request),alarm:()=>researchAlarm(ctx,env)})
+    tasks.set(id,{ctx,fetch:request=>researchFetch(ctx,env,request instanceof Request?request:new Request(request)),alarm:()=>researchAlarm(ctx,env)})
    }
    return tasks.get(id)
   }},
