@@ -42,6 +42,17 @@ progress{width:100%;height:20px}strong{font-weight:700}
 <div><label>股票分包（每包約 20～60 檔）</label><input id="part" type="number" min="1" step="1" value="1"></div></div>
 <a id="download" href="#" download>⬇ 下載此年度／此分包的原始資料 ZIP</a>
 </main>
+<main id="archivePanel"><h2>📦 一鍵下載全部歷史研究資料（固定雲端 ZIP）</h2>
+<div class="notice">雲端資料下載完畢後，系統會嘗試在背景把所有成功取得的年度研究子包整合成<strong>一份固定的 ZIP64</strong>，存進私人 Cloudflare R2。<strong>不重抓 FinMind</strong>，並提供下載續傳。外層 ZIP 包含多個獨立年度 ZIP；每個子 ZIP 內保留原始 CSV.gz、manifest 與缺漏清單。</div>
+<div class="row"><div>R2 儲存服務：<strong id="archiveEnabled">檢查中</strong></div>
+<div>打包階段：<strong id="archivePhase">尚未開始</strong></div>
+<div>已完成子包：<strong id="archiveProgress">0 / 0</strong></div>
+<div>已上傳 R2：<strong id="archiveBytes">0 MB</strong></div></div>
+<progress max="100" value="0" id="archiveBar"></progress>
+<p id="archiveMessage" class="hint">等待下載完成後開始背景組裝。</p>
+<div class="row"><button id="archiveStart">建立／繼續完整研究 ZIP</button>
+<a id="archiveDownload" href="#" download hidden style="display:block;text-align:center;padding:14px;background:#196f39;color:white;border-radius:9px">⬇ 一鍵下載完整研究資料 ZIP（可續傳）</a></div>
+<div class="notice warn">⚠ 尚未取得 R2 服務時，上方會顯示「未啟用」，不會假裝可以打包。R2 需要在你的 Cloudflare 帳號建立私有 bucket 並綁定 <code>RESEARCH_ARCHIVES</code>。請參考專案 <code>docs/research-r2-setup.md</code>；原本分年下載功能仍可使用。固定 ZIP 完成後，已驗證檔案大小與 ZIP 結尾索引；完整 CRC 還須下載後驗證。</div></main>
 <main><h2>資料完整性與歷史限制</h2>
 <p>所有資料取自 FinMind，按資料集隔離保存為 CSV.gz；原始 stock_id 為文字、不變更原始價格、沒有用技術指標覆寫歷史欄位。長表同一天可能有多列，不依日期粗暴去重。法人盤後資料、月營收、財報都需要「當時可取得日期」才能進策略，尚無歷史公告日期者不得用來回填前一交易日。</p>
 <p>歷史下市／合併與股期契約正式生效／乘數資訊不能僅從目前標的表推斷；沒有證據的欄位保持未知。股期完整合約資料、分點專屬 API 及全市場分鐘 K 在缺少可核對來源／權限時列入缺漏，不會拖延已完成的優先批次。</p>
@@ -64,7 +75,23 @@ if($("exportPriority").selectedOptions[0]?.disabled)$("exportPriority").value=St
 }
 function href(){const y=$("year").value,part=$("part").value,pr=$("exportPriority").value;
 $("download").href="/api/research-pack/export?year="+encodeURIComponent(y)+"&priority="+encodeURIComponent(pr)+"&part="+encodeURIComponent(part)}
-function render(s){saved=s;$("state").hidden=false;yearOptions(s);
+function renderArchive(a){
+ const exists=!!a?.enabled,ready=!!a?.done;
+ $("archiveEnabled").textContent=exists?"已綁定":"尚未啟用 R2";
+ $("archivePhase").textContent=a?.phase||"尚未開始";
+ $("archiveProgress").textContent=String(a?.progress||0)+" / "+String(a?.total||0);
+ $("archiveBytes").textContent=((a?.archiveBytes||a?.bytesUploaded||0)/1048576).toFixed(1)+" MB";
+ $("archiveBar").value=a?.total?Math.min(100,100*(a?.progress||0)/a.total):0;
+ $("archiveStart").disabled=!exists||saved?.phase!=="done"||a?.phase==="building"||ready;
+ $("archiveDownload").hidden=!ready;
+ $("archiveDownload").href=ready?"/api/research-pack/archive-download":"#";
+ $("archiveMessage").textContent=ready?
+   "✓ 已生成固定 R2 ZIP。"+(a.archiveBytes||0).toLocaleString()+" bytes。可一鍵下載或使用支援續傳的下載工具；請在本機驗證 ZIP CRC。":
+   !exists?"需要先在 Cloudflare 啟用私有 R2 bucket，功能才能開始；原本分年 ZIP 仍可下載。":
+   a?.error?"打包遇到問題："+a.error+"；原始歷史資料未清除。":
+   saved?.phase!=="done"?"原始資料仍在下載中，完成後系統會自動合併。":"可開始背景打包。";
+}
+function render(s){saved=s;$("state").hidden=false;yearOptions(s);renderArchive(s.archive);
 $("message").textContent=(s.message||"")+"｜狀態："+s.phase+"。資料尚未全面核對，請勿把下載100%當作完整回測。";
 $("phase").textContent=s.phase;$("processed").textContent=(s.processed||0).toLocaleString()+" / "+(s.total||0).toLocaleString();
 $("progress").value=s.total?Math.min(100,(s.processed||0)*100/s.total):0;
@@ -85,9 +112,16 @@ render(await call("start",{method:"POST",headers:{"authorization":"Bearer "+toke
 body:JSON.stringify({scope:$("scope").value,codes,start:$("start").value,end:$("end").value,stages})}))
 }catch(e){$("message").textContent="無法啟動："+e.message}finally{$("startBtn").disabled=false}};
 $("refresh").onclick=load;
+$("archiveStart").onclick=async()=>{try{
+ $("archiveStart").disabled=true;
+ const result=await call("archive-start",{method:"POST"});
+ await load();
+ if(result.status==="needs_r2")alert("尚未啟用 Cloudflare R2，請依 docs/research-r2-setup.md 建立並綁定 R2 私有儲存桶。");
+}catch(e){$("archiveMessage").textContent=e.message;await load()}};
+
 $("pause").onclick=async()=>{try{render(await call("pause",{method:"POST"}))}catch(e){alert(e.message)}};
 $("resume").onclick=async()=>{try{render(await call("resume",{method:"POST",headers:{"authorization":"Bearer "+token()}}))}catch(e){alert(e.message)}};
 for(const id of ["year","exportPriority","part"])$(id).onchange=href;
-setInterval(()=>{if(!document.hidden&&saved&&["running","preparing"].includes(saved.phase))load()},15000);
+setInterval(()=>{if(!document.hidden&&saved&&(["running","preparing"].includes(saved.phase)||saved.archive?.phase==="building"))load()},15000);
 load();
 </script></body></html>
