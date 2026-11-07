@@ -1,6 +1,7 @@
 import {ValuationCache,valuationStub} from './valuation-cache.mjs';
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
+import {researchPackRoute} from './research-pack.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
 import {etfDividendRoute} from './etf-dividends-0050.mjs';
 import worker from './index.js';
@@ -31,6 +32,7 @@ export default {
   if(['/api/r26/intraday','/api/r26/official-zip'].includes(new URL(request.url).pathname))return r26MarketRoute(request,env);
   if(new URL(request.url).pathname==='/api/r26/live-quote')return r26LiveQuoteRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/r26/'))return r26BridgeRoute(request,env);
+  if(new URL(request.url).pathname.startsWith('/api/research-pack/'))return researchPackRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-futures/'))return stockFuturesRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/stock-kbar/'))return stockFuturesRoute(request,env,'stocks');
   if(new URL(request.url).pathname.startsWith('/api/all-stock-kbar/'))return stockFuturesRoute(request,env,'all-stocks');
