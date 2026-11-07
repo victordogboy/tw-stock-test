@@ -99,7 +99,7 @@ test("research cloud job stores actual source raw rows in gzip, rejects cross-st
    if(phase.phase==="done")break
   }
   assert.equal(phase.phase,"done",JSON.stringify(phase.errors));
-  assert.equal(phase.rows,3);
+  assert.equal(phase.rows,4); // price 1 + institutional 2 + yearly TaiwanStockInfo 1
   assert.equal(phase.datasetStats.TaiwanStockPrice.rows,1);
   assert.equal(phase.datasetStats.TaiwanStockInstitutionalInvestorsBuySell.rows,2);
   const before=calls.length;
