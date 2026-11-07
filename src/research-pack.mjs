@@ -45,6 +45,7 @@ export const RESEARCH_DATASETS=[
 const SPEC_BY_NAME=new Map(RESEARCH_DATASETS.map(x=>[x.name,x]));
 const START="2000-01-01",TARGET_END="2026-11-06";
 const DO_ROOT="https://internal.research/";
+const JOB_ROOT="https://internal.research/rp/";
 const iso=/^\d{4}-\d{2}-\d{2}$/,codePattern=/^\d{4,6}[A-Z]?$/i;
 const cookieName="__Host-tw-momentum-research";
 const response=(json,status=200)=>new Response(JSON.stringify(json),{status,headers:{"content-type":"application/json; charset=utf-8","cache-control":"private, no-store"}});
@@ -304,7 +305,7 @@ export async function researchPackRoute(request,env){
   const job=id||newId();
   const obj=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName("research-pack:"+job));
   const q=await request.json().catch(()=>({}));
-  const upstream=await obj.fetch(new Request(DO_ROOT+"start",{method:"POST",
+  const upstream=await obj.fetch(new Request(JOB_ROOT+"start",{method:"POST",
    headers:{authorization:request.headers.get("authorization")||""},
    body:JSON.stringify({...q,id:job})}));
   return new Response(upstream.body,{status:upstream.status,headers:{
@@ -314,9 +315,9 @@ export async function researchPackRoute(request,env){
  if(!id)return response({ok:false,error:"本瀏覽器尚無研究下載任務"},401);
  const obj=env.STOCK_FUTURES_BATCH.get(env.STOCK_FUTURES_BATCH.idFromName("research-pack:"+id));
  if(["status","manifest","export"].includes(op)&&request.method==="GET")
-  return obj.fetch(DO_ROOT+op+u.search);
+  return obj.fetch(JOB_ROOT+op+u.search);
  if(["pause","resume"].includes(op)&&request.method==="POST")
-  return obj.fetch(new Request(DO_ROOT+op,{method:"POST",
+  return obj.fetch(new Request(JOB_ROOT+op,{method:"POST",
    headers:{authorization:request.headers.get("authorization")||""}}));
  return response({ok:false,error:"不支援的研究下載操作"},404)
 }
