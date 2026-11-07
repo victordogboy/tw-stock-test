@@ -166,8 +166,11 @@ async function buildCatalog(ctx,env,s,token){
   lastObservedMetaDate:String(latest.get(code)?.date||""),historicallyDelisted:dead.has(code),
   listingDate:null,delistingDate:delisted.find(r=>String(r.stock_id)===code)?.date||null,
   dateSourceVerified:false,history:nameHistory.get(code)||[]}));
- await writeMetadata(ctx,env,s,SPEC_BY_NAME.get("TaiwanStockInfo"),"",String(+s.start.slice(0,4)),info,s.start,s.end);
- if(delisted.length)await writeMetadata(ctx,env,s,SPEC_BY_NAME.get("TaiwanStockDelisting"),"",String(+s.start.slice(0,4)),delisted,s.start,s.end);
+ // Do NOT package the entire CURRENT/HISTORICAL catalog under year 2000.
+ // Doing so leaks 2026 listing/name information into early years and falsely dates records.
+ // Both metadata datasets are fetched independently in correctly dated yearly windows
+ // by the main historical tasks below. This initial catalog is selection-only.
+ s.universeSelectionAsOf=new Date().toISOString();
  s.total=countTotal(s);s.phase="running";s.updatedAt=Date.now();
  s.message="已建立 "+s.codes.length+" 檔研究股票清單，開始依資料集逐年抓取"
 }
