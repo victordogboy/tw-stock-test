@@ -26,7 +26,7 @@ async function loadFc23Snapshot(shared,{refresh=false}={}){
   }
   if(delta?.plan)d.plan=delta.plan;
   if(delta?.progress)d.updateProgress=delta.progress;
-  if(delta?.data_as_of){Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError?{...delta.lastError,date:delta.lastError.date||delta.data_as_of}:null,sources:delta.sources||[]})}
+  if(delta?.data_as_of){if(delta.data_as_of>'2026-10-27')d.status.trade_status='paper_only_broker_unconfirmed';Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError?{...delta.lastError,date:delta.lastError.date||delta.data_as_of}:null,sources:delta.sources||[]})}
  }catch(error){d.status.lastError={message:error.message,date:d.status.data_as_of};d.status.sync_status='blocked';d.plan.readiness='blocked';d.plan.blockedReason='FC23更新失敗：'+error.message}
  // Benchmarks share the original published data and align by date, never by array offset.
  const idx=new Map(shared.dates.map((date,i)=>[date,i]));
