@@ -51,7 +51,8 @@ jobs:
             sleep 10
           done
           test "$archive_ready" = 1 || { echo "::error::Cloudflare Worker still missing latest FC23 archive"; exit 1; }
-          for n in $(seq -w 1 8); do
+          for i in $(seq 1 8); do
+            n=$(printf "%02d" "$i")
             curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/archive/part$n.txt" >> /tmp/fc23-parts.b64
           done
           node --input-type=module <<'JS'
