@@ -1367,7 +1367,7 @@ export class StockFuturesBatch{
   if(latest.phase==="error"&&s.phase==="running")s.phase="error";
   updateApiTelemetry(s);
   s.updatedAt=Date.now();await st.put("state",s);
-  await st.setAlarm(s.phase==="running"?Math.max(Date.now()+150,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
+  await st.setAlarm(s.phase==="running"?Math.max(Date.now()+5000,s.nextAllowedAt,firstFailure>=0?Date.now()+Math.min(300000,15000*2**s.retries):0):s.expiresAt)
  }
 
  async alarmMarketChip(s,job,st){
@@ -1437,7 +1437,7 @@ export class StockFuturesBatch{
     await this.completeMarketChip(s,job,st);return
    }
    await st.put(CHIP_JOB_KEY,job);
-   await st.setAlarm(job.phase==="running"?Math.max(Date.now()+150,job.nextAllowedAt):s.expiresAt);
+   await st.setAlarm(job.phase==="running"?Math.max(Date.now()+5000,job.nextAllowedAt):s.expiresAt);
   }catch(e){
    const latest=await st.get(CHIP_JOB_KEY);
    if(!latest||latest.processed!==job.processed)return;
