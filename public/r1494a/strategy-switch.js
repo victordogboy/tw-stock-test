@@ -22,11 +22,11 @@ async function loadFc23Snapshot(shared){
    d.orders.push(...delta.orders);Object.assign(d.planHistory,delta.planHistory);d.curves.strategy=d.snapshots.map(item=>item.nav);
   }
   if(delta?.plan)d.plan=delta.plan;
-  if(delta?.data_as_of){Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError,sources:delta.sources||[]})}
+  if(delta?.data_as_of){Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError?{...delta.lastError,date:delta.lastError.date||delta.data_as_of}:null,sources:delta.sources||[]})}
  }catch(error){d.status.lastError={message:error.message,date:d.status.data_as_of};d.status.sync_status='blocked';d.plan.readiness='blocked';d.plan.blockedReason='FC23更新失敗：'+error.message}
  // Benchmarks share the original published data and align by date, never by array offset.
  const idx=new Map(shared.dates.map((date,i)=>[date,i]));
- for(const key of ['old49','market'])d.curves[key]=d.dates.map(date=>shared.curves[key][idx.get(date)]);
+ for(const key of ['old49','market']){d.curves[key]=[];for(const date of d.dates){const i=idx.get(date),value=shared.curves[key][i];if(!Number.isFinite(value))break;d.curves[key].push(value)}}
  d.sharedStatus=shared.status;
  return d;
 }
@@ -35,6 +35,7 @@ function fc23Why(d,i){
  return [s.date+' FC23 原引擎'+(s.date>'2026-10-27'?'紙上':'歷史')+'執行，訊號截至 '+s.signal,
  '20交易日調倉；每5交易日檢查風控與配置；符合強勢同儕條件者可於離場後第3～35交易日重新進場。',
  ...orders.map(o=>o.code+' '+(o.side==='BUY'?'買入':'賣出')+'｜'+(reasons[o.reason]||o.reason)+(o.level!=null?'，觸發價 '+num(o.level,2):'')+(o.filled?'，成交價 '+num(o.price,2):'，未成交')),
+ ...(p?.decision?[p.decision.rebalance?'下一交易日為20日調倉日。':'下一交易日未到20日調倉日。',p.decision.riskRelease?'風控解除，可依排名安排補股。':'沒有風控解除觸發的一般補股。',p.decision.target<.7?'目標曝險 '+pct(p.decision.target)+' 低於70%重進場門檻，不啟動強勢重進場。':'強勢重進場符合 '+p.decision.reentryCandidates+' 檔。','市場廣度 '+pct(p.decision.breadth)+'；10日變化 '+pct(p.decision.breadthDelta)+'。'+(p.decision.marketCold?'3日急跌與低廣度防守啟動，曝險乘0.15。':'')+(p.decision.portRisk?'帳戶40日風控啟動，暫停曝險。':'')+(p.decision.ddGate?'帳戶回撤與市場轉弱風控啟動，曝險乘0.1。':'')]:[]),
  '當日目標曝險 '+pct(s.target)+'；實際曝險 '+pct(s.exposure)+'；持有 '+s.holdings.length+' 檔。',
  p?.trade_date?p.trade_date+(i===d.snapshots.length-1?' 下一交易日計畫：買入 ':' 歷史計畫：買入 ')+p.actions.filter(a=>a.side==='BUY').length+'、賣出 '+p.actions.filter(a=>a.side==='SELL').length+'、續抱 '+p.actions.filter(a=>a.side==='HOLD').length+' 檔。':d.plan.blockedReason].join('\n');
 }

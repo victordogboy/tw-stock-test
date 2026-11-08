@@ -28,11 +28,11 @@ export function contextFc23(st){
   const hedge=good&&vol>0?sum(chips.slice(-5).map(c=>c.hedge))/vol:0;
   const hedgeBonus=f32(.085*Math.max(-1,Math.min(1,hedge/.04))),hot=f32(x.rs5>.20&&x.rs20<.24?-.10:0);
   score0[j]=f32(f32(base[j].score+hedgeBonus)+hot);
-  const volumes=st.fc23Volume[st.codes[j]]||[],vden=volumes.length>=21?mean(volumes.slice(-21,-1)):null;
+  const volumes=(st.fc23Volume[st.codes[j]]||[]).map(f32),vden=volumes.length>=21?mean(volumes.slice(-21,-1)):null;
   x.vr=vden>0?f32(volumes.at(-1)/vden):null;
   const pc=s.pc,tail=volumes.slice(-5);let dn=0;for(let k=0;k<5;k++)if(pc.at(-5+k)<pc.at(-6+k))dn+=tail[k]||0;
   x.downShare=tail.length===5&&sum(tail)>0?f32(dn/sum(tail)):null;x.red=pc.at(-1)<pc.at(-2);
-  const candle=st.fc23Candle?.[st.codes[j]],range=candle?Math.max(candle.h-candle.l,.01):1,largeRed=candle&&(candle.c-candle.o)/range<=-.3&&(candle.c-candle.l)/range<.3;
+  const candle=st.fc23Candle?.[st.codes[j]],range=candle?Math.max(candle.h-candle.l,.01):1,largeRed=!!candle&&(candle.c-candle.o)/range<=-.3&&(candle.c-candle.l)/range<.3;
   x.buyLevel=Math.max(0,(x.vr<.8&&x.rs20>=.10?.05:.10)-.1*Number(largeRed))*.88;
   const high=Math.max(...pc.slice(-60).filter(finite));x.near60=x.p/high;x.peer=peers[j];
  }
