@@ -23,6 +23,19 @@ export class ScanJob extends BaseScanJob {
   if(new URL(request.url).pathname.startsWith('/valuation/'))return this.valuation.fetch(request);
   return super.fetch(request);
  }
+ async alarm(){
+  // FC23 uses a dedicated object id. An alarm keeps the refresh alive after the
+  // initiating browser request closes; unlike waitUntil it is crash-recoverable.
+  const progress=await this.ctx.storage.get('fc23-progress');
+  if(progress&&['queued','running'].includes(progress.state)){
+   await this.ctx.storage.setAlarm(Date.now()+120000);
+   await this.fc23.run({maxPasses:1});
+   const next=await this.ctx.storage.get('fc23-progress');
+   if(!['queued','running'].includes(next?.state))await this.ctx.storage.deleteAlarm();
+   return;
+  }
+  return super.alarm();
+ }
 }
 export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
