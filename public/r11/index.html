@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TX R11｜盤前交易研究台</title>
+<meta name="description" content="R11 P193 衍生日夜盤獨立強制平倉策略：歷史回測、盤前特徵與紙上價位核對">
+<style>
+:root{color-scheme:dark;--bg:#081021;--panel:#121d30;--panel2:#17253c;--line:#293b55;--text:#ecf3fb;--muted:#9eafc9;--aqua:#65e0d5;--red:#ff9eab;--gold:#ffd48a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#163556 0,transparent 46%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;font-size:15px}
+.wrapper{max-width:1140px;margin:0 auto;padding:24px 20px 90px}header{display:flex;gap:20px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:18px}h1{font-size:clamp(29px,4vw,46px);margin:7px 0 6px;letter-spacing:-.04em}h2{font-size:21px;margin:0 0 17px}p{color:var(--muted);line-height:1.7}.topbrand{font-size:12px;letter-spacing:.16em;color:var(--aqua);font-weight:700}.pill{border:1px solid #966f32;background:#3b301d;color:var(--gold);padding:9px 14px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.notice{border:1px solid #71543b;background:#2e241e;border-radius:12px;padding:14px 17px;color:#ffd7a6;line-height:1.6;margin:20px 0}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card,.panel{background:linear-gradient(135deg,#16253b,#101b2d);border:1px solid var(--line);border-radius:16px;padding:20px}.metric{color:var(--muted);font-size:13px}.num{font-size:clamp(23px,3vw,31px);font-weight:800;letter-spacing:-.045em;margin-top:9px}.num.accent{color:var(--aqua)}.num.warn{color:var(--gold)}.sm{font-size:12px;color:var(--muted);margin-top:6px}section{margin-top:24px}.cols{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.formrow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}select,button,textarea{font:inherit;border-radius:10px;border:1px solid #3d536e;background:#0d1828;color:var(--text);padding:11px}button{cursor:pointer;border-color:#368e8e;color:#09151a;background:var(--aqua);font-weight:800}button.secondary{background:#263852;border-color:#3d536e;color:var(--text)}button:hover{filter:brightness(1.08)}.stamp{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;overflow-wrap:anywhere;color:var(--muted)}.status{padding:14px;border-radius:12px;border:1px solid #69434c;background:#2b1b28;color:#ffc5c8;font-weight:700}.status.ok{border-color:#316f69;background:#10332f;color:#98fff3}.spec{display:grid;grid-template-columns:1fr 1fr;gap:9px}.spec>div{background:#0e192b;border:1px solid #203750;padding:13px;border-radius:10px}.spec strong{display:block;font-size:20px;margin-top:5px}.spec span{color:var(--muted);font-size:12px}textarea{width:100%;min-height:150px;resize:vertical;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:13px}tfoot td{color:var(--aqua);font-weight:bold}a{color:var(--aqua)}ul{padding-left:20px;color:var(--muted);line-height:1.7}footer{margin-top:26px;border-top:1px solid var(--line);padding-top:20px;color:var(--muted);font-size:12px}.hidden{display:none}code{color:var(--gold)}@media(max-width:790px){.cards{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.wrapper{padding:16px 12px 50px}header{align-items:flex-start;flex-direction:column}.card,.panel{padding:16px}}
+</style></head><body><main class="wrapper">
+<header><div><div class="topbrand">TX RESEARCH DESK / P193 INTRADAY</div><h1>R11 盤前決策台</h1><p style="margin:0">日盤・夜盤獨立｜盤末強平｜永遠最多 1 口大台</p></div><span class="pill">● PAPER ONLY · 尚未核准實單</span></header>
+<div class="notice"><strong>資料狀態：</strong>目前只封存至 <strong>2026/10/22</strong> 的五年回測。最新 P40／R26 核心訊號、即時期貨分 K、契約換月和券商持倉尚未串接完成；本頁不會用舊價位冒充今天盤前價。歷史績效為樣本內回測，且在每側成本提高到 5 點時最大回撤超標。</div>
+<div class="cards">
+<div class="card"><div class="metric">五年淨獲利 · R11 RR</div><div class="num accent">+63,236 <small style="font-size:13px">點</small></div><div class="sm">每側成本 3 點；2021/10/22–2026/10/22</div></div>
+<div class="card"><div class="metric">保守盤中最大回撤</div><div class="num">4.684%</div><div class="sm">初始本金 NT$2,000,000；OHLC 代理</div></div>
+<div class="card"><div class="metric">同期 TX 買進持有倍數</div><div class="num accent">2.136 ×</div><div class="sm">買進持有 +29,603 點，不同曝險</div></div>
+<div class="card"><div class="metric">五年模擬成交</div><div class="num">710 筆</div><div class="sm">多單 505／空單 205；盤末不留倉</div></div>
+</div>
+<section class="cols"><div class="panel"><h2>下一交易盤｜買賣計畫</h2><div class="formrow"><label>研究版本 <select id="variant"><option value="RR">R11 RR（推薦）</option><option value="MAX">R11 MAX（高獲利）</option></select></label><button class="secondary" id="refresh">重新檢查資料</button></div><div id="signal-status" class="status" role="status">⛔ 即時資料尚未驗證；不提供當盤交易點位</div><p class="stamp" id="feed">正在檢查 Cloudflare API 連線與 R11 特徵...</p>
+<div class="spec"><div><span>當盤方向／決策</span><strong id="direction">禁止下單</strong></div><div><span>目前持倉</span><strong id="position">待券商核對</strong></div><div><span>進場觸發價</span><strong id="entry">—</strong></div><div><span>停損 / 停利</span><strong id="exit">— / —</strong></div><div><span>契約月份</span><strong id="contract">待核對</strong></div><div><span>盤別／收盤處置</span><strong id="session">當盤強制平倉</strong></div></div>
+<p>R11 僅能從空手開一口；持倉未知、已持有一口、盤前特徵不足或換月未確認，均不給新倉訊號。出場固定於停損、停利或該盤最後有效分鐘開盤；沒有跨盤續抱。</p>
+</div><div class="panel"><h2>上線前驗收</h2><div class="status" id="readiness">未完成：不能實盤下單</div><ul id="checks"><li>GitHub／Cloudflare 靜態部署：待確認</li><li>最新 120 盤完整期貨資料：待串接</li><li>P40、P193 w/h、R26 core：待核對</li><li>期貨合約與換月：待核對</li><li>券商實際持倉：未連線</li></ul><p class="sm">5 秒重新載入頁面不等於資料每 5 秒更新；只有實際通過來源與時效稽核才能顯示當盤訊號。</p></div></section>
+<section class="cols"><div class="panel"><h2>歷史年度淨利（已扣 3 點／側）</h2><table><thead><tr><th>年份</th><th>R11 RR</th><th>R11 MAX</th></tr></thead><tbody><tr><td>2021 Q4</td><td>+222</td><td>+222</td></tr><tr><td>2022</td><td>+4,365</td><td>+4,228</td></tr><tr><td>2023</td><td>+1,020</td><td>+1,334</td></tr><tr><td>2024</td><td>+7,536</td><td>+6,981</td></tr><tr><td>2025</td><td>+6,828</td><td>+6,197</td></tr><tr><td>2026 至10/22</td><td>+43,265</td><td>+44,952</td></tr></tbody><tfoot><tr><td>合計</td><td>+63,236</td><td>+63,914</td></tr></tfoot></table><p>R11 MAX：保守回撤 4.764%，682 筆。兩版 2026 年貢獻約七成獲利，未經完全獨立樣本外驗證。</p></div>
+<div class="panel"><h2>研究特徵快照核對</h2><p>可貼上完整盤前特徵 JSON 來離線核對 R11 計價。此功能<strong>不是即時資料、不是自動下單</strong>；即使 JSON 自稱「已驗證」，仍只會顯示研究計價結果。</p>
+<details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、w、h、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
+<footer>固定引擎 R11-RR / MAX（P193 衍生當盤分支）｜Cloudflare Workers 靜態資產＋GitHub ｜不執行交易、未接券商。<br>原始 R18-A「允許跨盤持倉」是另一條研究分支，不可合併績效。</footer>
+</main>
+<script type="module">
+import {planR11,VERSION} from './r11-plan.mjs';
+const $=id=>document.getElementById(id);
+function showResult(plan,label){
+  $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
+  $('entry').textContent=plan.entry?.trigger_price??'—';
+  $('exit').textContent=(plan.stop_loss?.price??'—')+' / '+(plan.take_profit?.price??'—');
+  $('contract').textContent=label?.contract??'待核對';$('position').textContent=label?.position===0?'空手（特徵自述）':'待券商核對';
+  $('session').textContent=(label?.session==='night'?'夜盤':'日盤')+'｜當盤強平';
+  $('signal-status').className='status';$('signal-status').textContent='⚠ '+(plan.reasons||[]).join('、')+'；此結果僅供研究，禁止作為實際下單價位';
+}
+async function refresh(){
+  $('feed').textContent='資料檢查中…';$('signal-status').className='status';
+  let health='未知',rt='未提供';
+  try{const r=await fetch('/api/health',{cache:'no-store'});health=r.ok?'API 可連線':'API HTTP '+r.status;}catch(e){health='API 無法連線';}
+  try{const r=await fetch('/api/r11/preopen?variant='+encodeURIComponent($('variant').value),{cache:'no-store'});if(r.ok){const j=await r.json();rt=j.status||'未通過來源審核';}else{rt='R11 即時特徵接口尚未接通（HTTP '+r.status+'）';}}catch(e){rt='R11 即時接口連線失敗';}
+  $('feed').textContent='Worker：'+health+'｜'+rt+'｜查詢時間 '+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'});
+  $('signal-status').textContent='⛔ 最新盤前特徵、合約與持倉尚未全項驗證；暫停交易訊號';
+  $('readiness').textContent='研究網站（紙上）／資料鏈尚未驗收';
+  $('checks').children[0].textContent='GitHub／Cloudflare 靜態頁：請以目前網址實際確認';
+}
+$('refresh').addEventListener('click',refresh);$('variant').addEventListener('change',refresh);
+$('calculate').addEventListener('click',()=>{try{const data=JSON.parse($('snapshot').value),out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify(out,null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
+refresh();setInterval(refresh,60000);
+</script></body></html>
