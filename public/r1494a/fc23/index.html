@@ -74,6 +74,29 @@ footer{margin:20px 0;color:var(--muted)}
 <div id="fc23-fills" class="scroll"></div>
 </section>
 <section id="fc23-why" style="margin-top:16px;background:#fff3dc;border-color:#e5c487"><strong>隔日買賣原因</strong><p>正在核對資料更新狀態…</p></section>
+<section style="margin-top:16px" id="fc23-complete-ledger">
+<h2>FC23 五年完整逐筆與每日策略紀錄</h2>
+<p id="fc23-archive-state" class="muted">正在下載、解壓縮並驗證完整FC23歷史檔案…</p>
+<div class="alert" style="margin:12px 0"><p>完整紀錄是<strong>2021年至2026/10/27的原FC23回測結果</strong>，不是R1494-A交易紀錄。沒有更新到最近交易日以前，禁止當成下個交易日的實盤掛單。</p></div>
+<h3>FC23全交易日淨值（1,407日）</h3><div id="fc23-full-nav" style="min-height:160px"></div>
+<h3>每日為什麼這樣買／賣／空手</h3>
+<label for="fc23-day-date">查詢歷史日期：</label><select id="fc23-day-date" style="padding:8px;margin:10px;border-radius:8px"></select>
+<div id="fc23-day-detail" style="background:#f0f7f2;padding:13px;border-radius:8px"></div>
+<h3>盤後產生的隔日買賣價位與理由（完整7,638筆）</h3>
+<label for="fc23-plan-date">歷史交易日：</label><select id="fc23-plan-date" style="padding:8px;margin:10px;border-radius:8px"></select>
+<p id="fc23-plan-title" class="muted"></p><div id="fc23-full-plans" class="scroll"></div>
+<h3>逐筆委託、已成交／未成交、損益（完整1,773筆）</h3>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0">
+<label>代碼<input id="fc23-order-ticker" placeholder="例如2337" style="width:105px;padding:8px;border-radius:7px;border:1px solid #bdcec3"></label>
+<label>買賣<select id="fc23-order-side" style="padding:8px"><option value="">全部</option><option value="BUY">買進</option><option value="SELL">賣出</option></select></label>
+<label>年份<select id="fc23-order-year" style="padding:8px"><option value="">全部年份</option><option>2021</option><option>2022</option><option>2023</option><option>2024</option><option>2025</option><option>2026</option></select></label>
+<label>成交狀態<select id="fc23-order-filled" style="padding:8px"><option value="all">全部</option><option value="true">已成交</option><option value="false">未成交</option></select></label>
+<label>假設初始資金<input id="fc23-initial-capital" type="number" min="100000" step="100000" value="3000000" style="width:145px;padding:8px"></label>
+</div>
+<p class="muted">名目金額按照假設初始本金換算，並非券商帳戶實際成交金額；賣出百分比為原始持倉成本報酬，個別筆未再拆分交易費用，總資產淨值已按FC23設定納入成本。</p>
+<div id="fc23-full-orders" class="scroll"></div>
+<div style="display:flex;align-items:center;gap:12px;margin-top:12px"><button id="fc23-prev" type="button" style="padding:8px 13px">上一頁</button><span id="fc23-order-pagination">—</span><button id="fc23-next" type="button" style="padding:8px 13px">下一頁</button></div>
+</section>
 <footer>研究用途 · FC23 v1 · 請以實際券商持倉與合法市場資料為準</footer>
 </main>
 <script>
@@ -108,4 +131,4 @@ const table=(rows,cols)=>'<table><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th
  }catch(e){q('block').textContent='⛔ FC23資料異常，禁止下單';q('warning').textContent=e.message;}
 })();
 </script>
-<script src="./dashboard.js" defer></script></body></html>
+<script src="./dashboard.js" defer></script><script src="./full-archive.js" defer></script></body></html>
