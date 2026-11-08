@@ -37,6 +37,6 @@ for(const id of ['fc23-shared-data','fc23-performance-chart','fc23-fills','fc23-
 assert.ok(el('fc23-performance-chart').innerHTML.includes('<polyline'),'curves not rendered');
 assert.ok(el('fc23-fills').innerHTML.includes('2026-10-27'),'ledger not rendered');
 assert.ok(el('fc23-shared-data').innerHTML.includes('2026-11-06'),'live refresh status missing');
-assert.ok(el('fc23-why').innerHTML.includes('不能'),'why-trade gating missing');
+assert.ok(el('fc23-why').innerHTML.includes('不允許'),'why-trade gating missing');
 assert.ok(!el('fc23-shared-data').textContent.startsWith('⚠️'),'JS errored '+el('fc23-shared-data').textContent);
 console.log('PASS FC23 DOM mock with real 2026-11-06 R1494 benchmark; R1494 model unchanged');
