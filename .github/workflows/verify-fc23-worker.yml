@@ -41,9 +41,16 @@ jobs:
           console.log('PASS: production R1494-A preserved, FC23 accessible, stale data properly gated');
           JS
           # Verify complete FC23 archived replay is actually published on workers.dev
-          curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/full-archive.js" > /tmp/fc23-full.js
-          grep -q 'readFullArchive' /tmp/fc23-full.js
-          curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/archive/manifest.json" > /tmp/fc23-manifest.json
+          archive_ready=0
+          for retry in $(seq 1 30); do
+            js_code=$(curl -sSL --connect-timeout 8 --max-time 25 -o /tmp/fc23-full.js -w '%{http_code}' "$base/r1494a/fc23/full-archive.js?sha=$GITHUB_SHA" || true)
+            manifest_code=$(curl -sSL --connect-timeout 8 --max-time 25 -o /tmp/fc23-manifest.json -w '%{http_code}' "$base/r1494a/fc23/archive/manifest.json?sha=$GITHUB_SHA" || true)
+            first_code=$(curl -sSL --connect-timeout 8 --max-time 25 -o /dev/null -w '%{http_code}' "$base/r1494a/fc23/archive/part01.txt?sha=$GITHUB_SHA" || true)
+            if [ "$js_code" = "200" ] && [ "$manifest_code" = "200" ] && [ "$first_code" = "200" ] && grep -q 'readFullArchive' /tmp/fc23-full.js; then archive_ready=1; break; fi
+            echo "Waiting for Worker full FC23 archive publish: $retry / 30 (JS=$js_code, manifest=$manifest_code, part1=$first_code)"
+            sleep 10
+          done
+          test "$archive_ready" = 1 || { echo "::error::Cloudflare Worker still missing latest FC23 archive"; exit 1; }
           for n in $(seq -w 1 8); do
             curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/archive/part$n.txt" >> /tmp/fc23-parts.b64
           done
