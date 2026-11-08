@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#123e33">
+<title>FC23｜龍頭策略監控台・歷史研究</title>
+<style>
+:root{--bg:#f5f6f2;--ink:#172d26;--muted:#738078;--green:#18694f;--line:#e1e6de;--red:#b64d43}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+header{background:#123e33;color:white;padding:18px max(20px,calc((100vw - 1240px)/2));display:flex;justify-content:space-between;align-items:center;gap:14px}
+header strong{font-size:21px}header small{color:#c7e1d4}header a{color:#def8e8;border:1px solid #8fc6a7;padding:7px 14px;border-radius:10px;text-decoration:none}
+main{max-width:1240px;margin:auto;padding:27px 22px 60px}
+h1{font-size:clamp(24px,3.5vw,36px);margin:0 0 6px}h2{margin:0 0 14px;font-size:19px}
+h3{margin:18px 0 6px}p{margin:8px 0}small,.muted{color:var(--muted)}
+nav{display:flex;gap:12px;margin:14px 0 20px}nav a{padding:11px 15px;border-radius:11px;text-decoration:none;border:1px solid #bad0c6;color:var(--green);font-weight:700}
+nav a.active{color:white;background:var(--green)}
+.alert{background:#fff4d7;border:2px solid #c48d32;padding:17px 22px;border-radius:12px;margin:16px 0 20px}
+.alert strong{font-size:17px}.alert p{color:#705320}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}
+.metric,section{background:white;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 4px 15px #173f2710}
+.metric label{display:block;color:var(--muted)}.metric strong{font-size:clamp(19px,3vw,28px);display:block;margin-top:6px}
+.positive{color:var(--green)}.negative{color:var(--red)}
+.twocol{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:16px 0}section{min-width:0}
+.scroll{overflow:auto}table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+.year{display:grid;grid-template-columns:54px minmax(0,1fr) 92px;gap:10px;align-items:center;margin:10px 0}
+.track{background:#e6ece8;border-radius:6px;height:12px;overflow:hidden}.fill{height:100%;background:var(--green);border-radius:6px}.fill.loss{background:var(--red)}
+.code{font-family:ui-monospace,monospace;background:#eef2ef;border-radius:5px;padding:2px 6px}
+footer{margin:20px 0;color:var(--muted)}
+@media(max-width:780px){header{flex-wrap:wrap}.metrics{grid-template-columns:repeat(2,1fr)}.twocol{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div><strong>FC23 龍頭策略</strong><br><small>R1494-A 保留 · 原站新增第二策略</small></div><a href="../">← 返回 R1494-A</a></header>
+<main>
+<div><h1>FC23-PEER50-LOCK</h1><p class="muted">獨立策略研究工作台 · 233檔研究池 · 20交易日主要調倉、5交易日風控</p></div>
+<nav><a href="../">R1494-A 即時監控</a><a href="./" class="active" aria-current="page">FC23 歷史研究</a></nav>
+<div class="alert" role="alert"><strong id="block">⛔ 僅歷史回測，禁止依此頁下單</strong><p id="warning">FC23 尚未完成最新行情與法人指標更新，沒有目前可執行的買賣訊號。</p></div>
+<div class="metrics">
+<div class="metric"><label>歷史累積淨報酬</label><strong class="positive" id="ret">—</strong></div>
+<div class="metric"><label>歷史最大收盤回撤</label><strong class="negative" id="mdd">—</strong></div>
+<div class="metric"><label>歷史資料截止</label><strong id="date">—</strong></div>
+<div class="metric"><label>現股往返成本</label><strong id="cost">—</strong></div>
+</div>
+<div class="twocol">
+<section><h2>封存持股（非實際持倉）</h2><p class="muted">僅代表2026/10/27回測結束時的模擬持倉，非今日券商部位。</p><div id="positions" class="scroll">讀取中…</div></section>
+<section><h2>最後一筆歷史隔日計畫</h2><p id="planDay" class="muted">讀取中…</p><div id="orders" class="scroll">讀取中…</div><p class="muted">此表是已發生的歷史訊號，不能當成下一個交易日計畫。</p></section>
+</div>
+<div class="twocol">
+<section><h2>各年度歷史報酬</h2><div id="annual">讀取中…</div><p class="muted">2026年僅計入2026/10/27以前。</p></section>
+<section><h2>策略規則與驗收狀態</h2><div id="rules">讀取中…</div><p class="muted">歷史績效不能保證未來報酬；FC24/FC26已確認20日相位具有重大敏感性。</p></section>
+</div>
+<section><h2>資料與上線驗收</h2>
+<p>✅ 已封存原始FC23研究引擎、成本及歷史模擬績效。</p>
+<p>✅ 本頁與原R1494-A分開；不修改原R1494-A的模型、資產、每日刷新與資料快照。</p>
+<p>⚠️ 截至2026/10/27的歷史特徵尚未自動延伸到最新日期。</p>
+<p>⛔ 在每日行情、法人時間戳、持股同步及隔日預掛單與原引擎一致性完成驗證前，<strong>FC23不開放最新交易計畫</strong>。</p>
+</section>
+<footer>研究用途 · FC23 v1 · 請以實際券商持倉與合法市場資料為準</footer>
+</main>
+<script>
+"use strict";
+const q=x=>document.getElementById(x);
+const fmt=(x,n=2)=>Number(x).toLocaleString('zh-TW',{minimumFractionDigits:n,maximumFractionDigits:n});
+const esc=s=>String(s??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const table=(rows,cols)=>'<table><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+cols.map(c=>'<td>'+esc(c[2]?c[2](row[c[1]]):row[c[1]])+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+(async()=>{
+ try{
+  const r=await fetch('./snapshot.json',{cache:'no-store'});
+  if(!r.ok)throw Error('歷史資料HTTP '+r.status);
+  const d=await r.json();
+  if(d.state!=='HISTORICAL_ONLY'||d.live_plan_available!==false||d.live_execution_allowed!==false)throw Error('安全狀態不符');
+  q('block').textContent='⛔ 研究資料截至 '+d.end_date+'，目前禁止下單';
+  q('warning').textContent=d.warning;
+  q('ret').textContent='+'+fmt(d.return_pct)+'%';
+  q('mdd').textContent=fmt(d.max_drawdown_pct)+'%';
+  q('date').textContent=d.end_date;
+  q('cost').textContent=fmt(d.cost_roundtrip_pct,4)+'%';
+  q('positions').innerHTML=table(d.historical_positions,[['代碼','ticker'],['模擬權重','weight_pct',v=>fmt(v)+'%'],['成本','avg_cost',fmt],['歷史收盤','closing_price',fmt]]);
+  q('planDay').textContent='訊號日：'+d.last_historical_execution_plan.signal_date+' → 歷史執行日：'+d.last_historical_execution_plan.execution_date;
+  q('orders').innerHTML=table(d.last_historical_execution_plan.orders,[['代碼','ticker'],['動作','action'],['當時停損','stop_level',fmt],['原因','reason']]);
+  const max=Math.max(...d.annual.map(y=>Math.max(y.pct,0)));
+  q('annual').innerHTML=d.annual.map(y=>'<div class="year"><b>'+y.year+'</b><div class="track"><div class="fill '+(y.pct<0?'loss':'')+'" style="width:'+Math.max(3,Math.abs(y.pct)/max*100)+'%"></div></div><b class="'+(y.pct<0?'negative':'positive')+'">'+(y.pct>=0?'+':'')+fmt(y.pct)+'%</b></div>').join('');
+  const p=d.parameters;
+  q('rules').innerHTML='<p>主要調倉：<b>'+p.rebalance_days+'交易日</b>；風控檢查：<b>'+p.risk_check_days+'交易日</b></p>'+
+  '<p>重新買回觀察窗：'+p.reentry_delay_days+'～'+p.reentry_max_days+'交易日</p>'+
+  '<p>最多持股 '+d.max_positions+' 檔；單股≤'+d.max_weight_pct+'%；總曝險≤'+d.max_exposure_pct+'%</p>'+
+  '<p>歷史買進 '+d.trade_buys+' 筆、賣出 '+d.trade_sells+' 筆；重新買回 '+d.reentry_buys+' 筆</p>'+
+  '<p>'+esc(d.original_phase_warning)+'</p>';
+ }catch(e){q('block').textContent='⛔ FC23資料異常，禁止下單';q('warning').textContent=e.message;}
+})();
+</script>
+</body></html>
