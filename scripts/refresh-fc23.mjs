@@ -1,0 +1,10 @@
+import fs from 'node:fs';import zlib from 'node:zlib';
+import {Fc23Service} from '../src/fc23/service.mjs';import {load1494} from '../src/fc23/shared.mjs';
+const map=new Map();
+const storage={async get(k){return Array.isArray(k)?new Map(k.filter(x=>map.has(x)).map(x=>[x,map.get(x)])):map.get(k)},async put(k,v){if(typeof k==='object')for(const [a,b]of Object.entries(k))map.set(a,b);else map.set(k,v)},async delete(k){for(const x of Array.isArray(k)?k:[k])map.delete(x)},async transaction(fn){return fn(storage)}};
+const ctx={storage,waitUntil(){}},env={FINMIND_TOKEN:process.env.FINMIND_TOKEN,ASSETS:{async fetch(req){try{return new Response(fs.readFileSync('public'+new URL(req.url).pathname))}catch{return new Response('Not found',{status:404})}}}};
+const service=new Fc23Service(ctx,env);await service.run();
+const delta=await service.delta(),account=await service.state(),{st:shared}=await load1494(await service.setup());
+console.log(JSON.stringify({date:delta.data_as_of,status:delta.sync_status,snapshots:delta.snapshots.length,orders:delta.orders.length,error:delta.lastError,progress:await storage.get('fc23-progress')}));
+if(account.date!=='2026-10-27'||delta.sync_status==='current')fs.writeFileSync('public/r1494a/fc23/live-bootstrap.b64',zlib.gzipSync(JSON.stringify({shared,account,delta})).toString('base64'));
+if(delta.sync_status!=='current')process.exitCode=1;

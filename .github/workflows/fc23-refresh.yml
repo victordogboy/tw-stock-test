@@ -1,0 +1,40 @@
+name: FC23 latest data and original engine refresh
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/fc23/**'
+      - 'scripts/refresh-fc23.mjs'
+      - 'public/r1494a/fc23/shared-seed.b64'
+      - '.github/workflows/fc23-refresh.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '40 11 * * *'
+    - cron: '25 14,22 * * *'
+concurrency:
+  group: fc23-daily-original-engine
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Fetch complete market data and advance FC23 own account
+        run: node scripts/refresh-fc23.mjs
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+      - name: Publish verified FC23 latest state
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/r1494a/fc23/live-bootstrap.b64
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Refresh FC23 prices, own holdings, NAV and next-session plan'
+          git pull --rebase origin main
+          git push origin HEAD:main

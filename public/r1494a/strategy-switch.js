@@ -8,6 +8,22 @@ async function fetchGzipJson(path,base64=false){
 async function loadFc23Snapshot(shared){
  const d=await fetchGzipJson('./fc23/integrated-snapshot.b64',true);
  if(d.model_version!=='FC23'||d.snapshots.length!==1407||d.orders.length!==1773||Math.abs(d.snapshots.at(-1).nav-32.8528999624682)>1e-8)throw Error('FC23 原引擎驗證未通過');
+ const api='/api/fc23/';let delta;
+ try{
+  $('#flash').textContent='正在抓取 FC23 最新行情、法人與指標…';
+  const kick=await fetch(api+'refresh',{method:'POST',cache:'no-store'});if(!kick.ok)throw Error('更新啟動失敗 HTTP '+kick.status);
+  for(let attempt=0;attempt<90;attempt++){
+   const r=await fetch(api+'snapshot',{cache:'no-store'});if(!r.ok)throw Error('FC23資料讀取失敗 HTTP '+r.status);delta=await r.json();
+   $('#flash').textContent=delta.progress?.phase||'FC23 正在重新計算持倉與隔日計畫…';
+   if(!delta.running)break;await new Promise(resolve=>setTimeout(resolve,2000));
+  }
+  if(delta?.snapshots?.length){
+   const lastHistorical=d.dates.at(-1);for(const item of delta.snapshots){if(item.date<=lastHistorical)throw Error('FC23最新資料覆寫歷史封存');d.snapshots.push(item);d.dates.push(item.date)}
+   d.orders.push(...delta.orders);Object.assign(d.planHistory,delta.planHistory);d.curves.strategy=d.snapshots.map(item=>item.nav);
+  }
+  if(delta?.plan)d.plan=delta.plan;
+  if(delta?.data_as_of){Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError,sources:delta.sources||[]})}
+ }catch(error){d.status.lastError={message:error.message,date:d.status.data_as_of};d.status.sync_status='blocked';d.plan.readiness='blocked';d.plan.blockedReason='FC23更新失敗：'+error.message}
  // Benchmarks share the original published data and align by date, never by array offset.
  const idx=new Map(shared.dates.map((date,i)=>[date,i]));
  for(const key of ['old49','market'])d.curves[key]=d.dates.map(date=>shared.curves[key][idx.get(date)]);
@@ -24,10 +40,11 @@ function fc23Why(d,i){
 }
 function renderFc23Plan(){
  const p=I===D.snapshots.length-1?D.plan:D.planHistory[D.snapshots[I].date];
- $('#planState').textContent=p?.trade_date?'FC23 原引擎歷史計畫':'FC23 資料待補';
- $('#planDate').textContent=p?.trade_date?'歷史訊號 '+p.signal_as_of+' → '+p.trade_date:'訊號計算資料截至 '+D.status.data_as_of;
- $('#planNote').textContent=p?.trade_date?'依原引擎已完成資料重播；此處不展示隔日實際高低價。FC23 沿用原始成交規則，回測已計入往返總成本0.5855%。':D.plan.blockedReason;
- $('#planActions').innerHTML=(p?.actions||[]).map(a=>'<article class="action"><div class="row"><b>'+esc(name(a.code))+' '+esc(a.code)+'</b><span class="pill">'+({BUY:'突破買入',SELL:'開盤賣出',HOLD:'持續持有'}[a.side])+' · 歷史計畫</span></div><div class="price">'+(a.side==='BUY'?num(a.level,2):a.side==='SELL'?'次日現股開盤價':'續抱')+'</div><p>前收 '+num(a.referencePrice,2)+(Number.isFinite(a.stop)?' · 保護停損 '+num(a.stop,2):'')+'</p><p>'+esc(reasons[a.reason]||a.reason)+'</p><p class="sub">'+esc(({NO_FILL_NO_BUY:'未觸價不買',CONTINUE_HOLDING:'持續持有並檢查風控',OPEN_UNCONDITIONAL:'次日開盤模擬賣出'}[a.noFillPolicy])||a.noFillPolicy)+'</p></article>').join('');
+ const latest=I===D.snapshots.length-1,ready=latest&&p?.readiness==='ready';
+ $('#planState').textContent=ready?'FC23 最新凍結計畫':latest?'FC23 資料待補':'FC23 原引擎歷史計畫';
+ $('#planDate').textContent=p?.trade_date?(ready?'最新訊號 ':'歷史訊號 ')+p.signal_as_of+' → '+p.trade_date:'訊號計算資料截至 '+D.status.data_as_of;
+ $('#planNote').textContent=latest&&!ready?(p?.blockedReason||'FC23資料更新中'):ready?'FC23已以最新完整日線、法人與動態同儕重算；價位於開盤前確定，實際金額仍依開盤與可用資金檢查。':p?.trade_date?'依原引擎已完成資料重播；此處不展示隔日實際高低價。FC23 沿用原始成交規則，回測已計入往返總成本0.5855%。':D.plan.blockedReason;
+ $('#planActions').innerHTML=(p?.actions||[]).map(a=>'<article class="action"><div class="row"><b>'+esc(a.code?name(a.code)+' '+a.code:'組合配置')+'</b><span class="pill">'+({BUY:'突破買入',SELL:'開盤賣出',HOLD:'持續持有'}[a.side])+' · 歷史計畫</span></div><div class="price">'+(a.side==='BUY'?num(a.level,2):a.side==='SELL'?'次日現股開盤價':a.side==='REBALANCE'?'目標曝險 '+pct(a.target):'續抱')+'</div><p>前收 '+num(a.referencePrice,2)+(Number.isFinite(a.stop)?' · '+(a.stopActive===false?'停損條件未啟動，參考價 ':'保護停損 ')+num(a.stop,2):'')+'</p><p>'+esc(reasons[a.reason]||a.reason)+'</p><p class="sub">'+esc(({NO_FILL_NO_BUY:'未觸價不買',CONTINUE_HOLDING:'持續持有並檢查風控',OPEN_UNCONDITIONAL:'次日開盤模擬賣出'}[a.noFillPolicy])||a.noFillPolicy)+'</p></article>').join('');
 }
 let originalDashboardCopy;
 function decorateStrategy(){
@@ -47,11 +64,11 @@ function decorateStrategy(){
  $('#execution-study-v29').innerHTML='<details><summary><strong>FC23 原始執行規則與成本</strong></summary><p>沿用 FC23 封存原引擎的突破、跳空、停損與未成交假設；未套用 R1494-A 新版5%追價上限。淨值含往返總成本0.5855%；單筆賣出損益為原引擎費稅前損益。</p></details>';
  $('#performanceNotice').innerHTML='<strong>FC23 原引擎歷史模擬 · 往返總成本0.5855%</strong>原研究績效與參數保持不變；49檔長抱與200檔市場代理保留原站零成本計算口徑，並非同成本比較。';
  $('#performanceLegend').textContent='FC23／49檔長抱／200檔市場代理';
- $('#chartNote').textContent='FC23 每日淨值、年度與月份績效均由原引擎計算，截止 '+D.dates.at(-1)+'；累積+3185.29%、最大回撤−16.85%。策略含往返成本0.5855%，對照維持原站成本口徑。';
+ $('#chartNote').textContent='FC23 原始回測2021/01/06～2026/10/27維持累積+3185.29%、最大回撤−16.85%；此後接續獨立紙上帳本，曲線更新至 '+D.dates.at(-1)+'。策略含往返成本0.5855%，對照維持原站成本口徑。';
  $('#rulesMain').innerHTML='<h2>FC23 鎖定規則</h2><ol><li>沿用233檔研究池、最多8檔、總曝險不超過100%，每20交易日調倉、每5交易日檢查風控與配置。</li><li>RS20 &gt; 8%、RS5 &gt; 1.5%、RS5−RS20/4 &gt; 0.7%、距60日高點 &gt; 87%、動態同儕強勢比例 ≥ 50%。</li><li>投信5日條件T5 ≥ −2%（缺值中性）；RS5 ≤18%，或RS5 ≤25%且同儕 ≥70%、外資F5 ≥0。</li><li>風控出場第3～35交易日、排名前8、價格恢復至原出場價、目標曝險 ≥70%且帳戶風控允許，才可重新進場。</li><li>原始配置目標單檔16%；30%為研究驗收上限。買賣、減碼、停損、跳空與漲跌停全部保留原引擎。</li><li>往返總成本0.5855%，封存期間2021/01/06～2026/10/27；固定20日調倉相位敏感，歷史結果不代表未來報酬。</li></ol>';
- $('#rulesFoot').textContent='FC23 紙上歷史帳本獨立於 R1494_A_paper。共用行情更新不代表 FC23 指標或新交易計畫已更新。';
+ $('#rulesFoot').textContent='FC23 紙上歷史帳本獨立於 R1494_A_paper。重新讀取最新資料會啟動FC23官方行情與指標更新，並顯示更新進度；資料齊全後重算本策略帳本及隔日計畫。';
  const st=D.sharedStatus;
- $('#status').innerHTML='<strong>FC23 歷史資料截至 '+D.status.data_as_of+'</strong>'+esc(D.plan.blockedReason)+'<br>共用 R1494-A 行情截至 '+esc(st.data_as_of)+'；FC23 尚無此期間之後的已驗證計畫。';
+ $('#status').innerHTML='<strong>'+(D.status.sync_status==='current'?'FC23 已更新至最新完整交易日':'FC23 更新狀態：'+D.status.sync_status)+'</strong>FC23 日線／訊號截至 '+esc(D.status.data_as_of)+' · '+tw(D.status.price_updated_at)+(D.plan.blockedReason?'<br>'+esc(D.plan.blockedReason):'<br>已重新計算 FC23 自己的持倉、風控與下一交易日計畫。')+'<br>R1494-A 共用行情截至 '+esc(st.data_as_of); 
  $('#replay').textContent='FC23 原引擎逐日重播驗證：1407日、1773筆委託、7638筆歷史計畫；累積+3185.289996%、最大回撤−16.845431%。';
  $('#risk').innerHTML=[['持股組合弱勢',D.snapshots[I].basket?'啟動':'未啟動'],['市場空頭',D.snapshots[I].bear?'啟動':'未啟動'],['20日急跌',D.snapshots[I].overlay?'啟動':'未啟動'],['配置檢查','每5交易日'],['主要調倉','每20交易日'],['單檔限制','配置目標16%／驗收上限30%']].map(([a,b])=>'<div class="risk"><b>'+a+'</b><p>'+b+'</p></div>').join('');
 }

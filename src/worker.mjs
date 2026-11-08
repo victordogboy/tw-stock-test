@@ -1,3 +1,4 @@
+import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
 import {ValuationCache,valuationStub} from './valuation-cache.mjs';
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
@@ -16,15 +17,17 @@ export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
- constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);}
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);}
  fetch(request){
+  if(new URL(request.url).pathname.startsWith('/fc23/'))return this.fc23.fetch(request);
   if(new URL(request.url).pathname.startsWith('/valuation/'))return this.valuation.fetch(request);
   return super.fetch(request);
  }
 }
 export default {
- scheduled(event,env,ctx){ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
+ scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname.startsWith('/api/fc23/'))return fc23Route(request,env);
   if(new URL(request.url).pathname==='/api/pe-screener/snapshot'){
    if(request.method!=='GET')return new Response('Method not allowed',{status:405});
    return valuationStub(env).fetch(new Request('https://valuation.internal/valuation/snapshot'));
