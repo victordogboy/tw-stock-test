@@ -30,6 +30,6 @@ await new Promise(r=>setTimeout(r,1600));
 assert.ok(el('fc23-archive-state').textContent.includes('驗證通過'),el('fc23-archive-state').textContent);
 assert.ok(el('fc23-full-nav').innerHTML.includes('polyline'),'NAV not drawn');
 assert.ok(el('fc23-full-orders').innerHTML.includes('2026-10-27'),'orders not rendered');
-assert.ok(el('fc23-full-plans').innerHTML.includes('2026-10-27'),'plans not rendered');
+assert.ok(el('fc23-plan-title').textContent.includes('2026-10-27')&&el('fc23-full-plans').innerHTML.includes('3653'),'plans not rendered');
 assert.ok(el('fc23-day-detail').innerHTML.includes('淨值'),'daily why not rendered');
 console.log('PASS FC23 full frozen replay: 1773 orders / 7638 plans / 1407 NAV, SHA256, trade PnL, daily reasons & order prices');
