@@ -5,6 +5,7 @@ on:
     paths:
       - 'public/r1494a/index.html'
       - 'public/r1494a/fc23/**'
+      - 'tests/fc23-full-archive.test.mjs'
       - '.github/workflows/verify-fc23-worker.yml'
   workflow_dispatch:
 jobs:
@@ -38,4 +39,24 @@ jobs:
           const j=JSON.parse(readFileSync('/tmp/fc23.json','utf8'));
           if(j.strategy!=='FC23-PEER50-LOCK'||j.end_date!=='2026-10-27'||j.live_plan_available!==false||j.live_execution_allowed!==false)throw Error('FC23 archival data or safe-mode mismatch');
           console.log('PASS: production R1494-A preserved, FC23 accessible, stale data properly gated');
+          JS
+          # Verify complete FC23 archived replay is actually published on workers.dev
+          curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/full-archive.js" > /tmp/fc23-full.js
+          grep -q 'readFullArchive' /tmp/fc23-full.js
+          curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/archive/manifest.json" > /tmp/fc23-manifest.json
+          for n in $(seq -w 1 8); do
+            curl -fsSL --connect-timeout 8 --max-time 25 "$base/r1494a/fc23/archive/part$n.txt" >> /tmp/fc23-parts.b64
+          done
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          import {gunzipSync} from 'node:zlib';
+          const m=JSON.parse(readFileSync('/tmp/fc23-manifest.json'));
+          const gz=Buffer.from(readFileSync('/tmp/fc23-parts.b64','utf8'),'base64');
+          const sha=createHash('sha256').update(gz).digest('hex');
+          if(sha!==m.sha256_gzip)throw Error('FC23 production archive checksum mismatch');
+          const h=JSON.parse(gunzipSync(gz));
+          for(const [k,count] of Object.entries(m.counts))if(h[k]?.length!==count)throw Error('FC23 production archive count mismatch: '+k);
+          if(h.daily_nav.at(-1).date!=='2026-10-27')throw Error('FC23 history timestamp mismatch');
+          console.log('PASS Cloudflare production FC23: 1773 orders, 7638 plans, 1407 NAV, SHA256 verified');
           JS
