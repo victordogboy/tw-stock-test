@@ -31,6 +31,11 @@ const initial=vm.runInContext('JSON.stringify({curves:D.curves,orders:D.orders,p
 el('#strategy').value='FC23';el('#strategy').onchange();await idle();
 assert.equal(vm.runInContext('D.model_version',ctx),'FC23');assert.match(el('#strategySummary').textContent,/3,185.29/);
 assert.match(el('#status').innerHTML,/FC23/);assert.match(el('#planNote').textContent,/資料|補齊/);
+assert.match(el('#rulesMain').innerHTML,/60 日報酬/);
+assert.match(el('#rulesMain').innerHTML,/40 日淨值/);
+assert.match(el('#rulesMain').innerHTML,/FC23 沒有套用 R1494-A/);
+assert.match(el('#rulesMain').innerHTML,/1,089/);
+assert.ok(el('#rulesMain').innerHTML.includes('<details'), 'Full FC23 policy must remain expandable');
 el('#date').value='100';el('#date').onchange();assert.match(el('#dailyWhy').textContent,/FC23/);
 el('#search').value='3406';el('#search').oninput();el('#export').onclick();assert.equal(csvName,'FC23_paper_trades.csv');
 el('#strategy').value='R1494-A';el('#strategy').onchange();await idle();
