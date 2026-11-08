@@ -9,6 +9,7 @@ on:
       - 'tests/strategy-switch.test.mjs'
       - 'src/fc23/**'
       - 'tests/fc23-live.test.mjs'
+      - 'tests/fc23-refresh-contract.test.mjs'
       - 'tests/fixtures/fc23-*.b64'
       - 'public/r1494a/snapshot.bin'
       - 'tests/fc23-dashboard.test.mjs'
@@ -30,3 +31,4 @@ jobs:
           node tests/fc23-full-archive.test.mjs
           node tests/strategy-switch.test.mjs
           node tests/fc23-live.test.mjs
+          node tests/fc23-refresh-contract.test.mjs
