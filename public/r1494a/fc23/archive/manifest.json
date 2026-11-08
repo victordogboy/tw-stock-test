@@ -1,0 +1,26 @@
+{
+  "strategy": "FC23-PEER50-LOCK",
+  "dataset": "FC23_BACKTEST_20210106_20261027",
+  "mode": "HISTORICAL_ONLY",
+  "parts": [
+    "./archive/part01.txt",
+    "./archive/part02.txt",
+    "./archive/part03.txt",
+    "./archive/part04.txt",
+    "./archive/part05.txt",
+    "./archive/part06.txt",
+    "./archive/part07.txt",
+    "./archive/part08.txt"
+  ],
+  "codec": "gzip/base64",
+  "sha256_gzip": "9912634b3d59651441de413c15e2ea9ba389d07af059d0d293ba8988bbd6843e",
+  "sha256_json": "87d4b9c30126d36d712fccfef1bb7ebcb0ec0b62204d23d460f5737d2ea88de6",
+  "counts": {
+    "orders": 1773,
+    "plans": 7638,
+    "daily_nav": 1407
+  },
+  "last_date": "2026-10-27",
+  "source": "FC23_LIVE_PREP_v1/data (FC23 research engine complete replay)",
+  "note": "Records include hypothetical OHLC fields for past dates; not forward forecasts beyond last date."
+}
