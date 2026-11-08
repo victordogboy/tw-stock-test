@@ -34,12 +34,26 @@ async function loadFc23Snapshot(shared,{refresh=false}={}){
  d.sharedStatus=shared.status;
  return d;
 }
+function fc23RiskBreakdown(p){
+ const d=p?.decision,st=p?.snapshot;if(!d||!st)return '';
+ const base=d.breadthDelta<-.16?.35:d.breadthDelta<-.08?.7:1;
+ const factors=[
+  ['廣度基礎',base],['持股弱勢',st.basket?.5:1],['市場空頭',st.bear?.35:1],
+  ['20日急跌',st.overlay?.7:1],['40日帳戶風控',d.portRisk?0:1],
+  ['3日急跌冷卻',d.marketCold?.15:1],['高水位回撤防禦',d.ddGate?.1:1],
+  ['市場40日與廣度門檻',st.gate??1]
+ ];
+ const product=factors.reduce((v,x)=>v*x[1],1);
+ return '曝險乘數拆解：'+factors.map(([k,v])=>k+' ×'+num(v,3)).join(' × ')
+  +'\n＝'+pct(product)+'（原引擎實際計畫 '+pct(d.target)+'）；每個倍率依訊號日條件判斷，不代表次日一定買入。';
+}
 function fc23Why(d,i){
  const s=d.snapshots[i],orders=d.orders.filter(o=>o.date===s.date),p=i===d.snapshots.length-1?d.plan:d.planHistory[s.date];
  return [s.date+' FC23 原引擎'+(s.date>'2026-10-27'?'紙上':'歷史')+'執行，訊號截至 '+s.signal,
  '20交易日調倉；每5交易日檢查風控與配置；符合強勢同儕條件者可於離場後第3～35交易日重新進場。',
  ...orders.map(o=>o.code+' '+(o.side==='BUY'?'買入':'賣出')+'｜'+(reasons[o.reason]||o.reason)+(o.level!=null?'，觸發價 '+num(o.level,2):'')+(o.filled?'，成交價 '+num(o.price,2):'，未成交')),
  ...(p?.decision?[p.decision.rebalance?'下一交易日為20日調倉日。':'下一交易日未到20日調倉日。',p.decision.riskRelease?'風控解除，可依排名安排補股。':'沒有風控解除觸發的一般補股。',p.decision.target<.7?'目標曝險 '+pct(p.decision.target)+' 低於70%重進場門檻，不啟動強勢重進場。':'強勢重進場符合 '+p.decision.reentryCandidates+' 檔。','市場廣度 '+pct(p.decision.breadth)+'；10日變化 '+pct(p.decision.breadthDelta)+'。'+(p.decision.marketCold?'3日急跌與低廣度防守啟動，曝險乘0.15。':'')+(p.decision.portRisk?'帳戶40日風控啟動，暫停曝險。':'')+(p.decision.ddGate?'帳戶回撤與市場轉弱風控啟動，曝險乘0.1。':'')]:[]),
+ ...(p?.decision?[fc23RiskBreakdown(p)]:[]),
  '當日目標曝險 '+pct(s.target)+'；實際曝險 '+pct(s.exposure)+'；持有 '+s.holdings.length+' 檔。',
  p?.trade_date?p.trade_date+(i===d.snapshots.length-1?' 下一交易日計畫：買入 ':' 歷史計畫：買入 ')+p.actions.filter(a=>a.side==='BUY').length+'、賣出 '+p.actions.filter(a=>a.side==='SELL').length+'、續抱 '+p.actions.filter(a=>a.side==='HOLD').length+' 檔。':d.plan.blockedReason].join('\n');
 }
