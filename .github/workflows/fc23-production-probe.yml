@@ -42,6 +42,10 @@ jobs:
               await new Promise(r=>setTimeout(r,10000));
             }
             if(report.deployed){
+              const script=await get('/r1494a/strategy-switch.js?sha='+process.env.GITHUB_SHA);
+              report.rules_http=script.status;
+              report.full_rules_deployed=script.status===200&&script.text.includes('FC23 完整進出場規則（原始執行引擎）');
+              report.paper_status_label_deployed=script.status===200&&script.text.includes("d.status.trade_status='paper_only_broker_unconfirmed'");
               const before=await get('/api/fc23/snapshot?sha='+process.env.GITHUB_SHA);
               report.snapshot_http=before.status;
               const start=before.status===200?JSON.parse(before.text):null;
