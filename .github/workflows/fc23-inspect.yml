@@ -1,0 +1,25 @@
+name: FC23 inspect shared R1494 snapshot schema
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fc23-inspect.yml'
+  workflow_dispatch:
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Inspect shared benchmark and position shape (no secrets)
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import zlib from 'node:zlib';
+          const s=JSON.parse(zlib.gunzipSync(fs.readFileSync('public/r1494a/snapshot.bin')));
+          function brief(v){return Array.isArray(v)?{kind:'array',size:v.length,first:v[0]&&typeof v[0]==='object'?Object.keys(v[0]):v[0]}:(v&&typeof v==='object'?{kind:'object',keys:Object.keys(v).slice(0,50)}:v)}
+          for(const [k,v] of Object.entries(s))console.log('TOP',k,JSON.stringify(brief(v)));
+          for (const k of ['curves','benchmarks','plan','orders','snapshots','planHistory','dataStatus']) if(s[k]) {
+            for(const [sub,v] of Object.entries(s[k]).slice(0,40)) console.log('DETAIL',k+'.'+sub,JSON.stringify(brief(v)).slice(0,500));
+          }
+          console.log('END_DATE',s.dates?.at(-1),s.snapshots?.at(-1)?.date);
+          JS
