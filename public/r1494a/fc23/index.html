@@ -54,6 +54,26 @@ footer{margin:20px 0;color:var(--muted)}
 <p>⚠️ 截至2026/10/27的歷史特徵尚未自動延伸到最新日期。</p>
 <p>⛔ 在每日行情、法人時間戳、持股同步及隔日預掛單與原引擎一致性完成驗證前，<strong>FC23不開放最新交易計畫</strong>。</p>
 </section>
+<section id="fc23-shared-current" style="margin-top:16px;border:2px solid #b5cec1">
+<h2>共用原站每日更新資料</h2>
+<p id="fc23-shared-data" class="muted">檢查原站資料更新狀態中…</p>
+<p class="muted">原站已提供233檔日線、法人資料、49檔等額長抱與大盤代理。FC23與原站共用行情基礎，但FC23交易決策與損益不會混用R1494-A的訊號。</p>
+</section>
+<section id="fc23-chart-section" style="margin-top:16px">
+<h2>五年歷史績效：FC23／R1494-A／49檔長抱／大盤代理</h2>
+<p class="muted">FC23採封存研究引擎每月月底淨值；其他三組直接讀取原R1494-A每日更新的基準快照，按照共同日期截止2026/10/27。不同引擎基準僅作參考。</p>
+<div id="fc23-compare-legend" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+<div id="fc23-performance-chart" style="width:100%;overflow:auto">載入中…</div>
+</section>
+<section style="margin-top:16px">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+<h2>FC23歷史成交與逐筆損益（真實回測資料）</h2>
+<label>篩選 <select id="fc23-fill-side" style="background:#fff;padding:8px;border:1px solid #ccd5ce;border-radius:8px"><option value="all">全部</option><option value="BUY">買進</option><option value="SELL">賣出</option></select></label>
+</div>
+<p id="fc23-fills-comment" class="muted">載入中…</p>
+<div id="fc23-fills" class="scroll"></div>
+</section>
+<section id="fc23-why" style="margin-top:16px;background:#fff3dc;border-color:#e5c487"><strong>隔日買賣原因</strong><p>正在核對資料更新狀態…</p></section>
 <footer>研究用途 · FC23 v1 · 請以實際券商持倉與合法市場資料為準</footer>
 </main>
 <script>
@@ -88,4 +108,4 @@ const table=(rows,cols)=>'<table><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th
  }catch(e){q('block').textContent='⛔ FC23資料異常，禁止下單';q('warning').textContent=e.message;}
 })();
 </script>
-</body></html>
+<script src="./dashboard.js" defer></script></body></html>
