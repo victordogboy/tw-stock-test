@@ -1,0 +1,80 @@
+name: FC23 production refresh verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/fc23/**'
+      - 'src/worker.mjs'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
+      - '.github/workflows/fc23-production-probe.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Check actual Cloudflare build, refresh API and current data
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const base='https://tw-stock-api.victordogboy.workers.dev';
+          const report={checked_at:new Date().toISOString(),commit:process.env.GITHUB_SHA,production_url:base+'/r1494a/',deployed:false};
+          const get=async(path,options={})=>{
+            const res=await fetch(base+path,{cache:'no-store',signal:AbortSignal.timeout(25000),...options});
+            return {status:res.status,text:await res.text()};
+          };
+          try{
+            for(let i=0;i<24;i++){
+              try{
+                const p=await get('/r1494a/?sha='+process.env.GITHUB_SHA);
+                if(p.status===200&&p.text.includes("$('#refresh').onclick=()=>poll(true)")){
+                  report.deployed=true;break;
+                }
+                report.site_status=p.status;
+              }catch(error){report.deployment_error=String(error.message||error)}
+              await new Promise(r=>setTimeout(r,10000));
+            }
+            if(report.deployed){
+              const before=await get('/api/fc23/snapshot?sha='+process.env.GITHUB_SHA);
+              report.snapshot_http=before.status;
+              const start=before.status===200?JSON.parse(before.text):null;
+              if(start)Object.assign(report,{before_date:start.data_as_of,market_date:start.market_as_of,checked_through:start.checkedThrough,sync_status:start.sync_status,update_progress:start.progress?.phase,update_error:start.lastError?.message??null});
+              const requested=await get('/api/fc23/refresh',{method:'POST'});
+              report.refresh_http=requested.status;
+              report.refresh_state=JSON.parse(requested.text)?.state;
+              await new Promise(r=>setTimeout(r,15000));
+              const after=await get('/api/fc23/snapshot?check='+Date.now());
+              report.after_http=after.status;
+              if(after.status===200){
+                const d=JSON.parse(after.text);
+                report.after_date=d.data_as_of;
+                report.after_market_date=d.market_as_of;
+                report.after_checked_through=d.checkedThrough;
+                report.after_sync_status=d.sync_status;
+                report.after_progress=d.progress?.phase;
+                report.after_error=d.lastError?.message??null;
+              }
+            }
+          }catch(error){report.error=String(error.message||error)}
+          fs.mkdirSync('docs',{recursive:true});
+          fs.writeFileSync('docs/fc23-production-status.json',JSON.stringify(report,null,2)+'\n');
+          console.log(JSON.stringify(report,null,2));
+          JS
+      - name: Publish verification result even if blocked
+        if: always()
+        run: |
+          if [ ! -f docs/fc23-production-status.json ]; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/fc23-production-status.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Audit FC23 production refresh health'
+          git pull --rebase origin main
+          git push origin HEAD:main
