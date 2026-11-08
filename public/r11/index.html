@@ -37,14 +37,30 @@ function showResult(plan,label){
   $('signal-status').className='status';$('signal-status').textContent='⚠ '+(plan.reasons||[]).join('、')+'；此結果僅供研究，禁止作為實際下單價位';
 }
 async function refresh(){
-  $('feed').textContent='資料檢查中…';$('signal-status').className='status';
-  let health='未知',rt='未提供';
-  try{const r=await fetch('/api/health',{cache:'no-store'});health=r.ok?'API 可連線':'API HTTP '+r.status;}catch(e){health='API 無法連線';}
-  try{const r=await fetch('/api/r11/preopen?variant='+encodeURIComponent($('variant').value),{cache:'no-store'});if(r.ok){const j=await r.json();rt=j.status||'未通過來源審核';}else{rt='R11 即時特徵接口尚未接通（HTTP '+r.status+'）';}}catch(e){rt='R11 即時接口連線失敗';}
-  $('feed').textContent='Worker：'+health+'｜'+rt+'｜查詢時間 '+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'});
-  $('signal-status').textContent='⛔ 最新盤前特徵、合約與持倉尚未全項驗證；暫停交易訊號';
-  $('readiness').textContent='研究網站（紙上）／資料鏈尚未驗收';
-  $('checks').children[0].textContent='GitHub／Cloudflare 靜態頁：請以目前網址實際確認';
+  $('feed').textContent='讀取指定合約分鐘資料覆蓋率…';$('signal-status').className='status';
+  let health='未知',state='R11 盤前診斷無法連線',diag=null;
+  try{const r=await fetch('/api/health',{cache:'no-store'});health=r.ok?'API 可連線':'API HTTP '+r.status;}catch{health='API 無法連線';}
+  try{
+    const r=await fetch('/api/r11/preopen?variant='+encodeURIComponent($('variant').value),{cache:'no-store'});
+    diag=await r.json();
+    state=(diag.status||'UNKNOWN')+' · '+(diag.code||('HTTP '+r.status));
+    if(!r.ok)state+='（HTTP '+r.status+'）';
+  }catch{state='R11 盤前診斷無法連線，資料不可用';}
+  const s=diag?.source;
+  $('feed').textContent='Worker：'+health+'｜'+state+'｜台灣時間 '+new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'});
+  $('direction').textContent='禁止下單';$('position').textContent='待券商核對';$('entry').textContent='—';$('exit').textContent='— / —';
+  $('contract').textContent=s?.contract_candidate?s.contract_candidate+'（未核對主力）':'待核對';
+  $('session').textContent='日夜盤獨立｜當盤強平';
+  $('signal-status').className='status';
+  $('signal-status').textContent='⛔ '+(diag?.message||'最新 TX 分 K、P40/R26 訊號或券商持倉尚未驗證')+'；R11 不提供實單點位';
+  $('readiness').textContent=diag?.status==='BLOCKED'?'R11 API 已接通｜缺少已驗證盤前特徵':'R11 API 尚未通過連線驗收';
+  const lines=[
+    'Cloudflare 靜態頁：已載入（'+new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'})+'）',
+    '指定合約分鐘K：'+(s?.ok?'Yahoo 連線成功；'+s.completed_session_keys+' 個已完成盤／'+s.rows+' 根分鐘K':'無法核實：'+(s?.reason||'未取得資料')),
+    ...(diag?.requirements||[]).filter(x=>!x.ready).map(x=>'待補：'+x.label),
+    'Cloudflare Durable Objects 今日寫入額度已超限時，背景更新可能失敗；不會重試寫入直到服務恢復'
+  ];
+  $('checks').replaceChildren(...lines.map(x=>{const li=document.createElement('li');li.textContent=x;return li;}));
 }
 $('refresh').addEventListener('click',refresh);$('variant').addEventListener('change',refresh);
 $('calculate').addEventListener('click',()=>{try{const data=JSON.parse($('snapshot').value),out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify(out,null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
