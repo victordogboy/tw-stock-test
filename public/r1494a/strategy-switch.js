@@ -31,12 +31,12 @@ async function loadFc23Snapshot(shared){
  return d;
 }
 function fc23Why(d,i){
- const s=d.snapshots[i],orders=d.orders.filter(o=>o.date===s.date),p=d.planHistory[s.date];
- return [s.date+' FC23 原引擎歷史執行，訊號截至 '+s.signal,
+ const s=d.snapshots[i],orders=d.orders.filter(o=>o.date===s.date),p=i===d.snapshots.length-1?d.plan:d.planHistory[s.date];
+ return [s.date+' FC23 原引擎'+(s.date>'2026-10-27'?'紙上':'歷史')+'執行，訊號截至 '+s.signal,
  '20交易日調倉；每5交易日檢查風控與配置；符合強勢同儕條件者可於離場後第3～35交易日重新進場。',
  ...orders.map(o=>o.code+' '+(o.side==='BUY'?'買入':'賣出')+'｜'+(reasons[o.reason]||o.reason)+(o.level!=null?'，觸發價 '+num(o.level,2):'')+(o.filled?'，成交價 '+num(o.price,2):'，未成交')),
  '當日目標曝險 '+pct(s.target)+'；實際曝險 '+pct(s.exposure)+'；持有 '+s.holdings.length+' 檔。',
- p?p.trade_date+' 歷史計畫：買入 '+p.actions.filter(a=>a.side==='BUY').length+'、賣出 '+p.actions.filter(a=>a.side==='SELL').length+'、續抱 '+p.actions.filter(a=>a.side==='HOLD').length+' 檔。':d.plan.blockedReason].join('\n');
+ p?.trade_date?p.trade_date+(i===d.snapshots.length-1?' 下一交易日計畫：買入 ':' 歷史計畫：買入 ')+p.actions.filter(a=>a.side==='BUY').length+'、賣出 '+p.actions.filter(a=>a.side==='SELL').length+'、續抱 '+p.actions.filter(a=>a.side==='HOLD').length+' 檔。':d.plan.blockedReason].join('\n');
 }
 function renderFc23Plan(){
  const p=I===D.snapshots.length-1?D.plan:D.planHistory[D.snapshots[I].date];
@@ -44,7 +44,7 @@ function renderFc23Plan(){
  $('#planState').textContent=ready?'FC23 最新凍結計畫':latest?'FC23 資料待補':'FC23 原引擎歷史計畫';
  $('#planDate').textContent=p?.trade_date?(ready?'最新訊號 ':'歷史訊號 ')+p.signal_as_of+' → '+p.trade_date:'訊號計算資料截至 '+D.status.data_as_of;
  $('#planNote').textContent=latest&&!ready?(p?.blockedReason||'FC23資料更新中'):ready?'FC23已以最新完整日線、法人與動態同儕重算；價位於開盤前確定，實際金額仍依開盤與可用資金檢查。':p?.trade_date?'依原引擎已完成資料重播；此處不展示隔日實際高低價。FC23 沿用原始成交規則，回測已計入往返總成本0.5855%。':D.plan.blockedReason;
- $('#planActions').innerHTML=(p?.actions||[]).map(a=>'<article class="action"><div class="row"><b>'+esc(a.code?name(a.code)+' '+a.code:'組合配置')+'</b><span class="pill">'+({BUY:'突破買入',SELL:'開盤賣出',HOLD:'持續持有'}[a.side])+' · 歷史計畫</span></div><div class="price">'+(a.side==='BUY'?num(a.level,2):a.side==='SELL'?'次日現股開盤價':a.side==='REBALANCE'?'目標曝險 '+pct(a.target):'續抱')+'</div><p>前收 '+num(a.referencePrice,2)+(Number.isFinite(a.stop)?' · '+(a.stopActive===false?'停損條件未啟動，參考價 ':'保護停損 ')+num(a.stop,2):'')+'</p><p>'+esc(reasons[a.reason]||a.reason)+'</p><p class="sub">'+esc(({NO_FILL_NO_BUY:'未觸價不買',CONTINUE_HOLDING:'持續持有並檢查風控',OPEN_UNCONDITIONAL:'次日開盤模擬賣出'}[a.noFillPolicy])||a.noFillPolicy)+'</p></article>').join('');
+ $('#planActions').innerHTML=(p?.actions||[]).map(a=>'<article class="action"><div class="row"><b>'+esc(a.code?name(a.code)+' '+a.code:'組合配置')+'</b><span class="pill">'+({BUY:'突破買入',SELL:'開盤賣出',HOLD:'持續持有',REBALANCE:'開盤配置'}[a.side])+' · '+(ready?'尚未成交':'歷史計畫')+'</span></div><div class="price">'+(a.side==='BUY'?num(a.level,2):a.side==='SELL'?'次日現股開盤價':a.side==='REBALANCE'?'目標曝險 '+pct(a.target):'續抱')+'</div><p>前收 '+num(a.referencePrice,2)+(Number.isFinite(a.stop)?' · '+(a.stopActive===false?'停損條件未啟動，參考價 ':'保護停損 ')+num(a.stop,2):'')+'</p><p>'+esc(reasons[a.reason]||a.reason)+'</p><p class="sub">'+esc(({NO_FILL_NO_BUY:'未觸價不買',CONTINUE_HOLDING:'持續持有並檢查風控',OPEN_UNCONDITIONAL:'次日開盤模擬賣出'}[a.noFillPolicy])||a.noFillPolicy)+'</p></article>').join('');
 }
 let originalDashboardCopy;
 function decorateStrategy(){
@@ -57,7 +57,7 @@ function decorateStrategy(){
  document.querySelectorAll('[data-strategy-title]').forEach(el=>el.textContent=D.model_version+' 報酬');
  $('#strategySummary').textContent=D.model_version+' 累積 '+pct(D.curves.strategy.at(-1)-1)+' · 最大回撤 '+pct(drawdown(D.curves.strategy))+' · '+D.dates[0]+'～'+D.dates.at(-1);
  if(!isFc)return;
- $('#ledgerLabel').textContent='模型歷史持倉 · FC23_paper';
+ $('#ledgerLabel').textContent=(D.status.sync_status==='current'?'模型紙上持倉':'模型歷史持倉')+' · FC23_paper';
  $('#heroDescription').textContent='233檔研究池 · 最多8檔 · 20交易日調倉 · 5交易日風控 · 強勢同儕重新進場';
  $('#strategyFooter').textContent='FC23 · 原引擎歷史模擬 · 往返成本0.5855%';
  $('#ordersNote').textContent='依所選日期的試算總資產換算金額；數量為模型小數股。單筆賣出損益未扣費稅，策略淨值已計入往返總成本0.5855%。';
