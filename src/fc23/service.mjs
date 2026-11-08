@@ -12,23 +12,23 @@ async function asset(env,path,compressed=false){const r=await env.ASSETS.fetch(n
 export class Fc23Service {
  constructor(ctx,env){this.ctx=ctx;this.env=env;this.pending=null;this.bucket=new ObjectBucket(ctx.storage)}
  async setup(){if(!this.seed){const [seed,supplement]=await Promise.all([asset(this.env,'shared-seed.b64',true),asset(this.env,'supplement.b64',true)]);this.seed=seed;this.supplement=supplement;}
-   if(!this.bootstrapCheckedAt||Date.now()-this.bootstrapCheckedAt>60000){this.bootstrapCheckedAt=Date.now();try{const bootstrap=await asset(this.env,'live-bootstrap.b64',true),stored=await this.bucket.get('r1494-a/state-v1.json');if(!stored||(await stored.json()).date<bootstrap.shared.date){await this.bucket.put('r1494-a/state-v1.json',JSON.stringify(bootstrap.shared));await this.bucket.put('fc23/bundle',JSON.stringify({account:bootstrap.account,delta:bootstrap.delta}))}}catch{}
+   if(!this.bootstrapCheckedAt||Date.now()-this.bootstrapCheckedAt>60000){this.bootstrapCheckedAt=Date.now();try{const bootstrap=await asset(this.env,'live-bootstrap.b64',true),stored=await this.bucket.get('r1494-a/state-v1.json');if(!stored||(await stored.json()).date<bootstrap.shared.date)await this.bucket.put('r1494-a/state-v1.json',JSON.stringify(bootstrap.shared));const existing=await this.bucket.get('fc23/bundle');if(!existing||(await existing.json()).account.date<bootstrap.account.date)await this.bucket.put('fc23/bundle',JSON.stringify({account:bootstrap.account,delta:bootstrap.delta}))}catch{}
   }initShared(this.seed,this.supplement,{context:contextFc23,ingest:ingestFc23Technical});return {...this.env,BUCKET:this.bucket}}
  async state(){const obj=await this.bucket.get('fc23/bundle');return obj?(await obj.json()).account:asset(this.env,'account-seed.json')}
  async delta(){const d=await this.bucket.get('fc23/bundle');return d?(await d.json()).delta:{snapshots:[],orders:[],planHistory:{},data_as_of:'2026-10-27',sync_status:'pending',lastError:null}}
  async progress(value){await this.ctx.storage.put('fc23-progress',{...value,updated_at:new Date().toISOString()})}
- async run(){
+ async run({maxPasses=4}={}){
   let delta=await this.delta();
   try{
    await this.progress({state:'running',phase:'正在抓取官方日線、三大法人與融資券',data_as_of:delta.data_as_of});
    const env=await this.setup();delta=await this.delta();let report;
-   for(let pass=0;pass<4;pass++){
+   for(let pass=0;pass<maxPasses;pass++){
     report=await sync1494(env,{maxDays:7});await this.progress({state:'running',phase:'共用行情已補至 '+report.to+'；正在接續 FC23 原規則',data_as_of:delta.data_as_of,market_as_of:report.to});
     if(report.lastError||!report.more)break;
    }
    const {st:shared}=await load1494(env),account=await this.state();
    let cursor=account.date;
-   while(cursor<shared.date){const date=nextDate(cursor);cursor=date;if([0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))continue;const dayObj=await this.bucket.get('r1494-a/daily/'+date+'.json');if(!dayObj)continue;const day=await dayObj.json();if(day.closed)continue;
+   while(cursor<shared.date){const date=nextDate(cursor);cursor=date;if([0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))continue;const dayObj=await this.bucket.get('r1494-a/daily/'+date+'.json');if(!dayObj)throw Error('FC23 無法重播 '+date+'：共用行情缺少日線快照，不能跳日計算');const day=await dayObj.json();if(day.closed)continue;
     const ctxObj=await this.bucket.get('fc23/context/'+account.date+'.json');if(!ctxObj)throw Error('缺少 '+account.date+' 原始FC23特徵狀態');const context=await ctxObj.json();
     delta.planHistory[account.date]=planFc23(account,context,date);
     const rows=new Map(day.rows.map(r=>[r.code,r])),mapped=account.codes.map((code,j)=>{const r=rows.get(code);const valid=!!r&&[r.open,r.high,r.low,r.close].every(v=>Number.isFinite(v)&&v>0)&&r.low<=Math.min(r.open,r.close)&&r.high>=Math.max(r.open,r.close),one=valid&&r.open===r.high&&r.high===r.low&&r.low===r.close;return {...r,code,valid,executable:valid&&r.volume>0,mark:r?.close>0?Math.fround(r.close):context.F[j].p,lockUp:one&&r.close/context.F[j].p>1.08,lockDown:one&&r.close/context.F[j].p<.92}});
@@ -36,14 +36,26 @@ export class Fc23Service {
    }
    // Own latest signal, own positions and own NAV; never reuse R1494's orders.
    const context=contextFc23(shared),plan=planFc23(account,context,nextSession1494(account.date));
-   const complete=account.date===shared.date&&!shared.lastError&&shared.lastChecked>=cutoff();
+   const complete=account.date===shared.date&&!shared.lastError&&shared.lastChecked>=cutoff();const pending=!complete&&!shared.lastError&&(report?.more||report?.status==='running');
    plan.readiness=complete?'ready':'blocked';plan.blockedReason=complete?null:shared.lastError?.message||'連續交易日資料尚未補齊';
-   Object.assign(delta,{model_version:'FC23',data_as_of:account.date,signal_as_of:account.date,checkedThrough:shared.lastChecked,market_as_of:shared.date,price_updated_at:new Date().toISOString(),sync_status:complete?'current':'blocked',lastError:shared.lastError||null,plan,sources:shared.lastSources||[],revision:(delta.revision||0)+1});
-   await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}));await this.progress({state:complete?'current':'blocked',phase:complete?'FC23 已更新至最新完整交易日':plan.blockedReason,data_as_of:account.date,market_as_of:shared.date});
-  }catch(error){const message=String(error.message||error);delta.sync_status='blocked';delta.lastError={message,at:new Date().toISOString()};await this.progress({state:'blocked',phase:message,data_as_of:delta.data_as_of})}
+   Object.assign(delta,{model_version:'FC23',data_as_of:account.date,signal_as_of:account.date,checkedThrough:shared.lastChecked,market_as_of:shared.date,price_updated_at:new Date().toISOString(),sync_status:complete?'current':pending?'running':'blocked',lastError:shared.lastError||null,plan,sources:shared.lastSources||[],revision:(delta.revision||0)+1});
+   await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}));await this.progress({state:complete?'current':pending?'queued':'blocked',phase:complete?'FC23 已更新至最新完整交易日':pending?'已補至 '+shared.date+'，背景接續抓取下一批交易日':plan.blockedReason,data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});if(pending&&this.ctx.storage.setAlarm)await this.ctx.storage.setAlarm(Date.now()+1500);
+  }catch(error){const message=String(error.message||error);delta.sync_status='blocked';delta.lastError={message,at:new Date().toISOString()};await this.progress({state:'blocked',phase:message,data_as_of:delta.data_as_of});try{const account=await this.state();await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}))}catch{}}
  }
- async fetch(request){const url=new URL(request.url);if(url.pathname.endsWith('/refresh')){if(!['POST','GET'].includes(request.method))return json({error:'Method not allowed'},405);if(!this.pending){this.pending=this.run().finally(()=>{this.pending=null});this.ctx.waitUntil(this.pending)}return json({state:'running',progress:await this.ctx.storage.get('fc23-progress')||null},202)}
-  return json({...(await this.delta()),progress:await this.ctx.storage.get('fc23-progress')||null,running:!!this.pending});
+ async fetch(request){
+  const url=new URL(request.url);
+  if(url.pathname.endsWith('/refresh')){
+   if(request.method!=='POST')return json({error:'Method not allowed'},405);
+   const previous=await this.ctx.storage.get('fc23-progress');
+   if(!previous||!['running','queued'].includes(previous.state)||Date.now()-Date.parse(previous.updated_at)>5*60000){
+    await this.progress({state:'queued',phase:'已排程抓取最新完整交易日行情與籌碼',data_as_of:(await this.delta()).data_as_of});
+    if(this.ctx.storage.setAlarm)await this.ctx.storage.setAlarm(Date.now()+100);
+    else if(!this.pending){this.pending=this.run().finally(()=>{this.pending=null});this.ctx.waitUntil(this.pending)}
+   }
+   return json({state:'queued',progress:await this.ctx.storage.get('fc23-progress')},202);
+  }
+  const progress=await this.ctx.storage.get('fc23-progress')||null;
+  return json({...(await this.delta()),progress,running:!!this.pending||['queued','running'].includes(progress?.state)});
  }
 }
 export function fc23Stub(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:fc23:original:v1'))}
