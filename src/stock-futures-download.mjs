@@ -460,14 +460,26 @@ export class StockFuturesData{
    if(!dateOk(day))return respond({ok:false,error:"日期錯誤"},400);
    const bytes=new Uint8Array(await request.arrayBuffer());
    if(bytes.byteLength>8*1024*1024)return respond({ok:false,error:"單日原始資料過大"},413);
+   // Identical cloud uploads are common when the browser refreshes or retries.
+   // A stored SHA-256 avoids rewriting every 500 KiB chunk for unchanged data.
+   const hash=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+   const sha256=Array.from(hash,x=>x.toString(16).padStart(2,'0')).join('');
+   const metaKey=pref+"meta:"+day,previous=await this.ctx.storage.get(metaKey);
+   const unchanged=previous?.sha256===sha256&&previous.bytes===bytes.byteLength;
    const size=500*1024,parts=Math.ceil(bytes.length/size);
-   for(let i=0;i<parts;i++)await this.ctx.storage.put(pref+"day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
-   await this.ctx.storage.put(pref+"meta:"+day,{parts,bytes:bytes.byteLength});
+   if(!unchanged){
+    for(let i=0;i<parts;i++)await this.ctx.storage.put(pref+"day:"+day+":"+i,bytes.slice(i*size,(i+1)*size));
+    await this.ctx.storage.put(metaKey,{parts,bytes:bytes.byteLength,sha256});
+   }
    const duration=Math.max(30,Math.min(Number(u.searchParams.get("ttl"))||30,120));
    const expires=Date.now()+duration*DAY;
-   await this.ctx.storage.put("expiresAt",expires);
-   await this.ctx.storage.setAlarm(expires);
-   return respond({ok:true});
+   const currentExpiry=Number(await this.ctx.storage.get("expiresAt"))||0;
+   // Avoid a metadata write and alarm reschedule on every repeated upload.
+   if(expires-currentExpiry>6*60*60*1000){
+    await this.ctx.storage.put("expiresAt",expires);
+    await this.ctx.storage.setAlarm(expires);
+   }
+   return respond({ok:true,unchanged,stored_parts:unchanged?0:parts});
   }
   if(p==="/get-years"||p==="/get-chip-years"){
    const pref=p==="/get-chip-years"?"chip:":"";
