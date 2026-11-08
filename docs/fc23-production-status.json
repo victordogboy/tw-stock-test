@@ -1,8 +1,11 @@
 {
-  "checked_at": "2026-11-08T10:26:03.381Z",
-  "commit": "d73ba0cd3de097cacacd5d55f8f7e6ae6a66736f",
+  "checked_at": "2026-11-08T10:26:54.200Z",
+  "commit": "64b432604c09d9b5e76a17318643f580551addd5",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
+  "rules_http": 200,
+  "full_rules_deployed": true,
+  "paper_status_label_deployed": true,
   "snapshot_http": 200,
   "before_date": "2026-11-06",
   "market_date": "2026-11-06",
