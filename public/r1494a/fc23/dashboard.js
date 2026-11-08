@@ -25,11 +25,11 @@ function findEndIndex(d,year,month){
  for(let i=0;i<d.dates.length;i++)if(d.dates[i]<=cap&&d.dates[i]<='2026-10-27')idx=i;
  return idx;
 }
-function mapSeries(s,d,length){
- const offset=d.dates.length-length;
+function mapSeries(s,curve,dates){
+ const offset=dates.length-curve.length;
  const vals=[];
- for(let j=0;j<s.monthly.length;j++){const m=s.monthly[j].month,ix=findEndIndex(d,Number(m.slice(0,4)),Number(m.slice(5)));const k=ix-offset; vals.push(k>=0&&k<length?d[k]:null);}
- const start=d[Math.max(0,0-offset)]||1;
+ for(let j=0;j<s.monthly.length;j++){const m=s.monthly[j].month,ix=findEndIndex({dates},Number(m.slice(0,4)),Number(m.slice(5)));const k=ix-offset; vals.push(k>=0&&k<curve.length?curve[k]:null);}
+ const start=curve[0]||1;
  return vals.map((v,i)=>({x:i,y:Number.isFinite(v)?v/start:NaN})).filter(q=>Number.isFinite(q.y));
 }
 function renderFills(d){
@@ -59,9 +59,9 @@ async function init(){
  const fc23=months.map((row,i)=>({x:i,y:row.nav}));
  const candidates=[
   {key:'fc23',points:fc23},
-  {key:'r1494',points:mapSeries(h,bench.curves.strategy,bench.curves.strategy.length)},
-  {key:'hold49',points:mapSeries(h,bench.curves.old49,bench.curves.old49.length)},
-  {key:'market',points:mapSeries(h,bench.curves.market,bench.curves.market.length)}];
+  {key:'r1494',points:mapSeries(h,bench.curves.strategy,bench.dates)},
+  {key:'hold49',points:mapSeries(h,bench.curves.old49,bench.dates)},
+  {key:'market',points:mapSeries(h,bench.curves.market,bench.dates)}];
  const names={fc23:'FC23（封存2026/10）',r1494:'R1494-A（同期）',hold49:'49檔等額長抱（同期）',market:'大盤代理（同期）'};
  const first=Object.fromEntries(candidates.map(c=>[c.key,c.points.find(x=>x.x===0)?.y||1]));
  const ledger=candidates.map(c=>{const last=c.points.at(-1);return [names[c.key],last?last.y:NaN];});
