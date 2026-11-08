@@ -1,0 +1,21 @@
+name: FC23 dashboard parity and historical-data test
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/fc23/**'
+      - 'public/r1494a/snapshot.bin'
+      - 'tests/fc23-dashboard.test.mjs'
+      - '.github/workflows/fc23-dashboard.yml'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Run FC23 real snapshot rendering, safety and benchmarks
+        run: node tests/fc23-dashboard.test.mjs
