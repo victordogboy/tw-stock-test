@@ -1,0 +1,41 @@
+name: Verify R1494-A and FC23 on Cloudflare Worker
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/fc23/**'
+      - '.github/workflows/verify-fc23-worker.yml'
+  workflow_dispatch:
+jobs:
+  smoke-check-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check existing R1494-A and FC23 on real workers.dev domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://tw-stock-api.victordogboy.workers.dev'
+          echo "Verifying exact production Worker domain, not GitHub Pages"
+          ready=0
+          for n in $(seq 1 30); do
+            status=$(curl -sSL --retry 1 --connect-timeout 8 --max-time 20 -o /tmp/fc23.html -w '%{http_code}' "$base/r1494a/fc23/?verify=$GITHUB_SHA" || true)
+            if [ "$status" = "200" ] && grep -q "FC23-PEER50-LOCK" /tmp/fc23.html; then
+              ready=1
+              break
+            fi
+            echo "Attempt $n/30: FC23 not yet at worker ($status)"
+            sleep 10
+          done
+          test "$ready" = 1 || { echo "::error::FC23 has not appeared on the Cloudflare Worker"; exit 1; }
+          curl -fsSL --connect-timeout 8 --max-time 30 "$base/r1494a/" > /tmp/r1494.html
+          grep -q "R1494-A" /tmp/r1494.html
+          grep -q "href=\"./fc23/\"" /tmp/r1494.html
+          curl -fsSL --connect-timeout 8 --max-time 30 "$base/r1494a/fc23/snapshot.json" > /tmp/fc23.json
+          node --input-type=module <<'JS'
+          import {readFileSync} from 'node:fs';
+          const j=JSON.parse(readFileSync('/tmp/fc23.json','utf8'));
+          if(j.strategy!=='FC23-PEER50-LOCK'||j.end_date!=='2026-10-27'||j.live_plan_available!==false||j.live_execution_allowed!==false)throw Error('FC23 archival data or safe-mode mismatch');
+          console.log('PASS: production R1494-A preserved, FC23 accessible, stale data properly gated');
+          JS
