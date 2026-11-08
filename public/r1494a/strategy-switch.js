@@ -5,23 +5,27 @@ async function fetchGzipJson(path,base64=false){
  const stream=base64?new Blob([Uint8Array.from(atob((await response.text()).trim()),c=>c.charCodeAt(0))]).stream():response.body;
  return new Response(stream.pipeThrough(new DecompressionStream('gzip'))).json();
 }
-async function loadFc23Snapshot(shared){
+async function loadFc23Snapshot(shared,{refresh=false}={}){
  const d=await fetchGzipJson('./fc23/integrated-snapshot.b64',true);
  if(d.model_version!=='FC23'||d.snapshots.length!==1407||d.orders.length!==1773||Math.abs(d.snapshots.at(-1).nav-32.8528999624682)>1e-8)throw Error('FC23 原引擎驗證未通過');
  const api='/api/fc23/';let delta;
  try{
-  $('#flash').textContent='正在抓取 FC23 最新行情、法人與指標…';
-  const kick=await fetch(api+'refresh',{method:'POST',cache:'no-store'});if(!kick.ok)throw Error('更新啟動失敗 HTTP '+kick.status);
-  for(let attempt=0;attempt<90;attempt++){
+  if(refresh){
+   $('#flash').textContent='FC23 正在排程補齊最新交易日…';
+   const kick=await fetch(api+'refresh',{method:'POST',cache:'no-store'});
+   if(!kick.ok)throw Error('更新啟動失敗 HTTP '+kick.status);
+  }
+  for(let attempt=0;attempt<(refresh?30:1);attempt++){
    const r=await fetch(api+'snapshot',{cache:'no-store'});if(!r.ok)throw Error('FC23資料讀取失敗 HTTP '+r.status);delta=await r.json();
    $('#flash').textContent=delta.progress?.phase||'FC23 正在重新計算持倉與隔日計畫…';
-   if(!delta.running)break;await new Promise(resolve=>setTimeout(resolve,2000));
+   if(!refresh||!delta.running)break;await new Promise(resolve=>setTimeout(resolve,2000));
   }
   if(delta?.snapshots?.length){
    const lastHistorical=d.dates.at(-1);for(const item of delta.snapshots){if(item.date<=lastHistorical)throw Error('FC23最新資料覆寫歷史封存');d.snapshots.push(item);d.dates.push(item.date)}
    d.orders.push(...delta.orders);Object.assign(d.planHistory,delta.planHistory);d.curves.strategy=d.snapshots.map(item=>item.nav);
   }
   if(delta?.plan)d.plan=delta.plan;
+  if(delta?.progress)d.updateProgress=delta.progress;
   if(delta?.data_as_of){Object.assign(d.status,{data_as_of:delta.data_as_of,signal_as_of:delta.signal_as_of||delta.data_as_of,checkedThrough:delta.checkedThrough||delta.data_as_of,price_updated_at:delta.price_updated_at,sync_status:delta.running?'running':delta.sync_status,lastError:delta.lastError?{...delta.lastError,date:delta.lastError.date||delta.data_as_of}:null,sources:delta.sources||[]})}
  }catch(error){d.status.lastError={message:error.message,date:d.status.data_as_of};d.status.sync_status='blocked';d.plan.readiness='blocked';d.plan.blockedReason='FC23更新失敗：'+error.message}
  // Benchmarks share the original published data and align by date, never by array offset.
