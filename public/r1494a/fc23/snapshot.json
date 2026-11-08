@@ -1,0 +1,96 @@
+{
+  "schema": "fc23.historical-replay.v1",
+  "strategy": "FC23-PEER50-LOCK",
+  "state": "HISTORICAL_ONLY",
+  "live_plan_available": false,
+  "live_execution_allowed": false,
+  "end_date": "2026-10-27",
+  "last_signal_date": "2026-10-22",
+  "study_start": "2021-01-06",
+  "warning": "FC23目前是歷史模擬；資料止於2026-10-27。尚未串接即時資料、盤後指標與法人時間戳，不提供當日交易訊號。",
+  "return_pct": 3185.28999624682,
+  "max_drawdown_pct": -16.845430582233234,
+  "cost_roundtrip_pct": 0.5855,
+  "trade_buys": 643,
+  "trade_sells": 923,
+  "reentry_buys": 13,
+  "max_positions": 8,
+  "max_weight_pct": 30,
+  "max_exposure_pct": 100,
+  "universe": 233,
+  "original_phase_warning": "過去 FC24/FC26 測出固定20日調倉相位敏感；此績效不代表樣本外可達成。",
+  "annual": [
+    {
+      "year": 2021,
+      "pct": 170.39366
+    },
+    {
+      "year": 2022,
+      "pct": -13.31961
+    },
+    {
+      "year": 2023,
+      "pct": 99.98702
+    },
+    {
+      "year": 2024,
+      "pct": 23.05614
+    },
+    {
+      "year": 2025,
+      "pct": 87.5187
+    },
+    {
+      "year": 2026,
+      "pct": 203.74329
+    }
+  ],
+  "parameters": {
+    "rebalance_days": 20,
+    "risk_check_days": 5,
+    "reentry_delay_days": 3,
+    "reentry_max_days": 35,
+    "peer_min": 0.5,
+    "base_rs5_max": 0.18,
+    "hot_rs5_max": 0.25,
+    "near60_min": 0.87
+  },
+  "historical_positions": [
+    {
+      "ticker": "3406",
+      "weight_pct": 16.306745413689875,
+      "avg_cost": 1080.2314724587159,
+      "closing_price": 1210
+    },
+    {
+      "ticker": "6278",
+      "weight_pct": 14.013872547301817,
+      "avg_cost": 295.8068328413154,
+      "closing_price": 278.5
+    }
+  ],
+  "last_historical_execution_plan": {
+    "execution_date": "2026-10-27",
+    "signal_date": "2026-10-22",
+    "orders": [
+      {
+        "ticker": "3406",
+        "action": "HOLD",
+        "stop_level": 1040,
+        "reason": "持續持有"
+      },
+      {
+        "ticker": "3653",
+        "action": "SELL_OPEN",
+        "stop_level": 6480,
+        "reason": "risk_exit（風控出場）"
+      },
+      {
+        "ticker": "6278",
+        "action": "HOLD",
+        "stop_level": 284.5,
+        "reason": "持續持有"
+      }
+    ]
+  }
+}
