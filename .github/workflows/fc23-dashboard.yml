@@ -6,6 +6,7 @@ on:
       - 'public/r1494a/fc23/**'
       - 'public/r1494a/snapshot.bin'
       - 'tests/fc23-dashboard.test.mjs'
+      - 'tests/fc23-full-archive.test.mjs'
       - '.github/workflows/fc23-dashboard.yml'
   workflow_dispatch:
 jobs:
@@ -18,4 +19,6 @@ jobs:
         with:
           node-version: 24
       - name: Run FC23 real snapshot rendering, safety and benchmarks
-        run: node tests/fc23-dashboard.test.mjs
+        run: |
+          node tests/fc23-dashboard.test.mjs
+          node tests/fc23-full-archive.test.mjs
