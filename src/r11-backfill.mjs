@@ -61,8 +61,10 @@ export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
  const days=1+Math.round((Date.parse(end)-Date.parse(start))/86400000);
  if(days>7)return J({ok:false,code:'WINDOW_TOO_LARGE',error:'FinMind 期貨分鐘K限單日查詢，每批最多補抓 7 天（網站會自動分批）'},400);
  const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+([^\r\n]+)$/i)?.[1]?.trim()||'';
- const token=bearer||String(env.FINMIND_TOKEN||'').trim();
- if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,code:'FINMIND_TOKEN_REQUIRED',error:'缺少 FinMind Token；可在本頁自願輸入，或由 Cloudflare 設定 FINMIND_TOKEN Secret'},401);
+ // SECURITY: never let an unauthenticated public visitor spend the Cloudflare account's paid FinMind quota.
+ // Cloudflare FINMIND_TOKEN is reserved for future PRIVATE cron/worker requests, never this public route.
+ const token=bearer;
+ if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,code:'FINMIND_TOKEN_REQUIRED',error:'請在 R11 網頁輸入你自己的 FinMind Token；公開 API 不會取用 Cloudflare Secret 以免遭他人耗盡額度'},401);
  const dates=[];for(let d=start;d<=end;d=new Date(Date.parse(d+'T00:00:00Z')+86400000).toISOString().slice(0,10))dates.push(d);
  const out=[],errors=[],empty_dates=[],used_dates=[];
  const pullDate=async date=>{

@@ -22,14 +22,14 @@
 </div><div class="panel"><h2>上線前驗收</h2><div class="status" id="readiness">未完成：不能實盤下單</div><ul id="checks"><li>GitHub／Cloudflare 靜態部署：待確認</li><li>最新 120 盤完整期貨資料：待串接</li><li>P40、P193 w/h、R26 core：待核對</li><li>期貨合約與換月：待核對</li><li>券商實際持倉：未連線</li></ul><p class="sm">5 秒重新載入頁面不等於資料每 5 秒更新；只有實際通過來源與時效稽核才能顯示當盤訊號。</p></div></section>
 <section class="panel" id="backfill-panel">
 <h2>自動補齊 TX 日夜盤分鐘 K（FinMind 備援）</h2>
-<p>原本的 R11 歷史資料截至 2026/10/22。這裡可以直接查詢新的指定月份 TX 分 K，檢查日盤 300 根、夜盤 840 根、缺漏、週六凌晨與換月；<strong>不使用 Durable Objects 寫入額度</strong>。Cloudflare 若已設定 <code>FINMIND_TOKEN</code>，可直接取得資料；否則可以輸入自己的 Token。</p>
+<p>原本的 R11 歷史資料截至 2026/10/22。這裡可以直接查詢新的指定月份 TX 分 K，檢查日盤 300 根、夜盤 840 根、缺漏、週六凌晨與換月；<strong>不使用 Durable Objects 寫入額度</strong>。公開補抓需要在此輸入自己的 FinMind Token（不經 GitHub，亦不會取用 Cloudflare Secret）；Cloudflare Secret 僅供未來獨立受保護的伺服端排程。</p>
 <div class="formrow">
 <label>合約 YYYYMM <input id="bk-contract" inputmode="numeric" pattern="20[0-9]{4}" maxlength="6" style="width:125px" aria-label="TX 合約月份"></label>
 <label>補抓起日 <input id="bk-start" type="date"></label>
 <label>補抓迄日 <input id="bk-end" type="date"></label>
 </div>
 <div class="formrow" style="align-items:center">
-<label>FinMind Token <input id="bk-token" type="password" autocomplete="off" placeholder="Cloudflare Secret 已設定可留空" style="width:min(330px,80vw)"></label>
+<label>FinMind Token <input id="bk-token" type="password" autocomplete="off" placeholder="請輸入 FinMind Token（僅此裝置使用）" style="width:min(330px,80vw)"></label>
 <label style="font-size:12px;color:var(--muted)"><input id="bk-remember" type="checkbox"> 此裝置記住 Token</label>
 <button id="bk-run">補抓並稽核</button>
 </div>
@@ -40,12 +40,13 @@
 </section>
 <section class="cols"><div class="panel"><h2>歷史年度淨利（已扣 3 點／側）</h2><table><thead><tr><th>年份</th><th>R11 RR</th><th>R11 MAX</th></tr></thead><tbody><tr><td>2021 Q4</td><td>+222</td><td>+222</td></tr><tr><td>2022</td><td>+4,365</td><td>+4,228</td></tr><tr><td>2023</td><td>+1,020</td><td>+1,334</td></tr><tr><td>2024</td><td>+7,536</td><td>+6,981</td></tr><tr><td>2025</td><td>+6,828</td><td>+6,197</td></tr><tr><td>2026 至10/22</td><td>+43,265</td><td>+44,952</td></tr></tbody><tfoot><tr><td>合計</td><td>+63,236</td><td>+63,914</td></tr></tfoot></table><p>R11 MAX：保守回撤 4.764%，682 筆。兩版 2026 年貢獻約七成獲利，未經完全獨立樣本外驗證。</p></div>
 <div class="panel"><h2>研究特徵快照核對</h2><p>可貼上完整盤前特徵 JSON 來離線核對 R11 計價。此功能<strong>不是即時資料、不是自動下單</strong>；即使 JSON 自稱「已驗證」，仍只會顯示研究計價結果。</p>
-<details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。w/h 可填入，或同時提供對齊的前 60 盤以上 prior_p40_pnl 讓原 P193 公式自動計算；若沒有 P40 損益，不能假造權重。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
+<details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。w/h 可填入，或同時提供對齊的前 60 盤以上 prior_p40_pnl 由原 P193 公式計算。可額外提供 r26_features 由原 R26 核心公式重算 core；缺 P40／R26 前盤狀態時禁止假造。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
 <footer>固定引擎 R11-RR / MAX（P193 衍生當盤分支）｜Cloudflare Workers 靜態資產＋GitHub ｜不執行交易、未接券商。<br>原始 R18-A「允許跨盤持倉」是另一條研究分支，不可合併績效。</footer>
 </main>
 <script type="module">
 import {planR11,VERSION} from './r11-plan.mjs';
 import {p193Weights} from './p193-weights.mjs';
+import {coreR26FromFeatures} from './r26-core-replay.mjs';
 const $=id=>document.getElementById(id);
 function showResult(plan,label){
   $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
@@ -82,7 +83,7 @@ async function refresh(){
   $('checks').replaceChildren(...lines.map(x=>{const li=document.createElement('li');li.textContent=x;return li;}));
 }
 $('refresh').addEventListener('click',refresh);$('variant').addEventListener('change',refresh);
-$('calculate').addEventListener('click',()=>{try{let data=JSON.parse($('snapshot').value),derived=null;if((!Number.isFinite(data.w)||!Number.isFinite(data.h))&&Array.isArray(data.prior_p40_pnl)){derived=p193Weights(data.atr,data.session,data.prior_p40_pnl,data.prior80_moves);data={...data,w:derived.w,h:derived.h};}const out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify({p193_weights:derived,plan:out},null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
+$('calculate').addEventListener('click',()=>{try{let data=JSON.parse($('snapshot').value),derived=null,coreReplay=null;if((!Number.isFinite(data.w)||!Number.isFinite(data.h))&&Array.isArray(data.prior_p40_pnl)){derived=p193Weights(data.atr,data.session,data.prior_p40_pnl,data.prior80_moves);data={...data,w:derived.w,h:derived.h};}if(data.r26_features){coreReplay=coreR26FromFeatures(data.r26_features);if([-1,0,1].includes(data.core)&&data.core!==coreReplay.core_signal)throw Error('R26 核心方向與重播結果不同，已阻擋');data={...data,core:coreReplay.core_signal};}const out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify({p193_weights:derived,r26_core_replay:coreReplay,plan:out},null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式或模型狀態不符：'+e.message;}});
 // FinMind optional read-only backfill: 1 bounded request (<=21 days) per manual run.
 const backfillKey='r11-backfill-last-summary-v1';
 const pad=n=>String(n).padStart(2,'0');
@@ -195,7 +196,7 @@ async function backfill(){
 $('bk-run').addEventListener('click',backfill);
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
-backfill(); // One bounded auto-check on page load. Missing token -> one 401, never an unbounded retry.
+if($('bk-token').value.trim())backfill(); // never spend FinMind quota without this user's explicit token
 
 refresh();setInterval(refresh,60000);
 </script></body></html>

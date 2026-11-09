@@ -58,3 +58,12 @@ test('FinMind quota failure is surfaced; never fabricates missing OHLC or a trad
  const r=await r11BackfillRoute(req,{},async()=>Response.json({status:429,msg:'limit'}, {status:429})),x=await r.json();
  assert.equal(r.status,429);assert.equal(x.tradeable,false);assert.equal(x.status,'SOURCE_AUTH_OR_QUOTA_BLOCKED');assert.ok(x.errors?.length>0);
 });
+
+test('public backfill never uses Cloudflare shared FinMind Token without browser Bearer',async()=>{
+ let called=0;
+ const req=new Request('https://unit.test/api/r11/backfill?start=2024-01-05&end=2024-01-06&contract=202401');
+ const rsp=await r11BackfillRoute(req,{FINMIND_TOKEN:'secret-should-never-spend'},async()=>{called++;throw Error('upstream must not be called');});
+ const x=await rsp.json();
+ assert.equal(rsp.status,401);assert.equal(x.code,'FINMIND_TOKEN_REQUIRED');assert.equal(called,0);
+ assert.ok(!JSON.stringify(x).includes('secret-should-never-spend'));
+});
