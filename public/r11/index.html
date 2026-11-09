@@ -115,24 +115,79 @@ function renderBackfill(data,isCached=false){
   $('bk-audit').textContent='來源合約：'+detected+'；拒收異契約資料 '+(data.rejected?.contract||0)+' 筆。'+
     '注意：分K完整不等於已重建 P40/P193/R26，R11 實單訊號依舊封鎖。';
 }
+function mergeBackfillChunks(chunks,contract,start,end){
+  const map=new Map(),months=new Set(),missing=[],allFailed=[];
+  let fetched=0,rejectedContract=0;
+  for(const j of chunks){
+    fetched+=(j.raw_rows||0);rejectedContract+=j.rejected?.contract||0;
+    for(const d of j.failed_dates||[])allFailed.push(d);
+    for(const d of j.empty_dates||[])missing.push(d);
+    for(const x of j.source_contracts||[])months.add(x);
+    for(const x of j.sessions||[]){
+      const k=x.contract+'|'+x.session_key,prior=map.get(k);
+      if(!prior){map.set(k,{...x});continue;}
+      const later=x.last_bar>prior.last_bar,earlier=x.first_bar<prior.first_bar;
+      const joined={...prior,bars:prior.bars+x.bars,
+        high:Math.max(prior.high,x.high),low:Math.min(prior.low,x.low),
+        first_bar_verified:prior.first_bar_verified||x.first_bar_verified,
+        last_bar_verified:prior.last_bar_verified||x.last_bar_verified,
+        concluded:prior.concluded||x.concluded};
+      if(earlier){joined.first_bar=x.first_bar;joined.open=x.open;}
+      if(later){joined.last_bar=x.last_bar;joined.close=x.close;}
+      joined.coverage_pct=Number((joined.bars/joined.expected_bars*100).toFixed(2));
+      joined.missing_bars=Math.max(0,joined.expected_bars-joined.bars);
+      joined.complete=joined.concluded&&joined.bars===joined.expected_bars&&joined.first_bar_verified&&joined.last_bar_verified;
+      joined.readiness=joined.complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION';
+      map.set(k,joined);
+    }
+  }
+  const sessions=[...map.values()].sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
+  return {ok:allFailed.length===0,tradeable:false,paper_only:true,source:'FinMind TaiwanFuturesKBar',
+    contract,start,end,sessions,raw_rows:fetched,
+    complete_sessions:sessions.filter(x=>x.complete).length,
+    partial_sessions:sessions.filter(x=>!x.complete).length,
+    source_contracts:[...months],failed_dates:allFailed,empty_dates:[...new Set(missing)],
+    rejected:{contract:rejectedContract},retrieved_at:new Date().toISOString()};
+}
 async function backfill(){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
-  if(!/^20\d{4}$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
+  if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
   const count=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
-  if(count>21){$('bk-status').textContent='為保護 FinMind 請求額度，每次最多 21 天';return;}
-  btn.disabled=true;$('bk-status').textContent='補抓 '+start+' 至 '+end+'，核對資料中…';
+  if(count>21){$('bk-status').textContent='一次最多設定 21 天；系統會依 FinMind 單日K API 自動拆成 7 天批次';return;}
+  btn.disabled=true;$('bk-status').className='status';
   try{
     if(token){try{
       if($('bk-remember').checked){localStorage.setItem('r11-finmind-token-opt-in',token);sessionStorage.removeItem('r11-finmind-token-session');}
       else{sessionStorage.setItem('r11-finmind-token-session',token);localStorage.removeItem('r11-finmind-token-opt-in');}
     }catch{}}
-    const headers=token?{'authorization':'Bearer '+token}:{};
-    const u='/api/r11/backfill?'+new URLSearchParams({start,end,contract});
-    const response=await fetch(u,{headers,cache:'no-store'});
-    const data=await response.json();
-    if(!response.ok){$('bk-status').className='status';$('bk-status').textContent='補抓失敗：'+(data.error||data.code||('HTTP '+response.status));return;}
-    renderBackfill(data);
-    try{localStorage.setItem(backfillKey,JSON.stringify(data));}catch{}
+    const chunks=[],first=Date.parse(start+'T00:00:00Z'),last=Date.parse(end+'T00:00:00Z');
+    for(let ms=first;ms<=last;ms+=7*86400000){
+      const a=new Date(ms).toISOString().slice(0,10),b=new Date(Math.min(last,ms+6*86400000)).toISOString().slice(0,10);
+      const cacheKey='r11-kbar-summary-v2:'+contract+':'+a+':'+b;
+      let data=null;
+      try{const prior=JSON.parse(localStorage.getItem(cacheKey)||'null');
+        // Completed historical batches remain locally cached; recent and partial batches refresh.
+        if(prior?.ok && prior?.complete_sessions>0 && !prior?.partial_sessions && !prior?.failed_dates?.length &&
+           Date.parse(b+'T00:00:00Z')<Date.now()-3*86400000)data=prior;
+      }catch{}
+      if(!data){
+        $('bk-status').textContent='FinMind 逐日補抓 '+a+'～'+b+'（'+(Math.floor((ms-first)/86400000)+1)+'/'+count+' 天）…';
+        const headers=token?{authorization:'Bearer '+token}:{};
+        const response=await fetch('/api/r11/backfill?'+new URLSearchParams({start:a,end:b,contract}),{headers,cache:'no-store'});
+        data=await response.json();
+        if(!response.ok&&!([206].includes(response.status))){
+          $('bk-status').textContent='補抓 '+a+'～'+b+' 失敗：'+(data.error||data.code||('HTTP '+response.status));
+          return;
+        }
+        if(data.ok && !(data.failed_dates||[]).length)try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}
+      }
+      chunks.push(data);
+      const partial=mergeBackfillChunks(chunks,contract,start,end);
+      renderBackfill(partial);
+    }
+    const result=mergeBackfillChunks(chunks,contract,start,end);
+    renderBackfill(result);
+    try{localStorage.setItem(backfillKey,JSON.stringify(result));}catch{}
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
   finally{btn.disabled=false;}
 }
