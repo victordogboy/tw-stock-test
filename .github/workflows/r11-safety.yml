@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'src/r11-preopen.mjs'
+      - 'src/r11-backfill.mjs'
       - 'src/worker.mjs'
       - 'src/fc23/service.mjs'
       - 'src/stock-futures-download.mjs'
@@ -19,4 +20,4 @@ jobs:
         with:
           node-version: '22'
       - name: R11 diagnostic API, price parity, durable write regression
-        run: node --test public/r11/r11-plan.test.mjs tests/r11-preopen.test.mjs tests/r11-do-storage-guard.test.mjs
+        run: node --test public/r11/r11-plan.test.mjs tests/r11-preopen.test.mjs tests/r11-backfill.test.mjs tests/r11-do-storage-guard.test.mjs
