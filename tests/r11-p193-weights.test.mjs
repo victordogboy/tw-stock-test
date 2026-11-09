@@ -33,7 +33,7 @@ test('P193 causal w/h matches 12 original R18-A historical states',()=>{
 test('original P193 additional direction/ATR regimes reconstruct causally',()=>{
  const zero=Array(60).fill(0);
  const a=p193Weights(1200,'day',zero,[...Array(40).fill(0),...Array(20).fill(50)]);
- assert.ok(Math.abs(a.w-.25)<1e-7);assert.ok(Math.abs(a.h+.4)<1e-7);
+ assert.ok(Math.abs(a.w-.25)<1e-7);assert.ok(Math.abs(a.h+.75)<1e-7); // -0.4 day high ATR + -0.4 m15, clipped to -(1-w)=-0.75
  const b=p193Weights(400,'day',zero,Array(60).fill(-40));
  assert.ok(Math.abs(b.w-.5)<1e-7);assert.ok(Math.abs(b.h+.3)<1e-7);
 });
