@@ -93,15 +93,22 @@ const pad=n=>String(n).padStart(2,'0');
 const tpeDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const prevDay=(s,n)=>new Date(Date.parse(s+'T00:00:00Z')-n*86400000).toISOString().slice(0,10);
 function backfillInit(){
-  const today=tpeDay(),known='2026-10-22';
-  $('bk-start').value=prevDay(today,20)>known?prevDay(today,20):known;
+  const today=tpeDay(),known='2026-10-22',contract=today.slice(0,4)+today.slice(5,7);
+  const minimum=prevDay(today,20)>known?prevDay(today,20):known;
+  $('bk-start').value=minimum;
   $('bk-end').value=today;
-  $('bk-contract').value=today.slice(0,4)+today.slice(5,7);
+  $('bk-contract').value=contract;
   try{
     $('bk-token').value=localStorage.getItem('r11-finmind-token-opt-in')||sessionStorage.getItem('r11-finmind-token-session')||'';
     $('bk-remember').checked=!!localStorage.getItem('r11-finmind-token-opt-in');
-    const saved=localStorage.getItem(backfillKey);
-    if(saved)renderBackfill(JSON.parse(saved),true);
+    const saved=JSON.parse(localStorage.getItem(backfillKey)||'null');
+    if(saved?.contract===contract){
+      renderBackfill(saved,true);
+      // Resume only the trailing two calendar dates. Prior verified bars remain in IndexedDB.
+      const recent=saved.end&&saved.end<=today?prevDay(saved.end,2):minimum;
+      if(recent>minimum)$('bk-start').value=recent;
+      $('bk-vault').textContent='已保留歷史逐盤稽核；本次自動增量從 '+$('bk-start').value+' 補到 '+today+'，只重查近期區段。';
+    }
   }catch{}
 }
 function renderBackfill(data,isCached=false){
@@ -204,11 +211,37 @@ async function vaultAccess(id,data){
  const db=await openR11Vault();
  try{return await new Promise((resolve,reject)=>{
   const tx=db.transaction('chunks',data?'readwrite':'readonly'),st=tx.objectStore('chunks');
-  const op=data?st.put({id,updated_at:new Date().toISOString(),raw_bars:data}):st.get(id);
-  op.onsuccess=()=>resolve(data?data:op.result?.raw_bars||null);op.onerror=()=>reject(op.error);
+  tx.onabort=()=>reject(tx.error||Error('IndexedDB 寫入中止'));
+  tx.onerror=()=>reject(tx.error||Error('IndexedDB 寫入失敗'));
+  if(data){
+   // A request success is NOT a committed transaction. Wait for oncomplete.
+   tx.oncomplete=()=>resolve(data);
+   st.put({id,updated_at:new Date().toISOString(),raw_bars:data});
+  }else{
+   const op=st.get(id);
+   op.onsuccess=()=>resolve(op.result?.raw_bars||null);
+   op.onerror=()=>reject(op.error);
+  }
  });}finally{db.close();}
 }
 
+function accumulateSessionAudit(old,update){
+ if(!old?.sessions?.length||old.contract!==update.contract)return update;
+ const records=new Map(old.sessions.map(x=>[x.contract+'|'+x.session_key,x]));
+ for(const item of update.sessions||[]){
+  const k=item.contract+'|'+item.session_key,prior=records.get(k);
+  // An incomplete midnight boundary must never overwrite a previously complete 840-bar night.
+  if(!prior||item.complete&&!prior.complete||item.bars>=prior.bars)records.set(k,item);
+ }
+ const sessions=[...records.values()].sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
+ const errors=[...(old.failed_dates||[]).filter(d=>d.date<update.start||d.date>update.end),...(update.failed_dates||[])];
+ return {...old,...update,start:old.start<update.start?old.start:update.start,
+  end:old.end>update.end?old.end:update.end,sessions,failed_dates:errors,
+  complete_sessions:sessions.filter(x=>x.complete).length,
+  partial_sessions:sessions.filter(x=>!x.complete&&!x.boundary_partial).length,
+  boundary_sessions:sessions.filter(x=>x.boundary_partial).length,
+  retrieved_at:new Date().toISOString()};
+}
 async function backfill(force=false){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
   if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
@@ -262,8 +295,11 @@ async function backfill(force=false){
       const partial=mergeBackfillChunks(chunks,contract,start,end);
       renderBackfill(partial);
     }
-    const result=mergeBackfillChunks(chunks,contract,start,end);
+    const incremental=mergeBackfillChunks(chunks,contract,start,end);
+    let prior=null;try{prior=JSON.parse(localStorage.getItem(backfillKey)||'null');}catch{}
+    const result=accumulateSessionAudit(prior,incremental);
     renderBackfill(result);
+    $('bk-vault').textContent+='｜本輪已核對 '+incremental.sessions.length+' 盤，歷史累計 '+result.sessions.length+' 盤；下次只從近期接續。';
     try{localStorage.setItem(backfillKey,JSON.stringify(result));}catch{}
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
   finally{btn.disabled=false;}
