@@ -76,6 +76,8 @@ async function refresh(){
   $('readiness').textContent=diag?.status==='BLOCKED'?'R11 API 已接通｜缺少已驗證盤前特徵':'R11 API 尚未通過連線驗收';
   const lines=[
     'Cloudflare 靜態頁：已載入（'+new Date().toLocaleDateString('zh-TW',{timeZone:'Asia/Taipei'})+'）',
+    ...(diag?.reconstruction?[`已驗證：歷史 P193 w/h ${diag.reconstruction.p193_historical_exact_sessions} 盤；R26 核心 ${diag.reconstruction.r26_causal_core_oracle_sessions} 組；日K技術因子 ${diag.reconstruction.r26_completed_day_feature_exact_comparisons} 項`,
+      '待接續：2026/10/23 後原始 P40 逐分鐘盈虧與 R26 A影子策略（不能拿漲跌價差代替）']:[]),
     '指定合約分鐘K：'+(s?.ok?'Yahoo 連線成功；'+s.completed_session_keys+' 個已完成盤／'+s.rows+' 根分鐘K':'無法核實：'+(s?.reason||'未取得資料')),
     ...(diag?.requirements||[]).filter(x=>!x.ready).map(x=>'待補：'+x.label),
     'Cloudflare Durable Objects 今日寫入額度已超限時，背景更新可能失敗；不會重試寫入直到服務恢復'
