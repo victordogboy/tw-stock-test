@@ -6,7 +6,7 @@
 :root{color-scheme:dark;--bg:#081021;--panel:#121d30;--panel2:#17253c;--line:#293b55;--text:#ecf3fb;--muted:#9eafc9;--aqua:#65e0d5;--red:#ff9eab;--gold:#ffd48a}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#163556 0,transparent 46%),var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;font-size:15px}
 .wrapper{max-width:1140px;margin:0 auto;padding:24px 20px 90px}header{display:flex;gap:20px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:18px}h1{font-size:clamp(29px,4vw,46px);margin:7px 0 6px;letter-spacing:-.04em}h2{font-size:21px;margin:0 0 17px}p{color:var(--muted);line-height:1.7}.topbrand{font-size:12px;letter-spacing:.16em;color:var(--aqua);font-weight:700}.pill{border:1px solid #966f32;background:#3b301d;color:var(--gold);padding:9px 14px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
-.notice{border:1px solid #71543b;background:#2e241e;border-radius:12px;padding:14px 17px;color:#ffd7a6;line-height:1.6;margin:20px 0}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card,.panel{background:linear-gradient(135deg,#16253b,#101b2d);border:1px solid var(--line);border-radius:16px;padding:20px}.metric{color:var(--muted);font-size:13px}.num{font-size:clamp(23px,3vw,31px);font-weight:800;letter-spacing:-.045em;margin-top:9px}.num.accent{color:var(--aqua)}.num.warn{color:var(--gold)}.sm{font-size:12px;color:var(--muted);margin-top:6px}section{margin-top:24px}.cols{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.formrow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}select,button,textarea{font:inherit;border-radius:10px;border:1px solid #3d536e;background:#0d1828;color:var(--text);padding:11px}button{cursor:pointer;border-color:#368e8e;color:#09151a;background:var(--aqua);font-weight:800}button.secondary{background:#263852;border-color:#3d536e;color:var(--text)}button:hover{filter:brightness(1.08)}.stamp{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;overflow-wrap:anywhere;color:var(--muted)}.status{padding:14px;border-radius:12px;border:1px solid #69434c;background:#2b1b28;color:#ffc5c8;font-weight:700}.status.ok{border-color:#316f69;background:#10332f;color:#98fff3}.spec{display:grid;grid-template-columns:1fr 1fr;gap:9px}.spec>div{background:#0e192b;border:1px solid #203750;padding:13px;border-radius:10px}.spec strong{display:block;font-size:20px;margin-top:5px}.spec span{color:var(--muted);font-size:12px}textarea{width:100%;min-height:150px;resize:vertical;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:13px}tfoot td{color:var(--aqua);font-weight:bold}a{color:var(--aqua)}ul{padding-left:20px;color:var(--muted);line-height:1.7}footer{margin-top:26px;border-top:1px solid var(--line);padding-top:20px;color:var(--muted);font-size:12px}.hidden{display:none}code{color:var(--gold)}@media(max-width:790px){.cards{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.wrapper{padding:16px 12px 50px}header{align-items:flex-start;flex-direction:column}.card,.panel{padding:16px}}
+.notice{border:1px solid #71543b;background:#2e241e;border-radius:12px;padding:14px 17px;color:#ffd7a6;line-height:1.6;margin:20px 0}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card,.panel{background:linear-gradient(135deg,#16253b,#101b2d);border:1px solid var(--line);border-radius:16px;padding:20px}.metric{color:var(--muted);font-size:13px}.num{font-size:clamp(23px,3vw,31px);font-weight:800;letter-spacing:-.045em;margin-top:9px}.num.accent{color:var(--aqua)}.num.warn{color:var(--gold)}.sm{font-size:12px;color:var(--muted);margin-top:6px}section{margin-top:24px}.cols{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.formrow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}select,button,textarea,input{font:inherit;border-radius:10px;border:1px solid #3d536e;background:#0d1828;color:var(--text);padding:11px}button{cursor:pointer;border-color:#368e8e;color:#09151a;background:var(--aqua);font-weight:800}button.secondary{background:#263852;border-color:#3d536e;color:var(--text)}button:hover{filter:brightness(1.08)}.stamp{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;overflow-wrap:anywhere;color:var(--muted)}.status{padding:14px;border-radius:12px;border:1px solid #69434c;background:#2b1b28;color:#ffc5c8;font-weight:700}.status.ok{border-color:#316f69;background:#10332f;color:#98fff3}.spec{display:grid;grid-template-columns:1fr 1fr;gap:9px}.spec>div{background:#0e192b;border:1px solid #203750;padding:13px;border-radius:10px}.spec strong{display:block;font-size:20px;margin-top:5px}.spec span{color:var(--muted);font-size:12px}textarea{width:100%;min-height:150px;resize:vertical;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:13px}tfoot td{color:var(--aqua);font-weight:bold}a{color:var(--aqua)}ul{padding-left:20px;color:var(--muted);line-height:1.7}footer{margin-top:26px;border-top:1px solid var(--line);padding-top:20px;color:var(--muted);font-size:12px}.hidden{display:none}code{color:var(--gold)}@media(max-width:790px){.cards{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.wrapper{padding:16px 12px 50px}header{align-items:flex-start;flex-direction:column}.card,.panel{padding:16px}}
 </style></head><body><main class="wrapper">
 <header><div><div class="topbrand">TX RESEARCH DESK / P193 INTRADAY</div><h1>R11 盤前決策台</h1><p style="margin:0">日盤・夜盤獨立｜盤末強平｜永遠最多 1 口大台</p></div><span class="pill">● PAPER ONLY · 尚未核准實單</span></header>
 <div class="notice"><strong>資料狀態：</strong>目前只封存至 <strong>2026/10/22</strong> 的五年回測。最新 P40／R26 核心訊號、即時期貨分 K、契約換月和券商持倉尚未串接完成；本頁不會用舊價位冒充今天盤前價。歷史績效為樣本內回測，且在每側成本提高到 5 點時最大回撤超標。</div>
@@ -20,6 +20,24 @@
 <div class="spec"><div><span>當盤方向／決策</span><strong id="direction">禁止下單</strong></div><div><span>目前持倉</span><strong id="position">待券商核對</strong></div><div><span>進場觸發價</span><strong id="entry">—</strong></div><div><span>停損 / 停利</span><strong id="exit">— / —</strong></div><div><span>契約月份</span><strong id="contract">待核對</strong></div><div><span>盤別／收盤處置</span><strong id="session">當盤強制平倉</strong></div></div>
 <p>R11 僅能從空手開一口；持倉未知、已持有一口、盤前特徵不足或換月未確認，均不給新倉訊號。出場固定於停損、停利或該盤最後有效分鐘開盤；沒有跨盤續抱。</p>
 </div><div class="panel"><h2>上線前驗收</h2><div class="status" id="readiness">未完成：不能實盤下單</div><ul id="checks"><li>GitHub／Cloudflare 靜態部署：待確認</li><li>最新 120 盤完整期貨資料：待串接</li><li>P40、P193 w/h、R26 core：待核對</li><li>期貨合約與換月：待核對</li><li>券商實際持倉：未連線</li></ul><p class="sm">5 秒重新載入頁面不等於資料每 5 秒更新；只有實際通過來源與時效稽核才能顯示當盤訊號。</p></div></section>
+<section class="panel" id="backfill-panel">
+<h2>自動補齊 TX 日夜盤分鐘 K（FinMind 備援）</h2>
+<p>原本的 R11 歷史資料截至 2026/10/22。這裡可以直接查詢新的指定月份 TX 分 K，檢查日盤 300 根、夜盤 840 根、缺漏、週六凌晨與換月；<strong>不使用 Durable Objects 寫入額度</strong>。Cloudflare 若已設定 <code>FINMIND_TOKEN</code>，可直接取得資料；否則可以輸入自己的 Token。</p>
+<div class="formrow">
+<label>合約 YYYYMM <input id="bk-contract" inputmode="numeric" pattern="20[0-9]{4}" maxlength="6" style="width:125px" aria-label="TX 合約月份"></label>
+<label>補抓起日 <input id="bk-start" type="date"></label>
+<label>補抓迄日 <input id="bk-end" type="date"></label>
+</div>
+<div class="formrow" style="align-items:center">
+<label>FinMind Token <input id="bk-token" type="password" autocomplete="off" placeholder="Cloudflare Secret 已設定可留空" style="width:min(330px,80vw)"></label>
+<label style="font-size:12px;color:var(--muted)"><input id="bk-remember" type="checkbox"> 此裝置記住 Token</label>
+<button id="bk-run">補抓並稽核</button>
+</div>
+<p class="sm">每次最多補抓 21 個曆日；Token 只在授權請求標頭傳送，不寫入 GitHub。未勾選「記住」時，僅保存到此分頁。只保留每盤 OHLC 摘要與缺漏報告於本機，不公開原始分鐘資料。</p>
+<div id="bk-status" class="status">尚未執行補抓；已存在的研究基準不受影響。</div>
+<div style="overflow:auto;margin-top:12px"><table><thead><tr><th>交易盤</th><th>合約</th><th>首 / 末分鐘</th><th>完整度</th><th>狀態</th></tr></thead><tbody id="bk-table"><tr><td colspan="5" style="text-align:left">尚無新資料</td></tr></tbody></table></div>
+<p class="sm" id="bk-audit">本欄只驗證指定合約分鐘覆蓋率；還不能替代 P40 損益重播、R26 核心訊號或券商持倉核對。</p>
+</section>
 <section class="cols"><div class="panel"><h2>歷史年度淨利（已扣 3 點／側）</h2><table><thead><tr><th>年份</th><th>R11 RR</th><th>R11 MAX</th></tr></thead><tbody><tr><td>2021 Q4</td><td>+222</td><td>+222</td></tr><tr><td>2022</td><td>+4,365</td><td>+4,228</td></tr><tr><td>2023</td><td>+1,020</td><td>+1,334</td></tr><tr><td>2024</td><td>+7,536</td><td>+6,981</td></tr><tr><td>2025</td><td>+6,828</td><td>+6,197</td></tr><tr><td>2026 至10/22</td><td>+43,265</td><td>+44,952</td></tr></tbody><tfoot><tr><td>合計</td><td>+63,236</td><td>+63,914</td></tr></tfoot></table><p>R11 MAX：保守回撤 4.764%，682 筆。兩版 2026 年貢獻約七成獲利，未經完全獨立樣本外驗證。</p></div>
 <div class="panel"><h2>研究特徵快照核對</h2><p>可貼上完整盤前特徵 JSON 來離線核對 R11 計價。此功能<strong>不是即時資料、不是自動下單</strong>；即使 JSON 自稱「已驗證」，仍只會顯示研究計價結果。</p>
 <details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、w、h、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
@@ -64,5 +82,64 @@ async function refresh(){
 }
 $('refresh').addEventListener('click',refresh);$('variant').addEventListener('change',refresh);
 $('calculate').addEventListener('click',()=>{try{const data=JSON.parse($('snapshot').value),out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify(out,null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
+// FinMind optional read-only backfill: 1 bounded request (<=21 days) per manual run.
+const backfillKey='r11-backfill-last-summary-v1';
+const pad=n=>String(n).padStart(2,'0');
+const tpeDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const prevDay=(s,n)=>new Date(Date.parse(s+'T00:00:00Z')-n*86400000).toISOString().slice(0,10);
+function backfillInit(){
+  const today=tpeDay(),known='2026-10-23';
+  $('bk-start').value=prevDay(today,20)>known?prevDay(today,20):known;
+  $('bk-end').value=today;
+  $('bk-contract').value=today.slice(0,4)+today.slice(5,7);
+  try{
+    $('bk-token').value=localStorage.getItem('r11-finmind-token-opt-in')||sessionStorage.getItem('r11-finmind-token-session')||'';
+    $('bk-remember').checked=!!localStorage.getItem('r11-finmind-token-opt-in');
+    const saved=localStorage.getItem(backfillKey);
+    if(saved)renderBackfill(JSON.parse(saved),true);
+  }catch{}
+}
+function renderBackfill(data,isCached=false){
+  const count=data.sessions?.length||0,completed=data.complete_sessions||0;
+  const prefix=isCached?'本機前次稽核（可能已過期）：':'FinMind 已回傳：';
+  $('bk-status').className='status'+(data.ok&&completed?' ok':'');
+  $('bk-status').textContent=prefix+'共 '+count+' 個交易盤，其中 '+completed+' 個分鐘完整、'+(data.partial_sessions||0)+' 個不完整；'+
+    (data.tradeable===false?'仍不能產生實單價位':'')+(data.retrieved_at?'｜取得 '+data.retrieved_at:'');
+  $('bk-table').replaceChildren(...(data.sessions||[]).slice(-30).map(x=>{
+    const tr=document.createElement('tr');
+    const cells=[x.session_key,x.contract,x.first_bar.slice(11)+' → '+x.last_bar.slice(11),x.bars+'/'+x.expected_bars+' ('+x.coverage_pct+'%)',x.complete?'分K完整（不代表策略已驗證）':'缺 '+x.missing_bars+' 根／或尚未收盤'];
+    for(const val of cells){const td=document.createElement('td');td.textContent=val;tr.appendChild(td);}
+    return tr;
+  }));
+  const detected=(data.source_contracts||[]).join('、')||'未取得';
+  $('bk-audit').textContent='來源合約：'+detected+'；拒收異契約資料 '+(data.rejected?.contract||0)+' 筆。'+
+    '注意：分K完整不等於已重建 P40/P193/R26，R11 實單訊號依舊封鎖。';
+}
+async function backfill(){
+  const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
+  if(!/^20\d{4}$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
+  const count=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
+  if(count>21){$('bk-status').textContent='為保護 FinMind 請求額度，每次最多 21 天';return;}
+  btn.disabled=true;$('bk-status').textContent='補抓 '+start+' 至 '+end+'，核對資料中…';
+  try{
+    if(token){try{
+      if($('bk-remember').checked){localStorage.setItem('r11-finmind-token-opt-in',token);sessionStorage.removeItem('r11-finmind-token-session');}
+      else{sessionStorage.setItem('r11-finmind-token-session',token);localStorage.removeItem('r11-finmind-token-opt-in');}
+    }catch{}}
+    const headers=token?{'authorization':'Bearer '+token}:{};
+    const u='/api/r11/backfill?'+new URLSearchParams({start,end,contract});
+    const response=await fetch(u,{headers,cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok){$('bk-status').className='status';$('bk-status').textContent='補抓失敗：'+(data.error||data.code||('HTTP '+response.status));return;}
+    renderBackfill(data);
+    try{localStorage.setItem(backfillKey,JSON.stringify(data));}catch{}
+  }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
+  finally{btn.disabled=false;}
+}
+$('bk-run').addEventListener('click',backfill);
+backfillInit();
+// One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
+if($('bk-token').value.trim())backfill();
+
 refresh();setInterval(refresh,60000);
 </script></body></html>
