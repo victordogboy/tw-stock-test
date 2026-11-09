@@ -119,10 +119,12 @@ function renderBackfill(data,isCached=false){
     (data.tradeable===false?'仍不能產生實單價位':'')+(data.retrieved_at?'｜取得 '+data.retrieved_at:'');
   $('bk-table').replaceChildren(...(data.sessions||[]).slice(-30).map(x=>{
     const tr=document.createElement('tr');
-    const gapCause=x.gap_cause==='QUERY_START_BOUNDARY'||x.boundary_partial?'起點邊界，不列入來源缺口':
+    const gapCause=x.boundary_partial&&x.source_gap?'查詢前缺 '+x.boundary_missing_bars+' 根；另有來源缺 '+x.source_missing_bars+' 根':
+      x.boundary_partial?'查詢前缺 '+(x.boundary_missing_bars||0)+' 根（邊界）':
       x.gap_cause==='SESSION_STILL_ACTIVE'||!x.concluded?'當盤尚未結束':
-      x.complete?'分鐘完整，仍須策略驗證':'來源缺 K／需複核';
-    const range=(x.missing_ranges||[]).map(y=>y.start+'～'+y.end+'（'+y.bars+'根）').join('、');
+      x.complete?'分鐘完整，仍須策略驗證':'來源缺 K '+(x.source_missing_bars||x.missing_bars)+' 根／需複核';
+    const range=(x.missing_ranges||[]).map(y=>(y.cause==='QUERY_BOUNDARY'?'查詢外：':
+      y.cause==='SESSION_NOT_CLOSED'?'尚未收盤：':'來源待核：')+y.start+'～'+y.end+'（'+y.bars+'根）').join('、');
     const cells=[x.session_key,x.contract,x.first_bar.slice(11)+' → '+x.last_bar.slice(11),
       x.bars+'/'+x.expected_bars+' ('+x.coverage_pct+'%)',gapCause,
       x.complete?'—':(range||(x.missing_bars?'缺口時段尚未建檔':'待核對'))];
@@ -168,25 +170,33 @@ function mergeBackfillChunks(chunks,contract,start,end){
  }
  for(const [k,x] of map){
   const observed=barSets.get(k),expected=x.expected_bars,openEpoch=Date.parse(x.open_date+(x.session==='day'?'T08:45:00+08:00':'T15:00:00+08:00'));
-  const gaps=[],boundary=x.open_date<start,active=!x.concluded;
+  const gaps=[],queryStartEpoch=Date.parse(start+'T00:00:00+08:00'),active=!x.concluded;
+  let boundaryMissing=x.boundary_missing_bars||0;
   if(observed){
-   x.bars=observed.size;
+   x.bars=observed.size;boundaryMissing=0;
    for(let i=0;i<expected;i++){
     const epoch=openEpoch+i*60000;
     if(observed.has(epoch))continue;
+    const cause=epoch<queryStartEpoch?'QUERY_BOUNDARY':active?'SESSION_NOT_CLOSED':'SOURCE_MISSING';
+    if(cause==='QUERY_BOUNDARY')boundaryMissing++;
     const prev=gaps.at(-1);
-    if(prev&&prev.end+60000===epoch){prev.end=epoch;prev.bars++;}
-    else gaps.push({start:epoch,end:epoch,bars:1});
+    if(prev?.cause===cause&&prev.end+60000===epoch){prev.end=epoch;prev.bars++;}
+    else gaps.push({start:epoch,end:epoch,bars:1,cause});
    }
    x.missing_bars=gaps.reduce((n,v)=>n+v.bars,0);
-   x.missing_ranges=gaps.slice(0,16).map(v=>({start:localStamp(v.start),end:localStamp(v.end),bars:v.bars}));
+   x.missing_ranges=gaps.slice(0,16).map(v=>({start:localStamp(v.start),end:localStamp(v.end),bars:v.bars,cause:v.cause}));
    x.missing_range_count=gaps.length;
   }else{
    x.missing_bars=Math.max(0,expected-x.bars);
   }
+  const boundary=boundaryMissing>0;
+  x.boundary_missing_bars=boundaryMissing;
+  x.source_missing_bars=active?0:Math.max(0,x.missing_bars-boundaryMissing);
+  x.pending_bars=active?Math.max(0,x.missing_bars-boundaryMissing):0;
   x.boundary_partial=boundary;
-  x.gap_cause=boundary?'QUERY_START_BOUNDARY':active?'SESSION_STILL_ACTIVE':x.missing_bars?'SOURCE_MINUTES_MISSING':'NONE';
-  x.source_gap=!boundary&&!active&&x.missing_bars>0;
+  x.source_gap=!active&&x.source_missing_bars>0;
+  x.gap_cause=boundary?(x.source_gap?'QUERY_BOUNDARY_AND_SOURCE_GAP':'QUERY_START_BOUNDARY'):
+    active?'SESSION_STILL_ACTIVE':x.source_gap?'SOURCE_MINUTES_MISSING':'NONE';
   x.coverage_pct=Number((x.bars/expected*100).toFixed(2));
   x.complete=x.concluded&&x.bars===expected&&x.first_bar_verified&&x.last_bar_verified;
   x.readiness=x.complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION';
@@ -195,7 +205,7 @@ function mergeBackfillChunks(chunks,contract,start,end){
  return {ok:allFailed.length===0,tradeable:false,paper_only:true,source:'FinMind TaiwanFuturesKBar',
    contract,start,end,sessions,raw_rows:fetched,
    complete_sessions:sessions.filter(x=>x.complete).length,
-   partial_sessions:sessions.filter(x=>!x.complete&&!x.boundary_partial).length,
+   partial_sessions:sessions.filter(x=>!x.complete&&(!x.boundary_partial||x.source_gap)).length,
    boundary_sessions:sessions.filter(x=>x.boundary_partial).length,
    source_contracts:[...months],failed_dates:allFailed,empty_dates:[...new Set(missing)],
    rejected:{contract:rejectedContract},retrieved_at:new Date().toISOString()};
