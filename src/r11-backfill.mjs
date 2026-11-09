@@ -39,18 +39,37 @@ function summarizeRows(rows,start,end,contract,now=Date.now()){
       firstIsOpen=first.time===firstExpected,lastIsClose=last.time===lastExpected,
       endEpoch=g.session==='day'?Date.parse(g.open_date+'T13:45:00+08:00'):Date.parse(g.open_date+'T15:00:00+08:00')+840*60000,
       concluded=now>=endEpoch;
+    const openEpoch=Date.parse(g.open_date+(g.session==='day'?'T08:45:00+08:00':'T15:00:00+08:00'));
+    const present=new Set(g.raw.map(r=>r.epoch)),gaps=[];
+    let totalMissing=0;
+    for(let i=0;i<expected;i++){
+      const epoch=openEpoch+i*60000;
+      if(present.has(epoch))continue;
+      totalMissing++;
+      const previous=gaps.at(-1);
+      if(previous&&previous.end_epoch+60000===epoch)previous.end_epoch=epoch,previous.bars++;
+      else gaps.push({start_epoch:epoch,end_epoch:epoch,bars:1});
+    }
+    const missing_ranges=gaps.slice(0,16).map(x=>({
+      start:new Date(x.start_epoch+8*3600000).toISOString().slice(0,16).replace('T',' '),
+      end:new Date(x.end_epoch+8*3600000).toISOString().slice(0,16).replace('T',' '),bars:x.bars}));
+    const boundary_left=g.session==='night'&&g.open_date<start;
+    const boundary_right=!concluded;
+    const gap_cause=boundary_left?'QUERY_START_BOUNDARY':boundary_right?'SESSION_STILL_ACTIVE':totalMissing?'SOURCE_MINUTES_MISSING':'NONE';
     // Only exact minute coverage and verified opening/closing timestamps may be used as a complete session.
     const complete=concluded&&n===expected&&firstIsOpen&&lastIsClose;
     out.push({contract:g.contract,session:g.session,session_key:g.session_key,open_date:g.open_date,
       first_bar:timeStamp(first.date,first.time),last_bar:timeStamp(last.date,last.time),
       open:first.open,high:Math.max(...g.raw.map(v=>v.high)),low:Math.min(...g.raw.map(v=>v.low)),close:last.close,
-      bars:n,expected_bars:expected,missing_bars:Math.max(0,expected-n),coverage_pct:Number((100*n/expected).toFixed(2)),
+      bars:n,expected_bars:expected,missing_bars:totalMissing,coverage_pct:Number((100*n/expected).toFixed(2)),
+      missing_ranges,missing_range_count:gaps.length,gap_cause,boundary_partial:boundary_left,source_gap:!boundary_left&&concluded&&totalMissing>0,
       complete,concluded,first_bar_verified:firstIsOpen,last_bar_verified:lastIsClose,
       readiness:complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION'});
   }
   out.sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
   return {sessions:out,source_contracts:[...seenContracts].sort(),rejected,raw_rows:rows.length,
-    complete_sessions:out.filter(x=>x.complete).length,partial_sessions:out.filter(x=>!x.complete).length};
+    complete_sessions:out.filter(x=>x.complete).length,partial_sessions:out.filter(x=>!x.complete&&!x.boundary_partial).length,
+    boundary_sessions:out.filter(x=>x.boundary_partial).length};
 }
 export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
  if(request.method!=='GET')return J({ok:false,code:'METHOD_NOT_ALLOWED'},405);
@@ -58,6 +77,8 @@ export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
  const tpe=tpeToday();
  if(!okdate(start)||!okdate(end)||end<start||end>tpe||!validContract(contract))
   return J({ok:false,code:'INVALID_DATE_OR_CONTRACT',error:'有效日期與指定合約月份 YYYYMM 必填；不可查詢未來日期'},400);
+ const mode=u.searchParams.get('mode')||'summary';
+ if(!['summary','bars'].includes(mode))return J({ok:false,code:'INVALID_MODE'},400);
  const days=1+Math.round((Date.parse(end)-Date.parse(start))/86400000);
  if(days>7)return J({ok:false,code:'WINDOW_TOO_LARGE',error:'FinMind 期貨分鐘K限單日查詢，每批最多補抓 7 天（網站會自動分批）'},400);
  const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+([^\r\n]+)$/i)?.[1]?.trim()||'';
@@ -99,12 +120,21 @@ export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
     error:'FinMind Token 權限或請求額度問題，已停止繼續請求。請不要重複快速重試。',durable_object_writes:0},
     errors.some(e=>e.upstream_status===429)?429:403);
  const result=summarizeRows(out,start,end,contract);
+ // Optional raw exact-month OHLCV, for private browser IndexedDB. Never store raw bars on public server.
+ const actualBars=mode==='bars'?out.filter(r=>r.futures_id==='TX'&&String(r.contract_date)===contract&&
+   /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/.test(String(r.minute||''))&&
+   ['open','high','low','close'].every(k=>Number.isFinite(Number(r[k]))&&Number(r[k])>0)&&
+   Number(r.low)<=Math.min(Number(r.open),Number(r.close))&&Number(r.high)>=Math.max(Number(r.open),Number(r.close)))
+   .map(r=>({timestamp_tpe:r.date+' '+r.minute,contract_date:contract,
+    open:Number(r.open),high:Number(r.high),low:Number(r.low),close:Number(r.close),volume:Number(r.volume)||0}))
+   .sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe)):undefined;
+ if(actualBars?.length>10500)return J({ok:false,code:'TOO_MANY_VALID_BARS',tradeable:false},413);
  return J({ok:errors.length===0,status:errors.length?'PARTIAL_COVERAGE':'COVERAGE_ONLY',
    paper_only:true,tradeable:false,contract,start,end,days,
    requested_dates:dates,fetched_dates:used_dates,empty_dates,failed_dates:errors,
    source:'FinMind TaiwanFuturesKBar (daily-only, sequential bounded batches)',
    retrieved_at:new Date().toISOString(),
-   ...result,note:'每個曆日皆獨立讀取 FinMind KBar（含週六凌晨）。任何缺分鐘、來源失敗或盤尚未結束都不補假 K；P40、R26 core、P193 與實際持倉未驗證時不給交易價。',
+   ...result,mode,raw_bars:actualBars,note:'每個曆日皆獨立讀取 FinMind KBar（含週六凌晨）。任何缺分鐘、來源失敗或盤尚未結束都不補假 K；P40、R26 core、P193 與實際持倉未驗證時不給交易價。',
    durable_object_writes:0},errors.length?206:200);
 }
 export {summarizeRows};

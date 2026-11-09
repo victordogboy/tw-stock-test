@@ -33,9 +33,10 @@
 <label style="font-size:12px;color:var(--muted)"><input id="bk-remember" type="checkbox"> 此裝置記住 Token</label>
 <button id="bk-run">補抓並稽核</button>
 </div>
-<p class="sm">每次最多補抓 21 個曆日；Token 只在授權請求標頭傳送，不寫入 GitHub。未勾選「記住」時，僅保存到此分頁。只保留每盤 OHLC 摘要與缺漏報告於本機，不公開原始分鐘資料。</p>
+<p class="sm">每次最多補抓 21 個曆日；Token 只在授權請求標頭傳送，不寫入 GitHub。未勾選「記住」時，僅保存到此分頁。每批原始 OHLC 分 K 存到此裝置 IndexedDB，歷史摘要保存在本機；不公開原始分鐘資料。</p>
 <div id="bk-status" class="status">尚未執行補抓；已存在的研究基準不受影響。</div>
-<div style="overflow:auto;margin-top:12px"><table><thead><tr><th>交易盤</th><th>合約</th><th>首 / 末分鐘</th><th>完整度</th><th>狀態</th></tr></thead><tbody id="bk-table"><tr><td colspan="5" style="text-align:left">尚無新資料</td></tr></tbody></table></div>
+<div style="overflow:auto;margin-top:12px"><table><thead><tr><th>交易盤</th><th>合約</th><th>首 / 末分鐘</th><th>完整度</th><th>狀態</th><th>缺 K 時段</th></tr></thead><tbody id="bk-table"><tr><td colspan="6" style="text-align:left">尚無新資料</td></tr></tbody></table></div>
+<p class="sm" id="bk-vault">原始分 K 私有儲存庫：尚未核對。</p>
 <p class="sm" id="bk-audit">本欄只驗證指定合約分鐘覆蓋率；還不能替代 P40 損益重播、R26 核心訊號或券商持倉核對。</p>
 </section>
 <section class="cols"><div class="panel"><h2>歷史年度淨利（已扣 3 點／側）</h2><table><thead><tr><th>年份</th><th>R11 RR</th><th>R11 MAX</th></tr></thead><tbody><tr><td>2021 Q4</td><td>+222</td><td>+222</td></tr><tr><td>2022</td><td>+4,365</td><td>+4,228</td></tr><tr><td>2023</td><td>+1,020</td><td>+1,334</td></tr><tr><td>2024</td><td>+7,536</td><td>+6,981</td></tr><tr><td>2025</td><td>+6,828</td><td>+6,197</td></tr><tr><td>2026 至10/22</td><td>+43,265</td><td>+44,952</td></tr></tbody><tfoot><tr><td>合計</td><td>+63,236</td><td>+63,914</td></tr></tfoot></table><p>R11 MAX：保守回撤 4.764%，682 筆。兩版 2026 年貢獻約七成獲利，未經完全獨立樣本外驗證。</p></div>
@@ -92,7 +93,7 @@ const pad=n=>String(n).padStart(2,'0');
 const tpeDay=()=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const prevDay=(s,n)=>new Date(Date.parse(s+'T00:00:00Z')-n*86400000).toISOString().slice(0,10);
 function backfillInit(){
-  const today=tpeDay(),known='2026-10-23';
+  const today=tpeDay(),known='2026-10-22';
   $('bk-start').value=prevDay(today,20)>known?prevDay(today,20):known;
   $('bk-end').value=today;
   $('bk-contract').value=today.slice(0,4)+today.slice(5,7);
@@ -107,11 +108,17 @@ function renderBackfill(data,isCached=false){
   const count=data.sessions?.length||0,completed=data.complete_sessions||0;
   const prefix=isCached?'本機前次稽核（可能已過期）：':'FinMind 已回傳：';
   $('bk-status').className='status'+(data.ok&&completed?' ok':'');
-  $('bk-status').textContent=prefix+'共 '+count+' 個交易盤，其中 '+completed+' 個分鐘完整、'+(data.partial_sessions||0)+' 個不完整；'+
+  $('bk-status').textContent=prefix+'共 '+count+' 個交易盤，其中 '+completed+' 個分鐘完整、'+(data.partial_sessions||0)+' 個需補查、'+(data.boundary_sessions||0)+' 個起點邊界；'+
     (data.tradeable===false?'仍不能產生實單價位':'')+(data.retrieved_at?'｜取得 '+data.retrieved_at:'');
   $('bk-table').replaceChildren(...(data.sessions||[]).slice(-30).map(x=>{
     const tr=document.createElement('tr');
-    const cells=[x.session_key,x.contract,x.first_bar.slice(11)+' → '+x.last_bar.slice(11),x.bars+'/'+x.expected_bars+' ('+x.coverage_pct+'%)',x.complete?'分K完整（不代表策略已驗證）':'缺 '+x.missing_bars+' 根／或尚未收盤'];
+    const gapCause=x.gap_cause==='QUERY_START_BOUNDARY'||x.boundary_partial?'起點邊界，不列入來源缺口':
+      x.gap_cause==='SESSION_STILL_ACTIVE'||!x.concluded?'當盤尚未結束':
+      x.complete?'分鐘完整，仍須策略驗證':'來源缺 K／需複核';
+    const range=(x.missing_ranges||[]).map(y=>y.start+'～'+y.end+'（'+y.bars+'根）').join('、');
+    const cells=[x.session_key,x.contract,x.first_bar.slice(11)+' → '+x.last_bar.slice(11),
+      x.bars+'/'+x.expected_bars+' ('+x.coverage_pct+'%)',gapCause,
+      x.complete?'—':(range||(x.missing_bars?'缺口時段尚未建檔':'待核對'))];
     for(const val of cells){const td=document.createElement('td');td.textContent=val;tr.appendChild(td);}
     return tr;
   }));
@@ -120,40 +127,89 @@ function renderBackfill(data,isCached=false){
     '注意：分K完整不等於已重建 P40/P193/R26，R11 實單訊號依舊封鎖。';
 }
 function mergeBackfillChunks(chunks,contract,start,end){
-  const map=new Map(),months=new Set(),missing=[],allFailed=[];
-  let fetched=0,rejectedContract=0;
-  for(const j of chunks){
-    fetched+=(j.raw_rows||0);rejectedContract+=j.rejected?.contract||0;
-    for(const d of j.failed_dates||[])allFailed.push(d);
-    for(const d of j.empty_dates||[])missing.push(d);
-    for(const x of j.source_contracts||[])months.add(x);
-    for(const x of j.sessions||[]){
-      const k=x.contract+'|'+x.session_key,prior=map.get(k);
-      if(!prior){map.set(k,{...x});continue;}
-      const later=x.last_bar>prior.last_bar,earlier=x.first_bar<prior.first_bar;
-      const joined={...prior,bars:prior.bars+x.bars,
-        high:Math.max(prior.high,x.high),low:Math.min(prior.low,x.low),
-        first_bar_verified:prior.first_bar_verified||x.first_bar_verified,
-        last_bar_verified:prior.last_bar_verified||x.last_bar_verified,
-        concluded:prior.concluded||x.concluded};
-      if(earlier){joined.first_bar=x.first_bar;joined.open=x.open;}
-      if(later){joined.last_bar=x.last_bar;joined.close=x.close;}
-      joined.coverage_pct=Number((joined.bars/joined.expected_bars*100).toFixed(2));
-      joined.missing_bars=Math.max(0,joined.expected_bars-joined.bars);
-      joined.complete=joined.concluded&&joined.bars===joined.expected_bars&&joined.first_bar_verified&&joined.last_bar_verified;
-      joined.readiness=joined.complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION';
-      map.set(k,joined);
-    }
+ const map=new Map(),months=new Set(),missing=[],allFailed=[],barSets=new Map();
+ let fetched=0,rejectedContract=0;
+ const localStamp=epoch=>new Date(epoch+8*3600000).toISOString().slice(0,16).replace('T',' ');
+ for(const j of chunks){
+  fetched+=(j.raw_rows||0);rejectedContract+=j.rejected?.contract||0;
+  for(const d of j.failed_dates||[])allFailed.push(d);
+  for(const d of j.empty_dates||[])missing.push(d);
+  for(const x of j.source_contracts||[])months.add(x);
+  for(const x of j.sessions||[]){
+   const k=x.contract+'|'+x.session_key,prior=map.get(k);
+   if(!prior){map.set(k,{...x});continue;}
+   const later=x.last_bar>prior.last_bar,earlier=x.first_bar<prior.first_bar;
+   const joined={...prior,bars:prior.bars+x.bars,
+     high:Math.max(prior.high,x.high),low:Math.min(prior.low,x.low),
+     first_bar_verified:prior.first_bar_verified||x.first_bar_verified,
+     last_bar_verified:prior.last_bar_verified||x.last_bar_verified,
+     concluded:prior.concluded||x.concluded};
+   if(earlier){joined.first_bar=x.first_bar;joined.open=x.open;}
+   if(later){joined.last_bar=x.last_bar;joined.close=x.close;}
+   map.set(k,joined);
   }
-  const sessions=[...map.values()].sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
-  return {ok:allFailed.length===0,tradeable:false,paper_only:true,source:'FinMind TaiwanFuturesKBar',
-    contract,start,end,sessions,raw_rows:fetched,
-    complete_sessions:sessions.filter(x=>x.complete).length,
-    partial_sessions:sessions.filter(x=>!x.complete).length,
-    source_contracts:[...months],failed_dates:allFailed,empty_dates:[...new Set(missing)],
-    rejected:{contract:rejectedContract},retrieved_at:new Date().toISOString()};
+  for(const b of j.raw_bars||[]){
+   const epoch=Date.parse(b.timestamp_tpe.replace(' ','T')+'+08:00');
+   const tm=b.timestamp_tpe.slice(11,16),m=Number(tm.slice(0,2))*60+Number(tm.slice(3,5));
+   const day=m>=525&&m<825,night=m>=900||m<300;
+   if(!Number.isFinite(epoch)||(!day&&!night)||b.contract_date!==contract)continue;
+   const date=b.timestamp_tpe.slice(0,10),openDate=day||m>=900?date:prevDay(date,1);
+   const k=contract+'|'+(day?'day:':'night:')+openDate;
+   if(!barSets.has(k))barSets.set(k,new Set());
+   barSets.get(k).add(epoch);
+  }
+ }
+ for(const [k,x] of map){
+  const observed=barSets.get(k),expected=x.expected_bars,openEpoch=Date.parse(x.open_date+(x.session==='day'?'T08:45:00+08:00':'T15:00:00+08:00'));
+  const gaps=[],boundary=x.open_date<start,active=!x.concluded;
+  if(observed){
+   x.bars=observed.size;
+   for(let i=0;i<expected;i++){
+    const epoch=openEpoch+i*60000;
+    if(observed.has(epoch))continue;
+    const prev=gaps.at(-1);
+    if(prev&&prev.end+60000===epoch){prev.end=epoch;prev.bars++;}
+    else gaps.push({start:epoch,end:epoch,bars:1});
+   }
+   x.missing_bars=gaps.reduce((n,v)=>n+v.bars,0);
+   x.missing_ranges=gaps.slice(0,16).map(v=>({start:localStamp(v.start),end:localStamp(v.end),bars:v.bars}));
+   x.missing_range_count=gaps.length;
+  }else{
+   x.missing_bars=Math.max(0,expected-x.bars);
+  }
+  x.boundary_partial=boundary;
+  x.gap_cause=boundary?'QUERY_START_BOUNDARY':active?'SESSION_STILL_ACTIVE':x.missing_bars?'SOURCE_MINUTES_MISSING':'NONE';
+  x.source_gap=!boundary&&!active&&x.missing_bars>0;
+  x.coverage_pct=Number((x.bars/expected*100).toFixed(2));
+  x.complete=x.concluded&&x.bars===expected&&x.first_bar_verified&&x.last_bar_verified;
+  x.readiness=x.complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION';
+ }
+ const sessions=[...map.values()].sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
+ return {ok:allFailed.length===0,tradeable:false,paper_only:true,source:'FinMind TaiwanFuturesKBar',
+   contract,start,end,sessions,raw_rows:fetched,
+   complete_sessions:sessions.filter(x=>x.complete).length,
+   partial_sessions:sessions.filter(x=>!x.complete&&!x.boundary_partial).length,
+   boundary_sessions:sessions.filter(x=>x.boundary_partial).length,
+   source_contracts:[...months],failed_dates:allFailed,empty_dates:[...new Set(missing)],
+   rejected:{contract:rejectedContract},retrieved_at:new Date().toISOString()};
 }
-async function backfill(){
+// Browser-private raw minute cache. Never put FinMind Token or raw bars in public GitHub.
+const openR11Vault=()=>new Promise((resolve,reject)=>{
+ if(!('indexedDB' in window))return reject(Error('此瀏覽器無 IndexedDB'));
+ const r=indexedDB.open('r11-tx-minute-vault',1);
+ r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('chunks'))r.result.createObjectStore('chunks',{keyPath:'id'});};
+ r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error);
+});
+async function vaultAccess(id,data){
+ const db=await openR11Vault();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction('chunks',data?'readwrite':'readonly'),st=tx.objectStore('chunks');
+  const op=data?st.put({id,updated_at:new Date().toISOString(),raw_bars:data}):st.get(id);
+  op.onsuccess=()=>resolve(data?data:op.result?.raw_bars||null);op.onerror=()=>reject(op.error);
+ });}finally{db.close();}
+}
+
+async function backfill(force=false){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
   if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
   const count=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
@@ -167,23 +223,40 @@ async function backfill(){
     const chunks=[],first=Date.parse(start+'T00:00:00Z'),last=Date.parse(end+'T00:00:00Z');
     for(let ms=first;ms<=last;ms+=7*86400000){
       const a=new Date(ms).toISOString().slice(0,10),b=new Date(Math.min(last,ms+6*86400000)).toISOString().slice(0,10);
-      const cacheKey='r11-kbar-summary-v2:'+contract+':'+a+':'+b;
+      const cacheKey='r11-kbar-summary-v3:'+contract+':'+a+':'+b;
+      const vaultId=contract+':'+a+':'+b;
       let data=null;
       try{const prior=JSON.parse(localStorage.getItem(cacheKey)||'null');
         // Completed historical batches remain locally cached; recent and partial batches refresh.
-        if(prior?.ok && prior?.complete_sessions>0 && !prior?.partial_sessions && !prior?.failed_dates?.length &&
-           Date.parse(b+'T00:00:00Z')<Date.now()-3*86400000)data=prior;
+        const ageMs=Date.now()-Date.parse(prior?.retrieved_at||'');
+        const settled=prior?.ok&&prior?.complete_sessions>0&&!prior?.partial_sessions&&
+          !(prior?.failed_dates||[]).length&&Date.parse(b+'T00:00:00Z')<Date.now()-3*86400000;
+        const isRecentDay=b>=tpeDay();
+        const cachedFresh=Number.isFinite(ageMs)&&ageMs>=0&&ageMs<(isRecentDay?5*60000:6*3600000);
+        if(!force&&prior?.ok&&(settled||cachedFresh)){
+          const storedBars=await vaultAccess(vaultId).catch(()=>null);
+          if(storedBars?.length)data={...prior,raw_bars:storedBars};
+        }
       }catch{}
       if(!data){
         $('bk-status').textContent='FinMind 逐日補抓 '+a+'～'+b+'（'+(Math.floor((ms-first)/86400000)+1)+'/'+count+' 天）…';
         const headers=token?{authorization:'Bearer '+token}:{};
-        const response=await fetch('/api/r11/backfill?'+new URLSearchParams({start:a,end:b,contract}),{headers,cache:'no-store'});
+        const response=await fetch('/api/r11/backfill?'+new URLSearchParams({start:a,end:b,contract,mode:'bars'}),{headers,cache:'no-store'});
         data=await response.json();
         if(!response.ok&&!([206].includes(response.status))){
           $('bk-status').textContent='補抓 '+a+'～'+b+' 失敗：'+(data.error||data.code||('HTTP '+response.status));
           return;
         }
-        if(data.ok && !(data.failed_dates||[]).length)try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}
+        if(data.ok && !(data.failed_dates||[]).length){
+          try{
+            if(data.raw_bars?.length){
+              await vaultAccess(vaultId,data.raw_bars);
+              $('bk-vault').textContent='本機分鐘資料庫：已保存 '+data.raw_bars.length+' 根 K（'+a+'～'+b+'）；不佔用 Cloudflare DO 寫入額度。';
+            }
+            const summary={...data};delete summary.raw_bars;
+            localStorage.setItem(cacheKey,JSON.stringify(summary));
+          }catch(e){$('bk-vault').textContent='⚠ 本機分鐘資料未成功保存：'+String(e.message||e)+'；P40／R26 不能直接接續';}
+        }
       }
       chunks.push(data);
       const partial=mergeBackfillChunks(chunks,contract,start,end);
@@ -195,10 +268,10 @@ async function backfill(){
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
   finally{btn.disabled=false;}
 }
-$('bk-run').addEventListener('click',backfill);
+$('bk-run').addEventListener('click',()=>backfill(true));
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
-if($('bk-token').value.trim())backfill(); // never spend FinMind quota without this user's explicit token
+if($('bk-token').value.trim())backfill(false); // never spend FinMind quota without this user's explicit token
 
 refresh();setInterval(refresh,60000);
 </script></body></html>
