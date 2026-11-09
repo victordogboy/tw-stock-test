@@ -40,35 +40,41 @@ function summarizeRows(rows,start,end,contract,now=Date.now()){
       endEpoch=g.session==='day'?Date.parse(g.open_date+'T13:45:00+08:00'):Date.parse(g.open_date+'T15:00:00+08:00')+840*60000,
       concluded=now>=endEpoch;
     const openEpoch=Date.parse(g.open_date+(g.session==='day'?'T08:45:00+08:00':'T15:00:00+08:00'));
-    const present=new Set(g.raw.map(r=>r.epoch)),gaps=[];
-    let totalMissing=0;
+    const queryStartEpoch=Date.parse(start+'T00:00:00+08:00'),present=new Set(g.raw.map(r=>r.epoch)),gaps=[];
+    let totalMissing=0,boundaryMissing=0;
     for(let i=0;i<expected;i++){
       const epoch=openEpoch+i*60000;
       if(present.has(epoch))continue;
       totalMissing++;
+      const cause=epoch<queryStartEpoch?'QUERY_BOUNDARY':concluded?'SOURCE_MISSING':'SESSION_NOT_CLOSED';
+      if(cause==='QUERY_BOUNDARY')boundaryMissing++;
       const previous=gaps.at(-1);
-      if(previous&&previous.end_epoch+60000===epoch)previous.end_epoch=epoch,previous.bars++;
-      else gaps.push({start_epoch:epoch,end_epoch:epoch,bars:1});
+      if(previous?.cause===cause&&previous.end_epoch+60000===epoch)previous.end_epoch=epoch,previous.bars++;
+      else gaps.push({start_epoch:epoch,end_epoch:epoch,bars:1,cause});
     }
     const missing_ranges=gaps.slice(0,16).map(x=>({
       start:new Date(x.start_epoch+8*3600000).toISOString().slice(0,16).replace('T',' '),
-      end:new Date(x.end_epoch+8*3600000).toISOString().slice(0,16).replace('T',' '),bars:x.bars}));
-    const boundary_left=g.session==='night'&&g.open_date<start;
+      end:new Date(x.end_epoch+8*3600000).toISOString().slice(0,16).replace('T',' '),bars:x.bars,cause:x.cause}));
+    const boundary_left=boundaryMissing>0,sourceMissing=concluded?totalMissing-boundaryMissing:0;
+    const pendingMissing=!concluded?totalMissing-boundaryMissing:0;
     const boundary_right=!concluded;
-    const gap_cause=boundary_left?'QUERY_START_BOUNDARY':boundary_right?'SESSION_STILL_ACTIVE':totalMissing?'SOURCE_MINUTES_MISSING':'NONE';
+    const gap_cause=boundary_left?(sourceMissing?'QUERY_BOUNDARY_AND_SOURCE_GAP':'QUERY_START_BOUNDARY'):
+      boundary_right?'SESSION_STILL_ACTIVE':sourceMissing?'SOURCE_MINUTES_MISSING':'NONE';
     // Only exact minute coverage and verified opening/closing timestamps may be used as a complete session.
     const complete=concluded&&n===expected&&firstIsOpen&&lastIsClose;
     out.push({contract:g.contract,session:g.session,session_key:g.session_key,open_date:g.open_date,
       first_bar:timeStamp(first.date,first.time),last_bar:timeStamp(last.date,last.time),
       open:first.open,high:Math.max(...g.raw.map(v=>v.high)),low:Math.min(...g.raw.map(v=>v.low)),close:last.close,
       bars:n,expected_bars:expected,missing_bars:totalMissing,coverage_pct:Number((100*n/expected).toFixed(2)),
-      missing_ranges,missing_range_count:gaps.length,gap_cause,boundary_partial:boundary_left,source_gap:!boundary_left&&concluded&&totalMissing>0,
+      missing_ranges,missing_range_count:gaps.length,gap_cause,boundary_partial:boundary_left,
+      boundary_missing_bars:boundaryMissing,source_missing_bars:sourceMissing,pending_bars:pendingMissing,
+      source_gap:concluded&&sourceMissing>0,
       complete,concluded,first_bar_verified:firstIsOpen,last_bar_verified:lastIsClose,
       readiness:complete?'DATA_COVERAGE_ONLY':'INCOMPLETE_OR_ACTIVE_SESSION'});
   }
   out.sort((a,b)=>a.open_date.localeCompare(b.open_date)||a.session.localeCompare(b.session));
   return {sessions:out,source_contracts:[...seenContracts].sort(),rejected,raw_rows:rows.length,
-    complete_sessions:out.filter(x=>x.complete).length,partial_sessions:out.filter(x=>!x.complete&&!x.boundary_partial).length,
+    complete_sessions:out.filter(x=>x.complete).length,partial_sessions:out.filter(x=>!x.complete&&(!x.boundary_partial||x.source_gap)).length,
     boundary_sessions:out.filter(x=>x.boundary_partial).length};
 }
 export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
