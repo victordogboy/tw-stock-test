@@ -14,6 +14,19 @@ test('midnight window left boundary is not a real source gap',()=>{
  assert.equal(x.missing_ranges[0].start,'2026-10-22 15:00');
  assert.equal(x.missing_ranges[0].end,'2026-10-22 23:59');
 });
+test('298 of 840 on query-start midnight means 540 boundary minutes AND 2 real missing',()=>{
+ const rows=[];
+ for(let m=0;m<300;m++)if(m!==2&&m!==100)rows.push(bar('2026-10-23',tm(m)));
+ const a=summarizeRows(rows,'2026-10-23','2026-10-23','202611',Date.parse('2026-10-24T08:00:00+08:00'));
+ const x=a.sessions[0];
+ assert.equal(x.bars,298);assert.equal(x.missing_bars,542);
+ assert.equal(x.boundary_missing_bars,540);assert.equal(x.source_missing_bars,2);
+ assert.equal(x.source_gap,true);assert.equal(x.boundary_partial,true);
+ assert.equal(x.gap_cause,'QUERY_BOUNDARY_AND_SOURCE_GAP');
+ assert.equal(x.missing_ranges[0].cause,'QUERY_BOUNDARY');
+ assert.equal(x.missing_ranges[1].cause,'SOURCE_MISSING');
+ assert.equal(a.partial_sessions,1);assert.equal(a.boundary_sessions,1);
+});
 test('single genuine missing minute is pinpointed without inventing a bar',()=>{
  const rows=[];
  for(let m=525;m<825;m++)if(m!==630)rows.push(bar('2026-10-23',tm(m)));
