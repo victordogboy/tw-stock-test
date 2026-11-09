@@ -122,7 +122,7 @@ export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
  const result=summarizeRows(out,start,end,contract);
  // Optional raw exact-month OHLCV, for private browser IndexedDB. Never store raw bars on public server.
  const actualBars=mode==='bars'?out.filter(r=>r.futures_id==='TX'&&String(r.contract_date)===contract&&
-   /^\\d\\d:\\d\\d:\\d\\d$/.test(String(r.minute||''))&&
+   /^[0-9]{2}:[0-9]{2}:[0-9]{2}$/.test(String(r.minute||''))&&
    ['open','high','low','close'].every(k=>Number.isFinite(Number(r[k]))&&Number(r[k])>0)&&
    Number(r.low)<=Math.min(Number(r.open),Number(r.close))&&Number(r.high)>=Math.max(Number(r.open),Number(r.close)))
    .map(r=>({timestamp_tpe:r.date+' '+r.minute,contract_date:contract,
