@@ -20,6 +20,20 @@
 <div class="spec"><div><span>當盤方向／決策</span><strong id="direction">禁止下單</strong></div><div><span>目前持倉</span><strong id="position">待券商核對</strong></div><div><span>進場觸發價</span><strong id="entry">—</strong></div><div><span>停損 / 停利</span><strong id="exit">— / —</strong></div><div><span>契約月份</span><strong id="contract">待核對</strong></div><div><span>盤別／收盤處置</span><strong id="session">當盤強制平倉</strong></div></div>
 <p>R11 僅能從空手開一口；持倉未知、已持有一口、盤前特徵不足或換月未確認，均不給新倉訊號。出場固定於停損、停利或該盤最後有效分鐘開盤；沒有跨盤續抱。</p>
 </div><div class="panel"><h2>上線前驗收</h2><div class="status" id="readiness">未完成：不能實盤下單</div><ul id="checks"><li>GitHub／Cloudflare 靜態部署：待確認</li><li>最新 120 盤完整期貨資料：待串接</li><li>P40、P193 w/h、R26 core：待核對</li><li>期貨合約與換月：待核對</li><li>券商實際持倉：未連線</li></ul><p class="sm">5 秒重新載入頁面不等於資料每 5 秒更新；只有實際通過來源與時效稽核才能顯示當盤訊號。</p></div></section>
+<section class="panel" id="causal-status-panel">
+<h2>R11 因果重播｜原版封存對帳</h2>
+<p>已使用原始 Python 研究包重新執行 48 項測試，並完成 2,308 個盤前價位核對。這不代表最新盤訊號已就緒；此區嚴格區分 P40 損益與 R26 獨立損益。</p>
+<div class="spec">
+<div><span>原始封存最終盤</span><strong>2026/10/22 日盤</strong></div>
+<div><span>待接續的下一個交易盤</span><strong>2026/10/23 夜盤</strong></div>
+<div><span>封存日盤收盤價</span><strong>46,272</strong></div>
+<div><span>新盤前已完成日 ATR20</span><strong>795.45</strong></div>
+<div><span>P193 盤前權重 w / h</span><strong>0 / +0.40</strong></div>
+<div><span>R26 最新 A-shadow / P40</span><strong>尚未逐分鐘重播</strong></div>
+</div>
+<p class="sm">2026/10/23 夜盤係指 10/22 15:00 起的盤，依期交所交易日對應。以上是 <strong>2026/10/22 歷史截止點</strong> 推出的第一個研究狀態，絕對不是今天可下單價位。沒有原始 P40 逐分鐘損益及 R26 A-shadow，就不能只用上盤漲跌代替。</p>
+<p id="bk-session-link" class="stamp">交易日重編碼：待本機歷史分鐘 K 審核。已對原始 R26 2,815 個歷史盤抽取首末 K 全數核對交易日，0 個錯配。</p>
+</section>
 <section class="panel" id="backfill-panel">
 <h2>自動補齊 TX 日夜盤分鐘 K（FinMind 備援）</h2>
 <p>原本的 R11 歷史資料截至 2026/10/22。這裡可以直接查詢新的指定月份 TX 分 K，檢查日盤 300 根、夜盤 840 根、缺漏、週六凌晨與換月；<strong>不使用 Durable Objects 寫入額度</strong>。公開補抓需要在此輸入自己的 FinMind Token（不經 GitHub，亦不會取用 Cloudflare Secret）；Cloudflare Secret 僅供未來獨立受保護的伺服端排程。</p>
@@ -48,6 +62,7 @@
 import {planR11,VERSION} from './r11-plan.mjs';
 import {p193Weights} from './p193-weights.mjs';
 import {coreR26FromFeatures} from './r26-core-replay.mjs';
+import {normalizeR11TxSessions} from './session-trade-date.mjs';
 const $=id=>document.getElementById(id);
 function showResult(plan,label){
   $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
@@ -252,6 +267,23 @@ function accumulateSessionAudit(old,update){
   boundary_sessions:sessions.filter(x=>x.boundary_partial).length,
   retrieved_at:new Date().toISOString()};
 }
+function auditTradeDatesAfterBackfill(chunks){
+ const bars=chunks.flatMap(j=>j.raw_bars||[]);
+ if(!bars.length){$('bk-session-link').textContent='尚無原始 TX 分 K 可重新對照交易日。';return;}
+ // Observed DAY timestamps help LABEL already completed night sessions only;
+ // they are NOT an independently verified future exchange calendar.
+ const observedDays=[...new Set(bars.filter(b=>{const clock=b.timestamp_tpe.slice(11,16);
+   return clock>='08:45'&&clock<='13:45';}).map(b=>b.timestamp_tpe.slice(0,10)))].sort();
+ if(!observedDays.length){$('bk-session-link').textContent='只有夜盤，尚缺能對應的正式交易日曆；不可以推測下一交易日。';return;}
+ try{
+   const x=normalizeR11TxSessions(bars,observedDays,{calendarVerified:false});
+   const last=x.sessions.slice(-3).map(v=>v.trade_date+' '+(v.session==='night'?'夜盤':'日盤')+' '+v.bars+'根');
+   $('bk-session-link').textContent='已按 R26 原版交易日規則重新編碼 '+x.sessions.length+
+    ' 個交易盤（僅以觀測到的日盤日期標記，非官方未來日曆驗證），'+
+    '其中 '+x.errors.length+' 根分鐘 K 待查／交易日尚無法確認；最近：'+last.join('；')+
+    '。P40 與 R26 核心仍須原版逐分鐘重播。';
+ }catch(e){$('bk-session-link').textContent='交易日重編碼失敗：'+String(e.message||e);}
+}
 async function backfill(force=false){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
   if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
@@ -305,6 +337,7 @@ async function backfill(force=false){
       const partial=mergeBackfillChunks(chunks,contract,start,end);
       renderBackfill(partial);
     }
+    auditTradeDatesAfterBackfill(chunks);
     const incremental=mergeBackfillChunks(chunks,contract,start,end);
     let prior=null;try{prior=JSON.parse(localStorage.getItem(backfillKey)||'null');}catch{}
     const result=accumulateSessionAudit(prior,incremental);

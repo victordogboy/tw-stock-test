@@ -1,0 +1,37 @@
+{
+  "provenance": "Independent offline canonical Python/Pandas 2021-2026 R26 CSV vs JS session-trade-date mapping",
+  "fixture_source": "TX_R26_CANONICAL_20261028/r10_core/source_r7/newinput/TX_日夜盤_預定換月主力1分K.csv",
+  "fixture_sha256": "568e63074f5f484903b0a81e748c57f79effd8188ee8c639afb308223480cfcd",
+  "historical_trade_sessions_checked": 2815,
+  "trading_date_mismatches": 0,
+  "parser_errors": 0,
+  "exchange_trading_dates": 1408,
+  "night_first_1500_next_trade_date": true,
+  "day_closes_allow": [
+    "13:44",
+    "13:45"
+  ],
+  "night_closes_allow": [
+    "04:59",
+    "05:00"
+  ],
+  "old_sparse_bars_preserved": true,
+  "previous_causal_archive_last_day": "2026-10-22",
+  "first_future_session_example": {
+    "physical_night_open": "2026-10-22 15:00",
+    "trading_date": "2026-10-23"
+  },
+  "first_causal_p193_oracle": {
+    "asof_day": "2026-10-22",
+    "daily_atr20": 795.45,
+    "last_day_close": 46272,
+    "p40_last5": -476.5,
+    "p40_last15": -2244.5,
+    "w": 0,
+    "night_h": 0.4,
+    "day_h": 0.1
+  },
+  "first_replay_status": "WAITING_FOR_ORIGINAL_P40_MINUTE_AND_R26_A_SHADOW_REPLAY",
+  "paper_only": true,
+  "broker_authorized": false
+}
