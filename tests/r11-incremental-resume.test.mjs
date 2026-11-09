@@ -25,6 +25,28 @@ test('re-verified night full data upgrades an old 812/840 session',()=>{
  {contract:'202611',start:'2026-10-27',end:'2026-10-28',sessions:[latest]});
  assert.equal(a.sessions[0].bars,840);assert.equal(a.complete_sessions,1);assert.equal(a.partial_sessions,0);
 });
+test('phone merge retains two genuine missing minutes behind a 540-minute midnight boundary',()=>{
+ const from=html.indexOf('function mergeBackfillChunks(chunks,contract,start,end){');
+ const to=html.indexOf('// Browser-private raw minute cache.',from);
+ assert.ok(from>0&&to>from);
+ const merge=new Function('prevDay',html.slice(from,to)+';return mergeBackfillChunks;')((s,n)=>
+  new Date(Date.parse(s+'T00:00:00Z')-n*86400000).toISOString().slice(0,10));
+ const minute=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+ const raw=[];
+ for(let m=0;m<300;m++)if(m!==2&&m!==100)raw.push({timestamp_tpe:'2026-10-23 '+minute(m)+':00',contract_date:'202611'});
+ const chunk={contract:'202611',sessions:[{contract:'202611',session:'night',
+  session_key:'night:2026-10-22',open_date:'2026-10-22',
+  first_bar:'2026-10-23 00:00',last_bar:'2026-10-23 04:59',
+  bars:298,expected_bars:840,concluded:true,first_bar_verified:false,
+  last_bar_verified:true,open:30000,high:30002,low:29999,close:30001}],
+  raw_bars:raw,source_contracts:['202611'],failed_dates:[]};
+ const x=merge([chunk],'202611','2026-10-23','2026-10-23');
+ assert.equal(x.sessions[0].boundary_missing_bars,540);
+ assert.equal(x.sessions[0].source_missing_bars,2);
+ assert.equal(x.sessions[0].source_gap,true);assert.equal(x.partial_sessions,1);
+ assert.equal(x.sessions[0].missing_ranges[0].cause,'QUERY_BOUNDARY');
+ assert.equal(x.sessions[0].missing_ranges[1].cause,'SOURCE_MISSING');
+});
 test('browser waits for IndexedDB transaction commit and resumes recent days',()=>{
  assert.ok(html.includes('tx.oncomplete=()=>resolve(data)'));
  assert.ok(html.includes('prevDay(saved.end,2)'));
