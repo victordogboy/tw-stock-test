@@ -209,7 +209,7 @@ async function vaultAccess(id,data){
  });}finally{db.close();}
 }
 
-async function backfill(){
+async function backfill(force=false){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
   if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
   const count=Math.round((Date.parse(end)-Date.parse(start))/86400000)+1;
@@ -228,8 +228,12 @@ async function backfill(){
       let data=null;
       try{const prior=JSON.parse(localStorage.getItem(cacheKey)||'null');
         // Completed historical batches remain locally cached; recent and partial batches refresh.
-        if(prior?.ok && prior?.complete_sessions>0 && !prior?.partial_sessions && !prior?.failed_dates?.length &&
-           Date.parse(b+'T00:00:00Z')<Date.now()-3*86400000){
+        const ageMs=Date.now()-Date.parse(prior?.retrieved_at||'');
+        const settled=prior?.ok&&prior?.complete_sessions>0&&!prior?.partial_sessions&&
+          !(prior?.failed_dates||[]).length&&Date.parse(b+'T00:00:00Z')<Date.now()-3*86400000;
+        const isRecentDay=b>=tpeDay();
+        const cachedFresh=Number.isFinite(ageMs)&&ageMs>=0&&ageMs<(isRecentDay?5*60000:6*3600000);
+        if(!force&&prior?.ok&&(settled||cachedFresh)){
           const storedBars=await vaultAccess(vaultId).catch(()=>null);
           if(storedBars?.length)data={...prior,raw_bars:storedBars};
         }
@@ -264,10 +268,10 @@ async function backfill(){
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
   finally{btn.disabled=false;}
 }
-$('bk-run').addEventListener('click',backfill);
+$('bk-run').addEventListener('click',()=>backfill(true));
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
-if($('bk-token').value.trim())backfill(); // never spend FinMind quota without this user's explicit token
+if($('bk-token').value.trim())backfill(false); // never spend FinMind quota without this user's explicit token
 
 refresh();setInterval(refresh,60000);
 </script></body></html>
