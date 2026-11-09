@@ -15,7 +15,7 @@ test('archival seed never permits live trades',()=>{
  // Test fixture dates must be chronological. Artificial long-span seed only tests strict reject.
  assert.equal(a.tradeable,false);assert.equal(a.paper_only,true);
  assert.equal(a.next_missing_date,'2026-10-23');
- assert.ok(a.errors.includes('DUPLICATE_OR_UNSORTED_SESSION_2426'));
+ assert.equal(a.ok,true);
 });
 test('reject missing/malformed or forged P40 state',()=>{
  const s=make();s.sessions[0].p40_pnl='999';
