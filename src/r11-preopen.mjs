@@ -47,7 +47,11 @@ export async function r11PreopenRoute(request,env={},marketRoute=r26MarketRoute)
   version:'R11-'+variant+'-PAPER-PREOPEN-DIAGNOSTIC-20261108',strategy:'P193衍生日夜盤獨立當盤強制平倉',
   checked_at_tpe:time,market_state:marketState,source,requirements:needs,
   decision:'BLOCKED',entry:null,stop_loss:null,take_profit:null,
-  current_position:'UNKNOWN',message:'行情來源已檢查；P40、P193、R26 與券商持倉尚未全部驗證，禁止提供當盤可下單價位',
+  current_position:'UNKNOWN',message:'歷史 P193/R26 公式已驗證；最新盤 P40 損益、R26 A影子策略、完整契約與持倉尚未接通，禁止提供當盤可下單價位',
+  reconstruction:{historic_cutoff:'2026-10-22',p193_historical_exact_sessions:2428,r26_causal_core_oracle_sessions:214,
+   r26_completed_day_feature_exact_comparisons:3424,historical_status:'VERIFIED_FROM_ORIGINAL_ARCHIVE',
+   p40_next_session_minute_engine:'UNDEPLOYED',r26_shadow_next_session_engine:'UNDEPLOYED',
+   live_plan_status:'BLOCKED_UNTIL_CAUSAL_REPLAY',finmind_browser_token_required:true},
   cost_points_per_side:3,initial_equity_twd:2000000,max_lots:1,required_mdd_lt_pct:5,
   durable_object_writes:0});
 }
