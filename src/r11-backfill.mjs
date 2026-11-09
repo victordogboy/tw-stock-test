@@ -1,6 +1,6 @@
 // R11 TX history backfill. Read-only FinMind API; no Durable Objects writes.
 // IMPORTANT: aggregated OHLC coverage is NOT a P193/R26 verified trading signal.
-const HEADER={'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'same-origin'};
+const HEADER={'content-type':'application/json; charset=utf-8' ,'cache-control':'no-store'};
 const J=(x,status=200)=>new Response(JSON.stringify(x),{status,headers:HEADER});
 const okdate=s=>/^20\d{2}-\d{2}-\d{2}$/.test(s||'')&&Number.isFinite(Date.parse(s+'T00:00:00Z'))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 const prevDay=s=>new Date(Date.parse(s+'T00:00:00Z')-86400000).toISOString().slice(0,10);
@@ -59,25 +59,50 @@ export async function r11BackfillRoute(request,env={},fetchImpl=fetch){
  if(!okdate(start)||!okdate(end)||end<start||end>tpe||!validContract(contract))
   return J({ok:false,code:'INVALID_DATE_OR_CONTRACT',error:'有效日期與指定合約月份 YYYYMM 必填；不可查詢未來日期'},400);
  const days=1+Math.round((Date.parse(end)-Date.parse(start))/86400000);
- if(days>21)return J({ok:false,code:'WINDOW_TOO_LARGE',error:'為保護 FinMind 請求額度，每次最多補抓 21 個曆日'},400);
+ if(days>7)return J({ok:false,code:'WINDOW_TOO_LARGE',error:'FinMind 期貨分鐘K限單日查詢，每批最多補抓 7 天（網站會自動分批）'},400);
  const bearer=(request.headers.get('authorization')||'').match(/^Bearer\s+([^\r\n]+)$/i)?.[1]?.trim()||'';
  const token=bearer||String(env.FINMIND_TOKEN||'').trim();
  if(!token||token.length>4096||/[\r\n]/.test(token))return J({ok:false,code:'FINMIND_TOKEN_REQUIRED',error:'缺少 FinMind Token；可在本頁自願輸入，或由 Cloudflare 設定 FINMIND_TOKEN Secret'},401);
- const endpoint='https://api.finmindtrade.com/api/v4/data?'+new URLSearchParams({dataset:'TaiwanFuturesKBar',data_id:'TX',start_date:start,end_date:end});
- try{
-  const response=await fetchImpl(endpoint,{headers:{authorization:'Bearer '+token,accept:'application/json'},signal:AbortSignal.timeout(25000)});
-  const body=await response.json().catch(()=>null);
-  if(!response.ok||body?.status!==200||!Array.isArray(body?.data)){
-   const code=Number(body?.status)||response.status;
-   const status=[401,402,403,429].includes(code)?code:502;
-   return J({ok:false,code:status===429?'FINMIND_RATE_LIMIT':'FINMIND_UPSTREAM_REJECTED',
-    upstream_status:code,error:status===429?'FinMind 額度已達上限，請勿頻繁重試':'FinMind Token 權限不足或來源暫時無法讀取'},status);
+ const dates=[];for(let d=start;d<=end;d=new Date(Date.parse(d+'T00:00:00Z')+86400000).toISOString().slice(0,10))dates.push(d);
+ const out=[],errors=[],empty_dates=[],used_dates=[];
+ const pullDate=async date=>{
+  // Per official FinMind documentation TaiwanFuturesKBar only supports a SINGLE date.
+  const endpoint='https://api.finmindtrade.com/api/v4/data?'+new URLSearchParams({dataset:'TaiwanFuturesKBar',data_id:'TX',start_date:date});
+  try{
+   const response=await fetchImpl(endpoint,{headers:{authorization:'Bearer '+token,accept:'application/json'},signal:AbortSignal.timeout(25000)});
+   const body=await response.json().catch(()=>null);
+   if(!response.ok||Number(body?.status)!==200||!Array.isArray(body?.data)){
+    const code=Number(body?.status)||response.status;
+    return {date,ok:false,upstream_status:code,code:code===429?'RATE_LIMIT':'SOURCE_REJECTED'};
+   }
+   // Strictly keep ONLY the requested date; do not infer next-day bars from a truncated API.
+   return {date,ok:true,rows:body.data.filter(x=>String(x?.date||'').slice(0,10)===date)};
+  }catch(e){return {date,ok:false,code:'SOURCE_TIMEOUT'};}
+ };
+ for(let i=0;i<dates.length;i+=2){
+  const batch=await Promise.all(dates.slice(i,i+2).map(pullDate));
+  for(const b of batch){
+   if(!b.ok)errors.push({date:b.date,code:b.code,upstream_status:b.upstream_status||null});
+   else{
+    used_dates.push(b.date);
+    if(!b.rows.length)empty_dates.push(b.date);
+    out.push(...b.rows);
+   }
   }
-  const result=summarizeRows(body.data,start,end,contract);
-  return J({ok:true,status:'COVERAGE_ONLY',paper_only:true,tradeable:false,contract,start,end,days,
-    source:'FinMind TaiwanFuturesKBar',retrieved_at:new Date().toISOString(),
-    ...result,note:'已補抓指定合約分鐘K並稽核完整盤；此結果尚不包含 P40/R26、P193 w/h、前120盤完整特徵與券商持倉，不構成可下單訊號。',
-    durable_object_writes:0});
- }catch(e){return J({ok:false,code:'FINMIND_SOURCE_ERROR',error:'FinMind 連線失敗或逾時（未刪除任何舊資料）',durable_object_writes:0},502);}
+  if(batch.some(b=>!b.ok&&[401,402,403,429].includes(b.upstream_status)))break;
+ }
+ if(errors.some(e=>[401,402,403,429].includes(e.upstream_status)))
+  return J({ok:false,status:'SOURCE_AUTH_OR_QUOTA_BLOCKED',paper_only:true,tradeable:false,
+    source:'FinMind TaiwanFuturesKBar',days_completed:used_dates,errors,
+    error:'FinMind Token 權限或請求額度問題，已停止繼續請求。請不要重複快速重試。',durable_object_writes:0},
+    errors.some(e=>e.upstream_status===429)?429:403);
+ const result=summarizeRows(out,start,end,contract);
+ return J({ok:errors.length===0,status:errors.length?'PARTIAL_COVERAGE':'COVERAGE_ONLY',
+   paper_only:true,tradeable:false,contract,start,end,days,
+   requested_dates:dates,fetched_dates:used_dates,empty_dates,failed_dates:errors,
+   source:'FinMind TaiwanFuturesKBar (daily-only, sequential bounded batches)',
+   retrieved_at:new Date().toISOString(),
+   ...result,note:'每個曆日皆獨立讀取 FinMind KBar（含週六凌晨）。任何缺分鐘、來源失敗或盤尚未結束都不補假 K；P40、R26 core、P193 與實際持倉未驗證時不給交易價。',
+   durable_object_writes:0},errors.length?206:200);
 }
 export {summarizeRows};
