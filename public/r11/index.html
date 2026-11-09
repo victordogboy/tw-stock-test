@@ -194,7 +194,7 @@ async function backfill(){
 $('bk-run').addEventListener('click',backfill);
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
-if($('bk-token').value.trim())backfill();
+backfill(); // One bounded auto-check on page load. Missing token -> one 401, never an unbounded retry.
 
 refresh();setInterval(refresh,60000);
 </script></body></html>
