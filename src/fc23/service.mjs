@@ -11,9 +11,40 @@ export class ObjectBucket {
 async function asset(env,path,compressed=false){const r=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/fc23/'+path));if(!r.ok)throw Error('FC23原始狀態載入失敗 '+path);if(!compressed)return r.json();const bytes=Uint8Array.from(atob((await r.text()).trim()),c=>c.charCodeAt(0));return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).json()}
 export class Fc23Service {
  constructor(ctx,env){this.ctx=ctx;this.env=env;this.pending=null;this.bucket=new ObjectBucket(ctx.storage)}
- async setup(){if(!this.seed){const [seed,supplement]=await Promise.all([asset(this.env,'shared-seed.b64',true),asset(this.env,'supplement.b64',true)]);this.seed=seed;this.supplement=supplement;}
-   if(!this.bootstrapCheckedAt||Date.now()-this.bootstrapCheckedAt>60000){this.bootstrapCheckedAt=Date.now();try{const bootstrap=await asset(this.env,'live-bootstrap.b64',true);if(bootstrap.account?.date!==bootstrap.shared?.date||bootstrap.delta?.sync_status!=='current')throw Error('FC23 靜態預載尚未完成，改由雲端工作重播更新');const stored=await this.bucket.get('r1494-a/state-v1.json');if(!stored||(await stored.json()).date<bootstrap.shared.date)await this.bucket.put('r1494-a/state-v1.json',JSON.stringify(bootstrap.shared));const existing=await this.bucket.get('fc23/bundle');if(!existing||(await existing.json()).account.date<bootstrap.account.date)await this.bucket.put('fc23/bundle',JSON.stringify({account:bootstrap.account,delta:bootstrap.delta}))}catch{}
-  }initShared(this.seed,this.supplement,{context:contextFc23,ingest:ingestFc23Technical});return {...this.env,BUCKET:this.bucket}}
+ async loadPublished(){
+  if(!this.env.ASSETS)return;
+  if(this.publishedCheck)return this.publishedCheck;
+  if(Date.now()-this.bootstrapCheckedAt<60000)return;
+  this.bootstrapCheckedAt=Date.now();
+  this.publishedCheck=this.applyPublished().catch(()=>{}).finally(()=>{this.publishedCheck=null});
+  return this.publishedCheck;
+ }
+ async applyPublished(){
+  const report=await asset(this.env,'refresh-report.json');
+  if(report.verified&&report.fc23_date<=this.publishedDate)return;
+  const {shared,account,delta}=await asset(this.env,'live-bootstrap.b64',true);
+  if(!account?.date||account.date<=this.publishedDate||account.date!==shared?.date||account.date!==delta?.data_as_of||delta.sync_status!=='current')return;
+  const stored=await this.bucket.get('r1494-a/state-v1.json');
+  if(!stored||(await stored.json()).date<shared.date)await this.bucket.put('r1494-a/state-v1.json',JSON.stringify(shared));
+  const existing=await this.bucket.get('fc23/bundle');
+  if(!existing||(await existing.json()).account.date<account.date){
+   await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}));
+   const progress=await this.ctx.storage.get('fc23-progress');
+   if(progress?.state==='blocked'){
+    await this.progress({state:'current',phase:'FC23 已載入驗證完成的交易日資料',data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});
+   }
+  }
+  this.publishedDate=account.date;
+ }
+ async setup(){
+  if(!this.seed){
+   const [seed,supplement]=await Promise.all([asset(this.env,'shared-seed.b64',true),asset(this.env,'supplement.b64',true)]);
+   this.seed=seed;this.supplement=supplement;
+  }
+  await this.loadPublished();
+  initShared(this.seed,this.supplement,{context:contextFc23,ingest:ingestFc23Technical});
+  return {...this.env,BUCKET:this.bucket};
+ }
  async state(){const obj=await this.bucket.get('fc23/bundle');return obj?(await obj.json()).account:asset(this.env,'account-seed.json')}
  async delta(){const d=await this.bucket.get('fc23/bundle');return d?(await d.json()).delta:{snapshots:[],orders:[],planHistory:{},data_as_of:'2026-10-27',sync_status:'pending',lastError:null}}
  async progress(value){await this.ctx.storage.put('fc23-progress',{...value,updated_at:new Date().toISOString()})}
@@ -54,7 +85,11 @@ export class Fc23Service {
    }
    return json({state:'queued',progress:await this.ctx.storage.get('fc23-progress')},202);
   }
-  const progress=await this.ctx.storage.get('fc23-progress')||null;
+  let progress=await this.ctx.storage.get('fc23-progress')||null;
+  if(!this.pending&&!['queued','running'].includes(progress?.state)){
+   await this.loadPublished();
+   progress=await this.ctx.storage.get('fc23-progress')||null;
+  }
   return json({...(await this.delta()),progress,running:!!this.pending||['queued','running'].includes(progress?.state)});
  }
 }

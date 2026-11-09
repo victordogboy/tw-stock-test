@@ -53,8 +53,17 @@ function parseEnglishTpex1494(raw,date){
 }
 async function officialMarket(date,type){
  const latest={twse:'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',tpex:'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'},label=type==='twse'?'上市日線':'上櫃日線',failures=[];
+ const dated = URLS[type](date);
+ const candidates = [[dated, raw=>parseOfficial(raw,type,date)]];
+ if (type==='tpex') {
+  const rocDate = (Number(date.slice(0,4))-1911)+date.slice(4).replaceAll('-','/');
+  const legacy = 'https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d='+encodeURIComponent(rocDate)+'&o=json&se=EW';
+  candidates.push([dated.replace('/zh-tw/','/en-us/'),raw=>parseEnglishTpex1494(raw,date)],
+   [legacy,raw=>parseOfficial(raw,type,date)]);
+ }
  // Latest OpenAPI can recover the current session only, never relabel old dates.
- for(const [url,parse] of [[URLS[type](date),r=>parseOfficial(r,type,date)],...(type==='tpex'?[[URLS[type](date).replace('/zh-tw/','/en-us/'),r=>parseEnglishTpex1494(r,date)]]:[]),[latest[type],r=>parseLatestOfficial(r,type,date)]])try{return {type,url,...parse(await fetchOfficialJSON(url,label))}}catch(e){failures.push(sourceError(e,label))}
+ candidates.push([latest[type],raw=>parseLatestOfficial(raw,type,date)]);
+ for(const [url,parse] of candidates)try{return {type,url,...parse(await fetchOfficialJSON(url,label))}}catch(e){failures.push(sourceError(e,label))}
  throw Error(label+'取得失敗：'+[...new Set(failures)].join('；'));
 }
 async function officialDay(date){const v=await Promise.all(['twse','tpex'].map(type=>officialMarket(date,type)));if(v.every(x=>x.closed))return {date,closed:true,rows:[],sources:v.map(x=>({type:x.type,url:x.url}))};if(v.some(x=>x.closed))throw Error('上市／上櫃來源對交易日判定不一致');const rows=v.flatMap(x=>x.rows);if(new Set(rows.map(r=>r.code)).size!==rows.length)throw Error('同日上市上櫃出現重複股票代號');return {date,closed:false,rows,sources:v.map(x=>({type:x.type,url:x.url,rows:x.rows.length}))}}

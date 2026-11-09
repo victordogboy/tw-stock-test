@@ -1,11 +1,11 @@
 {
-  "generated_at": "2026-11-09T01:46:45.192Z",
+  "generated_at": "2026-11-09T19:36:29.028Z",
   "verified": true,
-  "fc23_date": "2026-11-06",
-  "market_date": "2026-11-06",
-  "checked_through": "2026-11-08",
+  "fc23_date": "2026-11-09",
+  "market_date": "2026-11-09",
+  "checked_through": "2026-11-09",
   "sync_status": "current",
   "last_error": null,
-  "snapshot_count": 8,
+  "snapshot_count": 9,
   "order_count": 5
 }

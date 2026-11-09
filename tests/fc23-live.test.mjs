@@ -12,3 +12,25 @@ const account=JSON.parse(fs.readFileSync('public/r1494a/fc23/account-seed.json')
 const m=new Map(),storage={async get(k){return Array.isArray(k)?new Map(k.filter(x=>m.has(x)).map(x=>[x,m.get(x)])):m.get(k)},async put(k,v){if(typeof k==='object')for(const [a,b]of Object.entries(k))m.set(a,b);else m.set(k,v)},async delete(k){for(const x of Array.isArray(k)?k:[k])m.delete(x)},async transaction(fn){return fn(storage)}};
 const bucket=new ObjectBucket(storage),text=JSON.stringify({a:context,b:account});const first=await bucket.put('test',text);assert.equal(await(await bucket.get('test')).text(),text);assert.equal(await bucket.put('test','wrong',{onlyIf:{etagMatches:'wrong'}}),null);await bucket.put('test','new',{onlyIf:{etagMatches:first.etag}});assert.equal(await(await bucket.get('test')).text(),'new');
 console.log('PASS FC23 original-engine cases '+golden.cases.length+'; full replay 1407 days <1e-8; 233-stock technical, volume, peer, flow, rank and reentry parity; own frozen plan; atomic compressed persistence');
+
+// A verified deployment can recover a blocked dashboard on a normal read.
+const publishedDate='2026-11-09';
+const publishedDelta={data_as_of:publishedDate,sync_status:'current',plan:{signal_as_of:publishedDate,trade_date:'2026-11-10',readiness:'ready'}};
+const bootstrap=zlib.gzipSync(JSON.stringify({
+ shared:{date:publishedDate,lastChecked:publishedDate},
+ account:{date:publishedDate},
+ delta:publishedDelta
+})).toString('base64');
+const service=new Fc23Service({storage},{ASSETS:{async fetch(req){
+ const path=new URL(req.url).pathname;
+ if(path.endsWith('/refresh-report.json'))return Response.json({verified:true,fc23_date:publishedDate});
+ if(path.endsWith('/live-bootstrap.b64'))return new Response(bootstrap);
+ return new Response(null,{status:404});
+}}});
+await service.bucket.put('fc23/bundle',JSON.stringify({account:{date:'2026-11-06'},delta:{data_as_of:'2026-11-06',sync_status:'blocked'}}));
+await service.progress({state:'blocked',phase:'上櫃日線重新導向異常',data_as_of:'2026-11-06'});
+const snapshot=await (await service.fetch(new Request('https://fc23.internal/fc23/snapshot'))).json();
+assert.equal(snapshot.data_as_of,publishedDate);
+assert.equal(snapshot.plan.readiness,'ready');
+assert.equal(snapshot.progress.state,'current');
+assert.equal(snapshot.running,false);
