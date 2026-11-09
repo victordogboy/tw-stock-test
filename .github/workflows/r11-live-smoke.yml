@@ -1,0 +1,39 @@
+name: R11 Cloudflare Live Deployment Smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r11/**'
+      - 'src/r11-backfill.mjs'
+      - 'src/r11-preopen.mjs'
+      - 'src/worker.mjs'
+      - '.github/workflows/r11-live-smoke.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Confirm deployed R11 static page and API (no FinMind calls)
+        env:
+          URL: https://tw-stock-api.victordogboy.workers.dev
+        run: |
+          set -euo pipefail
+          ok=0
+          for attempt in $(seq 1 18); do
+            page=$(curl -sS -L --max-time 15 -o /tmp/r11.html -w '%{http_code}' "$URL/r11/?verify=$GITHUB_SHA" || true)
+            js=$(curl -sS -L --max-time 15 -o /tmp/r11-plan.mjs -w '%{http_code}' "$URL/r11/r11-plan.mjs?verify=$GITHUB_SHA" || true)
+            api=$(curl -sS -L --max-time 15 -o /tmp/r11-api.json -w '%{http_code}' "$URL/api/r11/backfill?start=invalid&end=invalid&contract=202611" || true)
+            echo "Attempt $attempt: R11_PAGE_HTTP=$page R11_JS_HTTP=$js R11_BACKFILL_DIAG_HTTP=$api"
+            if [[ "$page" == 200 && "$js" == 200 && "$api" == 400 ]] &&
+               grep -q 'id="backfill-panel"' /tmp/r11.html &&
+               grep -q 'export function planR11' /tmp/r11-plan.mjs &&
+               grep -q 'INVALID_DATE_OR_CONTRACT' /tmp/r11-api.json; then
+              ok=1
+              break
+            fi
+            sleep 10
+          done
+          [[ "$ok" == 1 ]] || { echo "Cloudflare R11 is not confirmed deployed; see HTTP results above"; exit 1; }
+          echo "PASS: Cloudflare serves the backfill UI, paper kernel and new strict API validation."
+          echo "Note: This does NOT verify live FinMind Sponsor credentials, P40/R26 features or broker holdings."
