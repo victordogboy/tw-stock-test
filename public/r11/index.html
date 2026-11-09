@@ -40,11 +40,12 @@
 </section>
 <section class="cols"><div class="panel"><h2>歷史年度淨利（已扣 3 點／側）</h2><table><thead><tr><th>年份</th><th>R11 RR</th><th>R11 MAX</th></tr></thead><tbody><tr><td>2021 Q4</td><td>+222</td><td>+222</td></tr><tr><td>2022</td><td>+4,365</td><td>+4,228</td></tr><tr><td>2023</td><td>+1,020</td><td>+1,334</td></tr><tr><td>2024</td><td>+7,536</td><td>+6,981</td></tr><tr><td>2025</td><td>+6,828</td><td>+6,197</td></tr><tr><td>2026 至10/22</td><td>+43,265</td><td>+44,952</td></tr></tbody><tfoot><tr><td>合計</td><td>+63,236</td><td>+63,914</td></tr></tfoot></table><p>R11 MAX：保守回撤 4.764%，682 筆。兩版 2026 年貢獻約七成獲利，未經完全獨立樣本外驗證。</p></div>
 <div class="panel"><h2>研究特徵快照核對</h2><p>可貼上完整盤前特徵 JSON 來離線核對 R11 計價。此功能<strong>不是即時資料、不是自動下單</strong>；即使 JSON 自稱「已驗證」，仍只會顯示研究計價結果。</p>
-<details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、w、h、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
+<details><summary style="cursor:pointer;color:var(--aqua)">展開離線 JSON 試算</summary><p class="sm">必要欄位：session、session_date、completed_as_of、source、contract、prior_contract、position=0、reference_price、atr、core、price20、price120、atr2、atr3、prior80_moves（80 筆）、features_verified=true。w/h 可填入，或同時提供對齊的前 60 盤以上 prior_p40_pnl 讓原 P193 公式自動計算；若沒有 P40 損益，不能假造權重。</p><textarea id="snapshot" placeholder='{"session":"day", "reference_price":...}'></textarea><div class="formrow"><button id="calculate">核對研究價位</button></div><pre id="preview" class="stamp" style="white-space:pre-wrap"></pre></details></div></section>
 <footer>固定引擎 R11-RR / MAX（P193 衍生當盤分支）｜Cloudflare Workers 靜態資產＋GitHub ｜不執行交易、未接券商。<br>原始 R18-A「允許跨盤持倉」是另一條研究分支，不可合併績效。</footer>
 </main>
 <script type="module">
 import {planR11,VERSION} from './r11-plan.mjs';
+import {p193Weights} from './p193-weights.mjs';
 const $=id=>document.getElementById(id);
 function showResult(plan,label){
   $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
@@ -81,7 +82,7 @@ async function refresh(){
   $('checks').replaceChildren(...lines.map(x=>{const li=document.createElement('li');li.textContent=x;return li;}));
 }
 $('refresh').addEventListener('click',refresh);$('variant').addEventListener('change',refresh);
-$('calculate').addEventListener('click',()=>{try{const data=JSON.parse($('snapshot').value),out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify(out,null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
+$('calculate').addEventListener('click',()=>{try{let data=JSON.parse($('snapshot').value),derived=null;if((!Number.isFinite(data.w)||!Number.isFinite(data.h))&&Array.isArray(data.prior_p40_pnl)){derived=p193Weights(data.atr,data.session,data.prior_p40_pnl,data.prior80_moves);data={...data,w:derived.w,h:derived.h};}const out=planR11(data,$('variant').value);$('preview').textContent=JSON.stringify({p193_weights:derived,plan:out},null,2);showResult(out,data);}catch(e){$('preview').textContent='資料格式錯誤：'+e.message;}});
 // FinMind optional read-only backfill: 1 bounded request (<=21 days) per manual run.
 const backfillKey='r11-backfill-last-summary-v1';
 const pad=n=>String(n).padStart(2,'0');
