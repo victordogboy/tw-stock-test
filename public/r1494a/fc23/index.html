@@ -33,7 +33,19 @@ footer{margin:20px 0;color:var(--muted)}
 <main>
 <div><h1>FC23-PEER50-LOCK</h1><p class="muted">獨立策略研究工作台 · 233檔研究池 · 20交易日主要調倉、5交易日風控</p></div>
 <nav><a href="../">R1494-A 即時監控</a><a href="./" class="active" aria-current="page">FC23 歷史研究</a></nav>
-<div class="alert" role="alert"><strong id="block">⛔ 僅歷史回測，禁止依此頁下單</strong><p id="warning">FC23 尚未完成最新行情與法人指標更新，沒有目前可執行的買賣訊號。</p></div>
+<div class="alert" role="alert"><strong id="block">正在查詢FC23最新紙上交易計畫…</strong><p id="warning">正在查詢FC23當期資料及風控；原始回測仍為獨立封存資料。</p></div>
+
+<section id="fc23-live-status" aria-live="polite" style="margin:16px 0;border:2px solid #b5cec1">
+<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2>FC23 最新紙上進出計畫（與歷史封存分開）</h2><button type="button" id="fc23-live-refresh" style="padding:9px 14px;border:1px solid #729b85;border-radius:9px;background:#e8f4eb;color:#154b33;cursor:pointer">重新取得最新行情與計畫</button></div>
+<p id="fc23-live-state"><b>正在向FC23原引擎查詢最新狀態…</b></p>
+<p id="fc23-live-updated" class="muted">正在取得盤後資料日期及下一交易日</p>
+<p id="fc23-live-explanation">取得最新模型交易計畫中…</p>
+<div id="fc23-live-numbers" style="display:flex;gap:20px;flex-wrap:wrap;margin:13px 0"></div>
+<div id="fc23-live-actions" class="scroll"></div>
+<div id="fc23-live-risks" style="margin-top:12px"></div>
+<p id="fc23-live-progress" class="muted"></p>
+<p class="muted">FC23仍是紙上模型，盤中即時訊號尚未啟用；沒有指令不代表資料沒有更新。下方歷史績效固定截至2026/10/27，避免重寫原策略的回測紀錄。</p>
+</section>
 <div class="metrics">
 <div class="metric"><label>歷史累積淨報酬</label><strong class="positive" id="ret">—</strong></div>
 <div class="metric"><label>歷史最大收盤回撤</label><strong class="negative" id="mdd">—</strong></div>
@@ -111,8 +123,8 @@ const table=(rows,cols)=>'<table><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th
   if(!r.ok)throw Error('歷史資料HTTP '+r.status);
   const d=await r.json();
   if(d.state!=='HISTORICAL_ONLY'||d.live_plan_available!==false||d.live_execution_allowed!==false)throw Error('安全狀態不符');
-  q('block').textContent='⛔ 研究資料截至 '+d.end_date+'，目前禁止下單';
-  q('warning').textContent=d.warning;
+  // The historical snapshot sets historical metrics, never overrides the latest paper-trading status.
+  // Latest paper-trading status is sourced exclusively from /api/fc23/snapshot.
   q('ret').textContent='+'+fmt(d.return_pct)+'%';
   q('mdd').textContent=fmt(d.max_drawdown_pct)+'%';
   q('date').textContent=d.end_date;
@@ -128,7 +140,7 @@ const table=(rows,cols)=>'<table><thead><tr>'+cols.map(c=>'<th>'+esc(c[0])+'</th
   '<p>最多持股 '+d.max_positions+' 檔；單股≤'+d.max_weight_pct+'%；總曝險≤'+d.max_exposure_pct+'%</p>'+
   '<p>歷史買進 '+d.trade_buys+' 筆、賣出 '+d.trade_sells+' 筆；重新買回 '+d.reentry_buys+' 筆</p>'+
   '<p>'+esc(d.original_phase_warning)+'</p>';
- }catch(e){q('block').textContent='⛔ FC23資料異常，禁止下單';q('warning').textContent=e.message;}
+ }catch(e){q('warning').textContent='歷史封存檔案讀取異常：'+e.message+'；最新紙上計畫請看上方獨立狀態。';}
 })();
 </script>
-<script src="./dashboard.js" defer></script><script src="./full-archive.js" defer></script></body></html>
+<script src="./dashboard.js" defer></script><script src="./full-archive.js" defer></script><script src="./live-status.js" defer></script></body></html>
