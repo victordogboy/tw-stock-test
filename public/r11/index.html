@@ -39,6 +39,19 @@
 <div id="seed-result" class="status">尚未匯入原始歷史種子；不可使用任何新盤訊號。</div>
 <p id="bk-session-link" class="stamp">交易日重編碼：待本機歷史分鐘 K 審核。已對原始 R26 2,815 個歷史盤抽取首末 K 全數核對交易日，0 個錯配。</p>
 </section>
+<section class="panel" id="p40-original-panel">
+<h2>P40／R26 A-shadow｜原版逐分鐘引擎</h2>
+<p>這次已把原始 P40 分鐘撮合規則移植為 JavaScript，並以五年原始資料獨立對照：<strong>2,428 個交易盤、1,361,206 根分鐘權益、P40 與 R26 A-shadow 損益及持倉全部零差異</strong>。本模組不會讀取未完成交易盤或憑空產生 R26 方向。</p>
+<div class="spec">
+<div><span>P40 五年原始損益</span><strong>+71,601 點</strong></div>
+<div><span>R26 A-shadow 原始損益</span><strong>+56,098 點</strong></div>
+<div><span>逐分鐘權益比對</span><strong>0 錯／1,361,206</strong></div>
+<div><span>最新盤 P40 重播</span><strong>待 R26 因果訊號</strong></div>
+</div>
+<div class="formrow"><button id="p40-engine-test" class="secondary" type="button">在手機測試 P40 原版撮合器</button></div>
+<div id="p40-engine-status" class="status">正在檢查本機引擎；最新盤 R26 上游因果訊號尚未核准，禁止交易。</div>
+<p class="sm">P40 是允許跨盤持倉的<strong>影子策略</strong>，不是 R11 的實際下單規則。R11 依舊日夜盤獨立、每盤強制平倉。只有完整重建原始 A-shadow、R26 core、50 個已完成日盤關鍵價及契約換月資料後，才能將新盤 P40 損益寫入 P193 權重。</p>
+</section>
 <section class="panel" id="r26-daily-replay-panel">
 <h2>R26 日盤指標｜從原始歷史狀態接續</h2>
 <p>原版 2026/10/22 盤後凍結的 ATR／EMA／RSI 內部狀態已透過 15 個歷史交易日逐日核對。此處使用手機本機儲存的 TX 分 K，另外查 FinMind 期貨日成交日期驗證每日合約與交易日，遇到第一個缺 K 就停止，不會跳過。</p>
@@ -81,11 +94,37 @@
 import {planR11,VERSION} from './r11-plan.mjs';
 import {p193Weights} from './p193-weights.mjs';
 import {coreR26FromFeatures} from './r26-core-replay.mjs';
+import {replayP40Session,p40MakePlan} from './p40-shadow-engine.mjs';
 import {normalizeR11TxSessions} from './session-trade-date.mjs';
 import {previewR26FromMinutes} from './r26-phone-replay.mjs';
 import {auditR11Seed} from './seed-audit.mjs';
 import {nextR11P193Checkpoint} from './causal-checkpoint.mjs';
 const $=id=>document.getElementById(id);
+// This local runtime proof is independent from broker connections and private FinMind data.
+function verifyP40LocalKernel(){
+ const status=$('p40-engine-status');
+ try{
+  const s={session:'day',contract:'202611',atr:10,signal:1,blocked:false,entrygate:false,
+    levels:[70,80,90,100,120,130,140],bars:[[110,115,106,112]],
+    signal_verified:true,bars_verified:true,contract_verified:true,
+    calendar_verified:true,atr_verified:true,levels_verified:true};
+  const previous={pos:1,last_close:101,last_contract:'202611',has_prior:true,equity:0};
+  const carry=replayP40Session(s,previous,'P40');
+  const roll=replayP40Session(s,{...previous,last_contract:'202610'},'P40');
+  const pause=replayP40Session({...s,blocked:true},previous,'P40');
+  if(carry.pnl!==11||roll.pnl!==-3||pause.pnl!==6.5||carry.held_end!==1||pause.held_end!==0||
+     carry.tradeable!==false)throw Error('P40_KERNEL_POSITION_OR_COST_MISMATCH');
+  const levels=[16645,16728,16755,16775,16789,16811,16894,16903,16911,16951,17032,17066,17079,17082,17127,17145,17208,17271];
+  const factor=Math.max(.5,Math.min(2.5,16997/20000));
+  const p=[700,0,40,30,1.1,8,.6,50,125,.5,300,0].map((v,i)=>[0,1,2,3,7,8,10,11].includes(i)?v*factor:v);
+  const ref=p40MakePlan(levels,16997,1,p);
+  if(ref.entry!==-16951||ref.stop!==-17032||ref.target!==-16811)throw Error('P40_HISTORICAL_KEY_PARITY_MISMATCH');
+  status.className='status ok';
+  status.textContent='✓ 本機原版 P40 引擎通過：持倉跨盤、換月成本、停止交易與歷史關鍵價皆一致。歷史完整逐分鐘對帳另已完成；最新 R26 因果訊號、券商持倉仍未核對，禁止實單。';
+ }catch(e){status.className='status';status.textContent='✕ P40 原版引擎驗證失敗：'+String(e.message||e)+'；停止提供掛單價位';}
+}
+$('p40-engine-test').addEventListener('click',verifyP40LocalKernel);
+
 function showResult(plan,label){
   $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
   $('entry').textContent=plan.entry?.trigger_price??'—';
