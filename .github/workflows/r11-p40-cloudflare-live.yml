@@ -1,0 +1,38 @@
+name: R11 P40 Original Kernel Cloudflare Live Smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r11/p40-shadow-engine.mjs'
+      - 'public/r11/P40_R26_PYTHON_JS_PARITY_20261110.json'
+      - 'public/r11/index.html'
+      - '.github/workflows/r11-p40-cloudflare-live.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Confirm browser module actually exists in Cloudflare Worker assets
+        env:
+          ROOT: https://tw-stock-api.victordogboy.workers.dev
+        run: |
+          set -euo pipefail
+          ready=0
+          for attempt in $(seq 1 24); do
+            page=$(curl -fsSL --max-time 15 -o /tmp/r11-page.html -w '%{http_code}' "$ROOT/r11/?proof=$GITHUB_SHA" || true)
+            module=$(curl -fsSL --max-time 15 -o /tmp/r11-p40.mjs -w '%{http_code}' "$ROOT/r11/p40-shadow-engine.mjs?proof=$GITHUB_SHA" || true)
+            audit=$(curl -fsSL --max-time 15 -o /tmp/r11-p40-audit.json -w '%{http_code}' "$ROOT/r11/P40_R26_PYTHON_JS_PARITY_20261110.json?proof=$GITHUB_SHA" || true)
+            echo "Attempt $attempt: PAGE=$page JS_MODULE=$module AUDIT=$audit"
+            if [[ "$page" == 200 && "$module" == 200 && "$audit" == 200 ]] &&
+               grep -q 'id="p40-original-panel"' /tmp/r11-page.html &&
+               grep -q 'export function replayP40Session' /tmp/r11-p40.mjs &&
+               grep -q '"minute_bars": 1361206' /tmp/r11-p40-audit.json; then
+              ready=1
+              break
+            fi
+            sleep 10
+          done
+          [[ "$ready" == 1 ]] || { echo "Cloudflare live deployment is NOT verified"; exit 1; }
+          echo "PASS: Cloudflare serves exact original P40/A-shadow minute engine and audit evidence."
+          echo "Not proof of a tradeable live P40/R26 paper plan, broker position, or FinMind coverage."
