@@ -22,7 +22,7 @@ jobs:
           ready=0
           for n in $(seq 1 30); do
             status=$(curl -sSL --retry 1 --connect-timeout 8 --max-time 20 -o /tmp/fc23.html -w '%{http_code}' "$base/r1494a/fc23/?verify=$GITHUB_SHA" || true)
-            if [ "$status" = "200" ] && grep -q "FC23-PEER50-LOCK" /tmp/fc23.html; then
+            if [ "$status" = "200" ] && grep -q "FC23-PEER50-LOCK" /tmp/fc23.html && grep -q 'src="./live-status.js"' /tmp/fc23.html; then
               ready=1
               break
             fi
@@ -30,6 +30,17 @@ jobs:
             sleep 10
           done
           test "$ready" = 1 || { echo "::error::FC23 has not appeared on the Cloudflare Worker"; exit 1; }
+          curl -fsSL --connect-timeout 8 --max-time 30 "$base/r1494a/fc23/live-status.js" > /tmp/fc23-live.js
+          node --check /tmp/fc23-live.js
+          grep -q '/api/fc23/snapshot' /tmp/fc23-live.js || { echo "::error::FC23 live status script missing own API"; exit 1; }
+          curl -fsSL --connect-timeout 8 --max-time 30 "$base/api/fc23/snapshot" > /tmp/fc23-live.json
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const d=JSON.parse(fs.readFileSync('/tmp/fc23-live.json','utf8'));
+          if(!d.data_as_of||!d.sync_status||!Array.isArray(d.snapshots))throw Error('FC23 paper snapshot missing model status');
+          if(d.sync_status==='current'&&(!d.plan||d.plan.readiness!=='ready'||d.snapshots.at(-1)?.date!==d.data_as_of))throw Error('FC23 current paper plan is inconsistent');
+          console.log('FC23 production paper plan:',d.data_as_of,d.sync_status,'orders',d.plan?.actions?.length,'risk',d.plan?.decision?.target);
+          JS
           curl -fsSL --connect-timeout 8 --max-time 30 "$base/r1494a/" > /tmp/r1494.html
           grep -q "R1494-A" /tmp/r1494.html
           grep -q "href=\"./fc23/\"" /tmp/r1494.html
