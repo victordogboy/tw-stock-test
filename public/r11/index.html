@@ -9,7 +9,7 @@
 .notice{border:1px solid #71543b;background:#2e241e;border-radius:12px;padding:14px 17px;color:#ffd7a6;line-height:1.6;margin:20px 0}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}.card,.panel{background:linear-gradient(135deg,#16253b,#101b2d);border:1px solid var(--line);border-radius:16px;padding:20px}.metric{color:var(--muted);font-size:13px}.num{font-size:clamp(23px,3vw,31px);font-weight:800;letter-spacing:-.045em;margin-top:9px}.num.accent{color:var(--aqua)}.num.warn{color:var(--gold)}.sm{font-size:12px;color:var(--muted);margin-top:6px}section{margin-top:24px}.cols{display:grid;grid-template-columns:1.25fr .75fr;gap:16px}.formrow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}select,button,textarea,input{font:inherit;border-radius:10px;border:1px solid #3d536e;background:#0d1828;color:var(--text);padding:11px}button{cursor:pointer;border-color:#368e8e;color:#09151a;background:var(--aqua);font-weight:800}button.secondary{background:#263852;border-color:#3d536e;color:var(--text)}button:hover{filter:brightness(1.08)}.stamp{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;overflow-wrap:anywhere;color:var(--muted)}.status{padding:14px;border-radius:12px;border:1px solid #69434c;background:#2b1b28;color:#ffc5c8;font-weight:700}.status.ok{border-color:#316f69;background:#10332f;color:#98fff3}.spec{display:grid;grid-template-columns:1fr 1fr;gap:9px}.spec>div{background:#0e192b;border:1px solid #203750;padding:13px;border-radius:10px}.spec strong{display:block;font-size:20px;margin-top:5px}.spec span{color:var(--muted);font-size:12px}textarea{width:100%;min-height:150px;resize:vertical;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;line-height:1.5}table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}th,td{padding:10px 8px;text-align:right;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-size:13px}tfoot td{color:var(--aqua);font-weight:bold}a{color:var(--aqua)}ul{padding-left:20px;color:var(--muted);line-height:1.7}footer{margin-top:26px;border-top:1px solid var(--line);padding-top:20px;color:var(--muted);font-size:12px}.hidden{display:none}code{color:var(--gold)}@media(max-width:790px){.cards{grid-template-columns:1fr 1fr}.cols{grid-template-columns:1fr}.wrapper{padding:16px 12px 50px}header{align-items:flex-start;flex-direction:column}.card,.panel{padding:16px}}
 </style></head><body><main class="wrapper">
 <header><div><div class="topbrand">TX RESEARCH DESK / P193 INTRADAY</div><h1>R11 盤前決策台</h1><p style="margin:0">日盤・夜盤獨立｜盤末強平｜永遠最多 1 口大台</p></div><span class="pill">● PAPER ONLY · 尚未核准實單</span></header>
-<div class="notice"><strong>資料狀態：</strong>目前只封存至 <strong>2026/10/22</strong> 的五年回測。最新 P40／R26 核心訊號、即時期貨分 K、契約換月和券商持倉尚未串接完成；本頁不會用舊價位冒充今天盤前價。歷史績效為樣本內回測，且在每側成本提高到 5 點時最大回撤超標。</div>
+<div class="notice"><strong>資料狀態：</strong>五年基準封存至 <strong>2026/10/22</strong>；下方「完整盤接續重播」會自動更新已公布的新資料。當盤 R11 價位、契約換月和券商持倉仍待完整核對；本頁不會用舊價位冒充今天盤前價。歷史績效為樣本內回測，且在每側成本提高到 5 點時最大回撤超標。</div>
 <div class="cards">
 <div class="card"><div class="metric">五年淨獲利 · R11 RR</div><div class="num accent">+63,236 <small style="font-size:13px">點</small></div><div class="sm">每側成本 3 點；2021/10/22–2026/10/22</div></div>
 <div class="card"><div class="metric">保守盤中最大回撤</div><div class="num">4.684%</div><div class="sm">初始本金 NT$2,000,000；OHLC 代理</div></div>
@@ -25,19 +25,28 @@
 <p>已使用原始 Python 研究包重新執行 48 項測試，並完成 2,308 個盤前價位核對。這不代表最新盤訊號已就緒；此區嚴格區分 P40 損益與 R26 獨立損益。</p>
 <div class="spec">
 <div><span>原始封存最終盤</span><strong>2026/10/22 日盤</strong></div>
-<div><span>待接續的下一個交易盤</span><strong>2026/10/23 夜盤</strong></div>
+<div><span>歷史截止後第一個交易盤</span><strong>2026/10/27 夜盤</strong></div>
 <div><span>封存日盤收盤價</span><strong>46,272</strong></div>
 <div><span>新盤前已完成日 ATR20</span><strong>795.45</strong></div>
 <div><span>P193 盤前權重 w / h</span><strong>0 / +0.40</strong></div>
-<div><span>R26 最新 A-shadow / P40</span><strong>尚未逐分鐘重播</strong></div>
+<div><span>R26／P40 接續結果</span><strong>見下方完整盤帳本</strong></div>
 </div>
-<p class="sm">2026/10/23 夜盤係指 10/22 15:00 起的盤，依期交所交易日對應。以上是 <strong>2026/10/22 歷史截止點</strong> 推出的第一個研究狀態，絕對不是今天可下單價位。沒有原始 P40 逐分鐘損益及 R26 A-shadow，就不能只用上盤漲跌代替。</p>
+<p class="sm">2026/10/27 夜盤係指 10/22 15:00 起的盤；10/23 颱風休市及 10/26 補假後，交易日順延至 10/27。以上是 <strong>2026/10/22 歷史截止點</strong> 推出的第一個研究狀態，絕對不是今天可下單價位。沒有原始 P40 逐分鐘損益及 R26 A-shadow，就不能只用上盤漲跌代替。</p>
 <div class="formrow"><label>匯入原始歷史種子 JSON（只在手機本機讀取）
 <input id="seed-file" type="file" accept=".json,application/json" aria-label="選取 R11_SEED_2428_SESSIONS.json"></label>
 <button id="seed-audit" type="button" class="secondary">核對原版種子與 P193</button></div>
 <p class="sm">請從已下載的 R11_P40_R26_接續重播_原版核對 ZIP 解壓後選擇 R11_SEED_2428_SESSIONS.json。檔案不會上傳到 Cloudflare、GitHub 或其他伺服器，也不會與 FinMind Token 一起儲存。</p>
 <div id="seed-result" class="status">尚未匯入原始歷史種子；不可使用任何新盤訊號。</div>
 <p id="bk-session-link" class="stamp">交易日重編碼：待本機歷史分鐘 K 審核。已對原始 R26 2,815 個歷史盤抽取首末 K 全數核對交易日，0 個錯配。</p>
+</section>
+<section class="panel" id="continuation-panel">
+<h2>完整盤接續重播｜P40・R26・P193</h2>
+<p>自動讀取本機分鐘K，並從期交所補齊已公布的完整交易日。A 影子策略與 P40 分開計算；每盤只使用前盤結果計算 P193 權重。計算在背景執行，原始資料保留在此裝置。</p>
+<div class="formrow"><button id="replay-latest" type="button">更新並重播完整盤</button><button id="replay-local" class="secondary" type="button">只重播已保存資料</button></div>
+<div id="replay-status" class="status">正在準備接續重播…</div>
+<div style="overflow:auto;margin-top:12px"><table><thead><tr><th>交易日／盤別</th><th>P40損益（點）</th><th>P40模型盤末部位</th><th>R26原始方向</th><th>P193 w / h</th></tr></thead><tbody id="replay-table"></tbody></table></div>
+<p class="stamp" id="replay-next"></p><p class="sm" id="replay-issues"></p>
+<p class="sm">本表是已完成盤的模型帳本，部位不代表券商實際持倉，也不是 R11 當盤買賣指令。缺盤、合約換月或當盤尚未結束時，會停在最後可核對盤。</p>
 </section>
 <section class="panel" id="p40-original-panel">
 <h2>P40／R26 A-shadow｜原版逐分鐘引擎</h2>
@@ -46,7 +55,7 @@
 <div><span>P40 五年原始損益</span><strong>+71,601 點</strong></div>
 <div><span>R26 A-shadow 原始損益</span><strong>+56,098 點</strong></div>
 <div><span>逐分鐘權益比對</span><strong>0 錯／1,361,206</strong></div>
-<div><span>最新盤 P40 重播</span><strong>待 R26 因果訊號</strong></div>
+<div><span>最新完整盤 P40 重播</span><strong>見完整盤接續區</strong></div>
 </div>
 <div class="formrow"><button id="p40-engine-test" class="secondary" type="button">在手機測試 P40 原版撮合器</button></div>
 <div id="p40-engine-status" class="status">正在檢查本機引擎；最新盤 R26 上游因果訊號尚未核准，禁止交易。</div>
@@ -360,6 +369,35 @@ async function vaultAllR26MinuteBars(){
   op.onerror=()=>reject(op.error);
  });}finally{db.close();}
 }
+let continuationWorker=null;
+async function replayContinuation(fetchOfficial=true){
+ if(continuationWorker)return;
+ const buttons=[$('replay-latest'),$('replay-local')];buttons.forEach(b=>b.disabled=true);
+ $('replay-status').className='status';$('replay-status').textContent='載入此裝置的分鐘K…';
+ try{
+  const rows=await vaultAllR26MinuteBars();
+  continuationWorker=new Worker('./replay-worker.mjs?v=20261110-complete',{type:'module'});
+  const done=()=>{continuationWorker?.terminate();continuationWorker=null;buttons.forEach(b=>b.disabled=false);};
+  continuationWorker.onerror=e=>{$('replay-status').textContent='重播失敗：'+e.message;done();};
+  continuationWorker.onmessage=async({data:m})=>{
+   if(m.type==='progress'){$('replay-status').textContent=m.text;return;}
+   if(m.type==='cache'){try{await vaultAccess(m.id,m.rows);}catch(e){$('replay-issues').textContent='本機保存失敗：'+e.message;}return;}
+   if(m.type==='error'){$('replay-status').textContent='重播未完成：'+m.error;done();return;}
+   if(m.type!=='result')return;
+   const r=m.result;
+   $('replay-status').className='status'+(r.added_sessions?' ok':'');
+   $('replay-status').textContent='已重播至 '+r.last_date+' '+(r.last_session==='day'?'日盤':'夜盤')+
+    '；新增 '+r.added_sessions+' 盤，P40 累計 '+r.new_p40_pnl+' 點（每側2.5點成本）。';
+   $('replay-table').replaceChildren(...r.rows.slice(-30).map(x=>{const tr=document.createElement('tr');
+    for(const val of [x.date+' '+(x.sid?'日':'夜'),x.pnl,x.held,x.core_signal,x.p193?x.p193.w+' / '+x.p193.h:'待累積']){const td=document.createElement('td');td.textContent=val;tr.appendChild(td);}return tr;}));
+   $('replay-next').textContent=r.next?'下一個研究盤 '+r.next.trade_date+' '+(r.next.session==='day'?'日盤':'夜盤')+
+    '：ATR20 '+r.next.atr20.toFixed(2)+'；P193 w='+r.next.w+'、h='+r.next.h+'。尚未轉成 R11 當盤委託。':'下一盤交易日尚待核對';
+   $('replay-issues').textContent=r.issues.length?'停止原因／待補：'+r.issues.join('；'):'已接完目前可核對的完整盤；實單仍未開放。';
+   done();
+  };
+  continuationWorker.postMessage({rows,fetchOfficial,now:Date.now()});
+ }catch(e){$('replay-status').textContent='本機資料無法讀取：'+e.message;continuationWorker?.terminate();continuationWorker=null;buttons.forEach(b=>b.disabled=false);}
+}
 async function replayR26PhoneDayFactors(token){
  const status=$('r26-daily-status');
  if(!token){status.textContent='FinMind Token 尚未輸入，無法核對獨立期貨日成交日期；原始 R26 指標維持 2026/10/22。';return;}
@@ -453,6 +491,7 @@ async function backfill(force=false){
     const result=accumulateSessionAudit(prior,incremental);
     renderBackfill(result);
     await replayR26PhoneDayFactors(token);
+    await replayContinuation(false);
     $('bk-vault').textContent+='｜本輪已核對 '+incremental.sessions.length+' 盤，歷史累計 '+result.sessions.length+' 盤；下次只從近期接續。';
     try{localStorage.setItem(backfillKey,JSON.stringify(result));}catch{}
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
@@ -470,20 +509,23 @@ $('seed-audit').addEventListener('click',async()=>{
   const seed=JSON.parse(await file.text()),audit=auditR11Seed(seed);
   if(!audit.ok){out.textContent='歷史種子驗證失敗：'+audit.errors.slice(0,6).join('、')+'；禁止接續運算。';return;}
   const prior={asof_day:'2026-10-22',atr20:795.45,prevclose:46272,verified_daily_ohlc:true};
-  const night=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-23',session:'night'});
-  const day=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-23',session:'day'});
+  const night=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-27',session:'night'});
+  const day=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-27',session:'day'});
   if(night.w!==0||night.h!==0.4||day.w!==0||day.h!==0.1)throw Error('FIRST_POST_CUTOFF_ORACLE_MISMATCH');
   selectedSeed=seed;
   out.className='status ok';
   out.textContent='歷史種子核對通過：'+audit.sessions+' 盤；P40 累計 '+audit.historical_p40_pnl_total+
-   ' 點；2026/10/23 夜盤 w='+night.w+'、h='+night.h+
-   '；日盤 w='+day.w+'、h='+day.h+
-   '，與封存值一致。原始種子僅保存在本次頁面記憶體。最新 P40/R26 分鐘重播仍未完成，交易繼續封鎖。';
+   ' 點；2026/10/27 夜盤 w='+night.w+'、h='+night.h+
+   '；日盤封存假設 w='+day.w+'、h='+day.h+'（實際需先重播夜盤）'+
+   '，與封存值一致。原始種子僅保存在本次頁面記憶體。最新 P40/R26 分鐘重播請見完整盤帳本；實單繼續封鎖。';
  }catch(e){selectedSeed=null;out.textContent='核對失敗：'+String(e.message||e)+'；禁止使用交易訊號。';}
 });
+$('replay-latest').addEventListener('click',()=>replayContinuation(true));
+$('replay-local').addEventListener('click',()=>replayContinuation(false));
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
 if($('bk-token').value.trim())backfill(false); // never spend FinMind quota without this user's explicit token
 
 refresh();setInterval(refresh,60000);
+replayContinuation(true);
 </script></body></html>
