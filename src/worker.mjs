@@ -15,6 +15,7 @@ import {r26BridgeRoute} from './r26-bridge.mjs';
 import {r26LiveQuoteRoute} from './r26-live-quote.mjs';
 import {r11PreopenRoute} from './r11-preopen.mjs';
 import {r11BackfillRoute} from './r11-backfill.mjs';
+import {r11TradingDaysRoute} from './r11-trading-days.mjs';
 export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
@@ -50,6 +51,7 @@ export default {
   if(['/api/r26/intraday','/api/r26/official-zip'].includes(new URL(request.url).pathname))return r26MarketRoute(request,env);
   if(new URL(request.url).pathname==='/api/r11/preopen')return r11PreopenRoute(request,env);
   if(new URL(request.url).pathname==='/api/r11/backfill')return r11BackfillRoute(request,env);
+  if(new URL(request.url).pathname==='/api/r11/trading-days')return r11TradingDaysRoute(request,env);
   if(new URL(request.url).pathname==='/api/r26/live-quote')return r26LiveQuoteRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/r26/'))return r26BridgeRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/research-pack/'))return researchPackRoute(request,env);
