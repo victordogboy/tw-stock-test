@@ -376,7 +376,7 @@ async function replayContinuation(fetchOfficial=true){
  $('replay-status').className='status';$('replay-status').textContent='載入此裝置的分鐘K…';
  try{
   const rows=await vaultAllR26MinuteBars();
-  continuationWorker=new Worker('./replay-worker.mjs?v=20261110-complete',{type:'module'});
+  continuationWorker=new Worker('./replay-worker.mjs?v=20261111-next-core',{type:'module'});
   const done=()=>{continuationWorker?.terminate();continuationWorker=null;buttons.forEach(b=>b.disabled=false);};
   continuationWorker.onerror=e=>{$('replay-status').textContent='重播失敗：'+e.message;done();};
   continuationWorker.onmessage=async({data:m})=>{
@@ -392,7 +392,18 @@ async function replayContinuation(fetchOfficial=true){
     for(const val of [x.date+' '+(x.sid?'日':'夜'),x.pnl,x.held,x.core_signal,x.p193?x.p193.w+' / '+x.p193.h:'待累積']){const td=document.createElement('td');td.textContent=val;tr.appendChild(td);}return tr;}));
    $('replay-next').textContent=r.next?'下一個研究盤 '+r.next.trade_date+' '+(r.next.session==='day'?'日盤':'夜盤')+
     '：ATR20 '+r.next.atr20.toFixed(2)+'；P193 w='+r.next.w+'、h='+r.next.h+'。尚未轉成 R11 當盤委託。':'下一盤交易日尚待核對';
-   $('replay-issues').textContent=r.issues.length?'停止原因／待補：'+r.issues.join('；'):'已接完目前可核對的完整盤；實單仍未開放。';
+   if(r.next_core){
+    const n=r.next_core,d=n.daily,c=n.core;
+    $('replay-next').textContent+=' R26 原始方向 '+c.raw_signal+'；暫停條件 '+(c.blocked?'成立':'未成立')+'；有效方向 '+c.core_signal+'。';
+    $('r26-daily-asof').textContent=d.daily_asof;
+    $('r26-daily-count').textContent=r.rows.filter(x=>x.sid===1).length+' 盤';
+    $('r26-daily-atr').textContent=d.atr20.toFixed(2);
+    $('r26-daily-ema').textContent=d.ema20.toFixed(2)+' ／ '+d.ema50.toFixed(2);
+    $('r26-daily-rsi').textContent=d.rsi14.toFixed(2);
+    $('r26-daily-gap').textContent=r.issues.filter(x=>!x.startsWith('SESSION_NOT_CLOSED:')).join('；')||'完整盤已接續；當前盤尚未結束';
+    $('r26-daily-status').textContent='已用完整盤重播同步日線指標、A-shadow、P40 與下一盤 R26 方向。下一步為 R11 盤前價格與指定合約核對；目前仍是研究結果。';
+   }
+   $('replay-issues').textContent=r.issues.length?'重播狀態：'+r.issues.map(x=>x.startsWith('SESSION_NOT_CLOSED:')?'當前交易盤尚未結束，等待完整資料（不是缺漏）':x).join('；'):'已接完目前可核對的完整盤；實單仍未開放。';
    done();
   };
   continuationWorker.postMessage({rows,fetchOfficial,now:Date.now()});
