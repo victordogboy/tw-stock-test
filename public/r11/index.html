@@ -32,6 +32,11 @@
 <div><span>R26 最新 A-shadow / P40</span><strong>尚未逐分鐘重播</strong></div>
 </div>
 <p class="sm">2026/10/23 夜盤係指 10/22 15:00 起的盤，依期交所交易日對應。以上是 <strong>2026/10/22 歷史截止點</strong> 推出的第一個研究狀態，絕對不是今天可下單價位。沒有原始 P40 逐分鐘損益及 R26 A-shadow，就不能只用上盤漲跌代替。</p>
+<div class="formrow"><label>匯入原始歷史種子 JSON（只在手機本機讀取）
+<input id="seed-file" type="file" accept=".json,application/json" aria-label="選取 R11_SEED_2428_SESSIONS.json"></label>
+<button id="seed-audit" type="button" class="secondary">核對原版種子與 P193</button></div>
+<p class="sm">請從已下載的 R11_P40_R26_接續重播_原版核對 ZIP 解壓後選擇 R11_SEED_2428_SESSIONS.json。檔案不會上傳到 Cloudflare、GitHub 或其他伺服器，也不會與 FinMind Token 一起儲存。</p>
+<div id="seed-result" class="status">尚未匯入原始歷史種子；不可使用任何新盤訊號。</div>
 <p id="bk-session-link" class="stamp">交易日重編碼：待本機歷史分鐘 K 審核。已對原始 R26 2,815 個歷史盤抽取首末 K 全數核對交易日，0 個錯配。</p>
 </section>
 <section class="panel" id="backfill-panel">
@@ -63,6 +68,8 @@ import {planR11,VERSION} from './r11-plan.mjs';
 import {p193Weights} from './p193-weights.mjs';
 import {coreR26FromFeatures} from './r26-core-replay.mjs';
 import {normalizeR11TxSessions} from './session-trade-date.mjs';
+import {auditR11Seed} from './seed-audit.mjs';
+import {nextR11P193Checkpoint} from './causal-checkpoint.mjs';
 const $=id=>document.getElementById(id);
 function showResult(plan,label){
   $('direction').textContent=plan.decision==='BLOCKED'?'資料阻擋':plan.entry?(plan.entry.direction==='LONG'?'條件做多':'條件放空'):'空手';
@@ -348,6 +355,28 @@ async function backfill(force=false){
   finally{btn.disabled=false;}
 }
 $('bk-run').addEventListener('click',()=>backfill(true));
+let selectedSeed=null;
+$('seed-file').addEventListener('change',()=>{selectedSeed=null;$('seed-result').textContent='已選檔案，請按「核對原版種子與 P193」；本頁不會上傳原始資料。';});
+$('seed-audit').addEventListener('click',async()=>{
+ const out=$('seed-result'),file=$('seed-file').files?.[0];
+ out.className='status';
+ if(!file){out.textContent='尚未選擇 JSON；請先解壓研究包。';return;}
+ if(file.size>4000000){out.textContent='檔案超過 4 MB；請確認是 2,428 盤的種子 JSON，不是原始分鐘 K。';return;}
+ try{
+  const seed=JSON.parse(await file.text()),audit=auditR11Seed(seed);
+  if(!audit.ok){out.textContent='歷史種子驗證失敗：'+audit.errors.slice(0,6).join('、')+'；禁止接續運算。';return;}
+  const prior={asof_day:'2026-10-22',atr20:795.45,prevclose:46272,verified_daily_ohlc:true};
+  const night=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-23',session:'night'});
+  const day=nextR11P193Checkpoint(seed,prior,{trade_date:'2026-10-23',session:'day'});
+  if(night.w!==0||night.h!==0.4||day.w!==0||day.h!==0.1)throw Error('FIRST_POST_CUTOFF_ORACLE_MISMATCH');
+  selectedSeed=seed;
+  out.className='status ok';
+  out.textContent='歷史種子核對通過：'+audit.sessions+' 盤；P40 累計 '+audit.historical_p40_pnl_total+
+   ' 點；2026/10/23 夜盤 w='+night.w+'、h='+night.h+
+   '；日盤 w='+day.w+'、h='+day.h+
+   '，與封存值一致。原始種子僅保存在本次頁面記憶體。最新 P40/R26 分鐘重播仍未完成，交易繼續封鎖。';
+ }catch(e){selectedSeed=null;out.textContent='核對失敗：'+String(e.message||e)+'；禁止使用交易訊號。';}
+});
 backfillInit();
 // One low-write read-only backfill attempt per page-load when a server Secret or saved token exists.
 if($('bk-token').value.trim())backfill(false); // never spend FinMind quota without this user's explicit token
