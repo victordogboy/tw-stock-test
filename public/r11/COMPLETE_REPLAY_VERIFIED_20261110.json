@@ -1,0 +1,23 @@
+{
+  "total_sessions": 2450,
+  "new_sessions": 22,
+  "last_date": "2026-11-10",
+  "p40_pnl_max_diff": 0.0,
+  "position_mismatches": 0,
+  "r26_raw_core_mismatches": 0,
+  "r26_block_mismatches": 0,
+  "new_p40_pnl": -763.5,
+  "paper_only": true,
+  "tradeable": false,
+  "archive_sessions": 2428,
+  "archive_minutes": 1361206,
+  "archive_p40_pnl": 71601,
+  "archive_minute_drawdown": 4656,
+  "archive_array_sha256": {
+    "pnl": "2c1466808721ad577cef65b3ea655a54a962004e557c2f6d9a6a25903ddc2b58",
+    "eq": "7001fb8df611fdd7e5325385c5aa8144f87ae5be79cf503c9ae50ecfa16b909e",
+    "pos": "1c11a3736f8447663fb11e5da9db2385553e4a0bdb6856d8d8d8b9eb61565bd6"
+  },
+  "verification": "Archived Python arrays + independently extended original Python against JavaScript",
+  "calendar_correction": "2026-10-23 typhoon closure; 2026-10-26 observed holiday; first continuation trade date 2026-10-27"
+}
