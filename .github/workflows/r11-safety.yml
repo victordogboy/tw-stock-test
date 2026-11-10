@@ -21,3 +21,6 @@ jobs:
           node-version: '22'
       - name: R11 diagnostic API, price parity, durable write regression
         run: node --test public/r11/r11-plan.test.mjs tests/r11-preopen.test.mjs tests/r11-backfill.test.mjs tests/r11-minute-gaps.test.mjs tests/r11-session-trade-date.test.mjs tests/r11-causal-checkpoint.test.mjs tests/r11-private-seed-import.test.mjs tests/r11-incremental-resume.test.mjs tests/r11-p193-weights.test.mjs tests/r11-r26-core.test.mjs tests/r11-r26-daily.test.mjs tests/r11-r26-daily-continuation.test.mjs tests/r11-trading-days.test.mjs tests/r11-r26-phone-replay.test.mjs tests/r11-p40-original-engine.test.mjs tests/r11-p40-shadow-continuation.test.mjs tests/r11-p40-dashboard-integration.test.mjs tests/r11-do-storage-guard.test.mjs
+
+      - name: Complete replay parity
+        run: node --test tests/r11-complete-replay.test.mjs
