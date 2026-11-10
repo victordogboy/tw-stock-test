@@ -19,11 +19,12 @@ const data=[
  ['2026-10-20',46434,46920,46162,46384],['2026-10-21',47388,47450,46872,46992],
  ['2026-10-22',47164,47337,46217,46272]];
 const calendar=['2026-09-30',...data.map(x=>x[0])];
+const HIST={historicalOracleValidation:true};
 const bars=data.map(([date,open,high,low,close])=>({date,open,high,low,close,
  session:'day',complete_verified:true,calendar_verified:true,contract_verified:true,roll_verified:true,source_gap:false}));
 const near=(a,b,label)=>assert.ok(Math.abs(a-b)<=Math.max(1,Math.abs(b))*1e-11,label+': got '+a+' expected '+b);
 test('15 historical complete R26 day bars reconstruct true Pandas EWM/RSI and ATR checkpoint with zero future leakage',()=>{
- const x=replayR26CompletedDays(seed,bars,calendar),s=x.checkpoint,f=x.daily_features;
+ const x=replayR26CompletedDays(seed,bars,calendar,HIST),s=x.checkpoint,f=x.daily_features;
  assert.equal(x.completed_days_replayed,15);assert.equal(x.last_asof,'2026-10-22');
  assert.equal(x.tradeable,false);assert.equal(f.tradeable,false);
  assert.equal(s.last_completed_day_close,46272);
@@ -42,16 +43,20 @@ test('15 historical complete R26 day bars reconstruct true Pandas EWM/RSI and AT
  assert.equal(seed.asof_day,'2026-09-30','input seed immutable');
 });
 test('missing full completed prior exchange day is rejected rather than silently skipping',()=>{
- assert.throws(()=>replayR26CompletedDays(seed,[bars[1]],[calendar[0],...calendar.slice(1)]),/MISSING_PREVIOUS_TRADING_DAY/);
+ assert.throws(()=>replayR26CompletedDays(seed,[bars[1]],[calendar[0],...calendar.slice(1)],HIST),/MISSING_PREVIOUS_TRADING_DAY/);
 });
 test('night, contract roll, future/invalid gap, and incomplete minute bar cannot update daily state',()=>{
  for(const key of ['complete_verified','calendar_verified','contract_verified','roll_verified']){
-  assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],[key]:false}],calendar));
+  assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],[key]:false}],calendar,HIST));
  }
- assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],session:'night'}],calendar));
- assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],source_gap:true}],calendar));
+ assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],session:'night'}],calendar,HIST));
+ assert.throws(()=>replayR26CompletedDays(seed,[{...bars[0],source_gap:true}],calendar,HIST));
 });
 test('no unknown future exchange calendar should be silently inferred from current clock',()=>{
- assert.throws(()=>replayR26CompletedDays(seed,[bars[0]],['2026-09-30']),/UNKNOWN_OR_DUPLICATE_EXCHANGE_DAY/);
- assert.throws(()=>replayR26CompletedDays(seed,[bars[0]],['2026-10-01','2026-09-30']));
+ assert.throws(()=>replayR26CompletedDays(seed,[bars[0]],['2026-09-30'],HIST),/UNKNOWN_OR_DUPLICATE_EXCHANGE_DAY/);
+ assert.throws(()=>replayR26CompletedDays(seed,[bars[0]],['2026-10-01','2026-09-30'],HIST));
+});
+
+test('production continuation rejects September validation seed before frozen research cutoff',()=>{
+ assert.throws(()=>replayR26CompletedDays(seed,[],calendar),/R26_STATE_OLDER_THAN_FROZEN_RESEARCH_CUTOFF/);
 });
