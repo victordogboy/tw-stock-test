@@ -1,3 +1,4 @@
+import {nextCoreState} from './next-core.mjs';
 import {replayP40,nextP193State} from './p40-replay.mjs';
 import {appendReplayInput} from './replay-input.mjs';
 import {run,audit} from '../r26-engine/engine.mjs';
@@ -48,7 +49,7 @@ self.onmessage=async({data:m})=>{
   const next=target.trade_date?nextP193State(result,target):null;
   postMessage({type:'result',result:{version:result.version,paper_only:true,tradeable:false,
    historical_sessions:2428,added_sessions:input.accepted.length,last_date:last.date,last_session:last.sid?'day':'night',
-   rows:result.p40.rows.filter(r=>r.date>meta.end),next,issues:[...input.issues,...failures],
+   rows:result.p40.rows.filter(r=>r.date>meta.end),next,next_core:next?nextCoreState(result,target):null,issues:[...input.issues,...failures],
    new_p40_pnl:result.p40.rows.filter(r=>r.date>meta.end).reduce((s,r)=>s+r.pnl,0)}});
  }catch(e){postMessage({type:'error',error:e.message})}
 };
