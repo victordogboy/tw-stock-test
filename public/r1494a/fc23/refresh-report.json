@@ -1,11 +1,15 @@
 {
-  "generated_at": "2026-11-09T23:29:03.202Z",
-  "verified": true,
+  "generated_at": "2026-11-10T18:48:15.297Z",
+  "verified": false,
   "fc23_date": "2026-11-09",
   "market_date": "2026-11-09",
   "checked_through": "2026-11-09",
-  "sync_status": "current",
-  "last_error": null,
+  "sync_status": "blocked",
+  "last_error": {
+    "date": "2026-11-10",
+    "message": "上櫃日線取得失敗：上櫃日線未回傳有效JSON；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
+    "at": "2026-11-10T18:48:15.078Z"
+  },
   "snapshot_count": 9,
   "order_count": 5
 }
