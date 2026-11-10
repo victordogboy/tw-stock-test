@@ -8,6 +8,9 @@ on:
       - 'src/r11-preopen.mjs'
       - 'src/worker.mjs'
       - '.github/workflows/r11-live-smoke.yml'
+  pull_request:
+    paths:
+      - '.github/workflows/r11-live-smoke.yml'
   workflow_dispatch:
 jobs:
   smoke:
@@ -24,16 +27,21 @@ jobs:
             page=$(curl -sS -L --max-time 15 -o /tmp/r11.html -w '%{http_code}' "$URL/r11/?verify=$GITHUB_SHA" || true)
             js=$(curl -sS -L --max-time 15 -o /tmp/r11-plan.mjs -w '%{http_code}' "$URL/r11/r11-plan.mjs?verify=$GITHUB_SHA" || true)
             api=$(curl -sS -L --max-time 15 -o /tmp/r11-api.json -w '%{http_code}' "$URL/api/r11/backfill?start=invalid&end=invalid&contract=202611" || true)
-            echo "Attempt $attempt: R11_PAGE_HTTP=$page R11_JS_HTTP=$js R11_BACKFILL_DIAG_HTTP=$api"
-            if [[ "$page" == 200 && "$js" == 200 && "$api" == 400 ]] &&
+            daily=$(curl -sS -L --max-time 15 -o /tmp/r11-daily.json -w '%{http_code}' "$URL/api/r11/trading-days?start=invalid&end=invalid" || true)
+            auth=$(curl -sS -L --max-time 15 -o /tmp/r11-auth.json -w '%{http_code}' "$URL/api/r11/trading-days?start=2026-10-23&end=2026-10-24" || true)
+            echo "Attempt $attempt: R11_PAGE_HTTP=$page R11_JS_HTTP=$js R11_BACKFILL_DIAG_HTTP=$api R11_DAILY_BAD_DATE_HTTP=$daily R11_DAILY_MISSING_TOKEN_HTTP=$auth"
+            if [[ "$page" == 200 && "$js" == 200 && "$api" == 400 && "$daily" == 400 && "$auth" == 401 ]] &&
                grep -q 'id="backfill-panel"' /tmp/r11.html &&
+               grep -q 'id="r26-daily-replay-panel"' /tmp/r11.html &&
                grep -q 'export function planR11' /tmp/r11-plan.mjs &&
-               grep -q 'INVALID_DATE_OR_CONTRACT' /tmp/r11-api.json; then
+               grep -q 'INVALID_DATE_OR_CONTRACT' /tmp/r11-api.json &&
+               grep -q 'INVALID_DATE_RANGE' /tmp/r11-daily.json &&
+               grep -q 'BROWSER_FINMIND_TOKEN_REQUIRED' /tmp/r11-auth.json; then
               ok=1
               break
             fi
             sleep 10
           done
           [[ "$ok" == 1 ]] || { echo "Cloudflare R11 is not confirmed deployed; see HTTP results above"; exit 1; }
-          echo "PASS: Cloudflare serves the backfill UI, paper kernel and new strict API validation."
+          echo "PASS: Cloudflare MAIN serves latest R26 factor continuation UI, paper kernel, strict minute backfill and independent TX daily-calendar API."
           echo "Note: This does NOT verify live FinMind Sponsor credentials, P40/R26 features or broker holdings."
