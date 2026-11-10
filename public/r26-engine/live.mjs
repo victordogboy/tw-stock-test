@@ -65,7 +65,8 @@ export function replayLive(meta,bars,records,calendar,now=Date.now()){
 }
 let crcTable;
 function crc32(bytes,crc=0xffffffff){crcTable??=Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?0xedb88320^(i>>>1):i>>>1;return i>>>0});for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return crc>>>0}
-export async function parseOfficialZip(buffer,tradeDate,contract){
+export async function parseOfficialZip(buffer,tradeDate,contract,{maxUncompressedBytes=100000000}={}){
+ if(!Number.isInteger(maxUncompressedBytes)||maxUncompressedBytes<1||maxUncompressedBytes>250000000)throw Error("官方 ZIP 解壓上限不合法");
  const bytes=new Uint8Array(buffer),v=new DataView(buffer);let end=-1;
  for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--)if(v.getUint32(i,true)===0x06054b50){end=i;break}
  if(end<0)throw Error('官方 ZIP 未下載完整');
@@ -77,7 +78,7 @@ export async function parseOfficialZip(buffer,tradeDate,contract){
   if(name.toLowerCase().endsWith('.csv'))entry={method:v.getUint16(ptr+10,true),crc:v.getUint32(ptr+16,true),compressed:v.getUint32(ptr+20,true),size:v.getUint32(ptr+24,true),at:v.getUint32(ptr+42,true)};
   ptr+=46+nl+el+cl;
  }
- if(!entry||entry.size>100000000||entry.method!==8)throw Error('官方 CSV 壓縮格式或大小錯誤');
+ if(!entry||entry.size>maxUncompressedBytes||entry.method!==8)throw Error('官方 CSV 壓縮格式或大小錯誤');
  const p=entry.at+30+v.getUint16(entry.at+26,true)+v.getUint16(entry.at+28,true);
  const stream=new Blob([bytes.slice(p,p+entry.compressed)]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
  const reader=stream.getReader(),decoder=new TextDecoder(),map=new Map();let tail='',crc=0xffffffff,size=0;
@@ -90,7 +91,7 @@ export async function parseOfficialZip(buffer,tradeDate,contract){
    open:price,high:price,low:price,close:price,volume:0,source:'TAIFEX official ticks',contract_verified:true};
   r.high=Math.max(r.high,price);r.low=Math.min(r.low,price);r.close=price;r.volume+=volume;map.set(timestamp_tpe,r);
  }
- while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;crc=crc32(value,crc);tail+=decoder.decode(value,{stream:true});const chunks=tail.split('\n');tail=chunks.pop();for(const s of chunks)line(s)}
+ while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>maxUncompressedBytes)throw Error("官方 CSV 超過解壓上限");crc=crc32(value,crc);tail+=decoder.decode(value,{stream:true});const chunks=tail.split('\n');tail=chunks.pop();for(const s of chunks)line(s)}
  tail+=decoder.decode();if(tail)line(tail);
  if(size!==entry.size||((crc^0xffffffff)>>>0)!==entry.crc)throw Error('官方 CSV CRC 完整性校驗失敗');
  if(!map.size)throw Error('官方逐筆不含指定月份 TX');
