@@ -69,8 +69,8 @@ async function init(){
  $('fc23-performance-chart').innerHTML=curveSvg(candidates);
  $('fc23-fills-comment').textContent='顯示FC23封存引擎實際成交的最後'+h.fills.length+'筆；賣出報酬是相對原持股成本的單筆比率，未單獨扣交易費用。這不是完整逐筆列表，也不是R1494交易紀錄。';
  renderFills(h);$('fc23-fill-side').addEventListener('change',()=>renderFills(h));
- $('fc23-why').innerHTML='<strong>為何沒有產生下一交易日的FC23建議？</strong><p>FC23研究引擎最後完成的日K是 <b>'+esc(cap)+'</b>，共用行情來源目前更新到 <b>'+esc(latest)+'</b>。尚未將新增交易日的所有日K、法人籌碼、滾動指標、動態同儕與實際紙上持倉按FC23原規則重新演算並驗證。因此不允許拿R1494的交易單代替FC23。</p>'+
- '<p>R1494-A 的當期交易計畫、每筆損益與每日更新請使用 <a href="../">原監控台</a>；FC23現階段只顯示真正屬於FC23的封存交易。</p>';
+ $('fc23-why').innerHTML='<strong>FC23 歷史封存與最新紙上計畫的區別</strong><p>本區的歷史績效、成交樣本與逐筆交易都固定截至 <b>'+esc(cap)+'</b>。最新FC23獨立紙上持倉、下一交易日計畫及沒有訊號的原因，請看本頁上方「FC23 最新紙上進出計畫」。該區直接查詢FC23自己的最新後端，不會混用R1494-A訊號。</p>'+
+ '<p>共用行情來源最近更新到 <b>'+esc(latest)+'</b>；這個日期不等於FC23紙上模型一定更新成功，須以上方FC23自身的驗證狀態為準。</p>';
 }
 
 init().catch(e=>{if($('fc23-shared-data'))$('fc23-shared-data').textContent='⚠️ '+e.message+'。FC23當期交易訊號仍禁止使用。';});
