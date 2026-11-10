@@ -39,6 +39,20 @@
 <div id="seed-result" class="status">尚未匯入原始歷史種子；不可使用任何新盤訊號。</div>
 <p id="bk-session-link" class="stamp">交易日重編碼：待本機歷史分鐘 K 審核。已對原始 R26 2,815 個歷史盤抽取首末 K 全數核對交易日，0 個錯配。</p>
 </section>
+<section class="panel" id="r26-daily-replay-panel">
+<h2>R26 日盤指標｜從原始歷史狀態接續</h2>
+<p>原版 2026/10/22 盤後凍結的 ATR／EMA／RSI 內部狀態已透過 15 個歷史交易日逐日核對。此處使用手機本機儲存的 TX 分 K，另外查 FinMind 期貨日成交日期驗證每日合約與交易日，遇到第一個缺 K 就停止，不會跳過。</p>
+<div class="spec">
+<div><span>已接續至日盤</span><strong id="r26-daily-asof">2026/10/22（歷史封存）</strong></div>
+<div><span>已完成新日盤重播</span><strong id="r26-daily-count">0 盤</strong></div>
+<div><span>日盤 ATR20</span><strong id="r26-daily-atr">795.45</strong></div>
+<div><span>日盤 EMA20／EMA50</span><strong id="r26-daily-ema">47,617 ／ 46,923</strong></div>
+<div><span>日盤 RSI14</span><strong id="r26-daily-rsi">40.99</strong></div>
+<div><span>下一個缺口</span><strong id="r26-daily-gap">尚未比對</strong></div>
+</div>
+<div class="status" id="r26-daily-status">尚未確認新日盤交易日與原始分鐘 K；R26 A-shadow 和 P40 損益仍未接通，禁止下單。</div>
+<p class="sm">本模組是紙上日線特徵重播，不等於期交所官方假日曆核對，也不是完整 R26 core_signal。真正可下單前還需 P40 原始逐分鐘損益、R26 A-shadow／塔線、主力合約及持倉核對。</p>
+</section>
 <section class="panel" id="backfill-panel">
 <h2>自動補齊 TX 日夜盤分鐘 K（FinMind 備援）</h2>
 <p>原本的 R11 歷史資料截至 2026/10/22。這裡可以直接查詢新的指定月份 TX 分 K，檢查日盤 300 根、夜盤 840 根、缺漏、週六凌晨與換月；<strong>不使用 Durable Objects 寫入額度</strong>。公開補抓需要在此輸入自己的 FinMind Token（不經 GitHub，亦不會取用 Cloudflare Secret）；Cloudflare Secret 僅供未來獨立受保護的伺服端排程。</p>
@@ -68,6 +82,7 @@ import {planR11,VERSION} from './r11-plan.mjs';
 import {p193Weights} from './p193-weights.mjs';
 import {coreR26FromFeatures} from './r26-core-replay.mjs';
 import {normalizeR11TxSessions} from './session-trade-date.mjs';
+import {previewR26FromMinutes} from './r26-phone-replay.mjs';
 import {auditR11Seed} from './seed-audit.mjs';
 import {nextR11P193Checkpoint} from './causal-checkpoint.mjs';
 const $=id=>document.getElementById(id);
@@ -291,6 +306,55 @@ function auditTradeDatesAfterBackfill(chunks){
     '。P40 與 R26 核心仍須原版逐分鐘重播。';
  }catch(e){$('bk-session-link').textContent='交易日重編碼失敗：'+String(e.message||e);}
 }
+async function vaultAllR26MinuteBars(){
+ const db=await openR11Vault();
+ try{return await new Promise((resolve,reject)=>{
+  const tx=db.transaction('chunks','readonly'),op=tx.objectStore('chunks').getAll();
+  op.onsuccess=()=>{
+   const dedup=new Map();
+   for(const chunk of op.result||[])for(const b of chunk.raw_bars||[]){
+    const key=b.contract_date+'|'+b.timestamp_tpe;
+    if(b.contract_date&&b.timestamp_tpe)dedup.set(key,b);
+   }
+   resolve([...dedup.values()].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe)));
+  };
+  op.onerror=()=>reject(op.error);
+ });}finally{db.close();}
+}
+async function replayR26PhoneDayFactors(token){
+ const status=$('r26-daily-status');
+ if(!token){status.textContent='FinMind Token 尚未輸入，無法核對獨立期貨日成交日期；原始 R26 指標維持 2026/10/22。';return;}
+ try{
+  status.textContent='正在核對獨立交易日與手機私有分鐘 K…';
+  const now=tpeDay(),start='2026-10-22';
+  const dayCount=Math.round((Date.parse(now)-Date.parse(start))/86400000)+1;
+  if(dayCount>35){status.textContent='超過每次 35 天的獨立交易日查詢限制；須先保存已核對的中間 checkpoint，不能跳日重算。';return;}
+  const [seedResponse,calendarResponse,bars]=await Promise.all([
+    fetch('./r26-daily-checkpoint-20261022.json',{cache:'force-cache'}),
+    fetch('/api/r11/trading-days?'+new URLSearchParams({start,end:now}),
+      {cache:'no-store',headers:{authorization:'Bearer '+token}}),
+    vaultAllR26MinuteBars()]);
+  if(!seedResponse.ok)throw Error('找不到 2026/10/22 R26 原版因果狀態');
+  const [seed,dayCalendar]=await Promise.all([seedResponse.json(),calendarResponse.json()]);
+  if(!calendarResponse.ok||!dayCalendar.ok){
+   status.textContent='獨立交易日來源未通過：'+(dayCalendar.error||('HTTP '+calendarResponse.status))+'。不產生新盤 R26 特徵。';return;
+  }
+  const r=previewR26FromMinutes(seed,bars,dayCalendar);
+  const f=r.daily_features;
+  $('r26-daily-asof').textContent=r.last_replayed||seed.asof_day;
+  $('r26-daily-count').textContent=(r.days_replayed||0)+' 盤';
+  $('r26-daily-atr').textContent=Number(f?.atr20||795.45).toFixed(2);
+  $('r26-daily-ema').textContent=(f?Math.round(f.ema20):47617).toLocaleString('zh-TW')+' ／ '+
+     (f?Math.round(f.ema50):46923).toLocaleString('zh-TW');
+  $('r26-daily-rsi').textContent=Number(f?.rsi14||40.99).toFixed(2);
+  $('r26-daily-gap').textContent=r.next_missing_day||'日線接續已完成（仍需其他引擎）';
+  status.textContent=(r.ok?'已從原始 R26 狀態接續 '+r.days_replayed+' 個完整日盤；':
+   '日盤重播停止：'+(r.next_missing_day||'無法核對')+'／'+(r.reason||'來源缺漏')+'。')+
+    '交易日來源：FinMind 期貨日成交獨立資料（非期交所官方行事曆）。'+
+    'P40 新盤損益、R26 A-shadow 與券商持倉仍缺；所有結果僅研究，禁止實單。';
+  status.className='status';
+ }catch(e){status.className='status';status.textContent='R26 日盤重播失敗：'+String(e?.message||e)+'；沒有將不完整來源當成有效訊號。';}
+}
 async function backfill(force=false){
   const btn=$('bk-run'),start=$('bk-start').value,end=$('bk-end').value,contract=$('bk-contract').value.trim(),token=$('bk-token').value.trim();
   if(!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)||!start||!end||end<start){$('bk-status').textContent='日期或合約輸入無效';return;}
@@ -349,6 +413,7 @@ async function backfill(force=false){
     let prior=null;try{prior=JSON.parse(localStorage.getItem(backfillKey)||'null');}catch{}
     const result=accumulateSessionAudit(prior,incremental);
     renderBackfill(result);
+    await replayR26PhoneDayFactors(token);
     $('bk-vault').textContent+='｜本輪已核對 '+incremental.sessions.length+' 盤，歷史累計 '+result.sessions.length+' 盤；下次只從近期接續。';
     try{localStorage.setItem(backfillKey,JSON.stringify(result));}catch{}
   }catch(e){$('bk-status').className='status';$('bk-status').textContent='補抓 API 暫時無法連線：'+String(e.message||e);}
