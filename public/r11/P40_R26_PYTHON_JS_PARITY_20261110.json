@@ -1,0 +1,27 @@
+{
+  "audit_id": "P40_R26_A_SHADOW_EXACT_MINUTE_PARITY_20261110",
+  "archived_period": {
+    "first": "2021-10-22",
+    "last": "2026-10-22"
+  },
+  "method": "Local Node.js JS replay of original Python P40 engine_minute_shadow.py against frozen P40 minute-shadow NPZ and original R26 A shadow run; no synthetic bar substitution",
+  "p40_js_git_blob_sha": "bd61806e13135994492f6f652b4267c625fc459d",
+  "generated_2428_session_fixture_sha256": "f4300598e6ab7c01f1db11cd946c3f6d61f54e95821eb90ff4fefe2fa6096cac",
+  "sessions": 2428,
+  "minute_bars": 1361206,
+  "p40_total_points": 71601,
+  "a_shadow_total_points": 56098,
+  "p40_session_pnl_mismatches": 0,
+  "a_shadow_session_pnl_mismatches": 0,
+  "p40_and_a_shadow_held_end_mismatches": 0,
+  "p40_minute_equity_mismatches": 0,
+  "maximum_abs_minute_equity_delta_points": 0,
+  "original_85_case_make_plan_checks": "170/170",
+  "original_85_case_minute_engine_checks": "170/170",
+  "public_repo_contains_full_minute_data": false,
+  "historical_fixture_scope": "Full 47 MB JSONL verification is local only and NOT included in the public repository. CI verifies regression cases, not full 47 MB.",
+  "deploy_status": "MODULE_ONLY_AWAITING_CAUSAL_PIPELINE",
+  "future_P40_and_R26_signal_status": "BLOCKED_WHILE_CAUSAL_R26_A_SHADOW_AND_P40_STATE_NOT_DEPLOYED",
+  "paper_only": true,
+  "tradeable": false
+}
