@@ -6,9 +6,9 @@
 import {appendVerifiedCompletedDay,r26DailyPreopenFeatures,validateR26DailyState} from './r26-daily-features.mjs';
 export const R11_R26_DAY_CONTINUATION_VERSION='20261110-r26-verified-day-sequential';
 const exact=(date,days)=>days.includes(date);
-export function replayR26CompletedDays(seed,verifiedDayBars,officialCalendar){
+export function replayR26CompletedDays(seed,verifiedDayBars,officialCalendar,{historicalOracleValidation=false}={}){
  validateR26DailyState(seed);
- if(seed.asof_day<'2026-10-22')throw Error('R26_STATE_OLDER_THAN_FROZEN_RESEARCH_CUTOFF');
+ if(seed.asof_day<'2026-10-22'&&!historicalOracleValidation)throw Error('R26_STATE_OLDER_THAN_FROZEN_RESEARCH_CUTOFF');
  if(!Array.isArray(officialCalendar)||!officialCalendar.length||
     officialCalendar.some((d,i)=>!/^20\d{2}-\d{2}-\d{2}$/.test(d)||(i&&d<=officialCalendar[i-1])))
    throw Error('OFFICIAL_SORTED_EXCHANGE_CALENDAR_REQUIRED');
