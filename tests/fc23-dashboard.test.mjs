@@ -13,6 +13,9 @@ assert.equal(hist.fills.length,22);
 assert.equal(fc23.live_plan_available,false);
 assert.equal(fc23.live_execution_allowed,false);
 assert.ok(html.includes('src="./dashboard.js"'));
+assert.ok(html.includes('src="./live-status.js"'),'latest FC23 paper status must be linked');
+assert.ok(html.includes('id="fc23-live-state"'),'FC23 live-paper status missing');
+assert.ok(readFileSync(root+'fc23/live-status.js','utf8').includes('/api/fc23/snapshot'),'paper status must read FC23 own endpoint');
 assert.ok(html.includes('href="../"'));
 assert.ok(existing.dates.length>1300);
 assert.ok(existing.curves.old49.length>1300);
@@ -36,7 +39,7 @@ for(const id of ['fc23-shared-data','fc23-performance-chart','fc23-fills','fc23-
 }
 assert.ok(el('fc23-performance-chart').innerHTML.includes('<polyline'),'curves not rendered');
 assert.ok(el('fc23-fills').innerHTML.includes('2026-10-27'),'ledger not rendered');
-assert.ok(el('fc23-shared-data').innerHTML.includes('2026-11-06'),'live refresh status missing');
-assert.ok(el('fc23-why').innerHTML.includes('不允許'),'why-trade gating missing');
+assert.ok(el('fc23-shared-data').innerHTML.includes(existing.status.data_as_of),'shared benchmark date must be data-driven');
+assert.ok(el('fc23-why').innerHTML.includes('最新紙上計畫'),'must link current model instead of stale freeze message');
 assert.ok(!el('fc23-shared-data').textContent.startsWith('⚠️'),'JS errored '+el('fc23-shared-data').textContent);
-console.log('PASS FC23 DOM mock with real 2026-11-06 R1494 benchmark; R1494 model unchanged');
+console.log('PASS FC23 historical DOM + dedicated live-paper section; R1494 model unchanged');
