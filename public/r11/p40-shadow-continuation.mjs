@@ -35,6 +35,9 @@ export function continueOriginalShadowSessions(initial,sessionBatch){
   });
   if(!s||!dates.test(s.trade_date||'')||!['night','day'].includes(s.session)||
      key<=lastKey||!months.test(String(s.contract||'')))return fail('BAD_OR_OUT_OF_ORDER_TRADING_DATE_OR_CONTRACT');
+  if((lastKey.endsWith('|1')&&s.session!=='night')||
+     (lastKey.endsWith('|0')&&(s.session!=='day'||s.trade_date!==lastKey.slice(0,10))))
+    return fail('MISSING_PRECEDING_DAY_OR_NIGHT_SESSION');
   if(!(s.exchange_calendar_verified&&s.contract_roll_verified&&s.raw_minute_coverage_verified&&
        s.p40_levels_verified&&s.atr20_verified&&s.r26_core_verified&&
        s.r26_a_shadow_signal_verified&&s.upstream_completed_before_open))
@@ -49,6 +52,17 @@ export function continueOriginalShadowSessions(initial,sessionBatch){
   if(!Number.isFinite(first)||!Number.isFinite(last)||!Number.isFinite(frozen)||
      frozen>=first||first>=last||s.bars[0].timestamp_tpe> s.bars.at(-1).timestamp_tpe)
     return fail('LOOKAHEAD_OR_INVALID_SIGNAL_FREEZE_TIME');
+  // Non-synthetic new-period TX bars must span the entire exchange session.
+  // Original sparse historical archive is intentionally NOT a license to silently
+  // omit a modern minute which may contain a stop or a re-entry fill.
+  const beginClock=s.bars[0].timestamp_tpe.slice(11,16),
+        endClock=s.bars.at(-1).timestamp_tpe.slice(11,16),
+        expectedStart=s.session==='day'?'08:45':'15:00',
+        expectedEnd=s.session==='day'?['13:44','13:45']:['04:59','05:00'];
+  if(beginClock!==expectedStart||!expectedEnd.includes(endClock)||
+    (s.session==='day'&&![300,301].includes(s.bars.length))||
+    (s.session==='night'&&![840,841].includes(s.bars.length)))
+    return fail('FULL_EXCHANGE_SESSION_OPEN_CLOSE_COVERAGE_UNVERIFIED');
   const compact=[];
   let previous=NaN;
   for(const b of s.bars){
