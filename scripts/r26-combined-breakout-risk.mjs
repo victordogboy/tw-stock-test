@@ -100,7 +100,7 @@ function summarize(res,cfg){
   validation:part(res,'2024-01-01','2025-12-31'),
   holdout:part(res,'2026-01-01','2026-11-11'),
   last24:part(res,'2026-10-27','2026-11-11'),
-  events:res.riskTimeline.map(e=>({type:e.type,date:e.date,sid:e.sid,bar:e.bar,cap:e.cap,actual:e.actual}))};
+  events:(res.riskTimeline||[]).map(e=>({type:e.type,date:e.date,sid:e.sid,bar:e.bar,cap:e.cap,actual:e.actual}))};
 }
 const scenarios=[
  {id:'R26_ORIGINAL',atr:0,window:0,cap:0,wait:8,shadowLookback:8,shadowProfit:0},
