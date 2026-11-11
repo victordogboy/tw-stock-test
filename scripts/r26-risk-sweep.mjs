@@ -63,6 +63,32 @@ for(const p of [150,250,350,500])
 for(const n of [3,5,8,12])for(const limit of [100,300,500,1000]){
   add('SHADOW_'+n+'_LOSS_'+limit,{shadowLookback:n,shadowLossLimit:limit,shadowPnl:canonical.pnls});
 }
+// Second-stage re-entry policies: unlike a permanent high-water circuit, a
+// completed risk cool-down can rebase only its *future stop budget*, while
+// the report's lifetime maximum drawdown remains continuous and unreset.
+for(const cap of [300,500,750,1000,1250,1500,2000,2500,3000]){
+ for(const wait of [2,5,10,20])
+  add('RESET_DD_'+cap+'_WAIT_'+wait,{equityDdCap:cap,haltSessions:wait,cooldownReset:true});
+}
+for(const cap of [500,750,1000,1500,2000,2500]){
+ for(const wait of [2,8,16]){
+  for(const lookback of [3,8]){
+   for(const target of [0,300])
+    add('RESET_DD_'+cap+'_WAIT_'+wait+'_SHADOW_'+lookback+'_PROFIT_'+target,
+      {equityDdCap:cap,haltSessions:wait,cooldownReset:true,
+       resumeShadowLookback:lookback,resumeShadowProfit:target,
+       shadowPnl:canonical.pnls});
+  }
+ }
+}
+for(const cap of [500,1000,1500,2000,2500]){
+ for(const stop of [200,350,500]){
+  add('RESET_DD_'+cap+'_WAIT_5_STOP_'+stop,{equityDdCap:cap,haltSessions:5,cooldownReset:true,coreMaxStopPoints:stop});
+  add('RESET_DD_'+cap+'_WAIT_5_BE_STOP_'+stop,
+    {equityDdCap:cap,haltSessions:5,cooldownReset:true,coreMaxStopPoints:stop},
+    {kind:'breakeven',start:1,lock:.25});
+ }
+}
 const sum=a=>a.reduce((x,y)=>x+y,0);
 function score(result,lo,hi){
  const rows=result.rows.filter(x=>x.date>=lo&&x.date<=hi);
