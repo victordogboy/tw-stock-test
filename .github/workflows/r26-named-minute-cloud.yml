@@ -1,0 +1,48 @@
+name: R26 background current TX 1m cloud persistence
+on:
+  schedule:
+    - cron: '9 * * * 1-6'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-named-minute-cloud.yml'
+      - 'scripts/r26-named-minute-cloud-refresh.mjs'
+      - 'public/r26-engine/cloud-minute-cache.mjs'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: r26-named-minute-cloud-cache
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate snapshot source and ESM syntax
+        run: |
+          node --check scripts/r26-named-minute-cloud-refresh.mjs
+          node --check public/r26-engine/cloud-minute-cache.mjs
+          node --test tests/r26-cloud-minute-cache.test.mjs
+      - name: Fetch vendor named-month minutes; never publish an unverified or stale reading
+        run: node scripts/r26-named-minute-cloud-refresh.mjs
+      - name: Preserve public-only minute cache on main
+        run: |
+          git config user.name 'R26 Public Minute Cache Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/r26-engine/data/verified-named-minute-cloud.json.gz
+          if git diff --cached --quiet;then echo 'R26_CLOUD_UNCHANGED';exit 0;fi
+          git commit -m 'R26: preserve verified named TX minutes'
+          for i in 1 2 3;do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main;then exit 0;fi
+            sleep 3
+          done
+          echo 'R26_CLOUD_PUSH_FAILED';exit 1
