@@ -1,0 +1,107 @@
+import {stop} from '../r26-engine/engine.mjs';
+// R26 non-production limit-order research. Original simulator baseline strict parity.
+export function simulateLimit(ss,bars,{fee=2.5,shadow=false,reentry=true,end='9999',liquidate=true,limit={}}={}){
+ let pos=0,st=0,lastCon='',lastCl=0,prev=-1,equity=0,peak=0,mdd=0,core=0,keys=0,stops=0,reentries=0,rows=[],events=[],pnls=Array(ss.length).fill(0);
+ let pnl=0,activeTrade=null,closedTrades=[],missEntry=0,missExit=0,limitEntries=0,limitExits=0,eligibleEntries=0,eligibleExits=0;
+ const terminal=new Set(['開盤平倉','核心停損','關鍵價停損','關鍵價停利','輔助單尾盤平倉','再進場同根停損','限價平倉','未成交尾盤市價平倉']);
+ const beginnings=new Set(['核心進場','停損再進場','關鍵價進場','限價核心進場']);
+ const addPnl=v=>{pnl+=v;if(activeTrade)activeTrade.pnl+=v;};
+ for(let i=0;i<ss.length;i++){
+  const s=ss[i];if(s.date<'2021-10-22'||s.date>end)continue;pnl=0;let desire=shadow?s.A:s.blocked?0:s.signal,af=Number.isFinite(s.atr)&&s.atr>0?s.atr:200,anchor=s.op,active=0,keyStop=0,keyTarget=0,stopdir=0,stopprice=0,stoppedAt=-1,recovered=false,keyDone=false;
+  const event=(b,type,side,price)=>{
+   events.push({date:s.date,sid:s.sid,bar:b,type,side,price,contract:s.contract,start:s.start});
+   if(beginnings.has(type)){
+     if(activeTrade)throw Error('R26_LIMIT_OVERLAPPING_POSITIONS');
+     activeTrade={type,entryDate:s.date,entrySid:s.sid,entryBar:b,entryPrice:price,side,pnl:-fee};
+   }
+   if(terminal.has(type)&&activeTrade){
+     activeTrade.exitDate=s.date;activeTrade.exitSid=s.sid;activeTrade.exitBar=b;
+     activeTrade.exitPrice=price;activeTrade.exitType=type;
+     closedTrades.push(activeTrade);activeTrade=null;
+   }
+  };
+  if(pos&&prev>=0){if(s.contract===lastCon)addPnl(pos*(s.op-lastCl));else {addPnl(-(2*fee));event(0,'換月',pos,s.op)}}
+  const knownAtr=Number.isFinite(s.atr)&&s.atr>0?s.atr:200;
+  const validPrior=limit.anchor!=='priorClose'||(prev>=0&&lastCon===s.contract);
+  const reference=limit.anchor==='priorClose'&&validPrior?lastCl:s.op;
+  const entryOffset=Math.max(0,Math.round(knownAtr*Number(limit.entryATR||0)));
+  const exitOffset=Math.max(0,Math.round(knownAtr*Number(limit.exitATR||0)));
+  const entryWindow=Math.max(1,Math.min(s.count,Number(limit.entryWindow||s.count)));
+  const exitWindow=Math.max(1,Math.min(s.count,Number(limit.exitWindow||s.count)));
+  let pendingEntry=0,pendingExit=0,pendingExitPrice=0,pendingEntryPrice=0,marketAfterExit=false,exitFillBar=-1;
+  if(desire!==pos){
+   if(pos){
+    if(exitOffset>0&&validPrior){
+     pendingExit=pos;pendingExitPrice=reference+pos*exitOffset;eligibleExits++;
+    }else{
+     // No known same-contract prior close at rollover -> original market exit.
+     addPnl(-(fee));event(0,'開盤平倉',pos,s.op);pos=0;
+    }
+   }
+   if(!pos&&desire){
+    if(entryOffset>0){
+     if(validPrior){pendingEntry=desire;pendingEntryPrice=reference-desire*entryOffset;eligibleEntries++}
+     else missEntry++;
+    }else{
+     pos=desire;addPnl(-(fee));core++;st=0;event(0,'核心進場',pos,s.op);
+    }
+   }
+  }
+  if(pos)st=stop(s,pos);let startPos=pos;
+  for(let b=0;b<s.count;b++){
+   let idx=(s.offset+b)*4,bo=bars[idx],hi=bars[idx+1],lo=bars[idx+2];
+   if(b>0){let marked=equity+pnl+pos*(bars[idx-1]-anchor);peak=Math.max(peak,marked);mdd=Math.max(mdd,peak-marked)}
+   if(pos){let lev=active?keyStop:st;if(lev&&(pos>0?lo<=lev:hi>=lev)){let ex=pos>0?Math.min(lev,bo):Math.max(lev,bo);addPnl(pos*(ex-anchor)-fee);event(b,active?'關鍵價停損':'核心停損',pos,ex);if(!active){stops++;stopdir=pos;stopprice=ex;stoppedAt=b}else keyDone=true;pos=0;active=0;continue}
+    if(active&&(pos>0?hi>=keyTarget:lo<=keyTarget)){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true;continue}
+   }
+   if(pos&&pendingExit&&b<exitWindow){
+    const touch=pos>0?hi>=pendingExitPrice:lo<=pendingExitPrice;
+    if(touch){
+     // The limit may already be marketable at open. Use the more favorable
+     // actual open in that case; never fill at a worse price than the limit.
+     const fill=pos>0?Math.max(pendingExitPrice,bo):Math.min(pendingExitPrice,bo);
+     addPnl(pos*(fill-anchor)-fee);event(b,'限價平倉',pos,fill);
+     pos=0;pendingExit=0;limitExits++;exitFillBar=b;
+     if(desire){
+      pendingEntry=desire;pendingEntryPrice=reference-desire*entryOffset;
+      marketAfterExit=entryOffset===0;eligibleEntries++;
+     }
+    }
+   }
+   if(!pos&&pendingEntry&&b<entryWindow&&b>exitFillBar){
+    const touched=marketAfterExit|| (pendingEntry>0?lo<=pendingEntryPrice:hi>=pendingEntryPrice);
+    if(touched){
+     // Opposite signal after delayed exit is submitted no earlier than the
+     // NEXT minute. Never claim both fills in an ambiguous same OHLC bar.
+     const ent=marketAfterExit?bo:pendingEntry>0?Math.min(pendingEntryPrice,bo):Math.max(pendingEntryPrice,bo);
+     const side=pendingEntry,protective=stop(s,side);
+     if(side>0?protective<ent:protective>ent){
+      pos=side;anchor=ent;st=protective;active=0;pendingEntry=0;
+      addPnl(-(fee));core++;limitEntries++;event(b,'限價核心進場',pos,ent);
+      if(pos>0?lo<=st:hi>=st){
+       const ex=pos>0?Math.min(st,bo):Math.max(st,bo);
+       addPnl(pos*(ex-anchor)-fee);event(b,'核心停損',pos,ex);
+       stops++;stopdir=pos;stopprice=ex;stoppedAt=b;pos=0;continue;
+      }
+     }
+    }
+   }
+   if(!pos&&stopdir&&!recovered&&!shadow&&reentry&&s.gate&&b>=stoppedAt+15&&b>stoppedAt){let trigger=stopprice+stopdir*.5*af;if(stopdir>0?hi>=trigger:lo<=trigger){let ent=stopdir>0?Math.ceil(Math.max(trigger,bo)):Math.floor(Math.min(trigger,bo));pos=stopdir;active=0;anchor=ent;recovered=true;reentries++;st=pos>0?Math.floor(ent-.55*af):Math.ceil(ent+.55*af);addPnl(-(fee));event(b,'停損再進場',pos,ent);if(pos>0?lo<=st:hi>=st){let ex=pos>0?Math.min(st,bo):Math.max(st,bo);addPnl(pos*(ex-anchor)-fee);event(b,'再進場同根停損',pos,ex);pos=0;continue}}}
+   if(!pos&&!keyDone&&(shadow||!s.blocked)&&desire===0){let lc=s.long.entry>0&&hi>=s.long.entry,sc=s.short.entry>0&&lo<=s.short.entry;if(lc&&sc){keyDone=true;continue}if(lc||sc){pos=lc?1:-1;let plan=lc?s.long:s.short;anchor=lc?Math.max(plan.entry,bo):Math.min(plan.entry,bo);active=1;keyStop=plan.stop;keyTarget=plan.target;addPnl(-(fee));keys++;event(b,'關鍵價進場',pos,anchor);if(lc?lo<=keyStop:hi>=keyStop){let ex=lc?Math.min(keyStop,bo):Math.max(keyStop,bo);addPnl(pos*(ex-anchor)-fee);event(b,'關鍵價停損',pos,ex);pos=0;active=0;keyDone=true}else if(lc?hi>=keyTarget:lo<=keyTarget){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true}}}
+  }
+  if(pendingEntry)missEntry++;
+  if(pendingExit){
+   missExit++;
+   if(limit.exitUnfilled==='marketClose'&&pos){
+    addPnl(pos*(s.cl-anchor)-fee);
+    event(s.count-1,'未成交尾盤市價平倉',pos,s.cl);
+    pos=0;
+   }
+  }
+  if(pos){addPnl(pos*(s.cl-anchor));if(active&&!s.partial){addPnl(-(fee));event(s.count-1,'輔助單尾盤平倉',pos,s.cl);pos=0}}
+  equity+=pnl;peak=Math.max(peak,equity);mdd=Math.max(mdd,peak-equity);pnls[i]=pnl;
+  rows.push({date:s.date,sid:s.sid,pnl,held:pos,signal:desire,blocked:!!s.blocked,atr:s.atr,market:s.market,recovered:+recovered,startPos,stop:active?keyStop:st,target:active?keyTarget:null,long:s.long,short:s.short,op:s.op,cl:s.cl,count:s.count,contract:s.contract});prev=i;lastCon=s.contract;lastCl=s.cl;
+ }
+ if(pos&&liquidate&&rows.length){rows.at(-1).pnl-=fee;pnls[prev]-=fee;if(activeTrade){activeTrade.pnl-=fee;activeTrade.exitDate=ss[prev].date;activeTrade.exitSid=ss[prev].sid;activeTrade.exitType='樣本末結算費';closedTrades.push(activeTrade);activeTrade=null}eventEnd();}function eventEnd(){let s=ss[prev];events.push({date:s.date,sid:s.sid,bar:s.count-1,type:'樣本末結算費',side:pos,price:s.cl,contract:s.contract,start:s.start})}
+ return {rows,events,minuteDD:mdd,core,keys,stops,reentries,pnls,position:pos,closedTrades,limitEntries,limitExits,eligibleEntries,eligibleExits,missEntry,missExit};
+}
