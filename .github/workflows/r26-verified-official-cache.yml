@@ -1,0 +1,48 @@
+name: R26 verified historical minute cache (credential-free)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-verified-official-cache.yml'
+      - 'scripts/r26-verified-history-refresh.mjs'
+  schedule:
+    - cron: '15 6,8,10,12,14,16 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: r26-history-cache
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build archive from official TX trade-date ZIP files with CRC checks
+        run: node scripts/r26-verified-history-refresh.mjs
+      - name: Commit only public verified minute OHLC compressed history
+        run: |
+          git config user.name 'R26 Verified Data Bot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/r26-engine/data/verified-official-backfill.json.gz
+          if git diff --cached --quiet;then echo 'R26_ARCHIVE_UNCHANGED'; exit 0;fi
+          git commit -m 'R26: refresh official verified TX1m backfill'
+          for i in 1 2 3;do
+            git fetch origin main
+            git rebase origin/main
+            if git push origin HEAD:main;then exit 0;fi
+            sleep 3
+          done
+          echo 'R26_ARCHIVE_GIT_PUSH_FAILED';exit 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-verified-official-cache
+          path: public/r26-engine/data/verified-official-backfill.json.gz
+          retention-days: 7
