@@ -130,7 +130,6 @@ const report={
   'Intraminute OHLC stop-first & artificial slippage vs actual order book unknown',
   '2026 inspected before choosing parameters; not prospective OOS',
   'Broker no actual positions or order confirmations; do not deploy over R26']};
-};
 fs.mkdirSync('r26-study-output',{recursive:true});
 fs.writeFileSync('r26-study-output/r26-regime-final-audit.json',JSON.stringify(report,null,2));
 fs.writeFileSync('r26-study-output/r26-regime-monthly.csv',
