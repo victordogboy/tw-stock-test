@@ -43,6 +43,14 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
   const validPrior=limit.anchor!=='priorClose'||(prev>=0&&lastCon===s.contract);
   const reference=limit.anchor==='priorClose'&&validPrior?lastCl:s.op;
   const entryOffset=Math.max(0,Math.round(knownAtr*Number(limit.entryATR||0)));
+  // This gate is chosen before seeing the current session's OHLC. It uses
+  // only the previous completed session equity, R26 direction and ATR.
+  const preOpenDd=Math.max(0,riskPeak-equity);
+  const preOpenLimitAllowed=(!limit.onlySide||desire===Number(limit.onlySide))&&
+   (limit.atrMin==null||knownAtr>=Number(limit.atrMin))&&
+   (limit.atrMax==null||knownAtr<=Number(limit.atrMax))&&
+   (limit.ddMin==null||preOpenDd>=Number(limit.ddMin))&&
+   (limit.ddMax==null||preOpenDd<=Number(limit.ddMax));
   const exitOffset=Math.max(0,Math.round(knownAtr*Number(limit.exitATR||0)));
   const entryWindow=Math.max(1,Math.min(s.count,Number(limit.entryWindow||s.count)));
   const exitWindow=Math.max(1,Math.min(s.count,Number(limit.exitWindow||s.count)));
@@ -57,7 +65,7 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
     }
    }
    if(!pos&&desire){
-    if(entryOffset>0){
+    if(entryOffset>0&&preOpenLimitAllowed){
      if(validPrior){pendingEntry=desire;pendingEntryPrice=reference+(limit.entryMode==='breakout'?desire:-desire)*entryOffset;eligibleEntries++}
      else missEntry++;
     }else{
