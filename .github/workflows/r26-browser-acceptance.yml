@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/r26-browser-acceptance.yml'
       - 'public/r26-live-monitor.mjs'
+      - 'public/r26-monitor.html'
       - 'public/r26-engine/data/verified-official-backfill.json.gz'
   workflow_dispatch:
 jobs:
