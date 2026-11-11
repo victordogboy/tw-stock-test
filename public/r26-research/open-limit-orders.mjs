@@ -40,7 +40,7 @@ export function simulateLimit(ss,bars,{fee=2.5,shadow=false,reentry=true,end='99
    }
    if(!pos&&desire){
     if(entryOffset>0){
-     if(validPrior){pendingEntry=desire;pendingEntryPrice=reference-desire*entryOffset;eligibleEntries++}
+     if(validPrior){pendingEntry=desire;pendingEntryPrice=reference+(limit.entryMode==='breakout'?desire:-desire)*entryOffset;eligibleEntries++}
      else missEntry++;
     }else{
      pos=desire;addPnl(-(fee));core++;st=0;event(0,'核心進場',pos,s.op);
@@ -63,17 +63,23 @@ export function simulateLimit(ss,bars,{fee=2.5,shadow=false,reentry=true,end='99
      addPnl(pos*(fill-anchor)-fee);event(b,'限價平倉',pos,fill);
      pos=0;pendingExit=0;limitExits++;exitFillBar=b;
      if(desire){
-      pendingEntry=desire;pendingEntryPrice=reference-desire*entryOffset;
+      pendingEntry=desire;pendingEntryPrice=reference+(limit.entryMode==='breakout'?desire:-desire)*entryOffset;
       marketAfterExit=entryOffset===0;eligibleEntries++;
      }
     }
    }
    if(!pos&&pendingEntry&&b<entryWindow&&b>exitFillBar){
-    const touched=marketAfterExit|| (pendingEntry>0?lo<=pendingEntryPrice:hi>=pendingEntryPrice);
+    const touched=marketAfterExit||
+     (limit.entryMode==='breakout'?
+       (pendingEntry>0?hi>=pendingEntryPrice:lo<=pendingEntryPrice):
+       (pendingEntry>0?lo<=pendingEntryPrice:hi>=pendingEntryPrice));
     if(touched){
      // Opposite signal after delayed exit is submitted no earlier than the
      // NEXT minute. Never claim both fills in an ambiguous same OHLC bar.
-     const ent=marketAfterExit?bo:pendingEntry>0?Math.min(pendingEntryPrice,bo):Math.max(pendingEntryPrice,bo);
+     const ent=marketAfterExit?bo:
+      limit.entryMode==='breakout'?
+       (pendingEntry>0?Math.max(pendingEntryPrice,bo):Math.min(pendingEntryPrice,bo)):
+       (pendingEntry>0?Math.min(pendingEntryPrice,bo):Math.max(pendingEntryPrice,bo));
      const side=pendingEntry,protective=stop(s,side);
      if(side>0?protective<ent:protective>ent){
       pos=side;anchor=ent;st=protective;active=0;pendingEntry=0;
