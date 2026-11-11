@@ -1,0 +1,27 @@
+name: R26 isolated 1m core profit overlay 63 variants
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-core-profit-study.yml'
+      - 'scripts/r26-core-profit-study.mjs'
+      - 'public/r26-research/core-profit-overlay.mjs'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Canonical R26 2428 historical session parity then run exits
+        run: node scripts/r26-core-profit-study.mjs
+      - name: Upload complete non-lookahead R26 study
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r26-core-profit-study
+          path: r26-study-output/
+          retention-days: 30
