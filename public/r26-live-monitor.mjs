@@ -20,10 +20,36 @@ async function database(){return new Promise((resolve,reject)=>{const timer=setT
 async function cached(){try{const db=await database();return await new Promise(resolve=>{const r=db.transaction('bars').objectStore('bars').getAll();r.onsuccess=()=>{db.close();resolve(r.result)};r.onerror=()=>{db.close();resolve([])}})}catch{return []}}
 async function save(added){try{const db=await database();await new Promise((resolve,reject)=>{const tx=db.transaction('bars','readwrite');for(const r of added)tx.objectStore('bars').put({...r,key:r.contract_date+'|'+r.timestamp_tpe});tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}catch{/* memory remains usable on restricted mobile browsers */}}
 function add(added){rows=mergeRecords(rows,added)}
+let officialArchiveAsOf=null;
+async function loadOfficialArchive(){
+ // Release the verified trade-date history from the phone's cache dependency.
+ // The archive is only public OHLC derived from TAIFEX original CRC-audited ZIPs.
+ const u='/r26-engine/data/verified-official-backfill.json.gz?cv=20261111';
+ const resp=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(22000)});
+ if(resp.status===404)return false; // first publish may not yet exist
+ if(!resp.ok)throw Error('R26 官方雲端快照 HTTP '+resp.status);
+ const data=await new Response(resp.body.pipeThrough(new DecompressionStream('gzip'))).json();
+ if(data?.version!=='R26_TAIFEX_BACKFILL_V1'||!Array.isArray(data.sessions)||
+    !Array.isArray(data.rows)||!/^2026-\d{2}-\d{2}$/.test(data.last_complete_trade_day))
+    throw Error('官方雲端快照格式不正確');
+ let accepted=0;
+ for(const x of data.sessions){
+  const n=data.rows.filter(r=>r.trade_date===x.date&&r.session==='night').length;
+  const d=data.rows.filter(r=>r.trade_date===x.date&&r.session==='day').length;
+  if(n!==x.night||d!==x.day||d!==300||n<750||n>840)throw Error('官方快照盤次數量不符：'+x.date);
+  accepted+=n+d;
+ }
+ if(accepted!==data.rows.length||data.rows.some(r=>r.source!=='TAIFEX official ticks'||r.contract_verified!==true))
+  throw Error('官方快照來源與盤次數量不符');
+ add(data.rows);officialArchiveAsOf=data.last_complete_trade_day;
+ try{await save(data.rows)}catch{}
+ text('r26DataProgress','已從雲端恢復官方核驗分K至 '+officialArchiveAsOf+'，共 '+accepted+' 根；接續最新盤中…');
+ return true;
+}
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
- text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 復盤接續修復');
+ text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 雲端快照持續接續');
  text('r26FreezeLabel','原始 2,428 盤金標逐盤零差異；以相同凍結規則接續重播。');
  const states=r.sessionStates||[],active=states.find(x=>x.marketState==='trading'),missing=states.filter(x=>x.historicalMissing),unverified=states.filter(x=>x.complete&&!x.dataReady&&!x.historicalMissing);
  text('r26MarketState',active?('正在交易：'+active.start.slice(0,10)+' '+(active.sid?'日盤':'夜盤')+' → 交易日 '+active.date+'，'+active.endsAt+' 收盤'):'目前無進行中的盤次；最近盤次已收盤');
@@ -35,7 +61,7 @@ function draw(m){
  text('r26DataLatest',(latestData||'—')+'（台灣時間，分鐘起點）');
  text('r26DataCount',fmt(rows.length)+' 根／已接續 '+r.added+' 盤');
  text('r26DataMissing','已收盤缺資料 '+missing.length+' 盤；完整性待核對 '+unverified.length+' 盤；交易中 '+(active?1:0)+' 盤');
- text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'官方實際開盤日 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
+ text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'期交所官方已封存 '+(officialArchiveAsOf||'待取得')+'；官方 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
  text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
  const table=$('r26DataTable');table.replaceChildren();
  for(const t of [...states].slice(-9).reverse()){
@@ -140,7 +166,9 @@ async function init(){
   text('r26DataProgress','載入官方歷史分K並在背景驗證原始 2,428 盤…');
   const sr=await fetch('/r26-engine/data/recent.json.gz');if(!sr.ok)throw Error('官方歷史下載失敗');const seed=await new Response(sr.body.pipeThrough(new DecompressionStream('gzip'))).json();calendar=extendTaifexCalendar2026(seed.calendar);
   const now=taipeiParts();contract=referenceTxMonth(now.date);$('r26DataContract').value=contract;
-  add(await cached());add(seed.rows);seedLoaded=true;
+  add(await cached());add(seed.rows);
+  try{await loadOfficialArchive()}catch(e){fetchError='雲端歷史快照：'+String(e?.message||e)}
+  seedLoaded=true;
   $('r26DataToken').placeholder=token()?'已沿用儲存的 Token；資料可免 Token 更新':'選填；官方逐筆與 Yahoo 指定月可免 Token 更新';
   await check();history();
  }catch(e){invalidatePosition('初始化失敗：'+e.message)}
