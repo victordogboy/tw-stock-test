@@ -1,0 +1,27 @@
+name: R26 high ATR additional causal momentum and trend rescue 30k goal
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-additional-trend-rescue.yml'
+      - 'scripts/r26-highvol-additional-rescue.mjs'
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original R26, 28488-point anchor then previous-day trend and momentum restore filters
+        run: |
+          node --check scripts/r26-highvol-additional-rescue.mjs
+          node scripts/r26-highvol-additional-rescue.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-additional-trend-rescue
+          path: r26-study-output/
+          retention-days: 30
