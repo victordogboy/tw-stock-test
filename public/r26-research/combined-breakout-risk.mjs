@@ -125,11 +125,18 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
     if(touched){
      // Opposite signal after delayed exit is submitted no earlier than the
      // NEXT minute. Never claim both fills in an ambiguous same OHLC bar.
-     const ent=marketAfterExit?bo:
+     const side=pendingEntry;
+     const fillBeforeExtraSlippage=marketAfterExit?bo:
       limit.entryMode==='breakout'?
-       (pendingEntry>0?Math.max(pendingEntryPrice,bo):Math.min(pendingEntryPrice,bo)):
-       (pendingEntry>0?Math.min(pendingEntryPrice,bo):Math.max(pendingEntryPrice,bo));
-     const side=pendingEntry,protective=stop(s,side);
+       (side>0?Math.max(pendingEntryPrice,bo):Math.min(pendingEntryPrice,bo)):
+       (side>0?Math.min(pendingEntryPrice,bo):Math.max(pendingEntryPrice,bo));
+     // Stop entries may gap beyond the planned trigger AND suffer slippage.
+     // Apply adverse fill slippage to every triggered breakout in the stress
+     // runs; zero by default to retain exact prior simulator parity.
+     const extraSlippage=limit.entryMode==='breakout'&&!marketAfterExit?
+       Math.max(0,Number(limit.breakoutSlippagePoints||0)):0;
+     const ent=fillBeforeExtraSlippage+side*extraSlippage;
+     const protective=stop(s,side);
      if(side>0?protective<ent:protective>ent){
       pos=side;anchor=ent;st=protective;active=0;pendingEntry=0;
       addPnl(-(fee));core++;limitEntries++;event(b,'限價核心進場',pos,ent);
