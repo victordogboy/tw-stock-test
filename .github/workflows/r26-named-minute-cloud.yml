@@ -8,6 +8,7 @@ on:
       - '.github/workflows/r26-named-minute-cloud.yml'
       - 'scripts/r26-named-minute-cloud-refresh.mjs'
       - 'public/r26-engine/cloud-minute-cache.mjs'
+      - 'tests/r26-cloud-minute-cache.test.mjs'
   workflow_dispatch:
 permissions:
   contents: write
