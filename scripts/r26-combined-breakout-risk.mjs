@@ -205,4 +205,65 @@ console.log('R26_COMBO_BEST_NET',JSON.stringify(byNet.slice(0,10).map(x=>({id:x.
 console.log('R26_COMBO_REGIME_BEST',JSON.stringify(bestRegimeByRatio.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct,holdout:x.holdout.net,
  entryFill:x.entryFilledPct,skipped:x.skipSessions}))));
 console.log('R26_COMBO_REGIME_BEATS_RISK_ONLY',JSON.stringify(improvesRiskOnly.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct}))));
+
+const focusedIDs=[
+ 'R26_ORIGINAL','R26_RISK_2250','R26_RISK_2500',
+ 'SELECT_SIDE_-1_A0.025_W60_C2500',
+ 'SELECT_SIDE_-1_A0.025_W120_C2500',
+ 'SELECT_SIDE_-1_A0.05_W60_C2500',
+ 'SELECT_SIDE_-1_A0.05_W120_C2500',
+ 'SELECT_SIDE_-1_A0.075_W120_C2500',
+ 'SELECT_SIDE_-1_A0.075_W120_C2250'
+];
+const stressCases=[
+ {fee:2.5,entrySlip:0,riskSlip:0},
+ {fee:3,entrySlip:0,riskSlip:0},
+ {fee:5,entrySlip:0,riskSlip:0},
+ {fee:2.5,entrySlip:2,riskSlip:0},
+ {fee:2.5,entrySlip:5,riskSlip:0},
+ {fee:2.5,entrySlip:10,riskSlip:0},
+ {fee:2.5,entrySlip:20,riskSlip:0},
+ {fee:2.5,entrySlip:0,riskSlip:30},
+ {fee:2.5,entrySlip:0,riskSlip:75},
+ {fee:2.5,entrySlip:5,riskSlip:30},
+ {fee:5,entrySlip:5,riskSlip:75}
+];
+const focusedStress=[];
+for(const id of focusedIDs){
+ const cfg=scenarios.find(x=>x.id===id);
+ if(!cfg)throw Error('R26_COMBO_FOCUS_MISSING_'+id);
+ for(const z of stressCases){
+  const lim=breakout(cfg.atr,cfg.window,cfg.filter||{});
+  lim.breakoutSlippagePoints=z.entrySlip;
+  const risk=riskOptions(cfg.cap,cfg.wait,cfg.shadowLookback,cfg.shadowProfit);
+  risk.hardStopSlippagePoints=z.riskSlip;
+  const res=simulateLimitRisk(prepared.sessions,bars,{end:'2026-11-11',fee:z.fee,limit:lim,risk});
+  const scored=summarize(res,cfg);
+  const annual={};
+  for(const year of [2021,2022,2023,2024,2025,2026])
+   annual[String(year)]=part(res,year+'-01-01',year+'-12-31');
+  const sideNet={};
+  for(const side of [1,-1]){
+   const filtered=res.closedTrades.filter(t=>t.side===side);
+   sideNet[String(side)]={trades:filtered.length,
+    profitable:filtered.filter(t=>t.pnl>0).length,
+    winPct:rounding(100*filtered.filter(t=>t.pnl>0).length/(filtered.length||1)),
+    net:rounding(filtered.reduce((a,t)=>a+t.pnl,0))};
+  }
+  focusedStress.push({id,fee:z.fee,breakoutSlip:z.entrySlip,equityStopSlip:z.riskSlip,
+   net:scored.net,dd:scored.minuteDD,win:scored.winPct,
+   trades:scored.trades,entryFillPct:scored.entryFilledPct,hardStops:scored.haltCount,
+   training:scored.training,validation:scored.validation,holdout:scored.holdout,recent:scored.last24,
+   annual,sideNet,events:scored.events});
+ }
+}
+fs.writeFileSync('r26-study-output/r26-combined-focused-cost-slippage.json',JSON.stringify(focusedStress,null,2));
+console.log('R26_COMBO_FOCUSED_ANNUAL',JSON.stringify(focusedStress.filter(x=>
+ x.fee===2.5&&x.breakoutSlip===0&&x.equityStopSlip===0).map(x=>({
+ id:x.id,net:x.net,dd:x.dd,win:x.win,trades:x.trades,
+ fill:x.entryFillPct,holdout:x.holdout,byYear:x.annual,
+ sideNet:x.sideNet,riskEvents:x.events}))));
+console.log('R26_COMBO_STRESS',JSON.stringify(focusedStress.map(x=>({id:x.id,
+ fee:x.fee,entrySlip:x.breakoutSlip,riskSlip:x.equityStopSlip,
+ net:x.net,dd:x.dd,win:x.win,holdoutNet:x.holdout.net}))));
 console.log('R26_COMBO_SUMMARY',JSON.stringify({tested:scenarios.length,qualified:filter.length,beatsBaselineNetAndDd:improvedBoth.length}));
