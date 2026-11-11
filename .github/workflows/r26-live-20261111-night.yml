@@ -28,19 +28,12 @@ jobs:
           const seed=JSON.parse(z.gunzipSync(fs.readFileSync(dir+'recent.json.gz')));
           const calendar=extendTaifexCalendar2026(seed.calendar);
           const root='https://tw-stock-api.victordogboy.workers.dev';
-          const tradeDays=calendar.filter(d=>d>'2026-10-22'&&d<='2026-11-11');
-          let records=seed.rows.slice(),official=[];
-          for(const date of tradeDays){
-            const url=root+'/api/r26/official-zip?date='+date+'&contract=202611';
-            const response=await fetch(url,{signal:AbortSignal.timeout(30000)});
-            if(!response.ok)throw Error('OFFICIAL_'+date+'_HTTP_'+response.status);
-            const data=await parseOfficialZip(await response.arrayBuffer(),date,'202611');
-            records=mergeRecords(records,data);
-            const n=data.filter(x=>x.session_key==='night:'+calendar[calendar.indexOf(date)-1]).length;
-            const d=data.filter(x=>x.session_key==='day:'+date).length;
-            if(d!==300||n<780)throw Error('OFFICIAL_'+date+'_BAD_COVERAGE_N_'+n+'_D_'+d);
-            official.push({date,night:n,day:d});
-          }
+          const verified=JSON.parse(z.gunzipSync(fs.readFileSync(dir+'verified-official-backfill.json.gz')));
+          if(verified.version!=='R26_TAIFEX_BACKFILL_V1'||verified.last_complete_trade_day!=='2026-11-11'||
+             verified.sessions.length!==12||verified.rows.length<13000)
+             throw Error('VERIFIED_CLOUD_HISTORY_NOT_COMPLETE_TO_NOV11');
+          let records=mergeRecords(seed.rows.slice(),verified.rows);
+          const official=verified.sessions.map(s=>({date:s.date,night:s.night,day:s.day}));
           const response=await fetch(root+'/api/r26/intraday?contract=202611',{signal:AbortSignal.timeout(20000)});
           if(!response.ok)throw Error('NAMED_MONTH_'+response.status);
           const vendor=await response.json();
