@@ -143,7 +143,7 @@ const report={period:'2021-10-22 .. 2026-11-11',sampleSessions:prepared.rows.len
   '1 minute OHLC stop-first fills and synthetic stress are not guaranteed actual broker executions'
  ]};
 fs.mkdirSync('r26-study-output',{recursive:true});
-fs.writeFileSync('r26-session-atr-daynight-risk.json',JSON.stringify(report,null,2));
+fs.writeFileSync('r26-study-output/r26-session-atr-daynight-risk.json',JSON.stringify(report,null,2));
 fs.writeFileSync('r26-study-output/r26-session-atr-daynight-risk.csv',
  'name,day,night,mask,net,dd,netDd,win,trades,early,validation,2026\n'+results.map(x=>
  [x.name,x.day,x.night,x.mask,x.net,x.dd,round(x.net/x.dd),x.win,x.trades,x.early,x.validation,x.holdout].join(',')).join('\n'));
