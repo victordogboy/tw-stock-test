@@ -31,7 +31,8 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
   const longAtrLimit=s.sid===1?risk.preopenShortOnlyAboveATRDay??risk.preopenShortOnlyAboveATR:
    risk.preopenShortOnlyAboveATRNight??risk.preopenShortOnlyAboveATR;
   if(longAtrLimit!=null&&af>Number(longAtrLimit)&&desire>0&&
-   !(Array.isArray(risk.highVolLongRescueFlags)&&risk.highVolLongRescueFlags[i]===true))riskBlocked=true;
+   !(Array.isArray(risk.highVolLongRescueFlags)&&risk.highVolLongRescueFlags[i]===true)&&
+   !(risk.holdExistingLongAtHighATR===true&&pos===1))riskBlocked=true;
   if(risk.preopenShortOnlyAboveATRRatio!=null&&desire>0&&
     (premarketClose===null||af/premarketClose>Number(risk.preopenShortOnlyAboveATRRatio)))riskBlocked=true;
   if(risk.preopenLongOnlyAboveATR!=null&&af>Number(risk.preopenLongOnlyAboveATR)&&desire<0)riskBlocked=true;
