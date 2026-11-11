@@ -1,0 +1,27 @@
+name: R26 day-night high ATR recovery profit vs <=1000 DD
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-session-atr-recovery.yml'
+      - 'scripts/r26-session-atr-risk-recovery.mjs'
+  workflow_dispatch:
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact R26 original replay plus 1296 past-only day-night ATR regime tests
+        run: |
+          node --check scripts/r26-session-atr-risk-recovery.mjs
+          node scripts/r26-session-atr-risk-recovery.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-session-atr-recovery-research
+          path: r26-study-output/
+          retention-days: 30
