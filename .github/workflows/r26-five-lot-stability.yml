@@ -1,0 +1,27 @@
+name: R26 five TX ATR sizing local sweet-spot and true fee rerun
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-five-lot-stability.yml'
+      - 'scripts/r26-five-lot-parameter-stability.mjs'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 288 sizing parameter neighborhoods and re-simulated high fee market signals
+        run: |
+          node --check scripts/r26-five-lot-parameter-stability.mjs
+          node scripts/r26-five-lot-parameter-stability.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-five-lot-sizing-stability
+          path: r26-study-output/
+          retention-days: 30
