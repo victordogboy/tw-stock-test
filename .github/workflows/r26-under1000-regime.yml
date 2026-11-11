@@ -1,0 +1,29 @@
+name: R26 maximum DD below 1000 by prior-regime and session-flat
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-under1000-regime.yml'
+      - 'scripts/r26-under1000-regime-search.mjs'
+      - 'public/r26-research/combined-breakout-risk.mjs'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify gold parity and test strict 1000 pt risk prior-known regime variations
+        run: |
+          node --check public/r26-research/combined-breakout-risk.mjs
+          node --check scripts/r26-under1000-regime-search.mjs
+          node scripts/r26-under1000-regime-search.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-under1000-regime-and-cost
+          path: r26-study-output/
+          retention-days: 30
