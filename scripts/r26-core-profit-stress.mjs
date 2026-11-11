@@ -68,7 +68,8 @@ for(const fee of [2.5,3,4,5]){
    maxMinuteDDFrozen:+freeze.minuteDD.toFixed(2),annual,
    fullUntilNov11:score(full,'2021-10-22','2026-11-11'),
    postFrozen2026:score(full,'2026-10-27','2026-11-11'),
-   fullDD:+full.minuteDD.toFixed(2),extensionCount:full.rows.length-standard.rows.length,
+   fullDD:+full.minuteDD.toFixed(2),frozenDdTrace:freeze.maxDrawdownInfo,
+   extensionDdTrace:full.maxDrawdownInfo,extensionCount:full.rows.length-standard.rows.length,
    extensionBars:more.length/4};
   results.push(r);console.log('R26_STRESS',JSON.stringify(r));
  }
@@ -82,5 +83,10 @@ const report={generated_at:new Date().toISOString(),comparison_from:'2021-10-22'
    'Trade win rate based on closed virtual trades (roll does not close strategy trade)']};
 fs.mkdirSync('r26-study-output',{recursive:true});
 fs.writeFileSync('r26-study-output/r26-ext-postholdout-cost-stress.json',JSON.stringify(report,null,2));
+console.log('R26_DRAWDOWN_DIAGNOSTIC',JSON.stringify({
+ candidates:results.filter(x=>x.fee===2.5).map(r=>({name:r.name,dd:r.fullDD,peak:r.extensionDdTrace?.peak,trough:r.extensionDdTrace?.trough})),
+ recentSessions:plain.rows.filter(x=>x.date>meta.end).map(x=>({date:x.date,sid:x.sid,pnl:x.pnl,
+  pos:x.held,startPos:x.startPos,signal:x.signal,blocked:x.blocked,open:x.op,close:x.cl,stop:x.stop,contract:x.contract}))
+}));
 console.log('R26_STRESS_SUMMARY',JSON.stringify({extended_sessions:expected.length,added_minutes:more.length/4,
  results:results.filter(r=>r.fee===2.5)}));
