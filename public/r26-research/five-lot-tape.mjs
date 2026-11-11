@@ -21,6 +21,9 @@ export function replaySizedTape(ss,bars,signal,{
   bars.get(e.bar).push(e);
  }
  let cash=0,qty=0,basis=0,peak=0,mdd=0,prevCon='',prevClose=NaN,first=true;
+ // Global peak computes *whole-history* max DD; riskEpochPeak is separately
+ // reset only after the complete scheduled cooldown of an emergency stop.
+ let riskEpochPeak=0,riskEpochResetPending=false,riskEpochResets=0;
  let sessions=0,totalTradedLots=0,rebalanceLots=0,
   stopEvents=0,blockedUntil=-1,tradingDays=0;
  const round=x=>Math.round(x*1e8)/1e8;
@@ -37,6 +40,12 @@ export function replaySizedTape(ss,bars,signal,{
  };
  for(let i=0;i<ss.length;i++){
   const s=ss[i];if(s.date<'2021-10-22'||s.date>end)continue;
+  if(riskEpochResetPending&&i>=blockedUntil){
+   // A newly eligible session starts a fresh *local* risk budget.
+   // Never reset the global performance high water or whole-history MDD.
+   if(qty!==0)throw Error('EMERGENCY_COOLDOWN_SHOULD_BE_FLAT');
+   riskEpochPeak=cash;riskEpochResetPending=false;riskEpochResets++;
+  }
   const at=events.get(s.date+'-'+s.sid)||new Map();
   const opens=at.get(0)||[];
   const carryClose=opens.some(e=>CLOSE.has(e.type));
@@ -84,13 +93,14 @@ export function replaySizedTape(ss,bars,signal,{
   for(let bar=0;bar<s.count;bar++){
    const ptr=(s.offset+bar)*4,bo=bars[ptr],hi=bars[ptr+1],lo=bars[ptr+2],cl=bars[ptr+3];
    if(qty&&drawdownCircuit>0){
-    const q=qty,floor=peak-drawdownCircuit;
+    const q=qty,floor=riskEpochPeak-drawdownCircuit;
     const px=basis+(floor+Math.abs(q)*fee-cash)/q;
     const hit=q>0?lo<=px:hi>=px;
     if(hit){
      const ex=(q>0?Math.min(px,bo):Math.max(px,bo))-Math.sign(q)*riskExitExtraSlip;
      changeQty(0,ex,s.date,s.sid,bar,'五口組合獨立權益停機');
      stopEvents++;isCircuitStopped=true;blockedUntil=Math.max(blockedUntil,i+1+haltSessions);
+     riskEpochResetPending=true;
     }
    }
    if(!isCircuitStopped&&!blocked){
@@ -110,6 +120,7 @@ export function replaySizedTape(ss,bars,signal,{
    const marked=cash+qty*(cl-basis);
    if(!Number.isFinite(marked))throw Error('NONFINITE_EQUITY');
    peak=Math.max(peak,marked);mdd=Math.max(mdd,peak-marked);
+   if(!riskEpochResetPending)riskEpochPeak=Math.max(riskEpochPeak,marked);
   }
   if(qty)cash+=qty*(s.cl-basis);
   basis=s.cl;
@@ -120,6 +131,7 @@ export function replaySizedTape(ss,bars,signal,{
     old:qty,qty,executed:Math.abs(qty)});
   }
   peak=Math.max(peak,cash);mdd=Math.max(mdd,peak-cash);
+  if(!riskEpochResetPending)riskEpochPeak=Math.max(riskEpochPeak,cash);
   const pnl=round(cash-prevCash);
   eqSession.push({date:s.date,sid:s.sid,pnl,endingLots:qty,requestedLots:wanted,
     equity:round(cash)});
@@ -127,6 +139,6 @@ export function replaySizedTape(ss,bars,signal,{
  }
  return {net:round(cash),minuteDD:round(mdd),ratio:round(cash/(mdd||1)),
   sessionCount:sessions,rows:eqSession,tradeFills:fills,
-  tradedContracts:totalTradedLots,rebalanceLots,stopEvents,blockedUntil,
+  tradedContracts:totalTradedLots,rebalanceLots,stopEvents,blockedUntil,riskEpochResets,
   heldLots:qty,peak:round(peak),maxLots};
 }
