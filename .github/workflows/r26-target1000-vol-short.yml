@@ -1,0 +1,27 @@
+name: R26 target 1000 point DD tuned high-vol short stops research
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-target1000-vol-short.yml'
+      - 'scripts/r26-target1000-vol-short.mjs'
+  workflow_dispatch:
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independent R26 OHLC max DD <=1000 pt adaptive volatility research
+        run: |
+          node --check scripts/r26-target1000-vol-short.mjs
+          node scripts/r26-target1000-vol-short.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-target1000-vol-short
+          path: r26-study-output/
+          retention-days: 30
