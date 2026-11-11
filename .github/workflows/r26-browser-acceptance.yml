@@ -1,0 +1,56 @@
+name: R26 production mobile browser replay acceptance
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/r26-browser-acceptance.yml']
+  workflow_dispatch:
+jobs:
+  mobile-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Install Playwright and Chromium
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install chromium --with-deps
+      - name: Run mobile-viewport live website with actual Yahoo and official ZIPs
+        run: |
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+            const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+            const errors=[];page.on('pageerror',e=>errors.push('JS '+e.message));page.on('console',m=>{if(m.type()==='error')errors.push('console '+m.text())});
+            try{
+              const url='https://tw-stock-api.victordogboy.workers.dev/r26-monitor.html?browser='+Date.now();
+              const rsp=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+              console.log('BROWSER_START_HTTP',rsp.status());
+              let state=null,success=false;
+              for(let i=0;i<30;i++){
+                await page.waitForTimeout(5000);
+                state=await page.evaluate(()=>Object.fromEntries(
+                  ['r26DataHealth','r26DataProgress','r26PositionState','signalPosition','signalStopPrice',
+                   'signalAsOf','signalAudit','liveIndicator','quoteInstrumentLabel','liveSourceName']
+                    .map(id=>[id,(document.getElementById(id)?.textContent||'').slice(0,200)])));
+                if(i%3===0)console.log('R26_MOBILE_PHASE',i,JSON.stringify(state));
+                if(state.r26PositionState.includes('策略持倉已確認') &&
+                   state.signalAudit.includes('2428') &&
+                   /^2026-11-1[01] /.test(state.signalAsOf)&&
+                   !state.signalStopPrice.includes('尚未確認')){
+                  console.log('R26_MOBILE_SUCCESS',JSON.stringify(state));success=true;break;
+                }
+              }
+              await page.screenshot({path:'r26-mobile-production.png',fullPage:true});
+              console.log('R26_MOBILE_FINAL',JSON.stringify({success,state,errors:errors.slice(-12)}));
+              if(!success)throw Error('R26 mobile UI cannot confirm live contiguous session replay in 150 seconds');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-mobile-production-acceptance
+          path: r26-mobile-production.png
