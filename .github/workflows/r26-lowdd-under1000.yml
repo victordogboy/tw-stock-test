@@ -1,0 +1,30 @@
+name: R26 low drawdown under 1000 pt verified TX1m search
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-lowdd-under1000.yml'
+      - 'scripts/r26-lowdd-under1000-sweep.mjs'
+      - 'public/r26-research/combined-breakout-risk.mjs'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zero-difference original R26 validation then under-1000 maximum drawdown research
+        run: |
+          node --check public/r26-research/combined-breakout-risk.mjs
+          node --check scripts/r26-lowdd-under1000-sweep.mjs
+          node scripts/r26-lowdd-under1000-sweep.mjs
+      - name: Persist all candidates, timespans and fees
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-lowdd-under1000-search
+          path: r26-study-output/
+          retention-days: 30
