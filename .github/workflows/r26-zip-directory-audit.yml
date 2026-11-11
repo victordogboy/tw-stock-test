@@ -1,0 +1,41 @@
+name: R26 TAIFEX ZIP entry format audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-zip-directory-audit.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Inspect official ZIP central directory across full continuation
+        run: |
+          node --input-type=module <<'NODE'
+          import {extendTaifexCalendar2026} from './public/r26-engine/calendar-2026.mjs';
+          const dates=extendTaifexCalendar2026(['2026-10-22']).filter(d=>d>'2026-10-22'&&d<='2026-11-10');
+          for(const date of dates){
+           try{
+            const rsp=await fetch('https://tw-stock-api.victordogboy.workers.dev/api/r26/official-zip?date='+date+'&contract=202611',{signal:AbortSignal.timeout(30000)});
+            if(!rsp.ok){console.log('HTTP_FAIL',date,rsp.status);continue;}
+            const buffer=await rsp.arrayBuffer(),v=new DataView(buffer),data=new Uint8Array(buffer);
+            let end=-1;
+            for(let i=data.length-22;i>=Math.max(0,data.length-65557);i--)if(v.getUint32(i,true)===0x06054b50){end=i;break}
+            if(end<0){console.log('NO_EOCD',date,buffer.byteLength);continue;}
+            const n=v.getUint16(end+10,true),offset=v.getUint32(end+16,true);
+            let ptr=offset,entries=[];
+            for(let i=0;i<n;i++){
+             if(v.getUint32(ptr,true)!==0x02014b50)throw Error('CENTRAL_ERROR offset '+ptr);
+             const nl=v.getUint16(ptr+28,true),el=v.getUint16(ptr+30,true),cl=v.getUint16(ptr+32,true);
+             const name=new TextDecoder().decode(data.slice(ptr+46,ptr+46+nl));
+             entries.push({name,method:v.getUint16(ptr+10,true),uncompressed:v.getUint32(ptr+24,true),compressed:v.getUint32(ptr+20,true),crc:v.getUint32(ptr+16,true)});
+             ptr+=46+nl+el+cl;
+            }
+            console.log('ZIP_ENTRIES',JSON.stringify({date,zipBytes:buffer.byteLength,entries}));
+           }catch(e){console.log('ERROR',date,e.message)}
+          }
+          NODE
