@@ -53,7 +53,8 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
    events.push({date:s.date,sid:s.sid,bar:b,type,side,price,contract:s.contract,start:s.start});
    if(beginnings.has(type)){
      if(activeTrade)throw Error('R26_LIMIT_OVERLAPPING_POSITIONS');
-     activeTrade={type,entryDate:s.date,entrySid:s.sid,entryBar:b,entryPrice:price,side,pnl:-fee};
+     activeTrade={type,entryDate:s.date,entrySid:s.sid,entryBar:b,entryPrice:price,
+       side,pnl:-fee,bestPrice:price,entryATR:Number.isFinite(s.atr)?s.atr:200};
    }
    if(terminal.has(type)&&activeTrade){
      activeTrade.exitDate=s.date;activeTrade.exitSid=s.sid;activeTrade.exitBar=b;
@@ -61,7 +62,10 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
      closedTrades.push(activeTrade);activeTrade=null;
    }
   };
-  if(pos&&prev>=0){if(s.contract===lastCon)addPnl(pos*(s.op-lastCl));else {addPnl(-(2*fee));event(0,'換月',pos,s.op)}}
+  if(pos&&prev>=0){if(s.contract===lastCon)addPnl(pos*(s.op-lastCl));else {
+   addPnl(-(2*fee));event(0,'換月',pos,s.op);
+   if(activeTrade){activeTrade.entryPrice=s.op;activeTrade.bestPrice=s.op;activeTrade.entryATR=Number.isFinite(s.atr)?s.atr:200;}
+  }}
   const knownAtr=Number.isFinite(s.atr)&&s.atr>0?s.atr:200;
   const validPrior=limit.anchor!=='priorClose'||(prev>=0&&lastCon===s.contract);
   const reference=limit.anchor==='priorClose'&&validPrior?lastCl:s.op;
@@ -130,7 +134,27 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
      continue;
     }
    }
-   if(pos){let lev=active?keyStop:st;if(lev&&(pos>0?lo<=lev:hi>=lev)){let ex=pos>0?Math.min(lev,bo):Math.max(lev,bo);addPnl(pos*(ex-anchor)-fee);event(b,active?'關鍵價停損':'核心停損',pos,ex);if(!active){stops++;stopdir=pos;stopprice=ex;stoppedAt=b}else keyDone=true;pos=0;active=0;continue}
+   // Optional research-only core profit protection. Its stop is calculated
+   // using ONLY highs/lows from earlier completed minutes. It cannot react
+   // retrospectively to a favorable extreme in the very same minute.
+   let protectedLev=st;
+   const protector=risk.coreProfitProtect;
+   if(pos&&!active&&protector&&activeTrade&&activeTrade.side===pos&&
+       activeTrade.type!=='關鍵價進場'){
+    const atrProtect=Math.max(1,activeTrade.entryATR||af);
+    const peakGain=Math.max(0,pos*(activeTrade.bestPrice-activeTrade.entryPrice));
+    if(peakGain>=Number(protector.activateATR||0)*atrProtect){
+     let stopAt;
+     if(protector.kind==='trail')
+      stopAt=activeTrade.bestPrice-pos*Number(protector.distanceATR||0)*atrProtect;
+     else if(protector.kind==='fraction')
+      stopAt=activeTrade.entryPrice+pos*peakGain*Number(protector.fraction||0);
+     else stopAt=activeTrade.entryPrice+pos*Number(protector.lockATR||0)*atrProtect;
+     const pStop=pos>0?Math.floor(stopAt):Math.ceil(stopAt);
+     protectedLev=pos>0?Math.max(st,pStop):Math.min(st,pStop);
+    }
+   }
+   if(pos){let lev=active?keyStop:protectedLev;if(lev&&(pos>0?lo<=lev:hi>=lev)){let ex=pos>0?Math.min(lev,bo):Math.max(lev,bo);addPnl(pos*(ex-anchor)-fee);event(b,active?'關鍵價停損':'核心停損',pos,ex);if(!active){stops++;stopdir=pos;stopprice=ex;stoppedAt=b}else keyDone=true;pos=0;active=0;continue}
     if(active&&(pos>0?hi>=keyTarget:lo<=keyTarget)){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true;continue}
    }
    if(pos&&pendingExit&&b<exitWindow){
@@ -207,6 +231,12 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
      }
      addPnl(-(fee));event(b,'停損再進場',pos,ent);if(pos>0?lo<=st:hi>=st){let ex=pos>0?Math.min(st,bo):Math.max(st,bo);addPnl(pos*(ex-anchor)-fee);event(b,'再進場同根停損',pos,ex);pos=0;continue}}}
    if(!pos&&!riskBlocked&&!riskTripped&&!risk.disableKey&&!keyDone&&(shadow||!s.blocked)&&desire===0){let lc=s.long.entry>0&&hi>=s.long.entry,sc=s.short.entry>0&&lo<=s.short.entry;if(lc&&sc){keyDone=true;continue}if(lc||sc){pos=lc?1:-1;let plan=lc?s.long:s.short;anchor=lc?Math.max(plan.entry,bo):Math.min(plan.entry,bo);active=1;keyStop=plan.stop;keyTarget=plan.target;addPnl(-(fee));keys++;event(b,'關鍵價進場',pos,anchor);if(lc?lo<=keyStop:hi>=keyStop){let ex=lc?Math.min(keyStop,bo):Math.max(keyStop,bo);addPnl(pos*(ex-anchor)-fee);event(b,'關鍵價停損',pos,ex);pos=0;active=0;keyDone=true}else if(lc?hi>=keyTarget:lo<=keyTarget){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true}}}
+   // Update the best favorable extreme AFTER the prior bar's protective
+   // stop checks; available to protection only from the following minute.
+   if(pos&&!active&&risk.coreProfitProtect&&activeTrade&&activeTrade.side===pos){
+    if(pos>0)activeTrade.bestPrice=Math.max(activeTrade.bestPrice,hi);
+    else activeTrade.bestPrice=Math.min(activeTrade.bestPrice,lo);
+   }
   }
   if(pendingEntry)missEntry++;
   if(pendingExit){
