@@ -103,7 +103,7 @@ function report(x,baseline,cfg,scenario='normal'){
   extraSessions:x.rows.filter(z=>z.requestedLots===2).length,
   actuallyTwo:x.rows.filter(z=>Math.abs(z.endingLots)===2).length,
   annual,delta:Object.fromEntries(Object.keys(annual).map(y=>[y,round(annual[y]-anchor[y])])),
-  contracts:x.tradedContracts,portfolioStops:x.stopEvents};
+  contracts:x.tradedContracts,portfolioStops:x.stopEvents,portfolioResets:x.riskEpochResets};
 }
 const anchor=evaluate(signal,2.5,null);assert.equal(anchor.net,29657);
 assert.equal(anchor.minuteDD,806);
@@ -145,6 +145,13 @@ for(const c of shockCases){
 }
 const stressTarget=stresses.filter(x=>x.name===known.name&&x.reserve===300_000);
 const stressRealistic=ratioSort(stresses.filter(x=>x.scenario==='high'&&x.portfolioCap===1000&&x.reserve===300_000&&x.dd<=1000));
+assert.ok(stresses.filter(x=>x.portfolioCap===1000).every(x=>x.portfolioResets<=x.portfolioStops),'RISK_EPOCH_MISMATCH');
+for(const cfg of shortlisted){
+ const plain=stresses.find(x=>x.name===cfg.name&&x.scenario==='base'&&x.portfolioCap===0&&x.reserve===300000);
+ const capped=stresses.find(x=>x.name===cfg.name&&x.scenario==='base'&&x.portfolioCap===1000&&x.reserve===300000);
+ assert.equal(capped.net,plain.net,'BASE_1K_NO_RISK_STOP '+cfg.name);
+ assert.equal(capped.dd,plain.dd,'BASE_1K_DD_MATCH '+cfg.name);
+}
 const study={
  generatedAt:new Date().toISOString(),n:paramSets.length,source:'R26 fixed one-lot signals 2021-10-22 through 2026-11-11, 2452 TX sessions',
  settings:c2026,reference:report(anchor,anchor,null),
@@ -168,4 +175,5 @@ console.log('R26_PCTL35_FINAL_AUDIT',JSON.stringify({
  n:paramSets.length,baseline:study.reference,known,yearPositiveCount:yearEach.length,
  best:topRatio.slice(0,14),crossYear:yearEach.slice(0,14),
  neighborhood:local,stressTarget,
- stressRealistic:stressRealistic.slice(0,12)}));
+ stressRealistic:stressRealistic.slice(0,12),
+ correctedCircuitCases:stresses.filter(x=>x.portfolioCap===1000&&x.portfolioStops>0).slice(0,16)}));
