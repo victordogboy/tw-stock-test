@@ -87,10 +87,10 @@ const assess=(s,cfg,fee=2.5,entrySlip=0,riskSlip=0)=>{
   rescueSessions:cfg.mask.filter(Boolean).length,
   fee,entrySlip,riskSlip,years};
 };
-const raw=simulateLimitRisk(prepared.sessions,bars,{fee:2.5,end:'2026-11-11'});
-assert.equal(raw.minuteDD,6106);
-assert.equal(round(raw.rows.reduce((v,r)=>v+r.pnl,0)),65953);
-for(let i=0;i<raw.rows.length;i++)assert.equal(raw.rows[i].pnl,prepared.rows[i].pnl);
+const referenceSim=simulateLimitRisk(prepared.sessions,bars,{fee:2.5,end:'2026-11-11'});
+assert.equal(referenceSim.minuteDD,6106);
+assert.equal(round(referenceSim.rows.reduce((v,r)=>v+r.pnl,0)),65953);
+for(let i=0;i<referenceSim.rows.length;i++)assert.equal(referenceSim.rows[i].pnl,prepared.rows[i].pnl);
 const cfgs=[];
 for(const vol of [195,200,205])for(const x of proposals)
  cfgs.push({name:'VOL'+vol+'_'+x.name,vol,mask:x.mask});
