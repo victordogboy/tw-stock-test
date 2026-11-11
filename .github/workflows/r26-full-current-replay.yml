@@ -1,0 +1,58 @@
+name: R26 real multi-day continuation to Nov10
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-full-current-replay.yml'
+  workflow_dispatch:
+jobs:
+  real-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Replay all real official 1m sessions after the October frozen cutoff
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';import z from 'node:zlib';
+          import {run,audit} from './public/r26-engine/engine.mjs';
+          import {replayLive,mergeRecords,parseOfficialZip} from './public/r26-engine/live.mjs';
+          import {extendTaifexCalendar2026} from './public/r26-engine/calendar-2026.mjs';
+          const dir='./public/r26-engine/data/';
+          const meta=JSON.parse(z.gunzipSync(fs.readFileSync(dir+'manifest.json.gz')));
+          const raw=z.gunzipSync(Buffer.concat(meta.compressedParts.map(n=>fs.readFileSync(dir+n))));
+          const bars=new Int32Array(raw.buffer,raw.byteOffset,raw.length/4);
+          const gold=audit(run(meta,bars,{end:meta.end}),meta);
+          if(!gold.pass)throw Error('FROZEN_R26_GOLDEN_MISMATCH');
+          const seed=JSON.parse(z.gunzipSync(fs.readFileSync(dir+'recent.json.gz')));
+          const calendar=extendTaifexCalendar2026(seed.calendar);
+          const until='2026-11-10',now=Date.parse(until+'T14:00:00+08:00');
+          let records=seed.rows.slice(),downloaded=[];
+          for(const date of calendar.filter(d=>d>'2026-10-22'&&d<=until)){
+           const url='https://tw-stock-api.victordogboy.workers.dev/api/r26/official-zip?date='+date+'&contract=202611';
+           const response=await fetch(url,{signal:AbortSignal.timeout(30000)});
+           if(!response.ok)throw Error('ZIP_DOWNLOAD_'+date+'_'+response.status);
+           const rows=await parseOfficialZip(await response.arrayBuffer(),date,'202611');
+           if(!rows.some(r=>r.session_key==='day:'+date))throw Error('MISSING_DAY_'+date);
+           records=mergeRecords(records,rows);
+           downloaded.push({date,rows:rows.length,night:rows.filter(r=>r.session==='night').length,
+             day:rows.filter(r=>r.session==='day').length});
+          }
+          const result=replayLive(meta,bars,records,calendar,now);
+          const summary={frozen_gold:gold.pass,from:meta.end,until,downloads:downloaded,
+           ready:result.ready,positionConfirmed:result.positionConfirmed,
+           added:result.added,as_of:result.as_of,issues:result.issues,
+           lastSession:result.session?.date+' '+(result.session?.sid?'day':'night'),
+           recent:result.recent,events:result.events,
+           pnl_after_cutoff:result.newPnl,cumulative:result.total};
+          console.log('R26_REAL_REPLAY_SUMMARY',JSON.stringify(summary));
+          fs.writeFileSync('r26-real-replay-20261110.json',JSON.stringify(summary,null,2));
+          if(!result.ready||!result.positionConfirmed||result.added<20)throw Error('R26_CONTINUOUS_OFFICIAL_REPLAY_NOT_READY');
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-real-replay-20261110
+          path: r26-real-replay-20261110.json
