@@ -1,0 +1,27 @@
+name: R26 five-contract adaptive position sizing parity and max DD stress
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-five-lot-dynamic.yml'
+      - 'scripts/r26-five-lot-dynamic-sweep.mjs'
+  workflow_dispatch:
+jobs:
+  experiment:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Replay one and five lot frozen R26 then causal premarket sizing with minute equity DD
+        run: |
+          node --check scripts/r26-five-lot-dynamic-sweep.mjs
+          node scripts/r26-five-lot-dynamic-sweep.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-five-lot-dynamic
+          path: r26-study-output/
+          retention-days: 30
