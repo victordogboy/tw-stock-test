@@ -9,6 +9,7 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
  let pos=0,st=0,lastCon='',lastCl=0,prev=-1,equity=0,peak=0,mdd=0;
  let core=0,keys=0,stops=0,reentries=0,protectStops=0,protectTargets=0;
  const rows=[],events=[],closedTrades=[],pnls=Array(ss.length).fill(0);
+ let maxDrawdownInfo=null,peakInfo=null;
  let trade=null;
  const event=(s,b,type,side,price)=>events.push({date:s.date,sid:s.sid,bar:b,type,side,price,contract:s.contract,start:s.start});
  const money=(delta)=>{pnl+=delta;if(trade)trade.pnl+=delta};
@@ -65,7 +66,8 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
    const idx=(s.offset+b)*4,bo=bars[idx],hi=bars[idx+1],lo=bars[idx+2];
    if(b>0){
     const marked=equity+pnl+pos*(bars[idx-1]-anchor);
-    peak=Math.max(peak,marked);mdd=Math.max(mdd,peak-marked);
+    if(marked>peak){peak=marked;peakInfo={date:s.date,sid:s.sid,bar:b-1,contract:s.contract,equity:+peak.toFixed(2)}}
+    if(peak-marked>mdd){mdd=peak-marked;maxDrawdownInfo={peak:peakInfo,trough:{date:s.date,sid:s.sid,bar:b-1,contract:s.contract,equity:+marked.toFixed(2)},points:+mdd.toFixed(2)}};
    }
    if(pos){
     const lev=active?keyStop:coreStop(s,af);
@@ -145,7 +147,10 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
     done(s,s.count-1,'輔助單尾盤平倉',s.cl);pos=0;
    }
   }
-  equity+=pnl;peak=Math.max(peak,equity);mdd=Math.max(mdd,peak-equity);pnls[i]=pnl;
+  equity+=pnl;
+  if(equity>peak){peak=equity;peakInfo={date:s.date,sid:s.sid,bar:s.count-1,contract:s.contract,equity:+peak.toFixed(2)}}
+  if(peak-equity>mdd){mdd=peak-equity;maxDrawdownInfo={peak:peakInfo,trough:{date:s.date,sid:s.sid,bar:s.count-1,contract:s.contract,equity:+equity.toFixed(2)},points:+mdd.toFixed(2)}}
+  pnls[i]=pnl;
   rows.push({date:s.date,sid:s.sid,pnl,held:pos,signal:desire,blocked:!!s.blocked,atr:s.atr,
    market:s.market,recovered:+recovered,startPos,stop:active?keyStop:st,
    target:active?keyTarget:null,long:s.long,short:s.short,op:s.op,cl:s.cl,count:s.count,contract:s.contract});
@@ -157,5 +162,5 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   if(trade){trade.pnl-=fee;done(ss[prev],ss[prev].count-1,'樣本末結算費',ss[prev].cl);}
  }
  return {rows,events,minuteDD:mdd,core,keys,stops,reentries,pnls,position:pos,
-  closedTrades,protectStops,protectTargets};
+  closedTrades,protectStops,protectTargets,maxDrawdownInfo};
 }
