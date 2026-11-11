@@ -1,5 +1,7 @@
 import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261031-status';
 import {referenceTxMonth,taipeiParts} from './r26-data-sync.mjs';
+import {extendTaifexCalendar2026,R26_CALENDAR_VERSION} from './r26-engine/calendar-2026.mjs';
+import {pendingR26OfficialDownloads,physicalFinMindDates} from './r26-engine/backfill-plan.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
@@ -21,7 +23,7 @@ function add(added){rows=mergeRecords(rows,added)}
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
- text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 狀態分離版 20261031');
+ text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 復盤接續修復');
  text('r26FreezeLabel','原始 2,428 盤金標逐盤零差異；以相同凍結規則接續重播。');
  const states=r.sessionStates||[],active=states.find(x=>x.marketState==='trading'),missing=states.filter(x=>x.historicalMissing),unverified=states.filter(x=>x.complete&&!x.dataReady&&!x.historicalMissing);
  text('r26MarketState',active?('正在交易：'+active.start.slice(0,10)+' '+(active.sid?'日盤':'夜盤')+' → 交易日 '+active.date+'，'+active.endsAt+' 收盤'):'目前無進行中的盤次；最近盤次已收盤');
@@ -33,7 +35,7 @@ function draw(m){
  text('r26DataLatest',(latestData||'—')+'（台灣時間，分鐘起點）');
  text('r26DataCount',fmt(rows.length)+' 根／已接續 '+r.added+' 盤');
  text('r26DataMissing','已收盤缺資料 '+missing.length+' 盤；完整性待核對 '+unverified.length+' 盤；交易中 '+(active?1:0)+' 盤');
- text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'官方歷史＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
+ text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'官方實際開盤日 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
  text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
  const table=$('r26DataTable');table.replaceChildren();
  for(const t of [...states].slice(-9).reverse()){
@@ -91,15 +93,41 @@ async function check(){
  try{await replay()}catch(e){invalidatePosition('重播失敗：'+e.message)}finally{working=false}
 }
 async function history(manual=false){
- if(historyWorking||!seedLoaded||(!manual&&Date.now()-lastHistory<600000))return;historyWorking=true;lastHistory=Date.now();
+ if(historyWorking||!seedLoaded||(!manual&&Date.now()-lastHistory<600000))return;
+ historyWorking=true;lastHistory=Date.now();
  try{
-  const sessions=physicalSessions(calendar,'2026-10-22'),dates=[...new Set(sessions.filter(s=>s.complete&&!rows.some(x=>x.session_key===s.key&&/TAIFEX/.test(x.source))).map(s=>s.date))];
-  for(const date of dates){
-   text('r26DataProgress','正在從期交所補抓 '+date+' 完整逐筆…');
-   try{const rsp=await fetch('/api/r26/official-zip?date='+date+'&contract='+contract,{signal:AbortSignal.timeout(25000)});if(!rsp.ok)throw Error('官方逐筆尚未公布');const buffer=await rsp.arrayBuffer();const result=await ask('official',{buffer,date,contract},[buffer]);add(result.rows);await save(result.rows)}
-   catch(e){fetchError=date+' '+e.message;
+  const sessions=physicalSessions(calendar,'2026-10-22');
+  const jobs=pendingR26OfficialDownloads(sessions,rows);
+  for(const job of jobs){
+   const {date,contract:jobContract}=job;
+   text('r26DataProgress','補抓實際開盤日 '+date+'，TX'+jobContract+'（'+job.sessions.join('、')+'）');
+   try{
+    // Official download ZIPs are indexed by the PHYSICAL DATE of the tick,
+    // not the night session's following trade-date.
+    const rsp=await fetch('/api/r26/official-zip?date='+date+'&contract='+jobContract,
+     {signal:AbortSignal.timeout(25000),cache:'no-store'});
+    if(!rsp.ok)throw Error('期交所逐筆尚未公布 HTTP '+rsp.status);
+    const buffer=await rsp.arrayBuffer();
+    const result=await ask('official',{buffer,date,contract:jobContract},[buffer]);
+    const labeled=result.rows.map(x=>{
+     const physical=x.session_key.slice(x.session==='day'?4:6);
+     return {...x,trade_date:x.session==='day'?physical:calendar.find(d=>d>physical)||null};
+    });
+    add(labeled);await save(labeled);fetchError='';
+   }catch(e){
+    fetchError=date+' '+String(e?.message||e);
     const bearer=$('r26DataToken').value.trim()||token();
-    if(bearer)for(const d of [date,new Date(Date.parse(date+'T00:00:00Z')-86400000).toISOString().slice(0,10)])try{const x=await json('/api/r26/kbar?date='+d+'&contract='+contract,{headers:{Authorization:'Bearer '+bearer}});add(x.data);await save(x.data)}catch{}
+    if(bearer){
+     // A physical night extends past midnight. Download that NEXT calendar
+     // morning rather than fetching the previous day's K bars again.
+     for(const d of physicalFinMindDates(date)){
+      try{
+       const x=await json('/api/r26/kbar?date='+d+'&contract='+jobContract,
+        {headers:{Authorization:'Bearer '+bearer}});
+       add(x.data);await save(x.data);
+      }catch(err){fetchError=date+' 官方與 FinMind 備援待補：'+String(err?.message||err)}
+     }
+    }
    }
   }
   await check();
@@ -108,11 +136,11 @@ async function history(manual=false){
 $('r26DataRefresh').addEventListener('click',()=>{history(true);check()});
 $('r26DataToken').addEventListener('change',()=>{try{const value=$('r26DataToken').value.trim();if(value){localStorage.setItem('R26_FinMind_Token',value);localStorage.removeItem('R26_token_disabled')}}catch{}history(true)});
 $('r26DataClearToken').addEventListener('click',()=>{try{localStorage.removeItem('R26_FinMind_Token');localStorage.setItem('R26_token_disabled','1')}catch{}$('r26DataToken').value='';$('r26DataToken').placeholder='已停用此頁 Token；官方與 Yahoo 仍自動運作'});
-$('r26DataExport').addEventListener('click',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({version:'20261031-status',generated_at:new Date().toISOString(),contract,state,records:rows,calendar},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='R26_replay_diagnostic.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)});
+$('r26DataExport').addEventListener('click',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({version:R26_CALENDAR_VERSION,generated_at:new Date().toISOString(),contract,state,records:rows,calendar},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='R26_replay_diagnostic.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)});
 async function init(){
  try{
   text('r26DataProgress','載入官方歷史分K並在背景驗證原始 2,428 盤…');
-  const sr=await fetch('/r26-engine/data/recent.json.gz');if(!sr.ok)throw Error('官方歷史下載失敗');const seed=await new Response(sr.body.pipeThrough(new DecompressionStream('gzip'))).json();calendar=seed.calendar;
+  const sr=await fetch('/r26-engine/data/recent.json.gz');if(!sr.ok)throw Error('官方歷史下載失敗');const seed=await new Response(sr.body.pipeThrough(new DecompressionStream('gzip'))).json();calendar=extendTaifexCalendar2026(seed.calendar);
   const now=taipeiParts();contract=referenceTxMonth(now.date);$('r26DataContract').value=contract;
   add(await cached());add(seed.rows);seedLoaded=true;
   $('r26DataToken').placeholder=token()?'已沿用儲存的 Token；資料可免 Token 更新':'選填；官方逐筆與 Yahoo 指定月可免 Token 更新';
