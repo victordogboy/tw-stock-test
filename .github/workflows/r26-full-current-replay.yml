@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/r26-full-current-replay.yml'
+      - 'public/r26-engine/live.mjs'
   workflow_dispatch:
 jobs:
   real-replay:
