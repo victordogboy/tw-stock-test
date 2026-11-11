@@ -69,6 +69,14 @@ for(const date of days){
  console.log('R26_VERIFIED_DAY',date,'night',entry.meta.night,'day',entry.meta.day,'contract',contract);
 }
 if(sessions.length){
+ if(prior?.last_complete_trade_day===sessions.at(-1).date &&
+    prior.sessions.length===sessions.length &&
+    prior.rows.length===rows.length &&
+    prior.sessions.every((x,i)=>x.date===sessions[i].date&&x.day===sessions[i].day&&x.night===sessions[i].night)){
+  console.log('R26_ARCHIVE_UNCHANGED',JSON.stringify({last_complete_trade_day:prior.last_complete_trade_day,
+    verified_days:prior.sessions.length,failures}));
+  process.exit(0);
+ }
  const data={version:'R26_TAIFEX_BACKFILL_V1',source:'TAIFEX public official daily tick ZIP verified by CRC',
   generated_at:new Date().toISOString(),last_complete_trade_day:sessions.at(-1).date,
   sessions,rows};
