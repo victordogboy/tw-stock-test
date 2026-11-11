@@ -1,0 +1,28 @@
+name: R26 high volatility trend rescue OR AND combinations with cost stress
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-regime-combo-stress.yml'
+      - 'scripts/r26-regime-combo-stress.mjs'
+      - 'public/r26-research/prior-regime-features.mjs'
+  workflow_dispatch:
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reproduce unchanged R26 plus ATR200 then run joint historical volatility regimes
+        run: |
+          node --check scripts/r26-regime-combo-stress.mjs
+          node scripts/r26-regime-combo-stress.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-regime-combo-stress
+          path: r26-study-output/
+          retention-days: 30
