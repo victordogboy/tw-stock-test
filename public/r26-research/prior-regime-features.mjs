@@ -11,8 +11,13 @@ export function priorDailyRegimes(ss){
   const s=ss[i];
   while(j<days.length&&days[j].date<s.date)j++;
   const last=j-1;
-  if(last<19||!Number.isFinite(s.atr)||Math.abs(s.atr-atr[last])>1e-7)
-    throw Error('ATR_LOOKAHEAD_ALIGNMENT_OR_WARMUP: '+s.date+' '+s.sid+' '+last+' actual '+s.atr+' pre '+atr[last]);
+  if(last<19||!Number.isFinite(s.atr)){
+   result.push({atr:s.atr,historyReady:false,date:s.date,sid:s.sid,
+     index:i,dayIndex:last,features:s.features});
+   continue;
+  }
+  if(Math.abs(s.atr-atr[last])>1e-7)
+    throw Error('ATR_LOOKAHEAD_ALIGNMENT: '+s.date+' '+s.sid+' '+last+' actual '+s.atr+' pre '+atr[last]);
   const a=atr[last];
   const historicalAtr=atr.slice(Math.max(19,last-249),last+1).filter(Number.isFinite);
   const older=n=>last-n>=19?atr[last-n]:NaN;
