@@ -1,3 +1,4 @@
+import {r26MarketRoute} from './r26-market.mjs';
 // R26 view-only market quote. No order execution and NO modifications to frozen R26 engine.
 // Five-second browser polling does NOT imply the upstream vendor refreshes every five seconds.
 const HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-methods':'GET,OPTIONS'};
@@ -130,6 +131,36 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
    strategy_signal_validated:false};
   if(cache)try{await cache.put(key,new Response(JSON.stringify(body),{headers:{'content-type':'application/json','cache-control':'public,max-age=4'}}))}catch{}
   return json(body);
+ }
+
+ // Exact named-contract 1-minute candle is a transparent *fallback* for
+ // the broken continuous WTX& quote endpoint. It is never labelled a tick.
+ // The original providers retain priority whenever they succeed.
+ const contract=new URL(request.url).searchParams.get('contract')||'';
+ if(/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)){
+  try{
+   const target=new URL('/api/r26/intraday?contract='+contract,request.url);
+   const rsp=await r26MarketRoute(new Request(target),env,fetchImpl);
+   if(rsp.ok){
+    const payload=await rsp.json();
+    const last=payload?.data?.at(-1);
+    const t=Date.parse(last?.timestamp_tpe?.replace(' ','T')+'+08:00')+60000;
+    if(last?.contract_verified===true&&last.contract_date===contract&&
+       Number.isFinite(last.close)&&last.close>0&&Number.isFinite(t)&&t<=Date.now()+90000){
+     return json({ok:true,version:'r26-quote-named-minute-fallback-1',
+      market:'TX_NAMED',symbol:'TX'+contract,product:'台指期指定月份',
+      contract_month:contract,contract_verified:true,quote_type:'minute_k',
+      price:last.close,change:null,change_pct:null,bid:null,ask:null,
+      open:null,high:null,low:null,volume:null,prev_close:null,
+      source:'Yahoo '+payload.symbol+' 指定月1分K（非逐筆成交）',
+      source_time:new Date(t).toISOString(),quote_age_seconds:Math.max(0,Math.round((Date.now()-t)/1000)),
+      quote_status:Date.now()-t<=90000?'recent':'stale',
+      polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
+      strategy_signal_validated:false,source_url:payload.source_url,
+      note:'來源是已完成的指定月份分鐘K，絕非即時逐筆價或目前券商持倉。'});
+    }
+   }
+  }catch(e){failures.push('named-minute:'+String(e?.message||e).slice(0,90))}
  }
 
  return json({ok:false,version:'r26-quote-5s-v1',error:'Yahoo 近月報價來源暫時不可用；不回傳虛構現價。',
