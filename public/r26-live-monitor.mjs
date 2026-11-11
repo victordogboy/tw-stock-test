@@ -1,7 +1,7 @@
 import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261031-status';
 import {referenceTxMonth,taipeiParts} from './r26-data-sync.mjs';
 import {extendTaifexCalendar2026,R26_CALENDAR_VERSION} from './r26-engine/calendar-2026.mjs';
-import {pendingR26OfficialDownloads,physicalFinMindDates} from './r26-engine/backfill-plan.mjs';
+import {pendingR26OfficialDownloads} from './r26-engine/backfill-plan.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
@@ -100,27 +100,25 @@ async function history(manual=false){
   const jobs=pendingR26OfficialDownloads(sessions,rows);
   for(const job of jobs){
    const {date,contract:jobContract}=job;
-   text('r26DataProgress','補抓實際開盤日 '+date+'，TX'+jobContract+'（'+job.sessions.join('、')+'）');
+   text('r26DataProgress','期交所交易日 '+date+'，TX'+jobContract+'（涵蓋 '+job.sessions.join('、')+'）');
    try{
-    // Official download ZIPs are indexed by the PHYSICAL DATE of the tick,
-    // not the night session's following trade-date.
+    // TAIFEX ZIP Daily_YYYY_MM_DD contains the night of the previous
+    // physical trading day AND the named trade-date daytime session.
     const rsp=await fetch('/api/r26/official-zip?date='+date+'&contract='+jobContract,
      {signal:AbortSignal.timeout(25000),cache:'no-store'});
     if(!rsp.ok)throw Error('期交所逐筆尚未公布 HTTP '+rsp.status);
     const buffer=await rsp.arrayBuffer();
     const result=await ask('official',{buffer,date,contract:jobContract},[buffer]);
-    const labeled=result.rows.map(x=>{
-     const physical=x.session_key.slice(x.session==='day'?4:6);
-     return {...x,trade_date:x.session==='day'?physical:calendar.find(d=>d>physical)||null};
-    });
-    add(labeled);await save(labeled);fetchError='';
+    const verified=result.rows.filter(x=>x.trade_date===date&&x.contract_date===jobContract);
+    if(!verified.length)throw Error('官方 ZIP 未含指定交易日 TX 合約');
+    add(verified);await save(verified);fetchError='';
    }catch(e){
     fetchError=date+' '+String(e?.message||e);
     const bearer=$('r26DataToken').value.trim()||token();
     if(bearer){
-     // A physical night extends past midnight. Download that NEXT calendar
-     // morning rather than fetching the previous day's K bars again.
-     for(const d of physicalFinMindDates(date)){
+     // FinMind uses physical minute dates, including the midnight successor;
+     // for typhoon gaps the prior night can be several calendar days earlier.
+     for(const d of job.finmind_dates){
       try{
        const x=await json('/api/r26/kbar?date='+d+'&contract='+jobContract,
         {headers:{Authorization:'Bearer '+bearer}});
