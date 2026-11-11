@@ -1,0 +1,64 @@
+name: R26 real production mobile browser fast acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-mobile-fast-acceptance.yml'
+  workflow_dispatch:
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
+    timeout-minutes: 8
+    steps:
+      - name: Install isolated Playwright package only
+        run: |
+          mkdir -p /tmp/r26-browser
+          npm install --prefix /tmp/r26-browser --no-save --no-audit --ignore-scripts playwright@1.62.1
+      - name: Inspect real R26 production screen in Android viewport
+        run: |
+          node <<'NODE'
+          const {chromium}=require('/tmp/r26-browser/node_modules/playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+            const page=await browser.newPage({viewport:{width:393,height:851},isMobile:true,hasTouch:true});
+            const errors=[];
+            page.on('pageerror',e=>errors.push(e.message));
+            try{
+              const url='https://tw-stock-api.victordogboy.workers.dev/r26-monitor.html?version=20261111-cloud-verified';
+              const r=await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000});
+              if(r.status()!==200)throw Error('R26_PAGE_HTTP_'+r.status());
+              let last={},passed=false;
+              for(let i=0;i<18;i++){
+                await page.waitForTimeout(4000);
+                last=await page.evaluate(()=>Object.fromEntries(
+                  ['r26DataProgress','r26DataHealth','r26MarketState','r26PositionState',
+                   'signalPosition','signalStopPrice','signalAsOf','signalAudit','preopenAction']
+                    .map(id=>[id,document.getElementById(id)?.textContent?.slice(0,180)||''])));
+                if(i%3===0)console.log('R26_PHONE_STATE',i,JSON.stringify(last));
+                const timestamp=Date.parse(last.signalAsOf.replace(' ','T')+'+08:00');
+                if(last.r26DataProgress.includes('已封存 2026-11-11') &&
+                   last.r26MarketState.includes('夜盤') &&
+                   last.r26MarketState.includes('交易日 2026-11-12') &&
+                   last.r26PositionState.includes('策略持倉已確認') &&
+                   last.signalPosition==='多單' &&
+                   last.signalStopPrice.replaceAll(',','')==='43288' &&
+                   last.signalAudit.includes('2428') &&
+                   Number.isFinite(timestamp)&&Date.now()-timestamp<5*60000){
+                  passed=true;break;
+                }
+              }
+              await page.screenshot({path:'r26-mobile-night.png',fullPage:true});
+              console.log('R26_MOBILE_PRODUCTION_RESULT',JSON.stringify({passed,last,errors}));
+              if(!passed||errors.length)throw Error('R26_MOBILE_PRODUCTION_UNVERIFIED');
+            }finally{await browser.close()}
+          })().catch(e=>{console.error(e);process.exitCode=1})
+          NODE
+      - name: Export verified UI screenshot
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-mobile-night-verified
+          path: r26-mobile-night.png
+          retention-days: 7
