@@ -9,6 +9,8 @@ on:
       - 'tests/r26-named-minute-fallback.test.mjs'
       - 'public/r26-engine/calendar-2026.mjs'
       - 'public/r26-engine/backfill-plan.mjs'
+      - 'public/r26-engine/cloud-minute-cache.mjs'
+      - 'tests/r26-cloud-minute-cache.test.mjs'
       - 'tests/r26-calendar-2026.test.mjs'
       - 'tests/r26-backfill-plan.test.mjs'
       - '.github/workflows/r26-live-acceptance.yml'
@@ -28,7 +30,8 @@ jobs:
           node --check src/r26-live-quote.mjs
           node --check public/r26-engine/calendar-2026.mjs
           node --check public/r26-engine/backfill-plan.mjs
-          node --test tests/r26-calendar-2026.test.mjs tests/r26-backfill-plan.test.mjs tests/r26-named-minute-fallback.test.mjs tests/r26-live-engine.test.mjs
+          node --check public/r26-engine/cloud-minute-cache.mjs
+          node --test tests/r26-calendar-2026.test.mjs tests/r26-backfill-plan.test.mjs tests/r26-named-minute-fallback.test.mjs tests/r26-cloud-minute-cache.test.mjs tests/r26-live-engine.test.mjs
   live:
     needs: regression
     runs-on: ubuntu-latest
@@ -49,13 +52,16 @@ jobs:
             named=$(curl -sSL --max-time 20 -o /tmp/r26-named.json -w '%{http_code}' "$ROOT/api/r26/intraday?contract=202611" || true)
             echo "named-minute/continuous quote HTTP=$quote"
             archive=$(curl -sSL --max-time 15 -o /tmp/r26-archive.gz -w '%{http_code}' "$ROOT/r26-engine/data/verified-official-backfill.json.gz?verify=$GITHUB_SHA" || true)
+            minutes=$(curl -sSL --max-time 15 -o /tmp/r26-cloud-minutes.gz -w '%{http_code}' "$ROOT/r26-engine/data/verified-named-minute-cloud.json.gz?verify=$GITHUB_SHA" || true)
             health=$(curl -sSL --max-time 15 -o /tmp/r26-health -w '%{http_code}' "$ROOT/api/r26/health" || true)
-            echo "attempt $attempt: PAGE=$page JS=$js CALENDAR=$calendar PLANNER=$planner QUOTE=$quote NAMED=$named ARCHIVE=$archive HEALTH=$health"
-            if [[ $page == 200 && $js == 200 && $calendar == 200 && $planner == 200 && $health == 200 && $named == 200 && $archive == 200 ]] &&
+            echo "attempt $attempt: PAGE=$page JS=$js CALENDAR=$calendar PLANNER=$planner QUOTE=$quote NAMED=$named ARCHIVE=$archive MINUTES=$minutes HEALTH=$health"
+            if [[ $page == 200 && $js == 200 && $calendar == 200 && $planner == 200 && $health == 200 && $named == 200 && $archive == 200 && $minutes == 200 ]] &&
              grep -q 'extendTaifexCalendar2026(seed.calendar)' /tmp/r26-live &&
              grep -q 'pendingR26OfficialDownloads(sessions,rows)' /tmp/r26-live &&
              grep -q '20261111-taifex-2026-physical-session' /tmp/r26-calendar &&
              grep -q 'job.finmind_dates' /tmp/r26-live &&
+             grep -q 'loadCloudMinuteCache()' /tmp/r26-live &&
+             gzip -t /tmp/r26-cloud-minutes.gz &&
              grep -q '"contract":"202611"' /tmp/r26-named.json; then
               good=1;break
             fi
