@@ -8,7 +8,7 @@ import {stop} from '../r26-engine/engine.mjs';
 export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,protect={kind:'none'},risk={}}={}){
  let pos=0,st=0,lastCon='',lastCl=0,prev=-1,equity=0,peak=0,mdd=0;
  let core=0,keys=0,stops=0,reentries=0,protectStops=0,protectTargets=0,hardStops=0,skippedSessions=0;
- let lastPnl=[],resumeAt=-1;
+ let lastPnl=[],resumeAt=-1,riskPeak=0,riskResetPending=false,resetCount=0;
  const rows=[],events=[],closedTrades=[],pnls=Array(ss.length).fill(0);
  let maxDrawdownInfo=null,peakInfo=null;
  let trade=null;
@@ -50,7 +50,16 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   const shadowLookback=Math.max(0,Number(risk.shadowLookback||0));
   const shadowBad=shadowLookback&&risk.shadowPnl?
    risk.shadowPnl.slice(Math.max(0,i-shadowLookback),i).reduce((a,b)=>a+b,0)<-Number(risk.shadowLossLimit||0):false;
-  let riskBlocked=i<resumeAt||
+  let restartNotReady=false;
+  if(riskResetPending&&i>=resumeAt){
+   const n=Number(risk.resumeShadowLookback||0);
+   const recent=n&&risk.shadowPnl?
+    risk.shadowPnl.slice(Math.max(0,i-n),i).reduce((a,b)=>a+b,0):0;
+   if(!n||recent>=Number(risk.resumeShadowProfit||0)){
+    riskPeak=equity;riskResetPending=false;resetCount++;
+   }else restartNotReady=true;
+  }
+  let riskBlocked=restartNotReady||i<resumeAt||
     (!!risk.atrMax&&af>risk.atrMax)||
     (!!risk.atrRatioMax&&af/s.op>risk.atrRatioMax)||
     (!!risk.maxGapPoints&&prev>=0&&s.contract===lastCon&&Math.abs(s.op-lastCl)>risk.maxGapPoints)||
@@ -87,17 +96,20 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
    if(b>0){
     const marked=equity+pnl+pos*(bars[idx-1]-anchor);
     if(marked>peak){peak=marked;peakInfo={date:s.date,sid:s.sid,bar:b-1,contract:s.contract,equity:+peak.toFixed(2)}}
+    if(!riskResetPending&&marked>riskPeak)riskPeak=marked;
     if(peak-marked>mdd){mdd=peak-marked;maxDrawdownInfo={peak:peakInfo,trough:{date:s.date,sid:s.sid,bar:b-1,contract:s.contract,equity:+marked.toFixed(2)},points:+mdd.toFixed(2)}};
    }
    if(pos&&!sessionRiskTripped&&risk.equityDdCap){
     // Previous-minute closed-equity peak only; conservative adverse gap at open.
-    const floor=peak-risk.equityDdCap,threshold=anchor+pos*(floor-equity-pnl+fee);
+    const floor=(risk.cooldownReset?riskPeak:peak)-risk.equityDdCap;
+    const threshold=anchor+pos*(floor-equity-pnl+fee);
     if(pos===1?lo<=threshold:hi>=threshold){
      const price=pos===1?Math.min(Math.floor(threshold),bo):Math.max(Math.ceil(threshold),bo);
      money(pos*(price-anchor)-fee);event(s,b,'權益風控停機',pos,price);
      done(s,b,'權益風控停機',price);pos=0;active=0;
      sessionRiskTripped=true;stopdir=0;keyDone=true;hardStops++;
      resumeAt=Math.max(resumeAt,i+1+Number(risk.haltSessions||0));
+     if(risk.cooldownReset)riskResetPending=true;
      continue;
     }
    }
@@ -189,6 +201,7 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   }
   equity+=pnl;
   if(equity>peak){peak=equity;peakInfo={date:s.date,sid:s.sid,bar:s.count-1,contract:s.contract,equity:+peak.toFixed(2)}}
+  if(!riskResetPending&&equity>riskPeak)riskPeak=equity;
   if(peak-equity>mdd){mdd=peak-equity;maxDrawdownInfo={peak:peakInfo,trough:{date:s.date,sid:s.sid,bar:s.count-1,contract:s.contract,equity:+equity.toFixed(2)},points:+mdd.toFixed(2)}}
   pnls[i]=pnl;lastPnl.push(pnl);
   rows.push({date:s.date,sid:s.sid,pnl,held:pos,signal:desire,blocked:!!s.blocked,atr:s.atr,
@@ -202,5 +215,5 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   if(trade){trade.pnl-=fee;done(ss[prev],ss[prev].count-1,'樣本末結算費',ss[prev].cl);}
  }
  return {rows,events,minuteDD:mdd,core,keys,stops,reentries,pnls,position:pos,
-  closedTrades,protectStops,protectTargets,maxDrawdownInfo,hardStops,skippedSessions};
+  closedTrades,protectStops,protectTargets,maxDrawdownInfo,hardStops,skippedSessions,resetCount};
 }
