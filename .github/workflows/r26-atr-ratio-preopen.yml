@@ -1,0 +1,27 @@
+name: R26 volatility ratio premarket under1000 equity DD integrity study
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-atr-ratio-preopen.yml'
+      - 'scripts/r26-atr-ratio-preopen-sweep.mjs'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: R26 historical original parity and ratioized pre-open ATR long-filter
+        run: |
+          node --check scripts/r26-atr-ratio-preopen-sweep.mjs
+          node scripts/r26-atr-ratio-preopen-sweep.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-atr-ratio-preopen-sweep
+          path: r26-study-output/
+          retention-days: 30
