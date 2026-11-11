@@ -2,7 +2,10 @@ name: R26 production mobile browser replay acceptance
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/r26-browser-acceptance.yml']
+    paths:
+      - '.github/workflows/r26-browser-acceptance.yml'
+      - 'public/r26-live-monitor.mjs'
+      - 'public/r26-engine/data/verified-official-backfill.json.gz'
   workflow_dispatch:
 jobs:
   mobile-browser:
@@ -32,20 +35,24 @@ jobs:
               for(let i=0;i<30;i++){
                 await page.waitForTimeout(5000);
                 state=await page.evaluate(()=>Object.fromEntries(
-                  ['r26DataHealth','r26DataProgress','r26PositionState','signalPosition','signalStopPrice',
+                  ['r26DataHealth','r26DataProgress','r26PositionState','r26MarketState','signalPosition','signalStopPrice',
                    'signalAsOf','signalAudit','liveIndicator','quoteInstrumentLabel','liveSourceName']
                     .map(id=>[id,(document.getElementById(id)?.textContent||'').slice(0,200)])));
                 if(i%3===0)console.log('R26_MOBILE_PHASE',i,JSON.stringify(state));
                 if(state.r26PositionState.includes('策略持倉已確認') &&
                    state.signalAudit.includes('2428') &&
-                   /^2026-11-1[01] /.test(state.signalAsOf)&&
+                   state.r26MarketState.includes('夜盤') &&
+                   state.r26MarketState.includes('交易日 2026-11-12') &&
+                   state.r26DataProgress.includes('已封存 2026-11-11') &&
+                   state.signalAsOf.startsWith('2026-11-11 2') &&
+                   Date.now()-Date.parse(state.signalAsOf.replace(' ','T')+'+08:00')<5*60000 &&
                    !state.signalStopPrice.includes('尚未確認')){
                   console.log('R26_MOBILE_SUCCESS',JSON.stringify(state));success=true;break;
                 }
               }
               await page.screenshot({path:'r26-mobile-production.png',fullPage:true});
               console.log('R26_MOBILE_FINAL',JSON.stringify({success,state,errors:errors.slice(-12)}));
-              if(!success)throw Error('R26 mobile UI cannot confirm live contiguous session replay in 150 seconds');
+              if(!success)throw Error('R26 mobile UI cannot confirm current 11/11 night from cloud verified official archive');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           NODE
