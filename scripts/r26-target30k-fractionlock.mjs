@@ -97,10 +97,10 @@ for(let i=0;i<original.rows.length;i++)assert.equal(original.rows[i].pnl,prepare
 const prev200=configs.find(x=>x.model.name==='D200N195_EFF20'&&x.entryATR===.01&&x.window===30&&x.activateATR===1&&x.fraction===.3);
 const prev205=configs.find(x=>x.model.name==='D205N195_EFF20'&&x.entryATR===.01&&x.window===30&&x.activateATR===1&&x.fraction===.3);
 if(!prev200||!prev205)throw Error('known anchor absent');
-const gold=[summarize(replay(prev200),prev200),summarize(replay(prev205),prev205)];
-assert.equal(gold[0].net,29598);assert.equal(gold[0].dd,806);
-assert.equal(gold[1].net,29826);assert.equal(gold[1].dd,852);
-console.log('R26_COMBINED_LOCK_GOLD',JSON.stringify({n:configs.length,gold}));
+const controlModels=[summarize(replay(prev200),prev200),summarize(replay(prev205),prev205)];
+assert.equal(controlModels[0].net,29598);assert.equal(controlModels[0].dd,806);
+assert.equal(controlModels[1].net,29826);assert.equal(controlModels[1].dd,852);
+console.log('R26_COMBINED_LOCK_GOLD',JSON.stringify({n:configs.length,gold:controlModels}));
 const all=[];
 for(let i=0;i<configs.length;i++){
  const c=configs[i],result=summarize(replay(c),c);
@@ -125,7 +125,7 @@ for(const name of chosen){
 }
 const robust=rank(stress.filter(x=>x.fee===5&&x.entrySlip===5&&x.riskSlip===75&&x.dd<=1000));
 const report={generatedAt:new Date().toISOString(),tested:configs.length,original:{net:65953,dd:6106},
- gold,under1000:strict.length,achieved30kRatio35:goals.slice(0,25),
+ gold:controlModels,under1000:strict.length,achieved30kRatio35:goals.slice(0,25),
  strictBest:strict.slice(0,25),ratioBest:ratio.slice(0,20),stress,robust:robust.slice(0,15),all,
  caveats:['Core stop increases only after favorable high/low of preceding full minute, and stop-first OHLC arbitration.',
  'Compared all versions with 1 TX max, same 2021-2026 2452 sessions and 2.5 pts per side, strict canonical baseline parity.',
