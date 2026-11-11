@@ -65,7 +65,9 @@ export function replayLive(meta,bars,records,calendar,now=Date.now()){
 }
 let crcTable;
 function crc32(bytes,crc=0xffffffff){crcTable??=Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?0xedb88320^(i>>>1):i>>>1;return i>>>0});for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return crc>>>0}
-export async function parseOfficialZip(buffer,tradeDate,contract,{maxUncompressedBytes=100000000}={}){
+// Up to 160 MB: TAIFEX 2026-11-06 normal daily CSV expands to 104,572,854 bytes.
+// ZIP is still streamed with CRC+size verification and hard 250 MB caller cap.
+export async function parseOfficialZip(buffer,tradeDate,contract,{maxUncompressedBytes=160000000}={}){
  if(!Number.isInteger(maxUncompressedBytes)||maxUncompressedBytes<1||maxUncompressedBytes>250000000)throw Error("官方 ZIP 解壓上限不合法");
  const bytes=new Uint8Array(buffer),v=new DataView(buffer);let end=-1;
  for(let i=bytes.length-22;i>=Math.max(0,bytes.length-65557);i--)if(v.getUint32(i,true)===0x06054b50){end=i;break}
