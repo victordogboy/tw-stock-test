@@ -1,0 +1,29 @@
+name: R26 maximum five TX exact one-lot tape parity
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-five-lot-parity.yml'
+      - 'scripts/r26-five-lot-parity.mjs'
+      - 'public/r26-research/five-lot-tape.mjs'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify one-TX 29657/806 and exact two to five fixed lot linear scaling
+        run: |
+          node --check public/r26-research/five-lot-tape.mjs
+          node --check scripts/r26-five-lot-parity.mjs
+          node scripts/r26-five-lot-parity.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-5lot-parity
+          path: r26-study-output/
+          retention-days: 30
