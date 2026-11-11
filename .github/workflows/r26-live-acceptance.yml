@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'public/r26-live-monitor.mjs'
+      - 'public/r26-monitor.html'
+      - 'src/r26-live-quote.mjs'
+      - 'tests/r26-named-minute-fallback.test.mjs'
       - 'public/r26-engine/calendar-2026.mjs'
       - 'public/r26-engine/backfill-plan.mjs'
       - 'tests/r26-calendar-2026.test.mjs'
@@ -22,9 +25,10 @@ jobs:
       - name: ESM syntax and historical replay tests
         run: |
           node --check public/r26-live-monitor.mjs
+          node --check src/r26-live-quote.mjs
           node --check public/r26-engine/calendar-2026.mjs
           node --check public/r26-engine/backfill-plan.mjs
-          node --test tests/r26-calendar-2026.test.mjs tests/r26-backfill-plan.test.mjs tests/r26-live-engine.test.mjs
+          node --test tests/r26-calendar-2026.test.mjs tests/r26-backfill-plan.test.mjs tests/r26-named-minute-fallback.test.mjs tests/r26-live-engine.test.mjs
   live:
     needs: regression
     runs-on: ubuntu-latest
@@ -41,13 +45,16 @@ jobs:
             js=$(curl -sSL --max-time 15 -o /tmp/r26-live -w '%{http_code}' "$ROOT/r26-live-monitor.mjs?verify=$GITHUB_SHA" || true)
             calendar=$(curl -sSL --max-time 15 -o /tmp/r26-calendar -w '%{http_code}' "$ROOT/r26-engine/calendar-2026.mjs?verify=$GITHUB_SHA" || true)
             planner=$(curl -sSL --max-time 15 -o /tmp/r26-backfill -w '%{http_code}' "$ROOT/r26-engine/backfill-plan.mjs?verify=$GITHUB_SHA" || true)
+            quote=$(curl -sSL --max-time 20 -o /tmp/r26-quote -w '%{http_code}' "$ROOT/api/r26/live-quote?contract=202611" || true)
+            echo "named-minute/continuous quote HTTP=$quote"
             health=$(curl -sSL --max-time 15 -o /tmp/r26-health -w '%{http_code}' "$ROOT/api/r26/health" || true)
-            echo "attempt $attempt: PAGE=$page JS=$js CALENDAR=$calendar PLANNER=$planner HEALTH=$health"
-            if [[ $page == 200 && $js == 200 && $calendar == 200 && $planner == 200 && $health == 200 ]] &&
+            echo "attempt $attempt: PAGE=$page JS=$js CALENDAR=$calendar PLANNER=$planner QUOTE=$quote HEALTH=$health"
+            if [[ $page == 200 && $js == 200 && $calendar == 200 && $planner == 200 && $health == 200 && $quote == 200 ]] &&
              grep -q 'extendTaifexCalendar2026(seed.calendar)' /tmp/r26-live &&
              grep -q 'pendingR26OfficialDownloads(sessions,rows)' /tmp/r26-live &&
              grep -q '20261111-taifex-2026-physical-session' /tmp/r26-calendar &&
-             grep -q 'physicalFinMindDates(date)' /tmp/r26-live; then
+             grep -q 'physicalFinMindDates(date)' /tmp/r26-live &&
+             grep -q 'quote_type' /tmp/r26-quote; then
               good=1;break
             fi
             sleep 10
