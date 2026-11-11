@@ -1,0 +1,27 @@
+name: R26 capital-feasible dynamic 1 to 3 TX and annual marginal benefit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-capital-feasible-2-3lot.yml'
+      - 'scripts/r26-capital-feasible-2-3lot.mjs'
+  workflow_dispatch:
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate 29657/806 unit R26 and 2026 conservative historical margin across 1 to 3 TX rules
+        run: |
+          node --check scripts/r26-capital-feasible-2-3lot.mjs
+          node scripts/r26-capital-feasible-2-3lot.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-capital-feasible-2-3lot
+          path: r26-study-output/
+          retention-days: 30
