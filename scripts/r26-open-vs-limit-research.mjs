@@ -153,4 +153,36 @@ console.log('R26_LIMIT_BASELINE',JSON.stringify(baseline));
 console.log('R26_LIMIT_BEST_VALIDATION_WIN',JSON.stringify(byWin.slice(0,12)));
 console.log('R26_LIMIT_BEST_NET',JSON.stringify(byNet.slice(0,12)));
 console.log('R26_LIMIT_BEST_DD',JSON.stringify(byDD.slice(0,12)));
+const focusedNames=[
+ 'ORIGINAL_R26_MARKET',
+ 'PRE_ENTRY_0.05ATR_W120',
+ 'PRE_EXIT_0.1ATR_W840_UNFILLED_carry',
+ 'PRE_BREAKOUT_0.05ATR_W120',
+ 'PRE_BREAKOUT_0.1ATR_W120',
+ 'PRE_BREAKOUT_0.1ATR_W840',
+ 'PRE_BREAKOUT_0.15ATR_W840',
+ 'PRE_BREAKOUT_AND_LIMIT_E0.1_X0.1_W120_carry'
+];
+const focused=focusedNames.map(name=>{
+ const item=results.find(x=>x.name===name);
+ if(!item)throw Error('R26_FOCUS_MISSING_'+name);
+ return item;
+});
+console.log('R26_LIMIT_FOCUSED_BY_PERIOD',JSON.stringify(focused.map(x=>({
+ name:x.name,net:x.net,dd:x.minuteDD,win:x.tradeWinPct,
+ closedTrades:x.trades,fill:x.entryFillPct,exitFill:x.exitFillPct,
+ training:x.training,validation:x.validation,holdout:x.holdout,recent:x.recent}))));
+const costStress=[];
+for(const f of [3,4,5]){
+ for(const name of focusedNames){
+  const config=search.find(x=>x.name===name);
+  const res=simulateLimit(prepared.sessions,bars,{end:'2026-11-11',fee:f,limit:config});
+  const info=stats(res,config);
+  costStress.push({name,fee:f,net:info.net,dd:info.minuteDD,win:info.tradeWinPct,trades:info.trades,
+   holdoutNet:info.holdout.net,holdoutWin:info.holdout.winTradePct});
+ }
+}
+console.log('R26_LIMIT_COST_STRESS',JSON.stringify(costStress));
+fs.writeFileSync('r26-study-output/r26-focus-cost-stress.json',
+ JSON.stringify({focused,costStress},null,2));
 console.log('R26_LIMIT_RESEARCH_COMPLETE',JSON.stringify({count:search.length,valid:valid.length,baselineNet:baseline.net,baselineWin:baseline.tradeWinPct}));
