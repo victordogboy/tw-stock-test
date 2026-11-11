@@ -59,7 +59,7 @@ function riskOptions(cap=0,wait=8,lookback=8,minShadow=0){
  return cap?{equityDdCap:cap,cooldownReset:true,haltSessions:wait,
   resumeShadowLookback:lookback,resumeShadowProfit:minShadow,shadowPnl:originalRiskShadow}:{};
 }
-const breakout=(atr,window)=>atr?{anchor:'priorClose',entryMode:'breakout',entryATR:atr,entryWindow:window,exitATR:0}:{};
+const breakout=(atr,window,filter={})=>atr?{anchor:'priorClose',entryMode:'breakout',entryATR:atr,entryWindow:window,exitATR:0,...filter}:{};
 for(const [cap,wantNet,wantDD] of [[2250,64184,2650],[2500,66561,2900]]){
  const v=researchSimulate(prepared.sessions,bars,{end:'2026-11-11',risk:riskOptions(cap)});
  const combined=simulateLimitRisk(prepared.sessions,bars,{end:'2026-11-11',risk:riskOptions(cap)});
@@ -117,11 +117,31 @@ for(const atr of [.05,.075,.1,.15])for(const window of [120,300,840])for(const c
  for(const shadowProfit of [100,300])scenarios.push({id:'BREAKOUT_'+atr+'_W'+window+'_C'+cap+'_SHADOW'+shadowProfit,
   atr,window,cap,wait:8,shadowLookback:8,shadowProfit});
 }
+// Regime-selective breakout, strictly pre-open: other core signals execute
+// immediately at OPEN as in unchanged R26. No intrabar future-data filters.
+for(const cap of [2250,2500,2750]){
+ for(const atr of [.025,.05,.075,.1]){
+  for(const window of [60,120]){
+   for(const side of [1,-1])
+    scenarios.push({id:'SELECT_SIDE_'+side+'_A'+atr+'_W'+window+'_C'+cap,
+     atr,window,cap,wait:8,shadowLookback:8,shadowProfit:0,filter:{onlySide:side}});
+   for(const aMin of [250,400,600,800])
+    scenarios.push({id:'SELECT_ATRMIN_'+aMin+'_A'+atr+'_W'+window+'_C'+cap,
+     atr,window,cap,wait:8,shadowLookback:8,shadowProfit:0,filter:{atrMin:aMin}});
+   for(const aMax of [350,550,800])
+    scenarios.push({id:'SELECT_ATRMAX_'+aMax+'_A'+atr+'_W'+window+'_C'+cap,
+     atr,window,cap,wait:8,shadowLookback:8,shadowProfit:0,filter:{atrMax:aMax}});
+   for(const ddMin of [250,500,1000,1500])
+    scenarios.push({id:'SELECT_PREV_DD_'+ddMin+'_A'+atr+'_W'+window+'_C'+cap,
+     atr,window,cap,wait:8,shadowLookback:8,shadowProfit:0,filter:{ddMin}});
+  }
+ }
+}
 const results=[];
 for(let i=0;i<scenarios.length;i++){
  const cfg=scenarios[i];
  const sim=i===0?original:simulateLimitRisk(prepared.sessions,bars,{
-  fee:2.5,end:'2026-11-11',limit:breakout(cfg.atr,cfg.window),
+  fee:2.5,end:'2026-11-11',limit:breakout(cfg.atr,cfg.window,cfg.filter||{}),
   risk:riskOptions(cfg.cap,cfg.wait,cfg.shadowLookback,cfg.shadowProfit)
  });
  const metric=summarize(sim,cfg);
@@ -135,6 +155,15 @@ const filter=results.filter(x=>x.id!=='R26_ORIGINAL'&&x.training.net>=base.train
 const byDrawdown=[...filter].sort((a,b)=>a.minuteDD-b.minuteDD||b.net-a.net);
 const byRewardRisk=[...filter].sort((a,b)=>b.net/b.minuteDD-a.net/a.minuteDD);
 const improvedBoth=filter.filter(x=>x.net>=base.net&&x.minuteDD<base.minuteDD);
+const riskOnly2250=results.find(x=>x.id==='R26_RISK_2250');
+const riskOnly2500=results.find(x=>x.id==='R26_RISK_2500');
+const regimeCombos=filter.filter(x=>x.id.startsWith('SELECT_'));
+const improvesRiskOnly=regimeCombos.filter(x=>
+  (x.cap===2250&&x.net>=riskOnly2250.net&&x.minuteDD<=riskOnly2250.minuteDD)||
+  (x.cap===2500&&x.net>=riskOnly2500.net&&x.minuteDD<=riskOnly2500.minuteDD))
+ .sort((a,b)=>b.net-a.net||a.minuteDD-b.minuteDD);
+const bestRegimeByRatio=[...regimeCombos].sort((a,b)=>b.net/b.minuteDD-a.net/a.minuteDD);
+
 const byNet=[...filter].sort((a,b)=>b.net-a.net);
 const byWins=[...filter].sort((a,b)=>b.winPct-a.winPct||b.net-a.net);
 const referenceIds=[
@@ -160,6 +189,7 @@ const report={title:'R26 breakout premarket + prior-session shadow equity circui
  comparison: selected,sortDrawdown:byDrawdown.slice(0,20),
  sortRewardRisk:byRewardRisk.slice(0,20),
  sortNet:byNet.slice(0,20),sortWin:byWins.slice(0,15),
+ bestRegime:bestRegimeByRatio.slice(0,20),beatsRiskOnly:improvesRiskOnly,
  outperformBoth:improvedBoth.sort((a,b)=>a.minuteDD-b.minuteDD).slice(0,25),
  configurations:scenarios.length,qualified:filter.length,results};
 fs.mkdirSync('r26-study-output',{recursive:true});
@@ -172,4 +202,7 @@ console.log('R26_COMBO_REFERENCES',JSON.stringify(selected));
 console.log('R26_COMBO_BEST_DD',JSON.stringify(byDrawdown.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct,holdout:x.holdout.net}))));
 console.log('R26_COMBO_BEST_NET_DD',JSON.stringify(byRewardRisk.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct,holdout:x.holdout.net}))));
 console.log('R26_COMBO_BEST_NET',JSON.stringify(byNet.slice(0,10).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct,holdout:x.holdout.net}))));
+console.log('R26_COMBO_REGIME_BEST',JSON.stringify(bestRegimeByRatio.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct,holdout:x.holdout.net,
+ entryFill:x.entryFilledPct,skipped:x.skipSessions}))));
+console.log('R26_COMBO_REGIME_BEATS_RISK_ONLY',JSON.stringify(improvesRiskOnly.slice(0,12).map(x=>({id:x.id,net:x.net,dd:x.minuteDD,win:x.winPct}))));
 console.log('R26_COMBO_SUMMARY',JSON.stringify({tested:scenarios.length,qualified:filter.length,beatsBaselineNetAndDd:improvedBoth.length}));
