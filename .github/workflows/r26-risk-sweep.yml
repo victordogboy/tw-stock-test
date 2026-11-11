@@ -1,0 +1,29 @@
+name: R26 1min robust max drawdown research, 200 parameter configurations
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-risk-sweep.yml'
+      - 'scripts/r26-risk-sweep.mjs'
+      - 'public/r26-research/core-profit-overlay.mjs'
+  workflow_dispatch:
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax and frozen parity, then real 2026 risk experiments
+        run: |
+          node --check public/r26-research/core-profit-overlay.mjs
+          node --check scripts/r26-risk-sweep.mjs
+          node scripts/r26-risk-sweep.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-risk-sweep
+          path: r26-study-output/
+          retention-days: 30
