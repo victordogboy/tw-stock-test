@@ -1,0 +1,33 @@
+name: R26 real official ZIP parser verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-official-tick-parse.yml'
+      - 'public/r26-engine/live.mjs'
+  workflow_dispatch:
+jobs:
+  verify-real-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download & parse real TAIFEX tick ZIP into R26 1m
+        run: |
+          node --input-type=module <<'NODE'
+          import {parseOfficialZip} from './public/r26-engine/live.mjs';
+          for(const day of ['2026-10-27','2026-11-10']){
+            const url='https://tw-stock-api.victordogboy.workers.dev/api/r26/official-zip?date='+day+'&contract=202611';
+            const r=await fetch(url,{signal:AbortSignal.timeout(30000)});
+            if(!r.ok)throw Error('OFFICIAL_ZIP_HTTP_'+r.status+'_'+day);
+            const buf=await r.arrayBuffer();
+            const rows=await parseOfficialZip(buf,day,'202611');
+            const keys=[...new Set(rows.map(x=>x.session_key))].sort();
+            console.log(JSON.stringify({day,bytes:buf.byteLength,rows:rows.length,keys,
+              first:rows[0],last:rows.at(-1)}));
+            if(!rows.length||!rows.some(x=>x.session_key.startsWith('day:')))throw Error('NO_VERIFIED_DAY_KBAR_'+day);
+          }
+          NODE
