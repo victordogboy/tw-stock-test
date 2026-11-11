@@ -1,0 +1,23 @@
+name: R26 real source connectivity probe (no credentials)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-source-probe.yml'
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe actual production R26 endpoints
+        env:
+          ROOT: https://tw-stock-api.victordogboy.workers.dev
+        run: |
+          set -uo pipefail
+          for endpoint in "api/r26/health" "api/r26/intraday?contract=202611" "api/r26/live-quote" "api/r26/official-zip?date=2026-11-10&contract=202611" "api/r26/official-zip?date=2026-10-27&contract=202611"; do
+            echo "=== $endpoint ==="
+            code=$(curl -sS -L --max-time 28 -o /tmp/r26-probe-body -w '%{http_code}' "$ROOT/$endpoint" || true)
+            echo "STATUS=$code BYTES=$(wc -c </tmp/r26-probe-body 2>/dev/null || echo 0)"
+            if [[ $endpoint != *official-zip* ]]; then head -c 500 /tmp/r26-probe-body 2>/dev/null || true;echo;fi
+          done
