@@ -1,0 +1,28 @@
+name: R26 previous-minute only profit protection on ATR regime rescue
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-profit-lock-regime.yml'
+      - 'scripts/r26-profit-lock-regime-sweep.mjs'
+  workflow_dispatch:
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate original gold then trial 231 core-profit ATR stop configurations
+        run: |
+          node --check public/r26-research/combined-breakout-risk.mjs
+          node --check scripts/r26-profit-lock-regime-sweep.mjs
+          node scripts/r26-profit-lock-regime-sweep.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-profit-lock-regime
+          path: r26-study-output/
+          retention-days: 30
