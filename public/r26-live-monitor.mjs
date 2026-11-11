@@ -2,6 +2,7 @@ import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261031-st
 import {referenceTxMonth,taipeiParts} from './r26-data-sync.mjs';
 import {extendTaifexCalendar2026,R26_CALENDAR_VERSION} from './r26-engine/calendar-2026.mjs';
 import {pendingR26OfficialDownloads} from './r26-engine/backfill-plan.mjs';
+import {validateCloudSnapshot} from './r26-engine/cloud-minute-cache.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
@@ -46,6 +47,20 @@ async function loadOfficialArchive(){
  text('r26DataProgress','已從雲端恢復官方核驗分K至 '+officialArchiveAsOf+'，共 '+accepted+' 根；接續最新盤中…');
  return true;
 }
+let minuteCloudAsOf=null;
+async function loadCloudMinuteCache(){
+ const u='/r26-engine/data/verified-named-minute-cloud.json.gz?cv=20261111';
+ const resp=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(14000)});
+ if(resp.status===404)return false;
+ if(!resp.ok)throw Error('指定月分鐘雲端快照 HTTP '+resp.status);
+ const snap=validateCloudSnapshot(
+  await new Response(resp.body.pipeThrough(new DecompressionStream('gzip'))).json());
+ if(!snap.rows.length)return false;
+ add(snap.rows);
+ minuteCloudAsOf=snap.latest_timestamp_tpe;
+ try{await save(snap.rows)}catch{}
+ return true;
+}
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
@@ -61,7 +76,7 @@ function draw(m){
  text('r26DataLatest',(latestData||'—')+'（台灣時間，分鐘起點）');
  text('r26DataCount',fmt(rows.length)+' 根／已接續 '+r.added+' 盤');
  text('r26DataMissing','已收盤缺資料 '+missing.length+' 盤；完整性待核對 '+unverified.length+' 盤；交易中 '+(active?1:0)+' 盤');
- text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'期交所官方已封存 '+(officialArchiveAsOf||'待取得')+'；官方 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
+ text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'期交所官方已封存 '+(officialArchiveAsOf||'待取得')+'；雲端指定月1分K至 '+(minuteCloudAsOf||'待取得')+'；官方 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
  text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
  const table=$('r26DataTable');table.replaceChildren();
  for(const t of [...states].slice(-9).reverse()){
@@ -168,6 +183,7 @@ async function init(){
   const now=taipeiParts();contract=referenceTxMonth(now.date);$('r26DataContract').value=contract;
   add(await cached());add(seed.rows);
   try{await loadOfficialArchive()}catch(e){fetchError='雲端歷史快照：'+String(e?.message||e)}
+  try{await loadCloudMinuteCache()}catch(e){fetchError+='；指定月雲端快照：'+String(e?.message||e)}
   seedLoaded=true;
   $('r26DataToken').placeholder=token()?'已沿用儲存的 Token；資料可免 Token 更新':'選填；官方逐筆與 Yahoo 指定月可免 Token 更新';
   await check();history();
