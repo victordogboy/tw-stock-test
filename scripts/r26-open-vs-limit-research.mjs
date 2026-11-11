@@ -56,6 +56,22 @@ for(const distance of [.1,.2,.3,.4,.5])for(const window of [30,120,840]){
  search.push({name:'AFTER_OPEN_ENTRY_'+distance+'ATR_W'+window,anchor:'open',entryATR:distance,entryWindow:window});
  search.push({name:'AFTER_OPEN_EXIT_'+distance+'ATR_W'+window,anchor:'open',exitATR:distance,exitWindow:window,exitUnfilled:'marketClose'});
 }
+// A stop-entry is not a limit order: the opening price can gap PAST the
+// trigger, in which case the worse open is used. Orders use PREVIOUS close.
+for(const distance of [.05,.1,.15,.2,.3,.4,.5,.75,1,1.25,1.5]){
+ for(const window of [30,120,840])
+  search.push({name:'PRE_BREAKOUT_'+distance+'ATR_W'+window,anchor:'priorClose',entryMode:'breakout',
+   entryATR:distance,entryWindow:window,exitATR:0});
+}
+for(const distance of [.1,.2,.4]){
+ for(const window of [120,840]){
+  for(const exit of [.05,.1,.2]){
+   for(const mode of ['carry','marketClose'])
+    search.push({name:'PRE_BREAKOUT_AND_LIMIT_E'+distance+'_X'+exit+'_W'+window+'_'+mode,
+     anchor:'priorClose',entryMode:'breakout',entryATR:distance,entryWindow:window,exitATR:exit,exitWindow:window,exitUnfilled:mode});
+  }
+ }
+}
 const n=x=>Math.round(x*100)/100;
 const total=x=>x.reduce((a,b)=>a+b,0);
 function metrics(r,from,to){
