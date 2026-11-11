@@ -1,0 +1,27 @@
+name: R26 ATR percentile and efficiency dynamic 2TX stress crossyear study
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-percentile-efficiency-stability.yml'
+      - 'scripts/r26-percentile-efficiency-stability.mjs'
+  workflow_dispatch:
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Recover 29657/806 R26 and check 2024-26 annual incremental consistency near ATR percentile 40
+        run: |
+          node --check scripts/r26-percentile-efficiency-stability.mjs
+          node scripts/r26-percentile-efficiency-stability.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-percentile-efficiency-stability
+          path: r26-study-output/
+          retention-days: 30
