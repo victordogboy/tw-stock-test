@@ -45,7 +45,7 @@ export function replaySizedTape(ss,bars,signal,{
   const sizeRaw=sizeAtOpen({index:i,s,priorEquity:cash,
    priorDd:Math.max(0,peak-cash),prevClose:Number.isFinite(prevClose)?prevClose:null,
    priorPnls:eqSession.slice(-20).map(r=>r.pnl),
-   frozenBaselinePrior:signal.rows.filter((r,j)=>j<i).slice(-20).map(x=>x.pnl)});
+   frozenBaselinePrior:signal.rows.slice(Math.max(0,sessions-20),sessions).map(x=>x.pnl)});
   let wanted=Math.trunc(Number(sizeRaw));
   if(!Number.isFinite(wanted))throw Error('INVALID_PREMARKET_SIZE');
   wanted=Math.max(0,Math.min(maxLots,wanted));
@@ -64,15 +64,20 @@ export function replaySizedTape(ss,bars,signal,{
    }
   }
   const frozenCarry=signal.rows?.[sessions-1]?.held??0;
-  // Rebalance existing same-direction carried position only if the
-  // baseline doesn't already need to close at the opening.
-  if(openRebalance&&qty&&!carryClose){
-    const targetQty=Math.sign(qty)*wanted;
-    if(targetQty!==qty){
-     rebalanceLots+=Math.abs(qty-targetQty);
-     changeQty(targetQty,s.op,s.date,s.sid,0,'盤前增減碼');
-    }
+  // If the independent one-lot signal still carries a core position and
+  // our separate sizing overlay was flat last session (e.g., cooldown),
+  // we may rejoin at THIS opening, never at a previous fill price.
+  // When the frozen model closes at bar zero, it MUST close before any
+  // scaling/re-entry rather than opening a redundant contract.
+  if(openRebalance&&!carryClose&&frozenCarry){
+   const targetQty=Math.sign(frozenCarry)*wanted;
+   if(targetQty!==qty){
+    if(qty&&Math.sign(qty)!==Math.sign(targetQty)&&targetQty!==0)throw Error('SIDED_POSITION_MISMATCH');
+    rebalanceLots+=Math.abs(qty-targetQty);
+    changeQty(targetQty,s.op,s.date,s.sid,0,'盤前增減碼');
+   }
   }
+  if(openRebalance&&!carryClose&&!frozenCarry&&qty)throw Error('LEDGER_MODEL_CARRY_MISMATCH');
   let isCircuitStopped=false;
   // Equity updates after each complete minute; this ledger replays original
   // price of stop/entry fills and mark-to-market using this minute CLOSE.
