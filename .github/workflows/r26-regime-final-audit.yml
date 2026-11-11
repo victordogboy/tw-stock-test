@@ -1,0 +1,27 @@
+name: R26 ATR regime rescue final independent attribution and buy-hold audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-regime-final-audit.yml'
+      - 'scripts/r26-regime-final-audit.mjs'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original gold parity, 1 TX buyhold, yearly monthly tape and stress cost attribution
+        run: |
+          node --check scripts/r26-regime-final-audit.mjs
+          node scripts/r26-regime-final-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-regime-final-audit
+          path: r26-study-output/
+          retention-days: 30
