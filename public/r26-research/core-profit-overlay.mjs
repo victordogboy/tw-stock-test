@@ -10,7 +10,7 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
  let core=0,keys=0,stops=0,reentries=0,protectStops=0,protectTargets=0,hardStops=0,skippedSessions=0;
  let lastPnl=[],resumeAt=-1,riskPeak=0,riskResetPending=false,resetCount=0;
  const rows=[],events=[],closedTrades=[],pnls=Array(ss.length).fill(0);
- let maxDrawdownInfo=null,peakInfo=null;
+ let maxDrawdownInfo=null,peakInfo=null;let riskTimeline=[];
  let trade=null;
  const event=(s,b,type,side,price)=>events.push({date:s.date,sid:s.sid,bar:b,type,side,price,contract:s.contract,start:s.start});
  const money=(delta)=>{pnl+=delta;if(trade)trade.pnl+=delta};
@@ -57,6 +57,7 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
     risk.shadowPnl.slice(Math.max(0,i-n),i).reduce((a,b)=>a+b,0):0;
    if(!n||recent>=Number(risk.resumeShadowProfit||0)){
     riskPeak=equity;riskResetPending=false;resetCount++;
+    riskTimeline.push({type:'恢復交易',date:s.date,sid:s.sid,bar:0,resetEquity:equity,shadowRecent:recent});
    }else restartNotReady=true;
   }
   let riskBlocked=restartNotReady||i<resumeAt||
@@ -105,8 +106,13 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
     const threshold=anchor+pos*(floor-equity-pnl+fee);
     if(pos===1?lo<=threshold:hi>=threshold){
      const price=pos===1?Math.min(Math.floor(threshold),bo):Math.max(Math.ceil(threshold),bo);
-     money(pos*(price-anchor)-fee);event(s,b,'權益風控停機',pos,price);
-     done(s,b,'權益風控停機',price);pos=0;active=0;
+     const slippage=Math.max(0,Number(risk.hardStopSlippagePoints||0));
+     const actual=price-pos*slippage;
+     money(pos*(actual-anchor)-fee);event(s,b,'權益風控停機',pos,actual);
+     riskTimeline.push({type:'權益風控停機',date:s.date,sid:s.sid,bar:b,side:pos,rawStop:price,
+       actualExit:actual,peak:peak,periodPeak:riskPeak,previousEquity:equity,asOfSessionPnl:pnl,
+       riskDdCap:risk.equityDdCap,priceGapToOpen:price-bo});
+     done(s,b,'權益風控停機',actual);pos=0;active=0;
      sessionRiskTripped=true;stopdir=0;keyDone=true;hardStops++;
      resumeAt=Math.max(resumeAt,i+1+Number(risk.haltSessions||0));
      if(risk.cooldownReset)riskResetPending=true;
@@ -215,5 +221,5 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   if(trade){trade.pnl-=fee;done(ss[prev],ss[prev].count-1,'樣本末結算費',ss[prev].cl);}
  }
  return {rows,events,minuteDD:mdd,core,keys,stops,reentries,pnls,position:pos,
-  closedTrades,protectStops,protectTargets,maxDrawdownInfo,hardStops,skippedSessions,resetCount};
+  closedTrades,protectStops,protectTargets,maxDrawdownInfo,hardStops,skippedSessions,resetCount,riskTimeline};
 }
