@@ -45,6 +45,16 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
   pnl=0;
   let desire=s.blocked?0:s.signal;
   const af=Number.isFinite(s.atr)&&s.atr>0?s.atr:200;
+  let effectiveDdCap=Number(risk.equityDdCap||0);
+  // Optional cap based ONLY on the ORIGINAL paper shadow's earlier realized
+  // session PnLs. This cannot observe the evaluated session or later bars.
+  if(risk.dynamicCapLookback&&Array.isArray(risk.shadowPnl)){
+   const prior=risk.shadowPnl.slice(Math.max(0,i-Number(risk.dynamicCapLookback)),i);
+   let cur=0,high=0,maxDd=0;
+   for(const x of prior){cur+=x;high=Math.max(high,cur);maxDd=Math.max(maxDd,high-cur)}
+   effectiveDdCap=Math.max(Number(risk.dynamicCapFloor||0),
+    Math.min(Number(risk.dynamicCapCeiling||1000000),Math.ceil(maxDd*Number(risk.dynamicCapMultiplier||1))));
+  }
   const priorN=Math.max(0,Number(risk.lossLookback||0));
   const priorLoss=priorN?lastPnl.slice(-priorN).reduce((a,b)=>a+b,0):0;
   const shadowLookback=Math.max(0,Number(risk.shadowLookback||0));
@@ -100,9 +110,9 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
     if(!riskResetPending&&marked>riskPeak)riskPeak=marked;
     if(peak-marked>mdd){mdd=peak-marked;maxDrawdownInfo={peak:peakInfo,trough:{date:s.date,sid:s.sid,bar:b-1,contract:s.contract,equity:+marked.toFixed(2)},points:+mdd.toFixed(2)}};
    }
-   if(pos&&!sessionRiskTripped&&risk.equityDdCap){
+   if(pos&&!sessionRiskTripped&&effectiveDdCap>0){
     // Previous-minute closed-equity peak only; conservative adverse gap at open.
-    const floor=(risk.cooldownReset?riskPeak:peak)-risk.equityDdCap;
+    const floor=(risk.cooldownReset?riskPeak:peak)-effectiveDdCap;
     const threshold=anchor+pos*(floor-equity-pnl+fee);
     if(pos===1?lo<=threshold:hi>=threshold){
      const price=pos===1?Math.min(Math.floor(threshold),bo):Math.max(Math.ceil(threshold),bo);
@@ -111,7 +121,7 @@ export function researchSimulate(ss,bars,{fee=2.5,end='9999',liquidate=true,prot
      money(pos*(actual-anchor)-fee);event(s,b,'權益風控停機',pos,actual);
      riskTimeline.push({type:'權益風控停機',date:s.date,sid:s.sid,bar:b,side:pos,rawStop:price,
        actualExit:actual,peak:peak,periodPeak:riskPeak,previousEquity:equity,asOfSessionPnl:pnl,
-       riskDdCap:risk.equityDdCap,priceGapToOpen:price-bo});
+       riskDdCap:effectiveDdCap,priceGapToOpen:price-bo});
      done(s,b,'權益風控停機',actual);pos=0;active=0;
      sessionRiskTripped=true;stopdir=0;keyDone=true;hardStops++;
      resumeAt=Math.max(resumeAt,i+1+Number(risk.haltSessions||0));
