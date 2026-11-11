@@ -64,7 +64,7 @@ async function loadCloudMinuteCache(){
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
- text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 雲端快照持續接續');
+ text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 歷史＋分鐘雙雲端快取');
  text('r26FreezeLabel','原始 2,428 盤金標逐盤零差異；以相同凍結規則接續重播。');
  const states=r.sessionStates||[],active=states.find(x=>x.marketState==='trading'),missing=states.filter(x=>x.historicalMissing),unverified=states.filter(x=>x.complete&&!x.dataReady&&!x.historicalMissing);
  text('r26MarketState',active?('正在交易：'+active.start.slice(0,10)+' '+(active.sid?'日盤':'夜盤')+' → 交易日 '+active.date+'，'+active.endsAt+' 收盤'):'目前無進行中的盤次；最近盤次已收盤');
@@ -172,7 +172,16 @@ async function history(manual=false){
   await check();
  }finally{historyWorking=false}
 }
-$('r26DataRefresh').addEventListener('click',()=>{history(true);check()});
+async function refreshAllSources(){
+ // Reload the two independently published public archives first, then the
+ // on-demand vendor minutes, and finally any unverified official historical gap.
+ text('r26DataProgress','重新核對：期交所雲端快照 → 指定月雲端分K → Yahoo → 期交所缺盤／私人 FinMind 備援…');
+ for(const [label,fn] of [['期交所雲端快照',loadOfficialArchive],['指定月雲端快照',loadCloudMinuteCache]]){
+  try{await fn()}catch(e){fetchError=label+':'+String(e?.message||e)}
+ }
+ await check();await history(true);
+}
+$('r26DataRefresh').addEventListener('click',()=>refreshAllSources());
 $('r26DataToken').addEventListener('change',()=>{try{const value=$('r26DataToken').value.trim();if(value){localStorage.setItem('R26_FinMind_Token',value);localStorage.removeItem('R26_token_disabled')}}catch{}history(true)});
 $('r26DataClearToken').addEventListener('click',()=>{try{localStorage.removeItem('R26_FinMind_Token');localStorage.setItem('R26_token_disabled','1')}catch{}$('r26DataToken').value='';$('r26DataToken').placeholder='已停用此頁 Token；官方與 Yahoo 仍自動運作'});
 $('r26DataExport').addEventListener('click',()=>{const u=URL.createObjectURL(new Blob([JSON.stringify({version:R26_CALENDAR_VERSION,generated_at:new Date().toISOString(),contract,state,records:rows,calendar},null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=u;a.download='R26_replay_diagnostic.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),2000)});
@@ -190,6 +199,9 @@ async function init(){
  }catch(e){invalidatePosition('初始化失敗：'+e.message)}
 }
 setInterval(()=>{check();history()},30000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){invalidatePosition('恢復頁面，正在核對最新資料與持倉');check();history()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){
+ invalidatePosition('恢復頁面，正在核對最新資料與持倉');
+ refreshAllSources();
+}});
 window.addEventListener('online',()=>{check();history(true)});
 init();
