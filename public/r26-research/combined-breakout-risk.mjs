@@ -6,7 +6,7 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
  let pnl=0,activeTrade=null,closedTrades=[],missEntry=0,missExit=0,limitEntries=0,limitExits=0,eligibleEntries=0,eligibleExits=0;
  let riskPeak=0,riskResetPending=false,resetCount=0,resumeAt=-1,hardStops=0,skippedSessions=0;
  const riskTimeline=[];
- const terminal=new Set(['開盤平倉','核心停損','關鍵價停損','關鍵價停利','輔助單尾盤平倉','再進場同根停損','限價平倉','未成交尾盤市價平倉','權益風控停機']);
+ const terminal=new Set(['開盤平倉','核心停損','關鍵價停損','關鍵價停利','輔助單尾盤平倉','再進場同根停損','限價平倉','未成交尾盤市價平倉','權益風控停機','指定盤尾盤風控平倉']);
  const beginnings=new Set(['核心進場','停損再進場','關鍵價進場','限價核心進場']);
  const addPnl=v=>{pnl+=v;if(activeTrade)activeTrade.pnl+=v;};
  for(let i=0;i<ss.length;i++){
@@ -27,6 +27,14 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
   // this exact contract, ATR and already-known R26 stop. No current open.
   const premarketClose=prev>=0&&lastCon===s.contract?lastCl:null;
   if(risk.preopenMaxATR!=null&&af>Number(risk.preopenMaxATR))riskBlocked=true;
+  if(risk.onlySid!=null&&s.sid!==Number(risk.onlySid))riskBlocked=true;
+  if(risk.preopenShortOnlyAboveATR!=null&&af>Number(risk.preopenShortOnlyAboveATR)&&desire>0)riskBlocked=true;
+  if(risk.preopenLongOnlyAboveATR!=null&&af>Number(risk.preopenLongOnlyAboveATR)&&desire<0)riskBlocked=true;
+  if(risk.shadowLookbackMin!=null&&Array.isArray(risk.shadowPnl)){
+   const n=Number(risk.shadowLookbackMin);
+   const observed=risk.shadowPnl.slice(Math.max(0,i-n),i).reduce((a,b)=>a+b,0);
+   if(i<n||observed<Number(risk.minShadowProfit||0))riskBlocked=true;
+  }
   if(risk.preopenMaxATRRRatio!=null&&
     (premarketClose===null||af/premarketClose>Number(risk.preopenMaxATRRRatio)))riskBlocked=true;
   if(risk.preopenMaxStopDistance!=null&&desire&&
@@ -186,13 +194,13 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
      }
     }
    }
-   if(!pos&&!riskBlocked&&!riskTripped&&stopdir&&!recovered&&!shadow&&reentry&&s.gate&&b>=stoppedAt+15&&b>stoppedAt){let trigger=stopprice+stopdir*.5*af;if(stopdir>0?hi>=trigger:lo<=trigger){let ent=stopdir>0?Math.ceil(Math.max(trigger,bo)):Math.floor(Math.min(trigger,bo));pos=stopdir;active=0;anchor=ent;recovered=true;reentries++;st=pos>0?Math.floor(ent-.55*af):Math.ceil(ent+.55*af);
+   if(!pos&&!riskBlocked&&!riskTripped&&!risk.disableReentry&&stopdir&&!recovered&&!shadow&&reentry&&s.gate&&b>=stoppedAt+15&&b>stoppedAt){let trigger=stopprice+stopdir*.5*af;if(stopdir>0?hi>=trigger:lo<=trigger){let ent=stopdir>0?Math.ceil(Math.max(trigger,bo)):Math.floor(Math.min(trigger,bo));pos=stopdir;active=0;anchor=ent;recovered=true;reentries++;st=pos>0?Math.floor(ent-.55*af):Math.ceil(ent+.55*af);
      if(risk.coreMaxStopPoints!=null&&Number(risk.coreMaxStopPoints)>0){
       const dist=Number(risk.coreMaxStopPoints);
       st=pos>0?Math.max(st,ent-dist):Math.min(st,ent+dist);
      }
      addPnl(-(fee));event(b,'停損再進場',pos,ent);if(pos>0?lo<=st:hi>=st){let ex=pos>0?Math.min(st,bo):Math.max(st,bo);addPnl(pos*(ex-anchor)-fee);event(b,'再進場同根停損',pos,ex);pos=0;continue}}}
-   if(!pos&&!riskBlocked&&!riskTripped&&!keyDone&&(shadow||!s.blocked)&&desire===0){let lc=s.long.entry>0&&hi>=s.long.entry,sc=s.short.entry>0&&lo<=s.short.entry;if(lc&&sc){keyDone=true;continue}if(lc||sc){pos=lc?1:-1;let plan=lc?s.long:s.short;anchor=lc?Math.max(plan.entry,bo):Math.min(plan.entry,bo);active=1;keyStop=plan.stop;keyTarget=plan.target;addPnl(-(fee));keys++;event(b,'關鍵價進場',pos,anchor);if(lc?lo<=keyStop:hi>=keyStop){let ex=lc?Math.min(keyStop,bo):Math.max(keyStop,bo);addPnl(pos*(ex-anchor)-fee);event(b,'關鍵價停損',pos,ex);pos=0;active=0;keyDone=true}else if(lc?hi>=keyTarget:lo<=keyTarget){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true}}}
+   if(!pos&&!riskBlocked&&!riskTripped&&!risk.disableKey&&!keyDone&&(shadow||!s.blocked)&&desire===0){let lc=s.long.entry>0&&hi>=s.long.entry,sc=s.short.entry>0&&lo<=s.short.entry;if(lc&&sc){keyDone=true;continue}if(lc||sc){pos=lc?1:-1;let plan=lc?s.long:s.short;anchor=lc?Math.max(plan.entry,bo):Math.min(plan.entry,bo);active=1;keyStop=plan.stop;keyTarget=plan.target;addPnl(-(fee));keys++;event(b,'關鍵價進場',pos,anchor);if(lc?lo<=keyStop:hi>=keyStop){let ex=lc?Math.min(keyStop,bo):Math.max(keyStop,bo);addPnl(pos*(ex-anchor)-fee);event(b,'關鍵價停損',pos,ex);pos=0;active=0;keyDone=true}else if(lc?hi>=keyTarget:lo<=keyTarget){addPnl(pos*(keyTarget-anchor)-fee);event(b,'關鍵價停利',pos,keyTarget);pos=0;active=0;keyDone=true}}}
   }
   if(pendingEntry)missEntry++;
   if(pendingExit){
@@ -203,7 +211,13 @@ export function simulateLimitRisk(ss,bars,{fee=2.5,shadow=false,reentry=true,end
     pos=0;
    }
   }
-  if(pos){addPnl(pos*(s.cl-anchor));if(active&&!s.partial){addPnl(-(fee));event(s.count-1,'輔助單尾盤平倉',pos,s.cl);pos=0}}
+  if(pos){
+   addPnl(pos*(s.cl-anchor));
+   if(!active&&!s.partial&&((risk.flatAfterNight&&s.sid===0)||(risk.flatAfterDay&&s.sid===1))){
+    addPnl(-fee);event(s.count-1,'指定盤尾盤風控平倉',pos,s.cl);pos=0;
+   }
+   if(active&&!s.partial){addPnl(-(fee));event(s.count-1,'輔助單尾盤平倉',pos,s.cl);pos=0}
+  }
   equity+=pnl;peak=Math.max(peak,equity);
   if(!riskResetPending)riskPeak=Math.max(riskPeak,equity);
   mdd=Math.max(mdd,peak-equity);pnls[i]=pnl;
