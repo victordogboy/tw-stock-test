@@ -2,7 +2,7 @@
 // Never sends orders, never claims that historical entries are current broker positions.
 // Prices and state derive only from source-validated 1-minute K, not the quote's 5s stream.
 import {run} from './engine.mjs';
-import {replayLive} from './live.mjs';
+import {replayLive} from './live.mjs?v=20261113-2tx-paper-v1';
 import {simulateLimitRisk} from '../r26-research/combined-breakout-risk.mjs';
 import {priorDailyRegimes,regimeFlags} from '../r26-research/prior-regime-features.mjs';
 import {replaySizedTape} from '../r26-research/five-lot-tape.mjs';
