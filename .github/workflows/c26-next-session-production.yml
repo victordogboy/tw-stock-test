@@ -1,0 +1,41 @@
+name: C26 next-session production live gate acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c26/**'
+      - 'public/r1494a/c26/**'
+      - '.github/workflows/c26-next-session-production.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Wait for actual C26 production Worker to serve strict live-plan gate
+        run: |
+          node --input-type=module <<'JS'
+          const origin='https://tw-stock-api.victordogboy.workers.dev';
+          let last={};
+          for(let i=0;i<30;i++){
+            try{
+              const p=await fetch(origin+'/api/c26/status?production='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(20000)});
+              const a=await p.json();
+              const f=a.forward_coverage;
+              const passed=p.ok&&a.model_version==='C26'&&
+                f?.source_as_of==='2026-11-12'&&f?.checkpoint_ohlc_parity?.pass===true&&
+                f?.next_exchange_trade_date==='2026-11-13'&&
+                ((a.plan?.readiness==='blocked'&&a.no_live_positions===true&&a.plan.actions.length===0)||
+                 (a.plan?.readiness==='ready_for_manual_review'&&a.no_broker_orders===true));
+              last={status:p.status,passed,forwardDate:f?.source_as_of,nextTradingDay:f?.next_exchange_trade_date,
+                checkpoint:f?.checkpoint_ohlc_parity?.pass,readiness:a.plan?.readiness,
+                orderCount:a.plan?.actions?.length,reason:a.plan?.plan_gate_error||null,attempt:i+1};
+              if(passed){console.log('C26_NEXT_SESSION_PRODUCTION',JSON.stringify(last));process.exit(0);}
+            }catch(e){last={attempt:i+1,error:String(e.message||e)}}
+            await new Promise(ok=>setTimeout(ok,6500));
+          }
+          console.log('C26_NEXT_SESSION_PRODUCTION',JSON.stringify(last));process.exit(1);
+          JS
