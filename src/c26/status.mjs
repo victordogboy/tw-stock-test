@@ -4,6 +4,7 @@
  * its FC23 strategy decisions are never read or copied into a C26 plan.
  */
 import {fc23Stub} from '../fc23/service.mjs';
+import {validateC26NextDayPlan} from './live-plan-gate.mjs';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{
  'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
  'X-C26-Plan-Ready':'false','X-C26-Frozen-Lock':'C26-EVENT-CORR-LOCK-20261112'}});
@@ -19,6 +20,7 @@ async function publicForwardCoverage(env){
   if(d.lock_id!=='C26-EVENT-CORR-LOCK-20261112'||d.live_plan_readiness!=='BLOCKED'||d.public_raw_data!==false)return null;
   const last=d.days?.filter(x=>x.date===d.full_market_last_verified).at(-1)||null;
   return {state:d.state,source_as_of:d.full_market_last_verified||null,checked_at:d.checked_at||null,
+    next_exchange_trade_date:d.next_exchange_trade_date||null,
     expected_pool:233,staged_trade_dates:d.staged_trade_dates||0,available_trade_dates:d.available_trade_dates||0,
     latest_price_valid:last?.price_valid??null,latest_price_missing:last?.missing_count??null,
     latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
@@ -34,6 +36,21 @@ export async function c26StatusRoute(request,env){
  if(path.endsWith('/status')&&request.method!=='GET')return json({error:'GET required'},405);
  let upstream=null,err=null;
  const forward=await publicForwardCoverage(env);
+ let publishedPlan=null,planGate='No fully validated frozen C26 forward plan published';
+ if(forward?.next_exchange_trade_date&&env?.ASSETS?.fetch){
+  try{
+   const resp=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/c26/data/verified-next-day-plan.json'));
+   if(resp.ok){
+    const checked=validateC26NextDayPlan(await resp.json(),{
+     state:forward.state,checkpoint_ohlc_parity:forward.checkpoint_ohlc_parity,
+     full_market_last_verified:forward.source_as_of,
+     next_exchange_trade_date:forward.next_exchange_trade_date
+    });
+    if(checked.ok)publishedPlan=checked.plan;
+    else planGate=checked.reason;
+   }
+  }catch{planGate='Failed to validate frozen C26 live-plan asset'}
+ }
  try{
   const endpoint=path.endsWith('/refresh')?'refresh':'snapshot';
   const method=endpoint==='refresh'?'POST':'GET';
@@ -57,8 +74,8 @@ export async function c26StatusRoute(request,env){
    post_archive_portfolio_state:'not_replayed',
    next_day_plan_engine_parity:'not_verified'
   },
-  plan:{readiness:'blocked',actions:[],signal_as_of:null,trade_date:null,
-   reason:'C26尚未以凍結原始引擎重算2026-10-28以後的盤後資料與持倉；禁止沿用FC23/R1494-A訊號。'},
-  no_live_positions:true,no_broker_orders:true,updated_at:new Date().toISOString()
+  plan:publishedPlan||{readiness:'blocked',actions:[],signal_as_of:null,trade_date:forward?.next_exchange_trade_date||null,
+   reason:'C26尚未以凍結原始引擎重算2026-10-28以後的盤後資料與持倉；禁止沿用FC23/R1494-A訊號。',plan_gate_error:planGate},
+  no_live_positions:!publishedPlan,no_broker_orders:true,updated_at:new Date().toISOString()
  });
 }
