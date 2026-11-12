@@ -1,0 +1,54 @@
+name: C26 complete historical archive production acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/**'
+      - '.github/workflows/c26-full-live-smoke.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check-public-c26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Verify actual Cloudflare data, exact 1407 NAV, 1758 trades, and frozen source SHA
+        run: |
+          node --input-type=module <<'JS'
+          import crypto from 'node:crypto';
+          import z from 'node:zlib';
+          const root='https://tw-stock-api.victordogboy.workers.dev/r1494a/c26/';
+          const get=async path=>{
+            const r=await fetch(root+path+'?c26='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(20000)});
+            if(!r.ok)throw Error(path+' returned HTTP '+r.status);
+            return await r.text();
+          };
+          const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
+          let lastErr='';
+          for(let attempt=0;attempt<22;attempt++){
+            try{
+              const [html,js,manifestText,metaText]=await Promise.all([get(''),get('app.mjs'),get('manifest.json'),get('data/historical-assets.json')]);
+              const manifest=JSON.parse(manifestText),meta=JSON.parse(metaText);
+              if(!html.includes('c26-archive-reload')||!js.includes('loadPublishedArchive')||meta.lock_id!==manifest.lock_id||manifest.live_plan_readiness!=='blocked'||manifest.live_trading_enabled!==false)throw Error('Old deployment or wrong live safety state');
+              const loaded={};
+              for(const name of ['nav','orders']){
+                const info=meta.parts[name];
+                const data=await Promise.all(info.base64_parts.map(n=>get('data/'+n)));
+                const buf=Buffer.from(data.join('').trim(),'base64');
+                if(buf.length!==info.bytes_gzip||hash(buf)!==info.sha256_gzip)throw Error(name+' compressed SHA mismatch');
+                const csv=z.gunzipSync(buf).toString('utf8').trim();
+                const rows=csv.split(/\r?\n/);
+                const expected=name==='nav'?1407:1758;
+                if(rows.length-1!==expected)throw Error(name+' count '+(rows.length-1)+' not '+expected);
+                loaded[name]={rows:rows.length-1,sha:hash(buf)};
+              }
+              if(!js.includes('validateC26')||!js.includes('crypto.subtle.digest'))throw Error('Browser replay validation absent');
+              console.log('C26_PRODUCTION_OK',JSON.stringify({verified:true,auto_archive:true,live_signals:'BLOCKED',...loaded,attempt:attempt+1}));
+              process.exit(0);
+            }catch(e){lastErr=String(e.message||e);await new Promise(r=>setTimeout(r,7000))}
+          }
+          throw Error('C26 production parity not confirmed: '+lastErr);
+          JS
