@@ -62,9 +62,9 @@ export function parseYahooQuotePage(html,sourceUrl='https://tw.stock.yahoo.com/f
 // Aggregate only independently verified, contiguous 1-minute bars of ONE named TX contract
 // and ONE physical session. This is an observed session-to-date summary, never an order-book quote.
 export function summarizeNamedMinuteSession(data,contract){
- if(!Array.isArray(data)||!/^20\\d{4}$/.test(contract))return null;
+ if(!Array.isArray(data)||!/^20\d{4}$/.test(contract))return null;
  const bars=data.filter(x=>x?.contract_verified===true&&x.contract_date===contract&&
-  typeof x.session_key==='string'&&/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/.test(x.timestamp_tpe||'')&&
+  typeof x.session_key==='string'&&/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(x.timestamp_tpe||'')&&
   ['open','high','low','close'].every(k=>Number.isFinite(x[k])&&x[k]>0))
   .sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
  const last=bars.at(-1);if(!last)return null;
