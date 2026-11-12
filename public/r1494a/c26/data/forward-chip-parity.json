@@ -1,0 +1,33 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "source_as_of": "2026-11-12",
+  "archive_end": "2026-10-27",
+  "factors": [
+    "F5",
+    "T5"
+  ],
+  "results": [
+    {
+      "date": "2026-10-22",
+      "all": 426,
+      "exact1e5": 426,
+      "exact1e3": 426,
+      "not_comparable": 2,
+      "bad_gt_1e3": 0,
+      "largest_error": 2.0735111405656426e-8
+    },
+    {
+      "date": "2026-10-27",
+      "all": 428,
+      "exact1e5": 428,
+      "exact1e3": 428,
+      "not_comparable": 0,
+      "bad_gt_1e3": 0,
+      "largest_error": 1.3543273447158555e-8
+    }
+  ],
+  "strict_all_1e5": false,
+  "raw_public": false,
+  "latest_c26_positions_verified": false,
+  "trade_plan": "BLOCKED"
+}
