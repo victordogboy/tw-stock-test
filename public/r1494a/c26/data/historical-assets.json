@@ -1,0 +1,31 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "asof": "2026-10-27",
+  "source": "C26 lock full replay from user uploaded archive",
+  "parts": {
+    "nav": {
+      "source": "C26_daily_nav.csv.gz",
+      "sha256_gzip": "de04853ddd00a8ca150b6e6ac29f7918ebb387bba2c5e9303bd1b26021b54f95",
+      "bytes_gzip": 31653,
+      "base64_parts": [
+        "nav-base64-00.txt",
+        "nav-base64-01.txt"
+      ]
+    },
+    "orders": {
+      "source": "C26_orders.csv.gz",
+      "sha256_gzip": "d47b865b9e816e34f73c057c5d779e1ca03234827d16d1409bde218946c00567",
+      "bytes_gzip": 77606,
+      "base64_parts": [
+        "orders-base64-00.txt",
+        "orders-base64-01.txt",
+        "orders-base64-02.txt",
+        "orders-base64-03.txt",
+        "orders-base64-04.txt"
+      ]
+    }
+  },
+  "trading_day_count": 1407,
+  "order_count": 1758,
+  "never_live_signals": true
+}
