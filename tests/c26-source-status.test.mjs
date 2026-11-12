@@ -27,3 +27,24 @@ test('C26 refresh only schedules shared raw source refresh, never publishes C26 
 test('wrong HTTP method cannot trigger refresh or trade',async()=>{
  const rsp=await c26StatusRoute(new Request('https://worker.test/api/c26/refresh'),fakeEnv());assert.equal(rsp.status,405);
 });
+test('C26 status exposes sanitized EOD coverage only, never raw licensed FinMind records or trades',async()=>{
+ const env=fakeEnv();
+ env.ASSETS={fetch:async()=>Response.json({
+  lock_id:'C26-EVENT-CORR-LOCK-20261112',live_plan_readiness:'BLOCKED',public_raw_data:false,
+  state:'source_staged',full_market_last_verified:'2026-11-12',checked_at:'2026-11-12T17:30:54Z',
+  staged_trade_dates:12,available_trade_dates:12,
+  days:[{date:'2026-11-12',price_valid:232,missing_count:1,institutional_codes:232,source_errors:[]}],
+  FINMIND_RAW_SENTINEL:'must-not-leak',token:'must-not-leak'
+ })};
+ const response=await c26StatusRoute(new Request('https://worker.test/api/c26/status'),env);
+ assert.equal(response.status,200);
+ const d=await response.json();
+ assert.equal(d.forward_coverage.source_as_of,'2026-11-12');
+ assert.equal(d.forward_coverage.latest_price_valid,232);
+ assert.equal(d.forward_coverage.available_trade_dates,12);
+ assert.equal(d.forward_coverage.raw_public,false);
+ assert.equal(d.data_requirements.post_archive_ohlc,'raw_source_coverage_staged_feature_parity_pending');
+ assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);
+ assert.equal(d.no_live_positions,true);
+ assert.ok(!JSON.stringify(d).includes('must-not-leak'));
+});
