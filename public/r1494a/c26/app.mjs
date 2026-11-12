@@ -110,7 +110,7 @@ async function init(){
   $('c26-lock-id').textContent=manifest.lock_id;
   let stored=null;
   const error=message=>$('c26-archive-state').textContent=`C26 封存讀取失敗：${message}；不發佈任何最新交易指令。`;
-  const read=async function(files){
+  const read=async function(files,sourceLabel='本機檔案'){
     const inputs={};for(const file of files){const name=file.name;
       if(name.endsWith('.zip'))Object.assign(inputs,await readZipEntries(file,['C26_daily_nav.csv.gz','C26_orders.csv.gz','C26_metrics.json']));
       else if(name.endsWith('.gz')||name.endsWith('.json'))inputs[name]=new Uint8Array(await file.arrayBuffer());
@@ -123,7 +123,7 @@ async function init(){
       if(Math.abs(Number(metrics.return_pct)-EXPECTED.ret)>1e-6||Math.abs(Number(metrics.mdd_pct)-EXPECTED.mdd)>1e-6||metrics.online_deployed!==false)throw Error('ZIP內凍結績效或上線標誌不符');
     }
     const precomputed=modelDateSet(daily,orders);stored={daily,orders,precomputed};
-    $('c26-archive-state').textContent=`C26 歷史資料驗證通過：${daily.length}交易日、${orders.length}筆委託、539筆買入與1,028筆賣出成交，最後資料日 ${daily.at(-1).date}。本機讀取，沒有上傳。`;
+    $('c26-archive-state').textContent=`C26 ${sourceLabel}驗證通過：${daily.length}交易日、${orders.length}筆委託、539筆買入與1,028筆賣出成交，最後資料日 ${daily.at(-1).date}。僅供歷史研究，不是最新下單訊號。`;
     $('c26-chart').innerHTML=graph(daily.map(d=>Number(d.nav)));
     $('c26-nav-summary').textContent=`期末模擬淨值 ${money(Number(daily.at(-1).nav)*3000000)} 元（初始300萬元）；回撤 ${EXPECTED.mdd.toFixed(4)}%。`;
     $('c26-date').disabled=false;$('c26-date').innerHTML=daily.map((d,i)=>`<option value="${i}">${safe(d.date)}</option>`).reverse().join('');$('c26-date').value=String(daily.length-1);
@@ -144,6 +144,32 @@ async function init(){
   };
   $('c26-file').addEventListener('change',async ev=>{stored=null;$('c26-archive-state').textContent='讀取並驗證 C26 歷史資料中…';try{await read(ev.target.files);}catch(e){error(e.message);$('c26-date').disabled=true;$('c26-chart').innerHTML='<p>尚未驗證的檔案不展示為C26歷史交易。</p>';$('c26-day-summary').textContent='歷史資料尚未驗證';$('c26-holdings').innerHTML='';$('c26-orders').innerHTML='';}});
   $('c26-date').addEventListener('change',showDay);$('c26-capital').addEventListener('change',showDay);$('c26-month-mode').addEventListener('change',showPeriods);
-  for(const id of ['c26-order-side','c26-order-fill','c26-order-code'])$(id).addEventListener('input',showOrders);
+   for(const id of ['c26-order-side','c26-order-fill','c26-order-code'])$(id).addEventListener('input',showOrders);
+   // Public *historical* C26 archive, checked against the uploaded frozen replay SHA256.
+   // No latest EOD data or FC23 order feed is substituted here.
+   async function loadPublishedArchive(){
+     $('c26-archive-state').textContent='從網站封存資料載入 1,407 日 C26 原始重播，核對 SHA256 中…';
+     const pack=await (await fetch('./data/historical-assets.json',{cache:'no-store'})).json();
+     if(pack.lock_id!==manifest.lock_id||pack.asof!=='2026-10-27'||pack.trading_day_count!==EXPECTED.days||pack.order_count!==EXPECTED.orders||pack.never_live_signals!==true)throw Error('公開封存版本不符合原 C26 鎖定資料');
+     const inputs=[];
+     for(const mode of ['nav','orders']){
+       const slot=pack.parts?.[mode];if(!slot||!Array.isArray(slot.base64_parts))throw Error(mode+' 封存索引遺失');
+       const strings=await Promise.all(slot.base64_parts.map(async name=>{
+         if(!/^(nav|orders)-base64-\d{2}\.txt$/.test(name))throw Error('封存路徑不合法');
+         const resp=await fetch('./data/'+name,{cache:'no-store'});
+         if(!resp.ok)throw Error(name+' HTTP '+resp.status);
+         return (await resp.text()).trim();
+       }));
+       const raw=Uint8Array.from(atob(strings.join('')),c=>c.charCodeAt(0));
+       const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',raw)),x=>x.toString(16).padStart(2,'0')).join('');
+       if(hash!==slot.sha256_gzip||raw.length!==slot.bytes_gzip)throw Error(mode+' 歷史壓縮資料 SHA256 不符');
+       inputs.push(new File([raw],slot.source,{type:'application/gzip'}));
+     }
+     await read(inputs,'網站內建');
+   }
+   $('c26-archive-reload')?.addEventListener('click',()=>loadPublishedArchive().catch(e=>error(e.message)));
+   await loadPublishedArchive().catch(e=>{
+     error(e.message); // Can still select original lock ZIP locally, without deleting existing source data.
+   });
 }
 if(typeof document!=='undefined')init().catch(e=>{$('c26-archive-state').textContent=`C26 凍結資訊無法確認：${e.message}`;$('c26-live-readiness').textContent='C26 最新交易計畫：BLOCKED';});
