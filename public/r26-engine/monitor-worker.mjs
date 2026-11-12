@@ -1,5 +1,5 @@
 import {run,audit} from './engine.mjs';
-import {replayLive,parseOfficialZip} from './live.mjs?v=20261112-tail-v2';
+import {replayLive,parseOfficialZip} from './live.mjs?v=20261113-2tx-paper-v1';
 import {replayTwoTxPaper} from './two-tx-paper-live.mjs';
 let base;
 async function load(){
