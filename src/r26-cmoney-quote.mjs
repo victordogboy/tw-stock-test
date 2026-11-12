@@ -14,7 +14,7 @@ const field = (s, label) => numeric(s.match(new RegExp('(?:^|\\s)'+label+'\\s*([
 function localIso(year,month,day,clock){
  const pieces=/^(\d\d):(\d\d)(?::(\d\d))?$/.exec(clock);
  if(!pieces)return null;
- const [hh,mi,sec]=pieces.slice(1).map(Number);
+ const hh=Number(pieces[1]),mi=Number(pieces[2]),sec=Number(pieces[3]||0);
  if(hh>23||mi>59||sec>59)return null;
  const utc=Date.UTC(year,month-1,day,hh-8,mi,sec);
  const check=new Date(utc+8*3600000);
@@ -24,7 +24,7 @@ function localIso(year,month,day,clock){
 export function parseCmoneyTxf1Page(html,sourceUrl='https://auth.cmoney.tw/forum/stock?tab=news',now=Date.now()){
  if(typeof html!=='string'||html.length>6000000)return null;
  const t=strip(html);
- const pos=t.search(/台指(?:期貨)?\s*TXF1\b/);
+ const pos=t.search(/台指(?:期貨|期)\s*TXF1\b/);
  if(pos<0)return null;
  const section=t.slice(pos,Math.min(pos+850,t.length));
  const m=section.match(/(?:日盤\s*夜盤\s*)?([\d,]{4,}(?:\.\d+)?)\s+[-+]?[\d,]+(?:\.\d+)?\s*\(\s*[-+]?\d+(?:\.\d+)?\s*%\s*\)/);
