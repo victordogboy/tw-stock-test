@@ -10,7 +10,7 @@ export function replaySizedTape(ss,bars,signal,{
  fee=2.5,end='2026-11-11',maxLots=5,sizeAtOpen=()=>1,
  drawdownCircuit=0,haltSessions=8,riskExitExtraSlip=0,
  openRebalance=true,additionalLotSlippagePerSide=0,
- marginGuard=null
+ marginGuard=null,liquidate=true
 }={}){
  if(!Number.isInteger(maxLots)||maxLots<1||maxLots>5)throw Error('MAX_FIVE_TX_ONLY');
  const eqSession=[],detailed=[],fills=[],events=new Map();
@@ -151,7 +151,7 @@ export function replaySizedTape(ss,bars,signal,{
   }
   if(qty)cash+=qty*(s.cl-basis);
   basis=s.cl;
-  if(i===ss.length-1&&qty){
+  if(liquidate&&i===ss.length-1&&qty){
    // Mirror frozen end-of-sample terminal cost (not a physical trade).
    cash-=fee*Math.abs(qty);
    fills.push({date:s.date,sid:s.sid,bar:s.count-1,type:'樣本末結算費',price:s.cl,
