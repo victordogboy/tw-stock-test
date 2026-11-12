@@ -1,0 +1,29 @@
+name: C26 T+1 frozen trading plan strict gate
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c26/**'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - 'tests/c26-next-session-plan-gate.test.mjs'
+      - '.github/workflows/c26-next-session-gate.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate no bogus C26 order can be issued, preserve FC23
+        run: |
+          node --check src/c26/live-plan-gate.mjs
+          node --check src/c26/status.mjs
+          node --check src/worker.mjs
+          node --check public/r1494a/c26/inline-adapter.mjs
+          node --test tests/c26-next-session-plan-gate.test.mjs tests/c26-source-status.test.mjs tests/c26-inline-monitor.test.mjs
+          node --test tests/c26-frozen-lock-parity.test.mjs
