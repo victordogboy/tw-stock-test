@@ -148,7 +148,7 @@ export async function loadC26MonitorSnapshot(shared,{refresh=false}={}){
  const status={model_version:'C26',data_as_of:dates.at(-1),signal_as_of:dates.at(-1),
   checkedThrough:server.latest_market_data_as_of||statusDate(shared)||'未核對',
   current_market_as_of:server.latest_market_data_as_of||statusDate(shared)||null,
-  sync_status:planReady?'verified_paper_only':'blocked',trade_status:planReady?'broker_unconfirmed':'historical_only_broker_unconfirmed',
+  sync_status:planReady?'current':'blocked',trade_status:planReady?'broker_unconfirmed':'historical_only_broker_unconfirmed',
   universe_count:233,price_updated_at:server.updated_at||null,
   lastError:planReady?null:{date:'2026-10-28',message:reason},
   live_source_status:server.source_status||'unknown',live_source_error:server.source_error||null,

@@ -26,7 +26,7 @@ test('Original monitor appends only hash-verified C26 results; corrupted data ca
  try{
   const d=await loadC26MonitorSnapshot({dates:[],curves:{old49:[],market:[]}});
   assert.equal(d.snapshots.length,1419);assert.equal(d.orders.length,1776);assert.equal(d.dates.at(-1),'2026-11-12');
-  assert.equal(d.plan.readiness,'ready_for_manual_review');
+  assert.equal(d.plan.readiness,'ready_for_manual_review');assert.equal(d.status.sync_status,'current');assert.equal(d.status.lastError,null);
   assert.equal(crypto.createHash('sha256').update(read('/r1494a/c26/data/forward-replay.json')).digest('hex'),plan.forward_asset_sha256);
   corrupt=true;const blocked=await loadC26MonitorSnapshot({dates:[],curves:{old49:[],market:[]}});
   assert.equal(blocked.plan.readiness,'blocked');assert.equal(blocked.snapshots.length,1407);
