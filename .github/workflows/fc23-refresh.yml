@@ -34,9 +34,23 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          set -euo pipefail
           if [ ! -f public/r1494a/fc23/live-bootstrap.b64 ]; then exit 0; fi
-          git add public/r1494a/fc23/live-bootstrap.b64 public/r1494a/fc23/refresh-report.json
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh FC23 prices, own holdings, NAV and next-session plan'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # Preserve this job's verified outputs, then publish them onto the
+          # current main tree. Never rebase a stale generated snapshot commit.
+          tmpdir=$(mktemp -d)
+          cp public/r1494a/fc23/live-bootstrap.b64 "$tmpdir/live-bootstrap.b64"
+          cp public/r1494a/fc23/refresh-report.json "$tmpdir/refresh-report.json"
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp "$tmpdir/live-bootstrap.b64" public/r1494a/fc23/live-bootstrap.b64
+            cp "$tmpdir/refresh-report.json" public/r1494a/fc23/refresh-report.json
+            git add public/r1494a/fc23/live-bootstrap.b64 public/r1494a/fc23/refresh-report.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Refresh FC23 prices, own holdings, NAV and next-session plan'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo 'FC23 publish retry limit reached' >&2
+          exit 1
