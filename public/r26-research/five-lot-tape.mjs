@@ -9,7 +9,8 @@ const CLOSE=new Set(['開盤平倉','核心停損','關鍵價停損','關鍵價�
 export function replaySizedTape(ss,bars,signal,{
  fee=2.5,end='2026-11-11',maxLots=5,sizeAtOpen=()=>1,
  drawdownCircuit=0,haltSessions=8,riskExitExtraSlip=0,
- openRebalance=true
+ openRebalance=true,additionalLotSlippagePerSide=0,
+ marginGuard=null
 }={}){
  if(!Number.isInteger(maxLots)||maxLots<1||maxLots>5)throw Error('MAX_FIVE_TX_ONLY');
  const eqSession=[],detailed=[],fills=[],events=new Map();
@@ -25,7 +26,9 @@ export function replaySizedTape(ss,bars,signal,{
  // reset only after the complete scheduled cooldown of an emergency stop.
  let riskEpochPeak=0,riskEpochResetPending=false,riskEpochResets=0;
  let sessions=0,totalTradedLots=0,rebalanceLots=0,
-  stopEvents=0,blockedUntil=-1,tradingDays=0;
+  stopEvents=0,blockedUntil=-1,tradingDays=0,
+  extraSlippageCostPoints=0,extraSlippageLotSides=0,
+  gapMarginReductions=0,maxRequiredMarginNTD=0;
  const round=x=>Math.round(x*1e8)/1e8;
  const changeQty=(newQty,px,date,sid,bar,type)=>{
   if(!Number.isInteger(newQty)||Math.abs(newQty)>maxLots)throw Error('BAD_MULTILOT_QTY');
@@ -33,8 +36,14 @@ export function replaySizedTape(ss,bars,signal,{
   // Mark all held contracts at the execution price, then buy/sell delta.
   if(qty)cash+=qty*(px-basis);
   const executed=Math.abs(newQty-qty);
+  const extraExecuted=Math.max(0,Math.max(Math.abs(newQty),Math.abs(qty))-1)-
+                      Math.max(0,Math.min(Math.abs(newQty),Math.abs(qty))-1);
   if(executed){cash-=executed*fee;totalTradedLots+=executed;
-   fills.push({date,sid,bar,type,price:px,old:qty,qty:newQty,executed});}
+   if(additionalLotSlippagePerSide>0&&extraExecuted>0){
+    const extra=extraExecuted*additionalLotSlippagePerSide;
+    cash-=extra;extraSlippageCostPoints+=extra;extraSlippageLotSides+=extraExecuted;
+   }
+   fills.push({date,sid,bar,type,price:px,old:qty,qty:newQty,executed,extraExecuted});}
   qty=newQty;basis=px;
   return executed;
  };
@@ -65,11 +74,29 @@ export function replaySizedTape(ss,bars,signal,{
     // Exact parity with frozen R26: rollover costs TWO per-side fees,
     // new contract basis starts at the current contract open, no spread P&L.
     cash-=2*fee*Math.abs(qty);totalTradedLots+=2*Math.abs(qty);
+    const extraRoll=2*Math.max(0,Math.abs(qty)-1);
+    if(extraRoll&&additionalLotSlippagePerSide>0){
+     const extra=extraRoll*additionalLotSlippagePerSide;
+     cash-=extra;extraSlippageCostPoints+=extra;extraSlippageLotSides+=extraRoll;
+    }
     fills.push({date:s.date,sid:s.sid,bar:0,type:'換月',price:s.op,
-       old:qty,qty,executed:2*Math.abs(qty)});
+       old:qty,qty,executed:2*Math.abs(qty),extraExecuted:extraRoll});
     basis=s.op;
    }else{
     cash+=qty*(s.op-basis);basis=s.op;
+   }
+  }
+  // A real margin guard must reassess the account AFTER overnight gaps,
+  // not merely previous-session equity. Default off preserves golden replay.
+  if(marginGuard){
+   const {initialCapitalNTD=2_000_000,perLotMarginNTD=701_000,reserveNTD=300_000,pointValueNTD=200}=marginGuard;
+   const account=initialCapitalNTD+cash*pointValueNTD;
+   const allowed=Math.max(0,Math.min(maxLots,Math.floor((account-reserveNTD)/perLotMarginNTD)));
+   maxRequiredMarginNTD=Math.max(maxRequiredMarginNTD,perLotMarginNTD*Math.abs(qty));
+   wanted=Math.min(wanted,allowed);
+   if(Math.abs(qty)>allowed&&!carryClose){
+    gapMarginReductions++;
+    changeQty(Math.sign(qty)*allowed,s.op,s.date,s.sid,0,'跨盤缺口保證金降倉');
    }
   }
   const frozenCarry=signal.rows?.[sessions-1]?.held??0;
@@ -140,5 +167,7 @@ export function replaySizedTape(ss,bars,signal,{
  return {net:round(cash),minuteDD:round(mdd),ratio:round(cash/(mdd||1)),
   sessionCount:sessions,rows:eqSession,tradeFills:fills,
   tradedContracts:totalTradedLots,rebalanceLots,stopEvents,blockedUntil,riskEpochResets,
+  extraSlippageCostPoints:round(extraSlippageCostPoints),extraSlippageLotSides,
+  gapMarginReductions,maxRequiredMarginNTD,
   heldLots:qty,peak:round(peak),maxLots};
 }
