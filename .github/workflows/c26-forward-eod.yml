@@ -35,20 +35,18 @@ jobs:
           set -euo pipefail
           node research/c26-lock/forward/stage-finmind.mjs
           node --test tests/c26-forward-stage.test.mjs
-      - name: Publish forward raw data and explicit C26 BLOCKED status
+      - name: Publish coverage summary ONLY (FinMind raw data stays private)
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           tmpdir=$(mktemp -d)
-          cp public/r1494a/c26/data/forward-eod.json.gz "$tmpdir/forward-eod.json.gz"
           cp public/r1494a/c26/data/forward-status.json "$tmpdir/forward-status.json"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            cp "$tmpdir/forward-eod.json.gz" public/r1494a/c26/data/forward-eod.json.gz
             cp "$tmpdir/forward-status.json" public/r1494a/c26/data/forward-status.json
-            git add public/r1494a/c26/data/forward-eod.json.gz public/r1494a/c26/data/forward-status.json
+            git add public/r1494a/c26/data/forward-status.json
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Stage FinMind forward C26 source data (trading plan remains blocked)'
             if git push origin HEAD:main; then exit 0; fi
