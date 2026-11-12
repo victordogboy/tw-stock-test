@@ -29,10 +29,13 @@ function jwt(patch={},signingKey=privateKey){
 }
 test('C26 GH OIDC verifies real RS256 signature and exact designated workflow',async()=>{
  assert.equal(await verifyC26GitHubOIDC(jwt(),{fetchFn:mockedJwks,now}),true);
+ // Github enterprise/repository OIDC subject templates may customize 'sub'.
+ // Exact signed repo ID, workflow, branch, audience and event still gate access.
+ assert.equal(await verifyC26GitHubOIDC(jwt({sub:'repository_id:1363009462:workflow_ref:custom'}),{fetchFn:mockedJwks,now}),true);
  for(const patch of [
   {aud:'wrong'}, {iss:'https://evil.invalid'}, {repository:'attacker/repo'},
   {repository_id:'123'}, {repository_owner:'attacker'}, {ref:'refs/heads/feature'},
-  {sub:'repo:'+repo+':pull_request'}, {workflow_ref:repo+'/.github/workflows/evil.yml@refs/heads/main'},
+  {workflow_ref:repo+'/.github/workflows/evil.yml@refs/heads/main'},
   {event_name:'pull_request'}, {exp:now-100}, {iat:now+200},
   {exp:now+1000}
  ]){
