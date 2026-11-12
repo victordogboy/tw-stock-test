@@ -35,18 +35,18 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 <div class="metric"><label>往返總成本</label><strong id="c26-fee">0.5855%</strong></div>
 <div class="metric"><label>歷史資料截至</label><strong id="c26-asof">2026-10-27</strong></div>
 </div>
-<section><h2>C26 歷史回放檔案</h2>
-<p>可在此頁從本機載入先前封存的 <code>C26_LOCK_完整資料程式重播_20261112.zip</code> 或程式碼版 ZIP，驗證每日淨值與逐筆委託，並查看歷史持股和每年、每月績效。<strong>全部檔案只在瀏覽器本機處理，不會上傳至 Worker 或 GitHub。</strong></p>
-<div class="upload"><div class="controls"><label for="c26-file">選擇 C26 凍結 ZIP／兩個 CSV.gz 檔：</label><input id="c26-file" type="file" accept=".zip,.gz,.json" multiple></div><p class="sub">請保留原封存檔名。大 ZIP 只讀取必要的歷史資料條目，不會整份載入記憶體。匯入前不會生成虛構的持股或交易。</p></div>
-<p id="c26-archive-state" class="sub" aria-live="polite">目前：尚未載入 C26 完整歷史帳本。上方績效指標為封存版本已驗證數字。</p>
+<section><h2>C26 歷史回放檔案（已內建，自動核對）</h2>
+<p>網站會自動載入已核對 SHA256 的 C26 歷史淨值與成交資料；亦可從本機載入先前封存的 <code>C26_LOCK_完整資料程式重播_20261112.zip</code> 或程式碼版 ZIP，驗證每日淨值與逐筆委託，並查看歷史持股和每年、每月績效。<strong>全部檔案只在瀏覽器本機處理，不會上傳至 Worker 或 GitHub。</strong></p>
+<div class="upload"><div class="controls"><button id="c26-archive-reload" type="button">重新核對內建 C26 歷史資料</button><label for="c26-file">選擇 C26 凍結 ZIP／兩個 CSV.gz 檔：</label><input id="c26-file" type="file" accept=".zip,.gz,.json" multiple></div><p class="sub">請保留原封存檔名。大 ZIP 只讀取必要的歷史資料條目，不會整份載入記憶體。匯入前不會生成虛構的持股或交易。</p></div>
+<p id="c26-archive-state" class="sub" aria-live="polite">正在從網站載入 C26 凍結歷史帳本並核對 SHA256…</p>
 </section>
-<div class="panels"><section><h2>歷史資金曲線</h2><div id="c26-chart"><p class="muted">載入 C26 凍結資料後顯示1,407個交易日的實際回放淨值。</p></div><p id="c26-nav-summary" class="sub"></p></section>
+<div class="panels"><section><h2>歷史資金曲線</h2><div id="c26-chart"><p class="muted">正在自動載入1,407個交易日的實際凍結回放淨值。</p></div><p id="c26-nav-summary" class="sub"></p></section>
 <section><h2>指定歷史日持股與交易</h2><div class="controls"><label for="c26-date">日期</label><select id="c26-date" disabled><option>待載入</option></select><label for="c26-capital">換算初始資金</label><input id="c26-capital" type="number" min="10000" step="10000" value="3000000" style="max-width:160px"></div>
 <p class="sub">股數與金額使用原回測的小數股模型；本次只顯示歷史模擬結果，不代表券商真實持股。</p><div id="c26-day-summary" class="why">載入後提供交易日、持股清單、模型資產與當日交易原因。</div>
 <div class="scroll"><table><thead><tr><th>股票</th><th>模型股數</th></tr></thead><tbody id="c26-holdings"></tbody></table></div></section></div>
 <div class="panels"><section><h2>逐年／逐月績效</h2><label for="c26-month-mode">顯示</label><select id="c26-month-mode"><option value="annual">年度</option><option value="monthly">月度</option></select><div class="scroll"><table><thead><tr><th>期間</th><th>報酬率</th><th>期間最大回撤</th></tr></thead><tbody id="c26-periods"><tr><td colspan="3">待載入完整淨值</td></tr></tbody></table></div></section>
 <section><h2>逐筆交易與未成交</h2><div class="controls"><select id="c26-order-side"><option value="all">全部方向</option><option value="BUY">買入</option><option value="SELL">賣出</option></select><select id="c26-order-fill"><option value="all">全部成交狀態</option><option value="true">已成交</option><option value="false">未成交</option></select><input id="c26-order-code" placeholder="股票代號" inputmode="numeric"></div>
-<p class="sub" id="c26-order-count">載入後核對1,758筆歷史委託。</p><div class="scroll"><table><thead><tr><th>成交日</th><th>股票</th><th>方向</th><th>狀態</th><th>價位</th><th>回測原因</th></tr></thead><tbody id="c26-orders"></tbody></table></div></section></div>
+<p class="sub" id="c26-order-count">正在自動核對1,758筆歷史委託。</p><div class="scroll"><table><thead><tr><th>成交日</th><th>股票</th><th>方向</th><th>狀態</th><th>價位</th><th>回測原因</th></tr></thead><tbody id="c26-orders"></tbody></table></div></section></div>
 <section><h2>C26 完整核心規則</h2>
 <details open><summary>一、交易事件，不存在固定換倉日</summary><p>原FC23的20日主要調倉、5日定期配置改為賣出事件後的更強股票補位。保留既有大盤趨勢、廣度、法人籌碼、風控與事件補倉。候選仍採原FC23因子排名，沒有為了C26重新套用R1494-A追價規則。</p></details>
 <details><summary>二、虧損冷卻與相關性防集中</summary><p>因 risk_exit 或 protective_stop 完整虧損退出時，個股冷卻26交易日；FC17提前重進場也受限制。用訊號日前40交易日報酬計算持股相關性，相關係數≥0.60且相似持股權重合計≥30%時，限制同向候選進場。這是歷史條件，不使用當日未知收盤資訊。</p></details>
