@@ -1,7 +1,7 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-12T17:23:56.363Z",
+  "checked_at": "2026-11-12T17:30:54.836Z",
   "requested_through": "2026-11-12",
   "full_market_last_verified": "2026-11-12",
   "staged_trade_dates": 12,
@@ -171,13 +171,15 @@
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "df1e55e5b780553643e745a09ea51a8dcb30f04d0090087b98e2eeac3b598bac",
+  "sha256_gzip": "f8d6cf1278c3bca91e0f6159dc417b453207b41de52683d16e1705cfbf14528c",
   "bytes_gzip": 568590,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
+  "public_raw_data": false,
+  "raw_storage": "private CI workspace (ephemeral)",
   "state": "source_staged",
   "exact_c26_feature_parity": "NOT_VERIFIED",
   "frozen_c26_portfolio_replay": "NOT_IMPLEMENTED",
   "live_plan_readiness": "BLOCKED",
-  "warning": "Public raw EOD stock/chip data only; no C26 trading signals or current portfolio positions."
+  "warning": "僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。"
 }
