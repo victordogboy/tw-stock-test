@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 const base='research/c26-lock/forward/archive-feature-reference.json';
 const statusFile='public/r1494a/c26/data/forward-status.json';
-const dataFile='public/r1494a/c26/data/forward-eod.json.gz';
+const dataFile='.c26-private/forward-eod.json.gz';
 const ref=JSON.parse(fs.readFileSync(base,'utf8'));
 const digest=x=>crypto.createHash('sha256').update(x).digest('hex');
 test('C26 immutable archive overlap has 233 unique stocks and T+1 feature references',()=>{
@@ -16,6 +16,7 @@ test('C26 immutable archive overlap has 233 unique stocks and T+1 feature refere
  for(const x of Object.values(ref.days))for(const key of ['F5','T5','peer_breadth'])assert.equal(x[key].length,233);
 });
 test('C26 forward staging never changes trading readiness, even with good FinMind prices',()=>{
+ assert.equal(fs.existsSync('public/r1494a/c26/data/forward-eod.json.gz'),false,'FinMind raw records must not be publicly committed');
  if(!fs.existsSync(statusFile)||!fs.existsSync(dataFile))return;
  const st=JSON.parse(fs.readFileSync(statusFile,'utf8'));
  const compressed=fs.readFileSync(dataFile);
@@ -24,6 +25,7 @@ test('C26 forward staging never changes trading readiness, even with good FinMin
  assert.equal(raw.pool_sha256,ref.pool_sha256);
  assert.equal(st.universe_count,233);
  assert.equal(st.live_plan_readiness,'BLOCKED');
+ assert.equal(st.public_raw_data,false);
  assert.equal(st.frozen_c26_portfolio_replay,'NOT_IMPLEMENTED');
  assert.ok(st.state==='source_staged'||st.state==='source_partial');
  for(const day of Object.values(raw.days)){
