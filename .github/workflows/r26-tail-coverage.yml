@@ -26,6 +26,7 @@ jobs:
         if: always()
         run: |
           node --input-type=module <<'JS'
+          import {parseOfficialZip} from './public/r26-engine/live.mjs';
           const base='https://tw-stock-api.victordogboy.workers.dev';
           const endpoints=[
             '/api/r26/intraday?contract=202611',
@@ -36,6 +37,15 @@ jobs:
               const r=await fetch(base+endpoint,{cache:'no-store',signal:AbortSignal.timeout(18000)});
               const mime=r.headers.get('content-type')||'';
               let summary={endpoint,status:r.status,mime,bytes:Number(r.headers.get('content-length')||0)};
+              if(endpoint.includes('official-zip')&&r.status===200){
+                const zip=await r.arrayBuffer();
+                const valid=await parseOfficialZip(zip,'2026-11-12','202611');
+                summary={...summary,zipBytes:zip.byteLength,validContractRows:valid.length,
+                  dayCount:valid.filter(x=>x.session==='day').length,
+                  dayLast:valid.filter(x=>x.session==='day').at(-1)?.timestamp_tpe||null,
+                  nightCount:valid.filter(x=>x.session==='night').length,
+                  CRC_validated:true};
+              }
               if(mime.includes('json')){
                 const obj=await r.json();
                 summary={...summary,error:obj.error||null,reason:obj.reason||null,
