@@ -16,6 +16,9 @@ test('C26 source report cannot leak FC23 trade, position, or pretend to be ready
  assert.equal(body.plan.readiness,'blocked');assert.deepEqual(body.plan.actions,[]);
  assert.equal(body.no_live_positions,true);assert.equal(body.no_broker_orders,true);
  assert.equal(body.data_requirements.frozen_python_engine,'archived_not_runnable_on_worker');
+ assert.equal(body.execution_pipeline.python_forward_factor_rebuild,'not_published');
+ assert.equal(body.execution_pipeline.python_forward_portfolio_replay,'not_published');
+ assert.equal(body.execution_pipeline.source_refresh_does_not_execute_c26,true);
  assert.ok(!('orders' in body));assert.ok(!('snapshots' in body));
  assert.ok(!JSON.stringify(body).includes('1234'));
 });
@@ -43,6 +46,9 @@ test('C26 status exposes sanitized EOD coverage only, never raw licensed FinMind
  assert.equal(d.forward_coverage.latest_price_valid,232);
  assert.equal(d.forward_coverage.available_trade_dates,12);
  assert.equal(d.forward_coverage.raw_public,false);
+ assert.equal(d.execution_pipeline.latest_completed_eod,'2026-11-12');
+ assert.equal(d.execution_pipeline.eod_source.state,'verified_source_only');
+ assert.equal(d.execution_pipeline.next_day_plan,'blocked');
  assert.equal(d.data_requirements.post_archive_ohlc,'raw_source_coverage_staged_feature_parity_pending');
  assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);
  assert.equal(d.no_live_positions,true);
