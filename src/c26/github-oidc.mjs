@@ -4,7 +4,7 @@
  * market-data credential never leaves GitHub Actions or becomes a Worker secret.
  *
  * Fail closed: verify RS256 against GitHub's live JWKS, audience, issuer,
- * repository numeric identity, workflow location, branch, and token expiry.
+ * repository numeric identity, workflow location, branch, and token expiry.\n * The signed 'sub' can be customized by repository OIDC subject templates;\n * the other signed, exact claims are independently enforced.
  * Never log tokens, raw prices, or licensed vendor data.
  */
 export const C26_GH_AUDIENCE='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
@@ -31,7 +31,7 @@ export async function verifyC26GitHubOIDC(token,{fetchFn=fetch,now=Math.floor(Da
   if(claims.iss!==ISSUER||claims.aud!==C26_GH_AUDIENCE||
      claims.repository!==REPO||String(claims.repository_id)!==REPO_ID||
      claims.repository_owner!=='victordogboy'||claims.ref!=='refs/heads/main'||
-     claims.sub!=='repo:'+REPO+':ref:refs/heads/main'||claims.workflow_ref!==WF||
+     claims.workflow_ref!==WF||
      !['schedule','push','workflow_dispatch'].includes(claims.event_name))return false;
   if(!Number.isInteger(claims.iat)||!Number.isInteger(claims.exp)||
      claims.iat>now+60||claims.exp<=now-30||
