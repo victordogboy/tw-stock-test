@@ -1,0 +1,183 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "archive_as_of": "2026-10-27",
+  "checked_at": "2026-11-12T17:23:56.363Z",
+  "requested_through": "2026-11-12",
+  "full_market_last_verified": "2026-11-12",
+  "staged_trade_dates": 12,
+  "available_trade_dates": 12,
+  "days": [
+    {
+      "date": "2026-10-16",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-19",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-20",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-21",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-22",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-27",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-28",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-29",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-10-30",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-02",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-03",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-04",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-05",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-06",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-09",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-10",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-11",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    },
+    {
+      "date": "2026-11-12",
+      "state": "available",
+      "price_valid": 232,
+      "missing_count": 1,
+      "invalid_count": 0,
+      "institutional_codes": 232,
+      "source_errors": []
+    }
+  ],
+  "universe_count": 233,
+  "sha256_gzip": "df1e55e5b780553643e745a09ea51a8dcb30f04d0090087b98e2eeac3b598bac",
+  "bytes_gzip": 568590,
+  "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
+  "secret_exposed": false,
+  "state": "source_staged",
+  "exact_c26_feature_parity": "NOT_VERIFIED",
+  "frozen_c26_portfolio_replay": "NOT_IMPLEMENTED",
+  "live_plan_readiness": "BLOCKED",
+  "warning": "Public raw EOD stock/chip data only; no C26 trading signals or current portfolio positions."
+}
