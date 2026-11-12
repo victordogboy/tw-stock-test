@@ -1,0 +1,666 @@
+{
+  "date": "2026-10-27",
+  "trade_index": 1406,
+  "cash_unit": 12.608009966946016,
+  "quantity_by_code": {
+    "2801": 0.036041678217803644,
+    "3374": 0.0023271537287861315,
+    "3406": 0.0010276935469443124,
+    "3653": 0.0001428549490098065,
+    "6213": 0.0018085989558372794
+  },
+  "held_days_by_code": {
+    "2801": 26,
+    "3374": 22,
+    "3406": 22,
+    "3653": 7,
+    "6213": 26
+  },
+  "peak_by_code": {
+    "2801": 30.200000762939453,
+    "3374": 499.0,
+    "3406": 1210.0,
+    "3653": 7070.0,
+    "6213": 856.0
+  },
+  "basis_by_code": {
+    "2801": 28.039969999999997,
+    "3374": 440.62809999999996,
+    "3406": 997.4217899999999,
+    "3653": 7130.1638,
+    "6213": 513.7323074999999
+  },
+  "entry_atr_by_code": {
+    "2801": 0.02585764229297638,
+    "3374": 0.06501831114292145,
+    "3406": 0.10103627294301987,
+    "3653": 0.05487431213259697,
+    "6213": 0.07900645583868027
+  },
+  "mark_close_by_code": {
+    "2801": 30.200000762939453,
+    "3374": 463.5,
+    "3406": 1210.0,
+    "3653": 5860.0,
+    "6213": 746.0
+  },
+  "cooldown_by_code": {
+    "1303": 7,
+    "2455": 18,
+    "2883": 23,
+    "3324": 20
+  },
+  "fc17_watch_by_code": {
+    "1303": {
+      "watch_t": 1404,
+      "exit_price": 308.0
+    },
+    "1440": {
+      "watch_t": 81,
+      "exit_price": 27.25
+    },
+    "1476": {
+      "watch_t": 104,
+      "exit_price": 600.0
+    },
+    "1477": {
+      "watch_t": 104,
+      "exit_price": 259.0
+    },
+    "1503": {
+      "watch_t": 803,
+      "exit_price": 290.5
+    },
+    "1504": {
+      "watch_t": 1167,
+      "exit_price": 117.0
+    },
+    "1513": {
+      "watch_t": 805,
+      "exit_price": 180.0
+    },
+    "1536": {
+      "watch_t": 1008,
+      "exit_price": 74.5
+    },
+    "1560": {
+      "watch_t": 926,
+      "exit_price": 302.0
+    },
+    "1609": {
+      "watch_t": 805,
+      "exit_price": 54.4
+    },
+    "1717": {
+      "watch_t": 1147,
+      "exit_price": 40.95
+    },
+    "1718": {
+      "watch_t": 1343,
+      "exit_price": 12.15
+    },
+    "1795": {
+      "watch_t": 1206,
+      "exit_price": 286.5
+    },
+    "1802": {
+      "watch_t": 1131,
+      "exit_price": 29.0
+    },
+    "1905": {
+      "watch_t": 629,
+      "exit_price": 26.2
+    },
+    "1909": {
+      "watch_t": 45,
+      "exit_price": 24.3
+    },
+    "2049": {
+      "watch_t": 1004,
+      "exit_price": 300.0
+    },
+    "2059": {
+      "watch_t": 1083,
+      "exit_price": 2045.0
+    },
+    "2201": {
+      "watch_t": 525,
+      "exit_price": 77.8
+    },
+    "2231": {
+      "watch_t": 1143,
+      "exit_price": 126.5
+    },
+    "2303": {
+      "watch_t": 1340,
+      "exit_price": 141.0
+    },
+    "2308": {
+      "watch_t": 1173,
+      "exit_price": 980.0
+    },
+    "2312": {
+      "watch_t": 862,
+      "exit_price": 24.15
+    },
+    "2313": {
+      "watch_t": 1251,
+      "exit_price": 191.0
+    },
+    "2317": {
+      "watch_t": 827,
+      "exit_price": 171.0
+    },
+    "2323": {
+      "watch_t": 617,
+      "exit_price": 13.75
+    },
+    "2327": {
+      "watch_t": 1333,
+      "exit_price": 906.0
+    },
+    "2331": {
+      "watch_t": 53,
+      "exit_price": 31.1
+    },
+    "2337": {
+      "watch_t": 1267,
+      "exit_price": 125.0
+    },
+    "2338": {
+      "watch_t": 507,
+      "exit_price": 83.5
+    },
+    "2344": {
+      "watch_t": 1331,
+      "exit_price": 191.0
+    },
+    "2347": {
+      "watch_t": 100,
+      "exit_price": 54.0
+    },
+    "2354": {
+      "watch_t": 941,
+      "exit_price": 83.0
+    },
+    "2356": {
+      "watch_t": 631,
+      "exit_price": 55.8
+    },
+    "2357": {
+      "watch_t": 950,
+      "exit_price": 600.0
+    },
+    "2360": {
+      "watch_t": 1299,
+      "exit_price": 2090.0
+    },
+    "2368": {
+      "watch_t": 1142,
+      "exit_price": 448.0
+    },
+    "2376": {
+      "watch_t": 771,
+      "exit_price": 328.0
+    },
+    "2383": {
+      "watch_t": 1310,
+      "exit_price": 4880.0
+    },
+    "2385": {
+      "watch_t": 780,
+      "exit_price": 216.0
+    },
+    "2392": {
+      "watch_t": 860,
+      "exit_price": 75.9
+    },
+    "2393": {
+      "watch_t": 866,
+      "exit_price": 72.8
+    },
+    "2401": {
+      "watch_t": 144,
+      "exit_price": 38.35
+    },
+    "2404": {
+      "watch_t": 1133,
+      "exit_price": 1050.0
+    },
+    "2408": {
+      "watch_t": 1185,
+      "exit_price": 141.0
+    },
+    "2449": {
+      "watch_t": 1205,
+      "exit_price": 219.0
+    },
+    "2454": {
+      "watch_t": 1326,
+      "exit_price": 3870.0
+    },
+    "2455": {
+      "watch_t": 1399,
+      "exit_price": 508.0
+    },
+    "2457": {
+      "watch_t": 603,
+      "exit_price": 78.4
+    },
+    "2481": {
+      "watch_t": 1337,
+      "exit_price": 183.0
+    },
+    "2485": {
+      "watch_t": 1275,
+      "exit_price": 78.3
+    },
+    "2486": {
+      "watch_t": 1295,
+      "exit_price": 268.0
+    },
+    "2489": {
+      "watch_t": 1252,
+      "exit_price": 38.9
+    },
+    "2492": {
+      "watch_t": 1327,
+      "exit_price": 529.0
+    },
+    "2498": {
+      "watch_t": 1140,
+      "exit_price": 63.9
+    },
+    "2515": {
+      "watch_t": 1186,
+      "exit_price": 14.25
+    },
+    "2542": {
+      "watch_t": 868,
+      "exit_price": 55.6
+    },
+    "2548": {
+      "watch_t": 839,
+      "exit_price": 153.5
+    },
+    "2603": {
+      "watch_t": 749,
+      "exit_price": 151.5
+    },
+    "2605": {
+      "watch_t": 734,
+      "exit_price": 24.65
+    },
+    "2609": {
+      "watch_t": 832,
+      "exit_price": 74.0
+    },
+    "2610": {
+      "watch_t": 219,
+      "exit_price": 26.4
+    },
+    "2615": {
+      "watch_t": 848,
+      "exit_price": 86.7
+    },
+    "2618": {
+      "watch_t": 219,
+      "exit_price": 25.0
+    },
+    "2634": {
+      "watch_t": 1347,
+      "exit_price": 61.0
+    },
+    "2881": {
+      "watch_t": 106,
+      "exit_price": 70.4
+    },
+    "2883": {
+      "watch_t": 1404,
+      "exit_price": 37.9
+    },
+    "3005": {
+      "watch_t": 736,
+      "exit_price": 103.0
+    },
+    "3006": {
+      "watch_t": 1228,
+      "exit_price": 143.0
+    },
+    "3017": {
+      "watch_t": 1130,
+      "exit_price": 964.0
+    },
+    "3019": {
+      "watch_t": 1008,
+      "exit_price": 177.0
+    },
+    "3034": {
+      "watch_t": 556,
+      "exit_price": 405.0
+    },
+    "3036": {
+      "watch_t": 1267,
+      "exit_price": 227.0
+    },
+    "3037": {
+      "watch_t": 1313,
+      "exit_price": 950.0
+    },
+    "3042": {
+      "watch_t": 1322,
+      "exit_price": 198.5
+    },
+    "3044": {
+      "watch_t": 671,
+      "exit_price": 195.0
+    },
+    "3081": {
+      "watch_t": 1284,
+      "exit_price": 2550.0
+    },
+    "3105": {
+      "watch_t": 1284,
+      "exit_price": 493.5
+    },
+    "3189": {
+      "watch_t": 1251,
+      "exit_price": 280.0
+    },
+    "3211": {
+      "watch_t": 1154,
+      "exit_price": 325.0
+    },
+    "3227": {
+      "watch_t": 922,
+      "exit_price": 248.0
+    },
+    "3231": {
+      "watch_t": 623,
+      "exit_price": 134.0
+    },
+    "3260": {
+      "watch_t": 1261,
+      "exit_price": 412.0
+    },
+    "3293": {
+      "watch_t": 935,
+      "exit_price": 1030.0
+    },
+    "3324": {
+      "watch_t": 1401,
+      "exit_price": 1415.0
+    },
+    "3443": {
+      "watch_t": 540,
+      "exit_price": 1035.0
+    },
+    "3481": {
+      "watch_t": 1337,
+      "exit_price": 58.4
+    },
+    "3532": {
+      "watch_t": 1340,
+      "exit_price": 434.0
+    },
+    "3552": {
+      "watch_t": 32,
+      "exit_price": 318.5
+    },
+    "3661": {
+      "watch_t": 767,
+      "exit_price": 3920.0
+    },
+    "3680": {
+      "watch_t": 916,
+      "exit_price": 570.0
+    },
+    "3711": {
+      "watch_t": 1185,
+      "exit_price": 212.0
+    },
+    "4736": {
+      "watch_t": 121,
+      "exit_price": 223.0
+    },
+    "4743": {
+      "watch_t": 709,
+      "exit_price": 198.5
+    },
+    "4919": {
+      "watch_t": 1297,
+      "exit_price": 150.0
+    },
+    "4958": {
+      "watch_t": 1326,
+      "exit_price": 590.0
+    },
+    "5009": {
+      "watch_t": 570,
+      "exit_price": 54.8
+    },
+    "5269": {
+      "watch_t": 789,
+      "exit_price": 2345.0
+    },
+    "5425": {
+      "watch_t": 1337,
+      "exit_price": 110.0
+    },
+    "6005": {
+      "watch_t": 822,
+      "exit_price": 24.9
+    },
+    "6139": {
+      "watch_t": 1226,
+      "exit_price": 572.0
+    },
+    "6147": {
+      "watch_t": 1313,
+      "exit_price": 249.5
+    },
+    "6173": {
+      "watch_t": 1333,
+      "exit_price": 291.5
+    },
+    "6182": {
+      "watch_t": 1340,
+      "exit_price": 140.0
+    },
+    "6188": {
+      "watch_t": 841,
+      "exit_price": 104.5
+    },
+    "6239": {
+      "watch_t": 735,
+      "exit_price": 128.5
+    },
+    "6245": {
+      "watch_t": 486,
+      "exit_price": 90.5
+    },
+    "6274": {
+      "watch_t": 1316,
+      "exit_price": 1580.0
+    },
+    "6278": {
+      "watch_t": 1310,
+      "exit_price": 207.0
+    },
+    "6285": {
+      "watch_t": 1282,
+      "exit_price": 217.0
+    },
+    "6414": {
+      "watch_t": 239,
+      "exit_price": 229.0
+    },
+    "6443": {
+      "watch_t": 1262,
+      "exit_price": 45.0
+    },
+    "6488": {
+      "watch_t": 1340,
+      "exit_price": 1270.0
+    },
+    "6510": {
+      "watch_t": 1165,
+      "exit_price": 1695.0
+    },
+    "6547": {
+      "watch_t": 67,
+      "exit_price": 262.0
+    },
+    "6770": {
+      "watch_t": 1248,
+      "exit_price": 66.4
+    },
+    "8044": {
+      "watch_t": 938,
+      "exit_price": 50.2
+    },
+    "8046": {
+      "watch_t": 1292,
+      "exit_price": 857.0
+    },
+    "8069": {
+      "watch_t": 923,
+      "exit_price": 301.5
+    },
+    "8086": {
+      "watch_t": 721,
+      "exit_price": 119.5
+    },
+    "8150": {
+      "watch_t": 1202,
+      "exit_price": 44.3
+    },
+    "8299": {
+      "watch_t": 1185,
+      "exit_price": 1060.0
+    },
+    "8358": {
+      "watch_t": 1326,
+      "exit_price": 574.0
+    },
+    "8436": {
+      "watch_t": 530,
+      "exit_price": 196.0
+    },
+    "9945": {
+      "watch_t": 850,
+      "exit_price": 44.4
+    },
+    "9958": {
+      "watch_t": 844,
+      "exit_price": 300.0
+    }
+  },
+  "pending_buy": {},
+  "pending_sell": [],
+  "event_pending": 3,
+  "last_exit_score": 0.11554244071245194,
+  "stockcap_active": false,
+  "stockcap_previous": 0.16,
+  "market_bear": false,
+  "basket_risk": false,
+  "overlay_risk": false,
+  "portfolio_risk": false,
+  "account_drawdown_gate": false,
+  "risk_recover": false,
+  "recover_level": 1.0,
+  "dd_level": 1.0,
+  "previous_target": 0.0,
+  "nav_unit": 18.20495844396837,
+  "last40_nav_units": [
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.660139293847102,
+    16.695490336561225,
+    16.56025960859969,
+    16.774293602375018,
+    16.70972842143056,
+    16.64530444225575,
+    16.808009075162257,
+    16.843857590392652,
+    16.66766112309548,
+    17.0001292764673,
+    17.000695408764592,
+    16.99794509573438,
+    17.060635474528954,
+    17.47881438187452,
+    18.453469754312216,
+    18.45536763630878,
+    18.839650935752676,
+    18.743730440726615,
+    18.787594177632894,
+    18.7325631434225,
+    19.168390433078137,
+    18.347444564278412,
+    18.142309372575944,
+    17.955392430227572,
+    17.769857074724527,
+    18.36101494251213,
+    18.20914460261097,
+    18.20495844396837
+  ],
+  "cycle_buy_by_code": {
+    "2801": 2.0683796686887934,
+    "3374": 2.0986739583589413,
+    "3406": 2.097926128343803,
+    "3653": 2.084694919689431,
+    "6213": 2.0793750884263194
+  },
+  "cycle_sell_by_code": {
+    "2801": 1.1011551422738268,
+    "3374": 1.1067530668663292,
+    "3406": 1.203131329392673,
+    "3653": 1.0036602986699263,
+    "6213": 1.8229100375624856
+  },
+  "buy_fills": 539,
+  "sell_fills": 1028,
+  "stat": {
+    "entry_intent": 574,
+    "entry_fill": 309,
+    "entry_nofill": 102,
+    "gap_entries": 298,
+    "stop_fills": 0,
+    "tp_fills": 0,
+    "dual_touch": 0,
+    "bad_ohlc_skips": 0,
+    "hard_exit_open": 254,
+    "close_fallback": 0,
+    "stops_new_day": 0,
+    "pending_fills": 0,
+    "pending_expired": 0,
+    "locked_buy_skips": 2,
+    "locked_sell_skips": 0,
+    "EV_candidates": 411,
+    "corr_entry_skip": 31,
+    "new_exit": 13,
+    "fc17_signal": 1,
+    "corr_fc17_skip": 9,
+    "emergency_exit": 1,
+    "emergency_under15": 1
+  },
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "simulator_sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5",
+  "model_not_broker_account": true,
+  "checkpoint_precedes_new_signals": true,
+  "forward_trade_plan_ready": false,
+  "current_market_date": "2026-10-27",
+  "model_initialized_capital_ntd": 3000000,
+  "notes": "Paper research state only. Subsequent dates have NOT been replayed. Zero actual broker positions implied."
+}
