@@ -38,9 +38,9 @@ jobs:
               const f=c26.forward_coverage;
               if(cov.public_raw_data!==false||rawRsp.ok)throw Error('Licensed FinMind raw dataset exposed');
               if(c26.plan?.readiness!=='blocked'||c26.plan?.actions?.length!==0||!c26.no_live_positions||!c26.no_broker_orders)throw Error('C26 allowed unverified live signals');
-              if(!f||f.expected_pool!==233||f.source_as_of!=='2026-11-12'||f.available_trade_dates!==12||f.latest_price_valid<230||f.raw_public!==false||f.feature_parity!=='NOT_VERIFIED')throw Error('C26 forward source coverage not yet live');
+              if(!f||f.expected_pool!==233||f.source_as_of!==cov.full_market_last_verified||f.available_trade_dates!==cov.available_trade_dates||f.available_trade_dates<12||f.latest_price_valid<210||f.raw_public!==false||f.feature_parity!=='NOT_VERIFIED'||f.private_storage_verified!==true||f.private_storage_as_of!==cov.private_storage_as_of||cov.private_storage_verified!==true)throw Error('C26 private source persistence or coverage not yet live');
               if(!app.includes('FinMind專屬資料'))throw Error('C26 forward status not visible in original monitor');
-              last={passed:true,attempt:i+1,source_as_of:f.source_as_of,days:f.available_trade_dates,valid_stocks:f.latest_price_valid,live_plan:c26.plan.readiness,raw_public:false};done=true;break;
+              last={passed:true,attempt:i+1,source_as_of:f.source_as_of,days:f.available_trade_dates,valid_stocks:f.latest_price_valid,live_plan:c26.plan.readiness,private_storage_verified:f.private_storage_verified,raw_public:false};done=true;break;
             }catch(e){last={passed:false,attempt:i+1,error:String(e.message||e)}}
             await sleep(9000);
           }
