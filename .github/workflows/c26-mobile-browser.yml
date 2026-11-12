@@ -1,0 +1,53 @@
+name: C26 original monitor mobile browser acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - '.github/workflows/c26-mobile-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 13
+    steps:
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Install isolated Chromium test dependency
+        run: |
+          mkdir -p /tmp/c26-browser;cd /tmp/c26-browser
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+      - name: Drive the actual Cloudflare dashboard on a mobile viewport
+        run: |
+          cd /tmp/c26-browser
+          node --input-type=module <<'JS'
+          import {chromium} from 'playwright';
+          const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+          const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2});
+          const error=[];page.on('pageerror',e=>error.push(e.message));
+          try{
+            await page.goto('https://tw-stock-api.victordogboy.workers.dev/r1494a/',{waitUntil:'domcontentloaded',timeout:35000});
+            await page.locator('#strategy').selectOption('C26');
+            await page.waitForFunction(()=>document.querySelector('#status')?.innerText.includes('C26 最新盤前計畫：BLOCKED'),{timeout:60000});
+            const state=await page.evaluate(()=>({
+              model:document.querySelector('#strategy').value,
+              header:document.querySelector('header .brand').innerText,
+              url:location.href,
+              status:document.querySelector('#status').innerText,
+              count:document.querySelector('#count').innerText,
+              trades:document.querySelector('#orderCount').innerText,
+              dateOptions:document.querySelector('#date').options.length,
+              plan:document.querySelector('#planState').innerText,
+              chart:document.querySelector('#chart').querySelector('svg')!==null,
+            }));
+            if(state.model!=='C26'||!state.url.endsWith('/r1494a/')||state.dateOptions!==1407||!state.chart||!state.status.includes('2026-10-27')||!state.plan.includes('未通過')||state.count==='0 / 8' )throw Error(JSON.stringify(state));
+            await page.locator('#strategy').selectOption('FC23');
+            await page.waitForFunction(()=>document.querySelector('#strategy').value==='FC23'&&document.querySelector('#status')?.innerText.includes('FC23'),{timeout:50000});
+            console.log('C26_MOBILE_BROWSER_PASS',JSON.stringify({...state,returnedToFC23:true,errors:error}));
+          }finally{await browser.close();}
+          JS
