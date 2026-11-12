@@ -81,6 +81,29 @@ test('quote modes and invalid named month are rejected',async()=>{
  r=await r26LiveQuoteRoute(new Request('https://x.example/api/r26/live-quote?mode=named&contract=202613'));
  assert.equal(r.status,400);
 });
+test('CMoney quote mode returns independent near-month reference without a verified contract',async()=>{
+ const local=new Date(Date.now()+8*3600000).toISOString();
+ const m=local.slice(5,7),d=local.slice(8,10),clock=local.slice(11,16);
+ const body='<p>報價時間 | '+m+'/'+d+' '+clock+'</p><h3>台指期 TXF1</h3>'+
+  ' 日盤 夜盤 44,382 246(+0.56%) 開 44,166 昨 44,136 高 44,407 低 43,822';
+ const seen=[];
+ const r=await r26LiveQuoteRoute(new Request('https://x.example/api/r26/live-quote?contract=202611&mode=cmoney'),
+  {},async url=>{seen.push(url);return new Response(body)});
+ const j=await r.json();
+ assert.equal(r.status,200);assert.equal(j.ok,true);
+ assert.equal(j.requested_mode,'cmoney');assert.equal(j.price,44382);
+ assert.equal(j.symbol,'TXF1');assert.equal(j.contract_verified,false);
+ assert.equal(j.contract_month,null);assert.equal(j.source_time.endsWith('Z'),true);
+ assert.equal(j.open,44166);assert.equal(j.high,44407);assert.equal(j.low,43822);
+ assert.equal(seen.length,2);assert.equal(seen.some(x=>x.includes('finance.yahoo.com')),false);
+});
+test('CMoney mode never fabricates a quote when both sites are blocked',async()=>{
+ const r=await r26LiveQuoteRoute(new Request('https://x.example/api/r26/live-quote?contract=202611&mode=cmoney'),
+  {},async()=>new Response('blocked',{status:403}));
+ const j=await r.json();
+ assert.equal(r.status,503);assert.equal(j.ok,false);
+ assert.equal('price' in j,false);assert.equal(j.providers_checked.length,2);
+});
 test('source unavailable returns 503 and no fabricated price',async()=>{
  const req=new Request('https://x.example/api/r26/live-quote');
  const r=await r26LiveQuoteRoute(req,{},async()=>new Response('blocked',{status:403}));
@@ -97,5 +120,5 @@ test('dashboard has a real visible-only five-second timer and abort timeout',asy
  assert.match(html,/id="liveSourceTime"/);
  assert.ok(html.indexOf('id="signalPanel"')<html.indexOf('id="liveQuotePanel"'));
  assert.match(html,/id="signalDirectionHero"/);
- assert.match(html,/mode==='quick'\?4300:16500/);
+ assert.match(html,/mode==='quick'\?4300:mode==='cmoney'\?6000:16500/);
 });
