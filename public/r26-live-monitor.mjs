@@ -6,7 +6,7 @@ import {validateCloudSnapshot} from './r26-engine/cloud-minute-cache.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
-const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261112-tail-v2',{type:'module'});
+const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261113-2tx-paper-v1',{type:'module'});
 let serial=0,rows=[],calendar=[],contract='',state=null,working=false,historyWorking=false,lastHistory=0,seedLoaded=false,fetchError='',historyFailures=[];
 const pending=new Map();
 worker.onmessage=({data:m})=>{const p=pending.get(m.id);if(!p)return;pending.delete(m.id);clearTimeout(p.timer);if(m.type==='error')p.reject(Error(m.error));else p.resolve(m)};
@@ -61,6 +61,71 @@ async function loadCloudMinuteCache(){
  try{await save(snap.rows)}catch{}
  return true;
 }
+
+let twoTxLastAsOf=null,twoTxWorking=false,twoTxRequest=0;
+function invalidateTwoTx(reason){
+ const panel=$('twoTxPanel');if(!panel)return;
+ panel.className='panel unverified';
+ text('twoTxVerification','資料或持倉未確認 · 暫停雙口訊號');
+ text('twoTxDirection','不發布當盤多空／口數');
+ text('twoTxSummary',String(reason||'請先補齊官方日夜盤與指定合約1分K，再重新核對。'));
+ for(const id of ['twoTxPlanLots','twoTxAtr','twoTxRisk','twoTxStop',
+  'twoTxMargin','twoTxPnL','twoTxMaxDD','twoTxAsOf'])text(id,'—');
+ text('twoTxEvents','沒有已驗證的當前策略倉位；歷史回測數字不代表此刻的下單方向。');
+ twoTxLastAsOf=null;
+}
+function drawTwoTx(p){
+ const panel=$('twoTxPanel');if(!panel)return;
+ if(!p?.ready||!p.positionConfirmed){
+  invalidateTwoTx(p?.warning||p?.issues?.join('；')||'紙上引擎未完成重播');
+  return;
+ }
+ const qty=p.modelLots,side=qty>0?'做多':qty<0?'做空':'空手';
+ panel.className='panel '+(qty>0?'is-long':qty<0?'is-short':'is-flat');
+ text('twoTxVerification','研究版逐分鐘模型已重播 · '+(p.partial?'進行中':'完成盤')+' · 僅供模擬');
+ text('twoTxDirection',qty===0?'模型空手 0 TX':('模型'+side+' '+(qty>0?'+':'')+qty+' TX'));
+ text('twoTxSummary',p.warning+' 原始單口模型方向：'+planName(p.baseModelPosition)+
+ '；所有口數均屬紙上重播，不代表券商倉位或實際成交。');
+ const pr=p.candidatePreopen||{};
+ text('twoTxPlanLots',pr.desiredLots==null?'尚未確認':pr.desiredLots+' 口（盤前模型上限；非必定成交）');
+ text('twoTxAtr',Number.isFinite(pr.atr250Percentile)?
+  (fmt(pr.atr250Percentile*100)+'%｜'+fmt(pr.atr20)+' 點'):'尚未累積250日資訊');
+ text('twoTxRisk',(Number.isFinite(pr.precedingEquityDd)?fmt(pr.precedingEquityDd)+' 點｜':'待驗證｜')+
+  (pr.wantsSecondLot?'符合加第2口':'不加第2口'));
+ text('twoTxStop',Number.isFinite(p.stopPrice)?fmt(p.stopPrice)+' 點':'尚無固定停損');
+ text('twoTxMargin','帳戶模型 '+fmt(p.equityNTDEstimated)+' 元／保證金 '+fmt(p.marginRequiredNTD)+' 元');
+ text('twoTxPnL',fmt(p.profitPointsToDate)+' 點／比同期單口 '+fmt(p.incrementalPoints)+' 點');
+ text('twoTxMaxDD',fmt(p.maxMinuteDrawdownToDate)+' 點（模型逐分鐘、非最大實盤損失）');
+ text('twoTxAsOf',(p.asOf||'—')+'｜'+(p.contract?'TX'+p.contract:'合約未核對'));
+ const e=(p.lastPaperFills||[]).map(x=>x.type+' '+x.old+'→'+x.qty+
+  ' @ '+fmt(x.price)+'（'+x.bar+'分K）').join('；');
+ text('twoTxEvents',(e?'當盤紙上事件：'+e+'。':'當盤尚無新交易事件。')+
+   ' '+p.limitEntryType+'。'+p.profitProtection+
+   '。模擬帳戶可用資金（扣已占原始保證金）'+fmt(p.marginBufferNTD)+'元。');
+ twoTxLastAsOf=p.asOf;
+}
+async function refreshTwoTx(manual=false){
+ if(twoTxWorking||!seedLoaded)return;
+ if(!state?.positionConfirmed||!state?.ready){
+  invalidateTwoTx(state?.issues?.join('；')||'原 R26 分鐘重播尚未驗證');
+  return;
+ }
+ if(!manual&&twoTxLastAsOf===state.as_of)return;
+ const asOf=state.as_of,request=++twoTxRequest;
+ twoTxWorking=true;
+ text('twoTxVerification','雙口模型重新核對中');
+ try{
+  const r=await ask('paper2tx',{rows,calendar});
+  if(request!==twoTxRequest||!state?.positionConfirmed||state.as_of!==asOf){
+   invalidateTwoTx('核對期間來源分鐘資料已改變，將以最新完成分鐘重新計算。');
+   return;
+  }
+  drawTwoTx(r.paper);
+ }catch(e){invalidateTwoTx('雙口重播未完成：'+e.message)}
+ finally{twoTxWorking=false}
+}
+$('twoTxRefresh')?.addEventListener('click',()=>refreshTwoTx(true));
+
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
@@ -120,6 +185,7 @@ function draw(m){
  text('preopenDetails',ready?(r.events.length?r.events.map(e=>e.time+'｜'+e.type+'｜'+fmt(e.price)).join('；'):'本盤尚無交易事件。'):'持倉未確認，不提供確定的進場、停損或停利指令。最近可重播資料截至 '+(r.as_of||'未知')+'，僅供歷史核對。');
 }
 function invalidatePosition(reason){
+ invalidateTwoTx(reason);
  state=state?{...state,ready:false,positionConfirmed:false,confirmedPosition:null,signalAllowed:false,stop:null}:null;
  text('r26DataHealth','策略持倉無法確認：'+reason);
  text('r26PositionState','策略持倉無法確認；不發布確定的進出場指令');
@@ -135,7 +201,7 @@ function invalidatePosition(reason){
  text('preopenDetails','重播恢復並核對連續資料後，才會重新顯示本盤進出場結果。');
  text('signalReason','上一次重播僅供歷史核對，不能代表現在持倉。');
 }
-async function replay(){const m=await ask('replay',{rows,calendar});draw(m)}
+async function replay(){const m=await ask('replay',{rows,calendar});draw(m);void refreshTwoTx(false)}
 async function json(url,options={}){const rsp=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(25000),...options});const x=await rsp.json();if(!rsp.ok||x.ok===false)throw Error(x.error||x.reason||'HTTP '+rsp.status);return x}
 async function check(){
  if(working||document.visibilityState==='hidden'||!seedLoaded)return;
