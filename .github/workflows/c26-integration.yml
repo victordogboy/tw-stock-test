@@ -1,0 +1,34 @@
+name: C26 isolated third-strategy safety and dashboard
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/**'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/fc23/index.html'
+      - 'tests/c26-integration.test.mjs'
+      - '.github/workflows/c26-integration.yml'
+  pull_request:
+    paths:
+      - 'public/r1494a/c26/**'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/fc23/index.html'
+      - 'tests/c26-integration.test.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: C26 archive safety, original strategy regression
+        run: |
+          node --check public/r1494a/c26/app.mjs
+          node tests/c26-integration.test.mjs
+          node tests/strategy-switch.test.mjs
+          node tests/fc23-live-page.test.mjs
