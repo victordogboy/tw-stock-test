@@ -1,5 +1,5 @@
 import {run,audit} from './engine.mjs';
-import {replayLive,parseOfficialZip} from './live.mjs?v=20261031-status';
+import {replayLive,parseOfficialZip} from './live.mjs?v=20261112-tail-v2';
 let base;
 async function load(){
  if(base)return base;

@@ -94,12 +94,18 @@ export async function r26MarketRoute(request,env={},fetchImpl=fetch){
   if(u.pathname==='/api/r26/official-zip'){
    const date=u.searchParams.get('date'),ms=Date.parse(date+'T00:00:00Z');
    if(!/^\d{4}-\d{2}-\d{2}$/.test(date||'')||!Number.isFinite(ms)||new Date(ms).toISOString().slice(0,10)!==date||Date.now()-ms>35*86400000||ms>Date.now()+86400000)return json({ok:false,error:'僅接受最近 35 日官方交易日'},400);
-   const key=new Request(u.origin+'/__r26_official_v1/'+date);let hit;try{hit=await cache?.match(key)}catch{}if(hit)return hit;
+   // TAIFEX sometimes exposes a ZIP containing only the prior night before
+   // the current daytime tape is finalized. Its HTTP 200 is not proof of
+   // completed daily content. Never freeze a recent date's partial ZIP in a
+   // 24-hour Worker edge cache (Nov12 reproduced stale 838-night/0-day).
+   const recentOfficial=Date.now()-ms<3*86400000;
+   const key=new Request(u.origin+'/__r26_official_v2/'+date);
+   if(!recentOfficial){let hit;try{hit=await cache?.match(key)}catch{}if(hit)return hit}
    const url='https://www.taifex.com.tw/file/taifex/Dailydownload/DailydownloadCSV/Daily_'+date.replaceAll('-','_')+'.zip';
    const rsp=await fetchImpl(url,{signal:AbortSignal.timeout(20000)});if(!rsp.ok)throw Error('期交所逐筆尚未公布 HTTP '+rsp.status);
    const b=await rsp.arrayBuffer();if(b.byteLength<100||b.byteLength>20000000||new DataView(b).getUint32(0,true)!==0x04034b50)throw Error('期交所未提供有效 ZIP');
-   const ret=new Response(b,{headers:{'content-type':'application/zip','cache-control':'public,max-age=86400','X-R26-Source':url}});
-   if(cache)try{await cache.put(key,ret.clone())}catch{}return ret;
+   const ret=new Response(b,{headers:{'content-type':'application/zip','cache-control':recentOfficial?'no-store':'public,max-age=86400','X-R26-Source':url,'X-R26-Recent-Official':recentOfficial?'true':'false'}});
+   if(cache&&!recentOfficial)try{await cache.put(key,ret.clone())}catch{}return ret;
   }
   return json({ok:false,error:'Not found'},404);
  }catch(e){return json({ok:false,error:String(e.message||e)},502)}

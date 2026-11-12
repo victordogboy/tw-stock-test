@@ -1,0 +1,66 @@
+name: R26 Nov12 closing-tape coverage and source diagnostics
+on:
+  push:
+    branches: [main, fix/r26-session-tail-20261112]
+    paths:
+      - 'public/r26-monitor.html'
+      - 'public/r26-engine/live.mjs'
+      - 'public/r26-engine/monitor-worker.mjs'
+      - 'public/r26-engine/session-status.mjs'
+      - 'public/r26-live-monitor.mjs'
+      - 'src/r26-market.mjs'
+      - 'tests/r26-official-cache-ttl.test.mjs'
+      - 'tests/r26-session-tail.test.mjs'
+      - '.github/workflows/r26-tail-coverage.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify missing close tail, official proof, and original frozen replay
+        run: |
+          node --check public/r26-engine/monitor-worker.mjs
+          node --check public/r26-engine/live.mjs
+          node --check public/r26-engine/session-status.mjs
+          node --check public/r26-live-monitor.mjs
+          node --check src/r26-market.mjs
+          node --test tests/r26-session-tail.test.mjs tests/r26-official-cache-ttl.test.mjs tests/r26-session-status.test.mjs tests/r26-backfill-plan.test.mjs tests/r26-live-engine.test.mjs
+      - name: Diagnose current official 2026-11-12 ZIP and Yahoo named contract
+        if: always()
+        run: |
+          node --input-type=module <<'JS'
+          import {parseOfficialZip} from './public/r26-engine/live.mjs';
+          const base='https://tw-stock-api.victordogboy.workers.dev';
+          const endpoints=[
+            '/api/r26/intraday?contract=202611',
+            '/api/r26/official-zip?date=2026-11-12&contract=202611'
+          ];
+          for(const endpoint of endpoints){
+            try{
+              const r=await fetch(base+endpoint,{cache:'no-store',signal:AbortSignal.timeout(18000)});
+              const mime=r.headers.get('content-type')||'';
+              let summary={endpoint,status:r.status,mime,bytes:Number(r.headers.get('content-length')||0)};
+              if(endpoint.includes('official-zip')&&r.status===200){
+                const zip=await r.arrayBuffer();
+                const valid=await parseOfficialZip(zip,'2026-11-12','202611');
+                summary={...summary,zipBytes:zip.byteLength,validContractRows:valid.length,
+                  dayCount:valid.filter(x=>x.session==='day').length,
+                  dayLast:valid.filter(x=>x.session==='day').at(-1)?.timestamp_tpe||null,
+                  nightCount:valid.filter(x=>x.session==='night').length,
+                  CRC_validated:true};
+              }
+              if(mime.includes('json')){
+                const obj=await r.json();
+                summary={...summary,error:obj.error||null,reason:obj.reason||null,
+                  count:obj.data?.length||null,day:obj.data?.filter(x=>x.session_key==='day:2026-11-12').length||null,
+                  dayLast:obj.data?.filter(x=>x.session_key==='day:2026-11-12').at(-1)?.timestamp_tpe||null};
+              }
+              console.log('R26_SOURCE_DIAGNOSTIC',JSON.stringify(summary));
+            }catch(e){console.log('R26_SOURCE_DIAGNOSTIC',JSON.stringify({endpoint,error:String(e.message||e)}))}
+          }
+          JS
