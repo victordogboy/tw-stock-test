@@ -30,7 +30,9 @@ function serverText(status,coverage){
    '已寫入並核對（'+(coverage.private_storage_as_of||'來源日期未列')+'）':'未完成持久化核對'),
   '已知OHLC封存邊界：'+(coverage?.checkpoint_ohlc_parity?.pass?'已通過':'未通過'),
   'C26 原始特徵一致性：'+(coverage?.feature_parity||'尚未驗證'),
-  'C26 最新持倉、現金與逐筆交易重播：'+(coverage?.portfolio_replay||'尚未重播'),
+  '來源已抓取不等於策略已更新：'+(status?.execution_pipeline?.source_refresh_does_not_execute_c26?'目前只抓行情，未執行C26 Python模型':'尚待確認'),
+  '原始 C26 Python 因子重算：'+(status?.execution_pipeline?.python_forward_factor_rebuild||'未發布'),
+  'C26 最新持倉、現金與逐筆交易重播：'+(status?.execution_pipeline?.python_forward_portfolio_replay||coverage?.portfolio_replay||'尚未重播'),
   '隔日指令：'+(status?.plan?.readiness||'BLOCKED')+
     (status?.plan?.trade_date?'（目標交易日 '+status.plan.trade_date+'）':'')
  ];
