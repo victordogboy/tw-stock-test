@@ -59,6 +59,30 @@ export function parseYahooQuotePage(html,sourceUrl='https://tw.stock.yahoo.com/f
   change_pct:num(section,/漲幅\s*([-+]?[\d,.]+)\s*%/) });
  return result;
 }
+// Aggregate only independently verified, contiguous 1-minute bars of ONE named TX contract
+// and ONE physical session. This is an observed session-to-date summary, never an order-book quote.
+export function summarizeNamedMinuteSession(data,contract){
+ if(!Array.isArray(data)||!/^20\\d{4}$/.test(contract))return null;
+ const bars=data.filter(x=>x?.contract_verified===true&&x.contract_date===contract&&
+  typeof x.session_key==='string'&&/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$/.test(x.timestamp_tpe||'')&&
+  ['open','high','low','close'].every(k=>Number.isFinite(x[k])&&x[k]>0))
+  .sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
+ const last=bars.at(-1);if(!last)return null;
+ const same=bars.filter(x=>x.session_key===last.session_key);
+ const begin=last.session==='day'?'08:45':last.session==='night'?'15:00':null;
+ const parseTime=x=>Date.parse(x.timestamp_tpe.replace(' ','T')+'+08:00');
+ const base=parseTime(same[0]),end=parseTime(last);
+ const contiguous=!!begin&&same[0].timestamp_tpe.slice(11,16)===begin&&
+  Number.isFinite(base)&&Number.isFinite(end)&&end>=base&&
+  same.length===Math.round((end-base)/60000)+1&&
+  same.every((x,i)=>parseTime(x)===base+i*60000);
+ const hasVolume=contiguous&&same.every(x=>Number.isFinite(x.volume)&&x.volume>=0)&&same.some(x=>x.volume>0);
+ return {last,complete_from_session_open:contiguous,bars:same.length,
+  open:contiguous?same[0].open:null,
+  high:contiguous?Math.max(...same.map(x=>x.high)):null,
+  low:contiguous?Math.min(...same.map(x=>x.low)):null,
+  volume:hasVolume?same.reduce((n,x)=>n+x.volume,0):null};
+}
 // Parse Yahoo's legacy futures full table; source day and each row's quote clock must be present.
 export function parseYahooFuturesTable(html,sourceUrl='https://tw.stock.yahoo.com/future/futures.html?fumr=futurefull'){
  const text=clean(html);
@@ -143,7 +167,8 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
    const rsp=await r26MarketRoute(new Request(target),env,fetchImpl);
    if(rsp.ok){
     const payload=await rsp.json();
-    const last=payload?.data?.at(-1);
+    const observed=summarizeNamedMinuteSession(payload?.data,contract);
+    const last=observed?.last;
     const t=Date.parse(last?.timestamp_tpe?.replace(' ','T')+'+08:00')+60000;
     if(last?.contract_verified===true&&last.contract_date===contract&&
        Number.isFinite(last.close)&&last.close>0&&Number.isFinite(t)&&t<=Date.now()+90000){
@@ -151,13 +176,15 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
       market:'TX_NAMED',symbol:'TX'+contract,product:'台指期指定月份',
       contract_month:contract,contract_verified:true,quote_type:'minute_k',
       price:last.close,change:null,change_pct:null,bid:null,ask:null,
-      open:null,high:null,low:null,volume:null,prev_close:null,
+      open:observed.open,high:observed.high,low:observed.low,volume:observed.volume,prev_close:null,
+      session_key:last.session_key,session_bars:observed.bars,
+      session_ohlc_verified:observed.complete_from_session_open,
       source:'Yahoo '+payload.symbol+' 指定月1分K（非逐筆成交）',
       source_time:new Date(t).toISOString(),quote_age_seconds:Math.max(0,Math.round((Date.now()-t)/1000)),
       quote_status:Date.now()-t<=90000?'recent':'stale',
       polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
       strategy_signal_validated:false,source_url:payload.source_url,
-      note:'來源是已完成的指定月份分鐘K，絕非即時逐筆價或目前券商持倉。'});
+      note:'開高低和量僅由同一指定月份、同一實際盤次的已完成分鐘K彙整；必須從開盤分鐘連續，否則不提供。無買賣一檔、非逐筆即時或券商持倉。'});
     }
    }
   }catch(e){failures.push('named-minute:'+String(e?.message||e).slice(0,90))}
