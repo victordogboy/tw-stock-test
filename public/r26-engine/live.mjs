@@ -24,7 +24,7 @@ export function mergeRecords(old,added){
  for(const r of added){const key=r.contract_date+'|'+r.timestamp_tpe,prev=map.get(key);if(!prev||priority(r)>=priority(prev))map.set(key,r)}
  return [...map.values()].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
 }
-export function replayLive(meta,bars,records,calendar,now=Date.now()){
+export function replayLive(meta,bars,records,calendar,now=Date.now(),{includeResearchInputs=false}={}){
  const expected=physicalSessions(calendar,meta.end,now),sessionStates=assessSessions(expected,records,now),issues=[],groups=new Map(),ss=meta.sessions.map(x=>({...x})),extra=[];
  for(const r of records){
   if(!validReplayBar(r,now))continue;
@@ -61,7 +61,8 @@ export function replayLive(meta,bars,records,calendar,now=Date.now()){
   events,stop:publication.positionConfirmed&&row.held?row.stop:null,shadowPreviousTwo:loss,ageMinutes:age,
   total:result.rows.reduce((a,r)=>a+r.pnl,0),newPnl:result.rows.filter(r=>r.date>meta.end).reduce((a,r)=>a+r.pnl,0),
   recent:result.rows.filter(r=>r.date>meta.end).slice(-10),as_of:added?last.end:null,
-  nextSession:physicalSessions(calendar,meta.end,now+dayms*5).find(x=>ms(x.start)>now)||null};
+  nextSession:physicalSessions(calendar,meta.end,now+dayms*5).find(x=>ms(x.start)>now)||null,
+  ...(includeResearchInputs?{_research:{sessions:ss,bars:combined}}:{})};
 }
 let crcTable;
 function crc32(bytes,crc=0xffffffff){crcTable??=Array.from({length:256},(_,i)=>{for(let j=0;j<8;j++)i=i&1?0xedb88320^(i>>>1):i>>>1;return i>>>0});for(const b of bytes)crc=crcTable[(crc^b)&255]^(crc>>>8);return crc>>>0}
