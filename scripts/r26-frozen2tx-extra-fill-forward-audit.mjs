@@ -75,7 +75,7 @@ function makeSignal({fee=2.5,entry=0,riskSlip=0}={}){
 }
 const plan={pct:.35,dd:100};
 const historical=makeSignal();
-function run(signal,params={},{one=false,disableMonth=null,disableYear=null,extraSlip=0,marginGuard=true}={}){
+function simulateSized(signal,params={},{one=false,disableMonth=null,disableYear=null,extraSlip=0,marginGuard=true}={}){
  const p=params.pct??plan.pct,d=params.dd??plan.dd;
  return replaySizedTape(prepared.sessions,bars,signal,{
  fee:params.fee??2.5,maxLots:2,additionalLotSlippagePerSide:extraSlip,
@@ -94,9 +94,9 @@ function partitions(x){
   out[y]=round(x.rows.filter(r=>r.date.startsWith(String(y))).reduce((a,r)=>a+r.pnl,0));
  return out;
 }
-const baseOne=run(historical,{}, {one:true});
+const baseOne=simulateSized(historical,{}, {one:true});
 assert.equal(baseOne.net,29657);assert.equal(baseOne.minuteDD,806);
-const p2=run(historical);
+const p2=simulateSized(historical);
 assert.equal(p2.net,32001);assert.equal(p2.minuteDD,806);
 const orig1=baseOne,orig2=p2;
 const pairs=p2.rows.map((r,i)=>{
@@ -124,13 +124,13 @@ const nGain=gains.reduce((a,r)=>a+r.delta,0);
 const nLoss=losses.reduce((a,r)=>a+r.delta,0);
 const features={pct:.35,dd:100,needed:rg=>rg.historyReady,preopen:true};
 const embargo=[...positive.slice(0,7),...negatives.slice(0,4)].map(x=>{
- const v=run(historical,{}, {disableMonth:x.month});
+ const v=simulateSized(historical,{}, {disableMonth:x.month});
  return {month:x.month,removeActualDelta:round(p2.net-v.net),net:v.net,dd:v.minuteDD,
   ratio:round(v.net/v.minuteDD)};
 });
 const forbidden=[];
 for(const y of [2022,2023,2024,2025,2026]){
- const v=run(historical,{}, {disableYear:String(y)});
+ const v=simulateSized(historical,{}, {disableYear:String(y)});
  forbidden.push({year:y,profitLost:round(p2.net-v.net),net:v.net,dd:v.minuteDD});
 }
 const feeVariants=[];
@@ -139,11 +139,11 @@ for(const [sc,fee,entry,riskSlip] of [
  ['high',5,5,75],['severe',5,10,100]
 ]){
  const signal=sc==='baseline'?historical:makeSignal({fee,entry,riskSlip});
- const single=run(signal,{fee},{one:true});
+ const single=simulateSized(signal,{fee},{one:true});
  assert.equal(round(signal.rows.reduce((a,r)=>a+r.pnl,0)),single.net,'ONE_LOT_SIGNAL_FULL_PARITY');
  assert.equal(signal.minuteDD,single.minuteDD,'ONE_LOT_SIGNAL_MDD_PARITY');
  for(const extraSlip of [0,1,2,3,5,8,10,15,20]){
-  const more=run(signal,{fee},{extraSlip});
+  const more=simulateSized(signal,{fee},{extraSlip});
   const diff=round(more.net-single.net);
   feeVariants.push({scenario:sc,fee,extraSlip,net:more.net,dd:more.minuteDD,
    ratio:round(more.net/more.minuteDD),
@@ -154,7 +154,7 @@ for(const [sc,fee,entry,riskSlip] of [
    years:partitions(more)});
  }
 }
-const baseNoMargin=run(historical,{}, {marginGuard:false});
+const baseNoMargin=simulateSized(historical,{}, {marginGuard:false});
 const report={
  dateEnd:'2026-11-11',system:'R26 previously frozen 1TX core, conditional second TX',
  candidate:{pct:plan.pct,dd:plan.dd,initial:W.capital,perContractMargin:W.margin,reserve:W.reserve},
