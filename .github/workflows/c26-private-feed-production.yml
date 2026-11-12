@@ -1,0 +1,44 @@
+name: C26 private FinMind source secure Cloudflare production gate
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c26/private-feed.mjs'
+      - 'src/worker.mjs'
+      - '.github/workflows/c26-private-feed-production.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  private-production:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify authorized C26 private DO route is deployed, never leak credentials
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          node --input-type=module <<'JS'
+          const token=process.env.FINMIND_TOKEN;
+          if(!token||token.length<30)throw Error('Missing GitHub Actions FINMIND_TOKEN secret');
+          const url='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed/status';
+          const sleep=ms=>new Promise(ok=>setTimeout(ok,ms));
+          let ok=false,details={};
+          for(let n=1;n<=22;n++){
+            try{
+              const no=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(12000)});
+              const yes=await fetch(url,{cache:'no-store',headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(12000)});
+              const noSecret=await no.json();let authorized=await yes.json();
+              if(no.status!==401||![200,404].includes(yes.status)||!noSecret?.error||yes.headers.get('x-c26-live-trading')!=='blocked')throw Error('Worker secret not configured yet or stale route: HTTP '+no.status+'/'+yes.status);
+              if(yes.status===200&&authorized.model_ready!==false)throw Error('C26 current model falsely ready');
+              details={pass:true,attempt:n,unauthorized_http:no.status,authorized_http:yes.status,
+                private_data_exists:yes.status===200,live_trading:'blocked'};ok=true;break;
+            }catch(e){details={pass:false,attempt:n,error:String(e.message||e)}}
+            await sleep(9000);
+          }
+          console.log('C26_PRIVATE_CLOUDFLARE_ACCEPTANCE',JSON.stringify(details));
+          if(!ok)process.exitCode=1;
+          JS
