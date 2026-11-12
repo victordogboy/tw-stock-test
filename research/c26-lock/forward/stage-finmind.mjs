@@ -9,6 +9,21 @@ import crypto from 'node:crypto';
 const root=process.cwd();
 const refs=JSON.parse(fs.readFileSync(path.join(root,'research/c26-lock/forward/archive-feature-reference.json'),'utf8'));
 const pool=refs.codes;const poolSet=new Set(pool);
+// Immutable forward boundary: original C26 portfolio's last five held closes
+// must agree with independently ingested FinMind raw daily close.
+const checkpoint=JSON.parse(fs.readFileSync(path.join(root,'research/c26-lock/forward/model_checkpoint_20261027.json'),'utf8'));
+if(checkpoint.date!=='2026-10-27'||Object.keys(checkpoint.mark_close_by_code).length!==5)throw Error('C26 checkpoint boundary invalid');
+function checkBoundary(day){
+ const marks=checkpoint.mark_close_by_code;
+ const map=new Map((day?.price||[]).map(r=>[r.stock_id,r]));
+ const rows=Object.entries(marks).map(([code,original])=>{
+   const current=map.get(code)?.close;
+   const difference=Number.isFinite(current)?Math.abs(current-original):null;
+   const ok=difference!==null&&difference<=Math.max(0.0005,Math.abs(original)*1e-6);
+   return {code,match:ok,abs_difference:difference};
+ });
+ return {date:checkpoint.date,matched:rows.filter(x=>x.match).length,total:rows.length,pass:rows.every(x=>x.match),rows};
+}
 const basename=path.join(root,'public/r1494a/c26/data');
 // FinMind forbids redistribution of raw subscription data. Keep EOD only in this private job workspace.
 const outPath=path.join(root,'.c26-private/forward-eod.json.gz');
@@ -94,6 +109,8 @@ for(let d=inputSince;d<=endAt;d=addDate(d,1)){
 }
 const closeDates=Object.keys(payload.days).filter(x=>x>='2026-10-28').sort();
 const availableDates=closeDates.filter(x=>payload.days[x].source_state==='available');
+const checkpointOverlap=checkBoundary(payload.days[checkpoint.date]);
+console.log('C26_CHECKPOINT_OHLC_PARITY',JSON.stringify({date:checkpointOverlap.date,pass:checkpointOverlap.pass,matched:checkpointOverlap.matched,total:checkpointOverlap.total,failed_codes:checkpointOverlap.rows.filter(x=>!x.match).map(x=>x.code)}));
 const file=gzipSync(Buffer.from(JSON.stringify(payload)),{level:9});
 fs.mkdirSync(path.dirname(outPath),{recursive:true,mode:0o700});fs.mkdirSync(basename,{recursive:true});fs.writeFileSync(outPath,file,{mode:0o600});
 const status={lock_id:refs.lock_id,archive_as_of:'2026-10-27',checked_at:now.toISOString(),requested_through:endAt,
@@ -101,10 +118,12 @@ const status={lock_id:refs.lock_id,archive_as_of:'2026-10-27',checked_at:now.toI
  staged_trade_dates:closeDates.length,available_trade_dates:availableDates.length,
  days:statuses,universe_count:pool.length,sha256_gzip:sha(file),bytes_gzip:file.length,
  source:'FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending',secret_exposed:false,public_raw_data:false,raw_storage:'private CI workspace (ephemeral)',
- state:availableDates.length===closeDates.length&&closeDates.length>0?'source_staged':'source_partial',
+ checkpoint_ohlc_parity:{date:checkpointOverlap.date,pass:checkpointOverlap.pass,matched:checkpointOverlap.matched,total:checkpointOverlap.total,failed_codes:checkpointOverlap.rows.filter(x=>!x.match).map(x=>x.code)},
+ latest_missing_codes:payload.days[endAt]?.missing||[],
+ state:checkpointOverlap.pass&&availableDates.length===closeDates.length&&closeDates.length>0?'source_staged':'source_partial',
  exact_c26_feature_parity:'NOT_VERIFIED',frozen_c26_portfolio_replay:'NOT_IMPLEMENTED',live_plan_readiness:'BLOCKED',
  warning:'僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。'};
 fs.writeFileSync(statusPath,JSON.stringify(status,null,2)+'\n');
 console.log('C26_EOD_STAGE_SUMMARY',JSON.stringify({requested:endAt,staged:closeDates.length,available:availableDates.length,
- last_available:status.full_market_last_verified,error_count:errors,compressed_bytes:file.length,lock_id:status.lock_id}));
+ last_available:status.full_market_last_verified,error_count:errors,compressed_bytes:file.length,lock_id:status.lock_id,checkpoint_parity:checkpointOverlap.pass}));
 // Allow partial availability to be published for diagnostics. Never call it a signal-ready state.
