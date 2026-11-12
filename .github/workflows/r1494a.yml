@@ -74,8 +74,19 @@ jobs:
         run: |
           set -euo pipefail
           cp dist/snapshot.json.gz ../public/r1494a/snapshot.bin
-          git add ../public/r1494a/snapshot.bin
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Refresh R1494-A dashboard snapshot'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          cp ../public/r1494a/snapshot.bin /tmp/r1494a-verified-snapshot.bin
+          # Checkpoint already committed separately; only the dashboard asset
+          # needs rebasing. Start fresh from main instead of rebasing outdated
+          # binary snapshots and getting a nonresolvable conflict.
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/r1494a-verified-snapshot.bin ../public/r1494a/snapshot.bin
+            git add ../public/r1494a/snapshot.bin
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Refresh R1494-A dashboard snapshot'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 2
+          done
+          echo 'R1494-A publish retry limit reached' >&2
+          exit 1
