@@ -9,9 +9,12 @@ on:
     paths:
       - 'research/c26-lock/forward/**'
       - 'tests/c26-forward-stage.test.mjs'
+      - 'src/c26/github-oidc.mjs'
+      - 'src/c26/private-feed.mjs'
       - '.github/workflows/c26-forward-eod.yml'
 permissions:
   contents: write
+  id-token: write # GitHub-signed, short-lived identity for Cloudflare private storage
 concurrency:
   group: c26-eod-finmind-staging
   cancel-in-progress: false
@@ -31,8 +34,6 @@ jobs:
       - name: Restore private source cache when configured
         id: restore
         continue-on-error: true
-        env:
-          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: node research/c26-lock/forward/sync-private-store.mjs restore
       - name: Fetch FinMind full-market EOD (NO TOKEN IN LOGS)
         id: ingest
@@ -46,8 +47,6 @@ jobs:
       - name: Persist and verify private source cache
         id: persist
         continue-on-error: true
-        env:
-          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
           node research/c26-lock/forward/sync-private-store.mjs publish
           node research/c26-lock/forward/sync-private-store.mjs status
@@ -75,5 +74,5 @@ jobs:
       - name: Report storage failure without discarding source coverage
         if: steps.persist.outcome == 'failure'
         run: |
-          echo '::error::Source coverage updated, but private persistence failed. Check Worker FINMIND_TOKEN and SCAN_JOBS; current C26 trading remains blocked.'
+          echo '::error::Source coverage updated, but private persistence failed. Check GitHub OIDC trust and Worker SCAN_JOBS; current C26 trading remains blocked.'
           exit 1
