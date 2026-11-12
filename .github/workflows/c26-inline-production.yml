@@ -1,0 +1,51 @@
+name: Original monitoring site C26 production deployment acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - 'src/c26/status.mjs'
+      - 'src/worker.mjs'
+      - '.github/workflows/c26-inline-production.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify C26 now renders inside original production monitoring page
+        run: |
+          node --input-type=module <<'JS'
+          const origin='https://tw-stock-api.victordogboy.workers.dev';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          let success=false,record={};
+          const get=async path=>{
+            const r=await fetch(origin+path+(path.includes('?')?'&':'?')+'ver='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            if(!r.ok)throw Error(path+' HTTP '+r.status);
+            return r;
+          };
+          for(let attempt=0;attempt<40;attempt++){
+            try{
+              const [html,bridge,adapter,statusResponse,manifestResponse]=await Promise.all([
+                get('/r1494a/').then(r=>r.text()),
+                get('/r1494a/strategy-switch.js').then(r=>r.text()),
+                get('/r1494a/c26/inline-adapter.mjs').then(r=>r.text()),
+                get('/api/c26/status'),get('/r1494a/c26/manifest.json')
+              ]);
+              const status=await statusResponse.json(),manifest=await manifestResponse.json();
+              if(!html.includes('loadC26MonitorSnapshot')||!html.includes('renderC26Monitor')||html.includes("window.location.href='./c26/'")||!bridge.includes("isC26")||!adapter.includes('exportC26Orders')||!adapter.includes('verifyHistorical'))throw Error('original monitor not serving C26 inline code yet');
+              if(status.model_version!=='C26'||status.historical_as_of!=='2026-10-27'||status.plan?.readiness!=='blocked'||status.plan.actions.length!==0||!status.no_live_positions||status.plan.signal_as_of!==null||manifest.lock_id!=='C26-EVENT-CORR-LOCK-20261112')throw Error('C26 source readiness is unsafe or not deployed');
+              if('orders' in status || 'snapshots' in status)throw Error('C26 API leaked FC23 portfolio');
+              record={passed:true,attempt:attempt+1,source_status:status.source_status,market_as_of:status.latest_market_data_as_of,source_error:status.source_error,code:'C26 inline active in original monitor, latest trade plan BLOCKED'};success=true;break;
+            }catch(e){record={passed:false,attempt:attempt+1,error:String(e.message||e)};await sleep(6500);}
+          }
+          console.log('C26_MONITOR_PRODUCTION_ACCEPTANCE',JSON.stringify(record));
+          if(!success)process.exitCode=1;
+          JS
