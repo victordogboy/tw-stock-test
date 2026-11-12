@@ -1,7 +1,7 @@
-/** C26 source-readiness endpoint, not a port of the frozen Python strategy.
- * Never emits positions, buy/sell signals, prices or a readiness:true plan.
- * The source used for market freshness is only the shared upstream data ingest;
- * its FC23 strategy decisions are never read or copied into a C26 plan.
+/** C26 source-readiness endpoint, NOT a port of frozen Python strategy.
+ * Only publishes manual-review orders after strict frozen engine + forward replay
+ * parity is externally attested; otherwise emits zero buy/sell signals.
+ * Never reuses any FC23 or R1494-A position or strategy signal.
  */
 import {fc23Stub} from '../fc23/service.mjs';
 import {validateC26NextDayPlan} from './live-plan-gate.mjs';
