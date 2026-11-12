@@ -1,0 +1,104 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "artifact_created": "2026-11-12",
+  "data_asof": "2026-10-27",
+  "study_period": "2021-01-06 to 2026-10-27",
+  "research_archive": "full original 133MB data included; code version excludes it",
+  "historical_replay_passed": true,
+  "historical_out_of_sample": false,
+  "no_live_deployment": true,
+  "no_live_orders": true,
+  "frozen_inner_simulator_sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5",
+  "original_FC23_base_zip_sha256": "6cdbaab9c09310d6b8ae878e15087184426533849b4ac78d4603810aa894f1df",
+  "returns_pct": 1720.495844396837,
+  "maximum_drawdown_pct": -17.989769234703846,
+  "historical_orders": 1758,
+  "historical_trading_days": 1407,
+  "independent_account_reconciliation_max_difference": 7.105427357601002e-15,
+  "file_count": 16,
+  "all_file_hashes_excluding_this_manifest_and_sha256s": [
+    {
+      "path": "C26_LOCK_PARAMETERS.json",
+      "bytes": 927,
+      "sha256": "aac0a2aed5fd403a346bc29db4d602fa5e325b85ad31e81d67ad0ce178f1e44d"
+    },
+    {
+      "path": "LIVE_READINESS.json",
+      "bytes": 738,
+      "sha256": "1a9d019e6353004cfb317c8fb2b007e4b58ede51442f361f564dae2a2270ed9c"
+    },
+    {
+      "path": "README_上線前封存說明.md",
+      "bytes": 6519,
+      "sha256": "9d8bb2ccaf7c13958fc1b25da398743721b208631045edd485472a0f40998a34"
+    },
+    {
+      "path": "payload/FC23_原引擎與資料_準備上線完整包_20261108.zip",
+      "bytes": 133470271,
+      "sha256": "6cdbaab9c09310d6b8ae878e15087184426533849b4ac78d4603810aa894f1df"
+    },
+    {
+      "path": "replay/bootstrap_assets.py",
+      "bytes": 4607,
+      "sha256": "4e0004d7f2259c1bee6f73298a420df46d0efac7a7cb515670a206c82323b473"
+    },
+    {
+      "path": "replay/replay_c26.py",
+      "bytes": 9865,
+      "sha256": "28b0cff4d4835b34202cffc7a2758f5879ed4adf36d91d4aa5aa132384099c14"
+    },
+    {
+      "path": "replay/results/C26_account_ledger.csv.gz",
+      "bytes": 26802,
+      "sha256": "0b44c2afaac61fa1d250b7de7e9e899aefe34833be877cd6453482368242034a"
+    },
+    {
+      "path": "replay/results/C26_audit.json",
+      "bytes": 1415,
+      "sha256": "eec875aaaf9a78df1e054e4ee3ce1f2c8f9297f353770a552e668f7f6d67fef1"
+    },
+    {
+      "path": "replay/results/C26_daily_nav.csv.gz",
+      "bytes": 31653,
+      "sha256": "de04853ddd00a8ca150b6e6ac29f7918ebb387bba2c5e9303bd1b26021b54f95"
+    },
+    {
+      "path": "replay/results/C26_last_historical_positions.csv",
+      "bytes": 264,
+      "sha256": "3d60a6ad264068e7478fa01e10c6c854785c5ae2ca2eeab81970e7f5e708f723"
+    },
+    {
+      "path": "replay/results/C26_metrics.json",
+      "bytes": 1279,
+      "sha256": "716a47e6fe8f52f85bf07bf4fd6edb7e9c1847f929164910f1c6fc8371d47015"
+    },
+    {
+      "path": "replay/results/C26_orders.csv.gz",
+      "bytes": 77606,
+      "sha256": "d47b865b9e816e34f73c057c5d779e1ca03234827d16d1409bde218946c00567"
+    },
+    {
+      "path": "requirements.txt",
+      "bytes": 30,
+      "sha256": "655bba4ee9b4a0d75594f457864fe5fd3d92dabc01e26b7265b5c5b3cbabd571"
+    },
+    {
+      "path": "source/C26_FROZEN_ENGINE.py",
+      "bytes": 17270,
+      "sha256": "9afaae06be46c6f6279cf7170d6ae6a545f281b500ce1d7eef5c247b0a7444da"
+    },
+    {
+      "path": "source/C26_SIMULATOR_FROZEN.py",
+      "bytes": 34244,
+      "sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5"
+    },
+    {
+      "path": "tests/test_frozen_artifacts.py",
+      "bytes": 1791,
+      "sha256": "407f10ca07eb3b789c6d3c4591ebc158d5ba66d8fed01d2097d32134bb65d96c"
+    }
+  ],
+  "build_python": "3.13.5",
+  "build_numpy": "2.3.5",
+  "build_pandas": "2.2.3"
+}
