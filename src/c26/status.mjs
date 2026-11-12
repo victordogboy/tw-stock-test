@@ -7,7 +7,7 @@ import {fc23Stub} from '../fc23/service.mjs';
 import {validateC26NextDayPlan} from './live-plan-gate.mjs';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{
  'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
- 'X-C26-Plan-Ready':'false','X-C26-Frozen-Lock':'C26-EVENT-CORR-LOCK-20261112'}});
+ 'X-C26-Plan-Ready':data?.plan?.readiness==='ready_for_manual_review'?'true':'false','X-C26-Frozen-Lock':'C26-EVENT-CORR-LOCK-20261112'}});
 const HIST='2026-10-27';
 // Read ONLY the sanitized GitHub Actions coverage report. Licensed FinMind
 // raw price/chip records are never returned through this public API.
