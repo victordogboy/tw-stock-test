@@ -64,7 +64,7 @@ async function loadCloudMinuteCache(){
 function planName(side){return side===1?'多單':side===-1?'空單':'空手'}
 function draw(m){
  state=m.result;const r=state,s=r.session,p=r.row,ready=r.ready;
- text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261111 歷史＋分鐘雙雲端快取');
+ text('r26NowDate','臺灣日期 '+taipeiParts().date+' · R26 20261112 盤前訊號優先版');
  text('r26FreezeLabel','原始 2,428 盤金標逐盤零差異；以相同凍結規則接續重播。');
  const states=r.sessionStates||[],active=states.find(x=>x.marketState==='trading'),missing=states.filter(x=>x.historicalMissing),unverified=states.filter(x=>x.complete&&!x.dataReady&&!x.historicalMissing);
  text('r26MarketState',active?('正在交易：'+active.start.slice(0,10)+' '+(active.sid?'日盤':'夜盤')+' → 交易日 '+active.date+'，'+active.endsAt+' 收盤'):'目前無進行中的盤次；最近盤次已收盤');
@@ -85,7 +85,13 @@ function draw(m){
   for(const val of [t.start.slice(0,10)+' '+(t.sid?'日盤':'夜盤'),t.date,t.contracts.join('/')||contract,
    t.count+' 根',t.last?.slice(11)||'—',t.label+'｜'+timing]){const td=document.createElement('td');td.textContent=val;tr.append(td)}table.append(tr);
  }
- text('mainSignalHeading',ready?('R26 '+s.start.slice(0,10)+' '+(s.sid?'日盤':'夜盤')+'｜模型'+planName(p.held)):'R26 策略持倉無法確認｜不發布進出場指令');
+ const signalPanel=$('signalPanel');
+ if(signalPanel)signalPanel.className='panel alert '+(!ready?'unverified':p.held===1?'is-long':p.held===-1?'is-short':'is-flat');
+ text('mainSignalHeading',ready?'R26 '+s.start.slice(0,10)+' '+(s.sid?'日盤':'夜盤')+'｜當盤多空與出場計畫':'R26 策略持倉未驗證');
+ text('signalDirectionHero',!ready?'訊號未驗證 · 不提供下單方向':p.held===1?'模型做多 +1 TX':p.held===-1?'模型做空 −1 TX':'模型空手 0 TX');
+ text('signalVerification',ready?'模型重播已核對（截至 '+r.as_of+'）':'資料／持倉待驗證');
+ if($('signalVerification'))$('signalVerification').className='livepill '+(ready?'ok':'bad');
+ text('signalActionHeadline',!ready?'不沿用前一盤方向；先補齊缺漏並核對模型。':p.held===1?'模型目前持有多單；停損、停利與出場條件如下。':p.held===-1?'模型目前持有空單；停損、停利與出場條件如下。':'模型目前空手；無持續有效的進出場委託。');
  const entries=r.events.filter(e=>/進場/.test(e.type)),exit=r.events.filter(e=>/停損|停利|平倉/.test(e.type));
  let detail=ready?('交易日 '+s.date+'，TX'+s.contract+'。開盤 '+fmt(s.op)+'，原始方向 '+(s.signal===1?'多':s.signal===-1?'空':'中性')+'；'+(s.blocked?'風控停機。':'風控允許交易。')+'模型目前'+planName(p.held)+'，保護停損 '+(p.held?fmt(r.stop):'無持倉')+'。本盤模型損益 '+fmt(p.pnl)+' 點（含每邊 2.5 點成本）。'):'目前未完成當盤計算：'+r.issues.join('；')+'。下方僅列已取得資料的重播，不代表此刻可進場。';
  if(ready&&entries.length)detail+=' 進場紀錄：'+entries.map(e=>e.time+' '+e.type+' '+fmt(e.price)).join('；')+'。';
@@ -117,6 +123,11 @@ function invalidatePosition(reason){
  state=state?{...state,ready:false,positionConfirmed:false,confirmedPosition:null,signalAllowed:false,stop:null}:null;
  text('r26DataHealth','策略持倉無法確認：'+reason);
  text('r26PositionState','策略持倉無法確認；不發布確定的進出場指令');
+ if($('signalPanel'))$('signalPanel').className='panel alert unverified';
+ text('signalDirectionHero','訊號未驗證 · 不提供下單方向');
+ text('signalVerification','資料／持倉待驗證');
+ if($('signalVerification'))$('signalVerification').className='livepill bad';
+ text('signalActionHeadline','最新模型尚未通過資料與持倉核對；禁止沿用舊方向。');
  text('mainSignalHeading','R26 策略持倉無法確認｜不發布進出場指令');
  text('signalStatus','未取得本次已驗證的重播結果：'+reason+'。不能沿用上次持倉或出場價位。');
  for(const id of ['signalPosition','signalTradeType','signalStopPrice','signalTakeProfit','replayHold'])text(id,'尚未確認');
