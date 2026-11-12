@@ -1,0 +1,79 @@
+name: C26 device-only FinMind Token live acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/c26/index.html'
+      - 'public/r1494a/finmind-device-token.js'
+      - '.github/workflows/c26-device-token-acceptance.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Verify local-only device Token behavior
+        run: |
+          node --check public/r1494a/finmind-device-token.js
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          import vm from 'node:vm';
+          const source=fs.readFileSync('public/r1494a/finmind-device-token.js','utf8');
+          const manager=fs.readFileSync('public/finmind-token-manager.js','utf8');
+          const store=new Map();
+          const localStorage={getItem:k=>store.get(k)??null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
+          const window={};
+          vm.runInNewContext(manager,{window,localStorage});
+          function mount(){
+            const elements=Object.fromEntries(['deviceFinmindToken','deviceFinmindSave','deviceFinmindTest','deviceFinmindClear','deviceFinmindStatus'].map(k=>[k,{value:'',textContent:'',disabled:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn}}]));
+            const document={readyState:'complete',getElementById:key=>elements[key],dispatchEvent:()=>{}};
+            vm.runInNewContext(source,{window,document,localStorage,CustomEvent:class{},fetch:()=>{throw Error('Test should not call external API')},setTimeout,clearTimeout,Date,URLSearchParams});
+            return elements;
+          }
+          const first=mount();
+          const dummy='unit-test-only-example-token-12345';
+          first.deviceFinmindToken.value=dummy;
+          first.deviceFinmindSave.listeners.click();
+          assert.equal(window.TWFinMindTokens.activeToken(),dummy);
+          assert.equal(first.deviceFinmindToken.value,'');
+          assert.match(first.deviceFinmindStatus.textContent,/已在這台裝置/);
+          assert.equal([...store.keys()].every(k=>k.startsWith('twq_finmind_token')),true);
+          const reopened=mount();
+          assert.match(reopened.deviceFinmindStatus.textContent,/已在這台裝置/);
+          reopened.deviceFinmindClear.listeners.click();
+          assert.equal(window.TWFinMindTokens.activeToken(),'');
+          assert.match(mount().deviceFinmindStatus.textContent,/尚未儲存/);
+          assert.equal(source.includes(dummy),false);
+          console.log('C26_BROWSER_DEVICE_TOKEN_TEST_PASS');
+          JS
+      - name: Confirm Cloudflare Worker serves the Token UI on both pages
+        run: |
+          node --input-type=module <<'JS'
+          const origin='https://tw-stock-api.victordogboy.workers.dev';
+          let last='';
+          for(let i=0;i<35;i++){
+            try{
+              const get=async path=>{
+                const r=await fetch(origin+path+'?device_token_ver='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});
+                if(!r.ok)throw Error(path+' HTTP '+r.status);
+                return r.text();
+              };
+              const [main,c26,ui,manager]=await Promise.all([
+                get('/r1494a/'),get('/r1494a/c26/'),get('/r1494a/finmind-device-token.js'),get('/finmind-token-manager.js')
+              ]);
+              if(!main.includes('id="deviceFinmindToken"')||!c26.includes('id="deviceFinmindToken"')||
+                 !main.includes('./finmind-device-token.js')||!c26.includes('../finmind-device-token.js')||
+                 !ui.includes('window.C26DeviceFinMind')||!ui.includes('localStorage')&& !manager.includes('localStorage')||
+                 !ui.includes('FinMind API 連線成功'))throw Error('Deployed UI or script does not yet match GitHub code');
+              console.log('C26_DEVICE_TOKEN_LIVE_PASS',JSON.stringify({production:true,c26:true,main:true,deviceOnly:true,attempt:i+1}));
+              process.exit(0);
+            }catch(e){last=String(e.message||e);await new Promise(r=>setTimeout(r,6500));}
+          }
+          throw Error('Cloudflare device token deployment not verified: '+last);
+          JS
