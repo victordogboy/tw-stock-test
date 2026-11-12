@@ -3,6 +3,9 @@ on:
   push:
     branches: [main, fix/r26-session-tail-20261112]
     paths:
+      - 'public/r26-monitor.html'
+      - 'public/r26-engine/live.mjs'
+      - 'public/r26-engine/monitor-worker.mjs'
       - 'public/r26-engine/session-status.mjs'
       - 'public/r26-live-monitor.mjs'
       - 'src/r26-market.mjs'
@@ -21,6 +24,8 @@ jobs:
           node-version: 24
       - name: Verify missing close tail, official proof, and original frozen replay
         run: |
+          node --check public/r26-engine/monitor-worker.mjs
+          node --check public/r26-engine/live.mjs
           node --check public/r26-engine/session-status.mjs
           node --check public/r26-live-monitor.mjs
           node --check src/r26-market.mjs
