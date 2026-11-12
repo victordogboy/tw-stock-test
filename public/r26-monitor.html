@@ -71,7 +71,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 
 <section class="panel liveboard" id="liveQuotePanel" aria-label="台指期即時報價">
  <div class="livehead"><h2 style="margin:0">台指期近一 · 行情監控</h2>
-  <span id="liveIndicator" class="livepill wait" role="status" aria-live="polite">近月5秒／指定月20秒獨立輪詢</span>
+  <span id="liveIndicator" class="livepill wait" role="status" aria-live="polite">Yahoo 5秒／CMoney 10秒／指定月 20秒</span>
  </div>
  <div class="grid" style="margin-top:12px;align-items:center">
  <div><small id="quoteInstrumentLabel">WTX&amp; 連續近月；失敗時改採指定月1分K</small><div id="txNow" class="quoteprice">—</div><b id="txChange" class="muted">—</b></div>
@@ -88,8 +88,8 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
   <div class="info">來源／狀態<br><strong id="liveSourceName">—</strong></div>
  </div>
  <svg id="ticks" viewBox="0 0 720 100" role="img" aria-label="最近10分鐘，網頁取得的報價快照示意圖"><text x="20" y="55" font-size="14" fill="#90abc3">開始蒐集報價後顯示本頁快照趨勢</text></svg>
- <p class="info" id="quoteDisclaimer">快速近月報價每 5 秒查詢、指定月分K每 20 秒獨立查詢；來源可能僅每分鐘更新。當 WTX&amp; 即時報價失敗時，以指定 TX 合約當盤已完成的連續 1 分 K 顯示收盤與已核實的開高低、分鐘量；不假造買一賣一。策略模型獨立按分鐘資料檢查，非每 5 秒產生交易訊號。</p>
- <a href="https://tw.finance.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
+ <p class="info" id="quoteDisclaimer">Yahoo近月每5秒、CMoney近月每10秒、指定月分K每20秒獨立查詢；來源可能僅每分鐘更新。當 WTX&amp; 即時報價失敗時，以指定 TX 合約當盤已完成的連續 1 分 K 顯示收盤與已核實的開高低、分鐘量；不假造買一賣一。策略模型獨立按分鐘資料檢查，非每 5 秒產生交易訊號。</p>
+ <a href="https://www.taifex.com.tw/eventTaifexTradingCenter/cht/index.do" target="_blank" rel="noopener noreferrer">期交所官方行情核對 ↗</a>　<a href="https://auth.cmoney.tw/forum/stock?tab=news" target="_blank" rel="noopener noreferrer">CMoney TXF1 來源 ↗</a><br><a href="https://tw.finance.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
 </section>
 
 <section class="panel" id="r26DataHealthPanel" aria-label="R26 近期分鐘 K 資料更新稽核">
@@ -207,16 +207,21 @@ load().catch(e=>{$('chart').innerHTML='<text x="20" y="40" fill="#ffaaaa">'+html
 // R26 near-month market data: independent of frozen strategy signal.
 const fnum=n=>Number.isFinite(n)?n.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 let quoteLast=null,quoteLastPoll=0,quoteFailure=false,quotesSeen=0;
-const quoteLanes={quick:null,named:null},laneWorking={quick:false,named:false},laneErrors={quick:'等待',named:'等待'};
+const quoteLanes={quick:null,named:null,cmoney:null},laneWorking={quick:false,named:false,cmoney:false},laneErrors={quick:'等待',named:'等待',cmoney:'等待'};
 let quoteSeriesSource='';
 const pickQuote=()=>{
- const month=$('r26DataContract')?.value||'202611',named=quoteLanes.named?.contract_month===month?quoteLanes.named:null;
- const quick=quoteLanes.quick,age=q=>q?Date.now()-Date.parse(q.source_time):Infinity;
- // R26 must prioritize a verified named TX contract when a recent minute exists.
- if(named&&age(named)<=100000)return named;
- if(quick&&age(quick)<=90000)return quick;
- if(named&&quick)return age(named)<=age(quick)?named:quick;
- return named||quick||null;
+ const month=$('r26DataContract')?.value||'202611';
+ const named=quoteLanes.named?.contract_month===month?quoteLanes.named:null;
+ const quick=quoteLanes.quick,cmoney=quoteLanes.cmoney;
+ const age=q=>q?Date.now()-Date.parse(q.source_time):Infinity;
+ // For the model reference, a recent verified YYYYMM minute wins.
+ if(named&&age(named)>=-90000&&age(named)<=100000)return named;
+ const fresh=[cmoney,quick].filter(q=>q&&age(q)>=-90000&&age(q)<=90000)
+  .sort((a,b)=>Date.parse(b.source_time)-Date.parse(a.source_time)
+   ||(a.requested_mode==='cmoney'?-1:1));
+ if(fresh.length)return fresh[0];
+ return [named,cmoney,quick].filter(Boolean)
+  .sort((a,b)=>Date.parse(b.source_time)-Date.parse(a.source_time))[0]||null;
 };
 const quoteHistory=[];
 const twClock=s=>{try{return new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(new Date(s));}catch{return '—'}};
@@ -232,7 +237,7 @@ function renderTicks(){
 }
 function renderQuote(){
  const q=pickQuote();quoteLast=q;
- if(!q){liveBadge(quoteFailure?'行情來源暫不可用（持續重試）':'連線中 · 分別檢查報價與分K',quoteFailure?'bad':'wait');$('liveSourceName').textContent='快速報價：'+laneErrors.quick+'；指定月份：'+laneErrors.named;return}
+ if(!q){liveBadge(quoteFailure?'行情來源暫不可用（持續重試）':'連線中 · 分別檢查報價與分K',quoteFailure?'bad':'wait');$('liveSourceName').textContent='Yahoo：'+laneErrors.quick+'；CMoney：'+laneErrors.cmoney+'；指定月：'+laneErrors.named;return}
  const elapsed=Math.max(0,Math.round((Date.now()-Date.parse(q.source_time))/1000)),pollAge=Math.max(0,Math.round((performance.now()-quoteLastPoll)/1000));
  const fresh=elapsed<=90;
  $('txNow').textContent=fnum(q.price);
@@ -248,9 +253,9 @@ function renderQuote(){
  $('txVol').textContent=fnum(q.volume);
  $('liveSourceTime').textContent=twClock(q.source_time)+' （台灣時間）';
  $('liveLag').textContent=elapsed+' 秒／'+pollAge+' 秒前檢查';
- $('liveSourceName').textContent=q.source+(q.cache_hit?' · 來源快取':'')+'；快速報價 '+laneErrors.quick+'／指定月 '+laneErrors.named;
+ $('liveSourceName').textContent=q.source+(q.cache_hit?' · 來源快取':'')+'；Yahoo '+laneErrors.quick+'／CMoney '+laneErrors.cmoney+'／指定月 '+laneErrors.named;
   if(q.quote_type==='minute_k'&&q.session_ohlc_verified===false)$('liveSourceName').textContent+=' · 當盤分鐘K尚未連續，開高低不顯示';
- $('quoteInstrumentLabel').textContent=q.quote_type==='minute_k'?'TX'+q.contract_month+' 指定月 1分K（非逐筆即時）':'WTX& · Yahoo 連續近月';
+ $('quoteInstrumentLabel').textContent=q.quote_type==='minute_k'?'TX'+q.contract_month+' 指定月 1分K（非逐筆即時）':q.requested_mode==='cmoney'?'CMoney TXF1 近月（非指定月份）':'WTX& · Yahoo 連續近月';
  if(quoteFailure)liveBadge('連線失敗，顯示上次資料','bad');
  else if(!fresh)liveBadge('來源逾 90 秒，非即時','bad');
  else liveBadge(q.quote_type==='minute_k'?'指定月分K · '+elapsed+' 秒前':'近月報價 · '+elapsed+' 秒前','ok');
@@ -258,7 +263,7 @@ function renderQuote(){
 async function fetchQuoteLane(mode){
  if(laneWorking[mode]||document.visibilityState!=='visible')return;
  laneWorking[mode]=true;
- const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),mode==='quick'?4300:16500);
+ const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),mode==='quick'?4300:mode==='cmoney'?6000:16500);
  try{
   const month=$('r26DataContract')?.value||'202611';
   const r=await fetch('/api/r26/live-quote?contract='+encodeURIComponent(month)+'&mode='+mode,
@@ -268,13 +273,14 @@ async function fetchQuoteLane(mode){
   if(j.requested_contract!==month||j.requested_mode!==mode)throw Error('來源合約／輪詢通道核對失敗');
   if(mode==='named'&&(!j.contract_verified||j.contract_month!==month||j.quote_type!=='minute_k'))throw Error('指定月未驗證');
   if(mode==='quick'&&j.quote_type!=='snapshot')throw Error('快速報價類型不符');
+  if(mode==='cmoney'&&(j.symbol!=='TXF1'||j.quote_type!=='snapshot'||j.contract_verified))throw Error('CMoney 近月來源未驗證');
   // Do not let an earlier/out-of-order response overwrite a newer snapshot.
   const prev=quoteLanes[mode];
   if(!prev||Date.parse(j.source_time)>=Date.parse(prev.source_time))quoteLanes[mode]=j;
   laneErrors[mode]='正常';quoteFailure=false;quoteLastPoll=performance.now();quotesSeen++;
   const selected=pickQuote();
   if(selected){
-   const seriesSource=selected.quote_type==='minute_k'?'named:'+selected.contract_month:'WTX';
+   const seriesSource=selected.quote_type==='minute_k'?'named:'+selected.contract_month:selected.requested_mode==='cmoney'?'CMoney-TXF1':'WTX';
    if(quoteSeriesSource!==seriesSource){quoteHistory.length=0;quoteSeriesSource=seriesSource;}
    if(!quoteHistory.length||quoteHistory.at(-1).t!==selected.source_time){
     quoteHistory.push({t:selected.source_time,p:selected.price});
@@ -288,15 +294,17 @@ async function fetchQuoteLane(mode){
 }
 const fetchQuote=()=>fetchQuoteLane('quick');
 const fetchNamedQuote=()=>fetchQuoteLane('named');
+const fetchCmoneyQuote=()=>fetchQuoteLane('cmoney');
 const quoteTimer=setInterval(fetchQuote,5000);
 const namedQuoteTimer=setInterval(fetchNamedQuote,20000);
+const cmoneyQuoteTimer=setInterval(fetchCmoneyQuote,10000);
 const statusTimer=setInterval(renderQuote,1000);
 document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible'){
-  liveBadge('恢復行情核對','wait');fetchQuote();fetchNamedQuote();
+  liveBadge('恢復行情核對','wait');fetchQuote();fetchNamedQuote();fetchCmoneyQuote();
  }else liveBadge('背景分頁已暫停輪詢','wait');
 });
-window.addEventListener('online',()=>{fetchQuote();fetchNamedQuote()});
+window.addEventListener('online',()=>{fetchQuote();fetchNamedQuote();fetchCmoneyQuote()});
 fetchQuote();fetchNamedQuote();
 
 </script>
