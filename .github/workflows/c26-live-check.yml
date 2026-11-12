@@ -1,0 +1,55 @@
+name: C26 Cloudflare deployment smoke check
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/**'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/fc23/index.html'
+      - '.github/workflows/c26-live-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Check deployed C26 page, locked manifest, and unchanged strategies
+        run: |
+          node --input-type=module <<'JS'
+          const origin='https://tw-stock-api.victordogboy.workers.dev';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const get=async path=>{
+            const r=await fetch(origin+path+'?c26v='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});
+            return {status:r.status,body:await r.text()};
+          };
+          let verified=false, error='';
+          for(let i=0;i<42;i++){
+            try{
+              const [page,js,manifest,base,fc]=await Promise.all([
+                get('/r1494a/c26/'),get('/r1494a/c26/app.mjs'),
+                get('/r1494a/c26/manifest.json'),get('/r1494a/'),get('/r1494a/fc23/')
+              ]);
+              if([page,js,manifest,base,fc].every(x=>x.status===200)){
+                const d=JSON.parse(manifest.body);
+                if(d.lock_id==='C26-EVENT-CORR-LOCK-20261112'
+                   &&d.live_plan_readiness==='blocked'&&d.live_trading_enabled===false
+                   &&d.simulated_orders===1758&&d.trading_days===1407
+                   &&page.body.includes('C26-EVENT-CORR-LOCK')
+                   &&js.body.includes('validateC26')
+                   &&base.body.includes('C26 無日期事件驅動')
+                   &&fc.body.includes('FC23-PEER50-LOCK')){
+                  verified=true;break;
+                }
+                error='C26 manifest or old R1494/FC23 UI mismatch';
+              }else error='HTTP '+[page,js,manifest,base,fc].map(x=>x.status).join(',');
+            }catch(e){error=String(e.message||e);}
+            await sleep(10000);
+          }
+          console.log(JSON.stringify({verified,production:origin+'/r1494a/c26/',error},null,2));
+          if(!verified)process.exitCode=1;
+          JS
