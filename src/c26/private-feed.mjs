@@ -1,3 +1,4 @@
+import {verifyC26GitHubOIDC} from './github-oidc.mjs';
 /** Private, authenticated FinMind daily-source data cache for C26.
  * Never routes licensed full-market prices/chips to public static assets.
  * Stored only in existing Cloudflare SCAN_JOBS Durable Object storage.
@@ -39,10 +40,18 @@ export async function c26PrivateFeedRoute(request,env){
  if(!m)return json({error:'Not found'},404);
  const allowed=new Set(m[1]?['GET']:['GET','POST']);
  if(!allowed.has(request.method))return json({error:'Method not allowed'},405);
+ // GitHub Actions OIDC is scoped to ONE workflow and branch and verified
+ // against GitHub JWKS. This avoids copying a licensed FinMind token into
+ // Cloudflare Worker environment variables. Legacy Worker secret auth remains
+ // available for previously provisioned deployments.
  const key=env?.FINMIND_TOKEN;
- if(typeof key!=='string'||key.length<30)return json({error:'C26 secure Worker secret unavailable'},503);
+ const secretReady=typeof key==='string'&&key.length>=30;
  const header=request.headers.get('authorization')||'';
- if(!header.startsWith('Bearer ')||!secureEqual(header.slice(7).trim(),key))return json({error:'Not authorized'},401);
+ const bearer=header.startsWith('Bearer ')?header.slice(7).trim():'';
+ const secretValid=secretReady&&secureEqual(bearer,key);
+ const oidcValid=!secretValid&&bearer.split('.').length===3?await verifyC26GitHubOIDC(bearer):false;
+ if(!secretValid&&!oidcValid)return json({error:!secretReady&&bearer.split('.').length!==3?
+   'C26 private authentication unavailable':'Not authorized'},!secretReady&&bearer.split('.').length!==3?503:401);
  if(!env.SCAN_JOBS)return json({error:'C26 private DO unavailable'},503);
  const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c26:licensed-eod:v1'));
  if(request.method==='GET'){
