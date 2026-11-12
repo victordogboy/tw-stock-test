@@ -1,7 +1,7 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-12T19:24:17.586Z",
+  "checked_at": "2026-11-12T19:27:24.338Z",
   "requested_through": "2026-11-12",
   "next_exchange_trade_date": "2026-11-13",
   "full_market_last_verified": "2026-11-12",
@@ -10,129 +10,87 @@
   "days": [
     {
       "date": "2026-10-16",
-      "state": "available",
+      "state": "cached",
       "price_valid": 232,
-      "missing_count": 1,
-      "invalid_count": 0,
-      "institutional_codes": 232,
-      "source_errors": []
+      "missing_count": 1
     },
     {
       "date": "2026-10-19",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-20",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-21",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-22",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-27",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-28",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-29",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-10-30",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-11-02",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-11-03",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-11-04",
-      "state": "available",
+      "state": "cached",
       "price_valid": 233,
-      "missing_count": 0,
-      "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "missing_count": 0
     },
     {
       "date": "2026-11-05",
-      "state": "available",
+      "state": "cached",
       "price_valid": 232,
-      "missing_count": 1,
-      "invalid_count": 0,
-      "institutional_codes": 232,
-      "source_errors": []
+      "missing_count": 1
     },
     {
       "date": "2026-11-06",
-      "state": "available",
+      "state": "cached",
       "price_valid": 232,
-      "missing_count": 1,
-      "invalid_count": 0,
-      "institutional_codes": 232,
-      "source_errors": []
+      "missing_count": 1
     },
     {
       "date": "2026-11-09",
@@ -172,7 +130,7 @@
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "1e3e759356daff037d78d19dc4848f284b48e07fcc57d888db4bea8719125b14",
+  "sha256_gzip": "93c3d4b9c72da95351faab6391031279d0c6bbc22341eeaae85badddf0a03127",
   "bytes_gzip": 568593,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
