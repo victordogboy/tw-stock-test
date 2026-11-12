@@ -55,6 +55,32 @@ test('named-minute summary hides full session OHLC when opening candle or minute
  }
  assert.equal(summarizeNamedMinuteSession([row('45')],'202612'),null);
 });
+test('fast lane never waits for named-month HTML and keeps source failure explicit',async()=>{
+ let seen=[];
+ const req=new Request('https://x.example/api/r26/live-quote?contract=202611&mode=quick');
+ const r=await r26LiveQuoteRoute(req,{},async url=>{seen.push(url);return new Response('blocked',{status:403})});
+ const j=await r.json();
+ assert.equal(r.status,503);assert.equal(j.ok,false);
+ assert.equal(j.requested_mode,'quick');assert.equal(j.requested_contract,'202611');
+ assert.equal('price' in j,false);assert.equal(seen.length,3);
+ assert.equal(seen.some(x=>x.includes('/quote/WTX')),false);
+});
+test('named lane only calls the selected monthly contract quote, not continuous WTX',async()=>{
+ let seen=[];
+ const req=new Request('https://x.example/api/r26/live-quote?contract=202611&mode=named');
+ const r=await r26LiveQuoteRoute(req,{},async url=>{seen.push(url);return new Response('blocked',{status:403})});
+ const j=await r.json();
+ assert.equal(r.status,503);assert.equal(j.ok,false);
+ assert.equal(j.requested_mode,'named');assert.equal(seen.length,1);
+ assert.match(seen[0],/\/quote\/WTX/);
+ assert.equal(seen[0].includes('/future/WTX%26'),false);
+});
+test('quote modes and invalid named month are rejected',async()=>{
+ let r=await r26LiveQuoteRoute(new Request('https://x.example/api/r26/live-quote?mode=unknown'));
+ assert.equal(r.status,400);
+ r=await r26LiveQuoteRoute(new Request('https://x.example/api/r26/live-quote?mode=named&contract=202613'));
+ assert.equal(r.status,400);
+});
 test('source unavailable returns 503 and no fabricated price',async()=>{
  const req=new Request('https://x.example/api/r26/live-quote');
  const r=await r26LiveQuoteRoute(req,{},async()=>new Response('blocked',{status:403}));
@@ -63,11 +89,13 @@ test('source unavailable returns 503 and no fabricated price',async()=>{
 });
 test('dashboard has a real visible-only five-second timer and abort timeout',async()=>{
  const html=await readFile(new URL('../public/r26-monitor.html',import.meta.url),'utf8');
- assert.match(html,/setInterval\(fetchQuote,5000\)/);
+ assert.match(html,/setInterval\\(fetchQuote,5000\\)/);
+ assert.match(html,/setInterval\\(fetchNamedQuote,20000\\)/);
+ assert.match(html,/mode=\\x27\\+mode/);
  assert.match(html,/document\.visibilityState!=='visible'/);
  assert.match(html,/id="txNow"/);
  assert.match(html,/id="liveSourceTime"/);
  assert.ok(html.indexOf('id="signalPanel"')<html.indexOf('id="liveQuotePanel"'));
  assert.match(html,/id="signalDirectionHero"/);
- assert.match(html,/timeout=setTimeout\(\(\)=>ctl\.abort\(\),16500\)/);
+ assert.match(html,/mode==='quick'\?4300:16500/);
 });
