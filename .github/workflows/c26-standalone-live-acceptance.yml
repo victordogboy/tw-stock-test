@@ -62,3 +62,37 @@ jobs:
           }
           throw Error(lastError);
           JS
+
+      - name: Exercise current-model C26 page in mobile Chromium
+        run: |
+          mkdir -p /tmp/c26-live-browser
+          cd /tmp/c26-live-browser
+          npm install --no-save playwright@1.58.2
+          npx playwright install --with-deps chromium
+          node --input-type=module <<'JS'
+          import {chromium} from 'playwright';
+          const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+          const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:2});
+          const errors=[];page.on('pageerror',e=>errors.push(e.message));
+          try{
+           await page.goto('https://tw-stock-api.victordogboy.workers.dev/r1494a/c26/',{waitUntil:'domcontentloaded',timeout:30000});
+           await page.waitForFunction(()=>{
+             const s=document.querySelector('#c26-current-heading')?.textContent||'';
+             return s.includes('已驗證')||s.includes('暫停發布')||s.includes('未通過');
+           },{timeout:50000});
+           const state=await page.evaluate(()=>({
+             title:document.querySelector('#c26-current-heading')?.innerText,
+             summary:document.querySelector('#c26-current-summary')?.innerText,
+             holdings:document.querySelector('#c26-current-holdings')?.rows.length,
+             actions:document.querySelector('#c26-current-actions')?.innerText,
+             currentBanner:document.querySelector('#c26-live-readiness')?.innerText
+           }));
+           const status=await fetch('https://tw-stock-api.victordogboy.workers.dev/api/c26/status').then(r=>r.json());
+           const ready=status.plan?.readiness==='ready_for_manual_review';
+           if(errors.length||!state.title||
+             (ready && (!state.title.includes('已驗證')||!state.actions.includes('續抱')||state.holdings<1))||
+             (!ready && state.title.includes('已驗證')))
+             throw Error(JSON.stringify({state,errors,ready}));
+           console.log('C26_DEDICATED_MOBILE_PASS',JSON.stringify({title:state.title,actions:state.actions,holdings:state.holdings,ready,pageErrors:errors}));
+          }finally{await browser.close()}
+          JS
