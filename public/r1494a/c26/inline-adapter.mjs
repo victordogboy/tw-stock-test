@@ -146,7 +146,7 @@ export function renderC26Monitor(D,I){
  const s=D.snapshots[I],latest=I===D.snapshots.length-1,now='2026-10-27',historical='已封存歷史回放';
  nodeHtml('status',`<strong>C26 最新盤前計畫：BLOCKED（凍結版尚未接續2026/10/27以後資料）</strong>`+
   `已驗證的 C26 模型資料截至 ${now}，目前共用市場資料 ${esc(D.status.current_market_as_of||'未驗證')}。<br>`+
-  `${esc(D.c26Meta.reason)}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
+  `${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
  nodeText('ledgerLabel','C26 凍結歷史紙上持倉 · 非當日實盤');
  nodeText('count',`${s.holdings.length} / 8（歷史）`);
  nodeText('exposure',pct(s.exposure));nodeText('target','—（未發布）');nodeText('pnl','—（無逐股收盤估值）');
