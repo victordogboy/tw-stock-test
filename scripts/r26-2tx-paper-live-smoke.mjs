@@ -13,9 +13,10 @@ const recent=readGz('recent.json.gz');
 const official=readGz('verified-official-backfill.json.gz');
 const calendar=extendTaifexCalendar2026(recent.calendar);
 const now=Date.parse('2026-11-11T14:00:00+08:00');
-assert.equal(official.last_complete_trade_day,'2026-11-11');
+assert.ok(official.last_complete_trade_day>='2026-11-11');
+const frozenDayRows=official.rows.filter(r=>r.trade_date<='2026-11-11');
 
-const paper=replayTwoTxPaper(meta,bars,official.rows,calendar,now);
+const paper=replayTwoTxPaper(meta,bars,frozenDayRows,calendar,now);
 console.log('R26_2TX_PAPER_SMOKE',JSON.stringify({ready:paper.ready,
   asOf:paper.asOf,position:paper.modelLots,plan:paper.proposedAtOpenLots,
   issues:paper.issues,warning:paper.warning,
@@ -35,6 +36,23 @@ assert.ok(Math.abs(paper.profitPointsToDate-32001)<=5,
 assert.ok(Math.abs(paper.maxMinuteDrawdownToDate-806)<=3,
   'Live model should match frozen drawdown (minute closes)');
 assert.ok(paper.marginRequiredNTD<=2*701000);
+if(official.last_complete_trade_day>='2026-11-12'){
+ const verified12=official.rows.filter(r=>r.trade_date<='2026-11-12');
+ const morning=Date.parse('2026-11-12T14:00:00+08:00');
+ const forward12=replayTwoTxPaper(meta,bars,verified12,calendar,morning);
+ console.log('R26_2TX_FIRST_POST_FREEZE_FORWARD',JSON.stringify({
+   ready:forward12.ready,asOf:forward12.asOf,date:forward12.sessionDate,
+   contract:forward12.contract,lots:forward12.modelLots,
+   net:forward12.profitPointsToDate,one:forward12.oneLotPointsToDate,
+   addedNetVs11:forward12.ready?Math.round((forward12.profitPointsToDate-paper.profitPointsToDate)*100)/100:null,
+   additionalLotNetVs11:forward12.ready?
+    Math.round(((forward12.incrementalPoints??0)-(paper.incrementalPoints??0))*100)/100:null,
+   maxDD:forward12.maxMinuteDrawdownToDate,issues:forward12.issues,
+   warning:forward12.warning
+ }));
+ assert.ok(forward12.ready,'Official newly verified 11/12 should be replayable: '+JSON.stringify(forward12));
+ assert.ok(forward12.asOf?.startsWith('2026-11-12'));
+}
 const noData=replayTwoTxPaper(meta,bars,[],calendar,now);
 assert.equal(noData.ready,false,'missing minute bars MUST block paper signals');
 assert.equal(noData.modelLots,undefined,'missing data MUST NOT publish positions');
