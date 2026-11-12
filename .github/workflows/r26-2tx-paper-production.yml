@@ -1,0 +1,54 @@
+name: R26 2TX ATR35 DD100 paper monitor deploy and official history acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-2tx-paper-production.yml'
+      - 'scripts/r26-2tx-paper-live-smoke.mjs'
+      - 'public/r26-monitor.html'
+      - 'public/r26-live-monitor.mjs'
+      - 'public/r26-engine/monitor-worker.mjs'
+      - 'public/r26-engine/two-tx-paper-live.mjs'
+      - 'public/r26-engine/live.mjs'
+      - 'public/r26-research/five-lot-tape.mjs'
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and historical live 2TX smoke
+        run: |
+          node --check public/r26-engine/two-tx-paper-live.mjs
+          node --check public/r26-engine/live.mjs
+          node --check public/r26-engine/monitor-worker.mjs
+          node --check public/r26-live-monitor.mjs
+          node --check public/r26-research/five-lot-tape.mjs
+          node scripts/r26-2tx-paper-live-smoke.mjs
+  deployment:
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify Cloudflare actually serves new independent 2TX paper monitor
+        run: |
+          set -euo pipefail
+          good=0
+          for attempt in $(seq 1 24); do
+            site="https://tw-stock-api.victordogboy.workers.dev"
+            for path in r26-monitor.html r26-live-monitor.mjs r26-engine/monitor-worker.mjs r26-engine/two-tx-paper-live.mjs r26-research/five-lot-tape.mjs; do
+              curl -fsSL --max-time 14 "$site/$path?smoke=$GITHUB_SHA" -o "/tmp/r26-$(basename $path)" || true
+            done
+            if grep -q "R26-2TX-ATR35-DD100" /tmp/r26-r26-monitor.html &&               grep -q "ask('paper2tx'" /tmp/r26-r26-live-monitor.mjs &&               grep -q "paper2tx" /tmp/r26-monitor-worker.mjs &&               grep -q "replayTwoTxPaper" /tmp/r26-two-tx-paper-live.mjs &&               grep -q "marginGuard" /tmp/r26-five-lot-tape.mjs; then
+              good=1
+              break
+            fi
+            echo "Deployment pending attempt $attempt"
+            sleep 10
+          done
+          if [ "$good" != 1 ]; then echo "R26 2TX public Cloudflare not verified"; exit 1; fi
+          echo "R26_2TX_PAPER_DEPLOYED_AND_VERIFIED at https://tw-stock-api.victordogboy.workers.dev/r26-monitor.html"
