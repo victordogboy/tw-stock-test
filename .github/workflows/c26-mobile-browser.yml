@@ -33,7 +33,10 @@ jobs:
           try{
             await page.goto('https://tw-stock-api.victordogboy.workers.dev/r1494a/',{waitUntil:'domcontentloaded',timeout:35000});
             await page.locator('#strategy').selectOption('C26');
-            await page.waitForFunction(()=>document.querySelector('#status')?.innerText.includes('C26 最新盤前計畫：BLOCKED'),{timeout:60000});
+            await page.waitForFunction(()=>{
+              const v=document.querySelector('#status')?.innerText||'';
+              return v.includes('C26 最新盤前計畫：BLOCKED')||v.includes('C26 已接續原凍結引擎至');
+            },{timeout:60000});
             const state=await page.evaluate(()=>({
               model:document.querySelector('#strategy').value,
               header:document.querySelector('header .brand').innerText,
@@ -45,7 +48,11 @@ jobs:
               plan:document.querySelector('#planState').innerText,
               chart:document.querySelector('#chart').querySelector('svg')!==null,
             }));
-            if(state.model!=='C26'||!state.url.endsWith('/r1494a/')||state.dateOptions!==1407||!state.chart||!state.status.includes('2026-10-27')||!state.plan.includes('未通過')||state.count==='0 / 8' )throw Error(JSON.stringify(state));
+            const ready=state.status.includes('C26 已接續原凍結引擎至');
+            if(state.model!=='C26'||!state.url.endsWith('/r1494a/')||!state.chart
+              ||(ready && (state.dateOptions<=1407||!state.plan.includes('已核對')||!state.status.includes('2026-11-12')))
+              ||(!ready && (state.dateOptions!==1407||!state.plan.includes('未通過')||!state.status.includes('2026-10-27')))
+              ||state.count==='0 / 8')throw Error(JSON.stringify({...state,ready}));
             await page.locator('#strategy').selectOption('FC23');
             await page.waitForFunction(()=>document.querySelector('#strategy').value==='FC23'&&document.querySelector('#status')?.innerText.includes('FC23'),{timeout:50000});
             console.log('C26_MOBILE_BROWSER_PASS',JSON.stringify({...state,returnedToFC23:true,errors:error}));
