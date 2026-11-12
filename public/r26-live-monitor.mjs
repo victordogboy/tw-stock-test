@@ -1,4 +1,4 @@
-import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261031-status';
+import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261112-tail-v2';
 import {referenceTxMonth,taipeiParts} from './r26-data-sync.mjs';
 import {extendTaifexCalendar2026,R26_CALENDAR_VERSION} from './r26-engine/calendar-2026.mjs';
 import {pendingR26OfficialDownloads} from './r26-engine/backfill-plan.mjs';
@@ -6,7 +6,7 @@ import {validateCloudSnapshot} from './r26-engine/cloud-minute-cache.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
-const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261031-status',{type:'module'});
+const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261112-tail-v2',{type:'module'});
 let serial=0,rows=[],calendar=[],contract='',state=null,working=false,historyWorking=false,lastHistory=0,seedLoaded=false,fetchError='',historyFailures=[];
 const pending=new Map();
 worker.onmessage=({data:m})=>{const p=pending.get(m.id);if(!p)return;pending.delete(m.id);clearTimeout(p.timer);if(m.type==='error')p.reject(Error(m.error));else p.resolve(m)};
@@ -25,7 +25,7 @@ let officialArchiveAsOf=null;
 async function loadOfficialArchive(){
  // Release the verified trade-date history from the phone's cache dependency.
  // The archive is only public OHLC derived from TAIFEX original CRC-audited ZIPs.
- const u='/r26-engine/data/verified-official-backfill.json.gz?cv=20261111';
+ const u='/r26-engine/data/verified-official-backfill.json.gz?cv='+taipeiParts().date;
  const resp=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(22000)});
  if(resp.status===404)return false; // first publish may not yet exist
  if(!resp.ok)throw Error('R26 官方雲端快照 HTTP '+resp.status);
@@ -49,7 +49,7 @@ async function loadOfficialArchive(){
 }
 let minuteCloudAsOf=null;
 async function loadCloudMinuteCache(){
- const u='/r26-engine/data/verified-named-minute-cloud.json.gz?cv=20261111';
+ const u='/r26-engine/data/verified-named-minute-cloud.json.gz?cv='+new Date().toISOString().slice(0,13);
  const resp=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(14000)});
  if(resp.status===404)return false;
  if(!resp.ok)throw Error('指定月分鐘雲端快照 HTTP '+resp.status);
