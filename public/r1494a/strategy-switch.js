@@ -67,14 +67,24 @@ function renderFc23Plan(){
 }
 let originalDashboardCopy;
 function decorateStrategy(){
- const isFc=D.model_version==='FC23';
+ const isFc=D.model_version==='FC23',isC26=D.model_version==='C26';
  const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote'];
  if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(nodes.map(id=>[id,$(id).innerHTML]));
  for(const id of nodes)$(id).innerHTML=originalDashboardCopy[id];
  $('.brand b').textContent=D.model_version;document.title=D.model_version+'｜策略監控台';
- $('#strategy').value=isFc?'FC23':'R1494-A';
+ $('#strategy').value=isC26?'C26':isFc?'FC23':'R1494-A';
  document.querySelectorAll('[data-strategy-title]').forEach(el=>el.textContent=D.model_version+' 報酬');
  $('#strategySummary').textContent=D.model_version+' 累積 '+pct(D.curves.strategy.at(-1)-1)+' · 最大回撤 '+pct(drawdown(D.curves.strategy))+' · '+D.dates[0]+'～'+D.dates.at(-1);
+ if(isC26){
+  window.__c26Monitor.decorateC26Monitor();
+  $('#ledgerLabel').textContent='C26_LOCK · 已凍結歷史紙上帳本（不是當日持倉）';
+  $('#performanceLegend').textContent='C26 凍結資金曲線（2021/01～2026/10）';
+  $('#ordersNote').textContent='C26原始逐筆歷史紀錄：539筆買、1028筆賣成交與191筆未成交買單。歷史交易金額以初始300萬元換算，不是即時委託。';
+  $('#strategyFooter').textContent='C26-EVENT-CORR-LOCK-20261112｜往返成本0.5855%（含滑價）｜最新計畫BLOCKED';
+  $('#execution-study-v29').innerHTML='<details><summary><strong>C26事件驅動規則與實際成交前提</strong></summary><p>已取消全局20日、5日週期換倉，個股虧損後冷卻26個交易日。相關性40日Pearson≥0.60且相似持股總權重≥30%時暫緩候選新建倉。新建倉至少1萬元、最多8檔、單股16%目標，成本往返0.5855%。目前僅驗證截至2026/10/27的原始歷史逐筆，盤前計畫待凍結引擎與2026/10/28後逐日資料一致性確認。</p></details>';
+  $('#rulesMain').innerHTML='<h2>C26 凍結事件驅動策略</h2><p><strong>無固定換倉日。</strong>個股完整賣出後才補強勢候選，保留FC23原評分、原盤後資料、風控與事件補倉；虧損風控退出後26交易日冷卻（FC17也遵守），40日相關性0.60且群組持股30%風險限制。持股目標16%、最多8檔、最低新建倉1萬元。<strong>僅2026/10/27以前為實際核對的歷史模型，最新交易訊號未驗證。</strong></p><p><a href="./c26/">C26原始逐筆歷史獨立檢視頁</a> · <a href="https://github.com/victordogboy/tw-stock-test/tree/main/research/c26-lock">原始Python引擎封存</a></p>';
+  return;
+ }
  if(!isFc)return;
  $('#ledgerLabel').textContent=(D.status.sync_status==='current'?'模型紙上持倉':'模型歷史持倉')+' · FC23_paper';
  $('#heroDescription').textContent='233檔研究池 · 最多8檔 · 20交易日調倉 · 5交易日風控 · 強勢同儕重新進場';
