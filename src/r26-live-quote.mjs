@@ -1,4 +1,5 @@
 import {r26MarketRoute} from './r26-market.mjs';
+import {fetchCmoneyTxf1} from './r26-cmoney-quote.mjs';
 // R26 view-only market quote. No order execution and NO modifications to frozen R26 engine.
 // Five-second browser polling does NOT imply the upstream vendor refreshes every five seconds.
 const HEADERS={'content-type':'application/json; charset=utf-8','cache-control':'no-store','access-control-allow-origin':'*','access-control-allow-methods':'GET,OPTIONS'};
@@ -133,17 +134,29 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  // Legacy combined mode stays supported for existing clients.
  const u=new URL(request.url),contract=u.searchParams.get('contract')||'';
  const mode=u.searchParams.get('mode')||'combined';
- if(!['combined','quick','named'].includes(mode))return json({ok:false,error:'Unsupported quote mode'},400);
+ if(!['combined','quick','named','cmoney'].includes(mode))return json({ok:false,error:'Unsupported quote mode'},400);
  if(mode==='named'&&!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract))return json({ok:false,error:'Named month required'},400);
  // Cache MUST be isolated per contract AND per lane.
  const cache=globalThis.caches?.default,key=new Request(u.origin+'/__r26_live_quote_v3/'+mode+'/'+encodeURIComponent(contract));
  try{if(cache){const hit=await cache.match(key);if(hit){
-  const body=await hit.json(),maxAge=mode==='named'?15000:4500;
+  const body=await hit.json(),maxAge=mode==='named'?15000:mode==='cmoney'?9500:4500;
   if(body.ok&&body.requested_mode===mode&&body.requested_contract===contract&&
    Number.isFinite(Date.parse(body.polled_at))&&Date.now()-Date.parse(body.polled_at)<maxAge&&
    (body.quote_type!=='minute_k'||body.contract_month===contract))
    return json({...body,cache_hit:true,served_at:new Date().toISOString()});
  }}}catch{}
+ if(mode==='cmoney'){
+  const {quote,errors}=await fetchCmoneyTxf1(fetchImpl);
+  if(!quote)return json({ok:false,error:'CMoney TXF1 暫無可核對的報價與來源時間',
+   requested_mode:mode,requested_contract:contract,providers_checked:errors,
+   polled_at:new Date().toISOString()},503);
+  const body={...quote,requested_mode:mode,requested_contract:contract,
+   polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:10,
+   strategy_signal_validated:false};
+  if(cache)try{await cache.put(key,new Response(JSON.stringify(body),{
+   headers:{'content-type':'application/json','cache-control':'public,max-age=9'}}))}catch{}
+  return json(body);
+ }
  const namedFetch=mode!=='quick'&&/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)
   ? r26MarketRoute(new Request(new URL('/api/r26/intraday?contract='+contract,u)),env,fetchImpl).catch(e=>e)
   : null;
