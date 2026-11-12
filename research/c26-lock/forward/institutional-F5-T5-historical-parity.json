@@ -1,0 +1,89 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "reference_dates": "2021-01-06..2025-12-31",
+  "causal_formula": "clip(sum of last 5 days institutional net shares / sum of last 5 days trading volume shares,-0.5,+0.5)",
+  "live_trading_ready": false,
+  "licensed_source_data_public": false,
+  "factors": {
+    "F5": {
+      "finite_comparisons": 281711,
+      "mismatch_gt_1e5": 104,
+      "max_abs_error": 0.12341373606107686,
+      "mean_abs_error": 9.35235138357704e-06,
+      "matching_pct": 99.963083,
+      "one_nan_vs_finite": 293,
+      "yearly": [
+        {
+          "year": 2021,
+          "finite_pairs": 55885,
+          "mismatch_gt_1e5": 19,
+          "match_pct": 99.966002
+        },
+        {
+          "year": 2022,
+          "finite_pairs": 57237,
+          "mismatch_gt_1e5": 16,
+          "match_pct": 99.972046
+        },
+        {
+          "year": 2023,
+          "finite_pairs": 55655,
+          "mismatch_gt_1e5": 11,
+          "match_pct": 99.980235
+        },
+        {
+          "year": 2024,
+          "finite_pairs": 56360,
+          "mismatch_gt_1e5": 26,
+          "match_pct": 99.953868
+        },
+        {
+          "year": 2025,
+          "finite_pairs": 56574,
+          "mismatch_gt_1e5": 32,
+          "match_pct": 99.943437
+        }
+      ]
+    },
+    "T5": {
+      "finite_comparisons": 281711,
+      "mismatch_gt_1e5": 82,
+      "max_abs_error": 0.09321358709175862,
+      "mean_abs_error": 2.869026397373899e-06,
+      "matching_pct": 99.970892,
+      "one_nan_vs_finite": 293,
+      "yearly": [
+        {
+          "year": 2021,
+          "finite_pairs": 55885,
+          "mismatch_gt_1e5": 5,
+          "match_pct": 99.991053
+        },
+        {
+          "year": 2022,
+          "finite_pairs": 57237,
+          "mismatch_gt_1e5": 16,
+          "match_pct": 99.972046
+        },
+        {
+          "year": 2023,
+          "finite_pairs": 55655,
+          "mismatch_gt_1e5": 9,
+          "match_pct": 99.983829
+        },
+        {
+          "year": 2024,
+          "finite_pairs": 56360,
+          "mismatch_gt_1e5": 22,
+          "match_pct": 99.960965
+        },
+        {
+          "year": 2025,
+          "finite_pairs": 56574,
+          "mismatch_gt_1e5": 30,
+          "match_pct": 99.946972
+        }
+      ]
+    }
+  }
+}
