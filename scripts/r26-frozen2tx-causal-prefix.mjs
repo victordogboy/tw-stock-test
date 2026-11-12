@@ -57,7 +57,7 @@ for(let i=0;i<extendedGold.rows.length;i++)assert.equal(extendedGold.rows[i].pnl
 
 const complete=prepared.sessions;
 const fullReg=priorDailyRegimes(complete);
-const at=[320,450,720,1110,1460,1800,2100,2428,2442];
+const at=[...new Set([320,450,720,1110,1460,1800,2100,2428,2442,...[200,125,60,25,12,3].map(n=>complete.length-n)])].filter(n=>n>250&&n<=complete.length).sort((x,y)=>x-y);
 const comparison=[];
 function compareFeatures(full,partial,k,loc){
  const xs=Object.keys(full||{});
