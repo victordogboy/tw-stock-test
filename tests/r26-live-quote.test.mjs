@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {parseYahooQuotePage,parseYahooFuturesTable,parseYahooChart,r26LiveQuoteRoute} from '../src/r26-live-quote.mjs';
+import {parseYahooQuotePage,parseYahooFuturesTable,parseYahooChart,r26LiveQuoteRoute,summarizeNamedMinuteSession} from '../src/r26-live-quote.mjs';
 const tpe=new Date(Date.now()+8*3600000).toISOString();
 const dd=tpe.slice(0,10),day=dd.replaceAll('-','/'),time=tpe.slice(11,19);
 const price=47201;
@@ -34,6 +34,27 @@ test('route returns freshest valid source in parallel and does not invent an R26
  assert.equal(j.strategy_signal_validated,false);assert.equal(j.poll_interval_seconds,5);
  assert.equal(j.contract_verified,false);
 });
+test('named contract minute summary fills verified session OHLC and minute volume, never bid or ask',()=>{
+ const session='day:2026-11-12',contract='202611';
+ const make=(time,open,high,low,close,volume)=>({timestamp_tpe:'2026-11-12 '+time+':00',
+  contract_date:contract,contract_verified:true,session:'day',session_key:session,open,high,low,close,volume});
+ const bars=[make('08:45',44000,44012,43992,44005,7),make('08:46',44005,44024,43998,44010,12),
+  {...make('08:47',44010,45000,43000,44000,2),contract_date:'202612'},
+  {...make('08:47',44010,45000,43000,44000,2),session_key:'night:2026-11-12'}];
+ const x=summarizeNamedMinuteSession(bars,contract);
+ assert.equal(x.complete_from_session_open,true);assert.equal(x.open,44000);
+ assert.equal(x.high,44024);assert.equal(x.low,43992);assert.equal(x.volume,19);assert.equal(x.bars,2);
+});
+test('named-minute summary hides full session OHLC when opening candle or minute is missing',()=>{
+ const row=(m)=>({timestamp_tpe:'2026-11-12 08:'+m+':00',contract_date:'202611',
+  contract_verified:true,session:'day',session_key:'day:2026-11-12',open:44000,high:44005,low:43990,close:44001,volume:1});
+ for(const bars of [[row('46')],[row('45'),row('47')]]){
+  const x=summarizeNamedMinuteSession(bars,'202611');
+  assert.equal(x.complete_from_session_open,false);
+  for(const k of ['open','high','low','volume'])assert.equal(x[k],null);
+ }
+ assert.equal(summarizeNamedMinuteSession([row('45')],'202612'),null);
+});
 test('source unavailable returns 503 and no fabricated price',async()=>{
  const req=new Request('https://x.example/api/r26/live-quote');
  const r=await r26LiveQuoteRoute(req,{},async()=>new Response('blocked',{status:403}));
@@ -46,4 +67,7 @@ test('dashboard has a real visible-only five-second timer and abort timeout',asy
  assert.match(html,/document\.visibilityState!=='visible'/);
  assert.match(html,/id="txNow"/);
  assert.match(html,/id="liveSourceTime"/);
+ assert.ok(html.indexOf('id="signalPanel"')<html.indexOf('id="liveQuotePanel"'));
+ assert.match(html,/id="signalDirectionHero"/);
+ assert.match(html,/timeout=setTimeout\(\(\)=>ctl\.abort\(\),16500\)/);
 });
