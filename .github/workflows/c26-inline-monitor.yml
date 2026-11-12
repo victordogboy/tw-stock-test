@@ -1,0 +1,57 @@
+name: C26 strategy inside original live dashboard
+on:
+  push:
+    branches: [main, feature/c26-inline-live-monitor-20261113]
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - 'src/c26/status.mjs'
+      - 'src/worker.mjs'
+      - 'tests/c26-inline-monitor.test.mjs'
+      - 'tests/c26-source-status.test.mjs'
+      - '.github/workflows/c26-inline-monitor.yml'
+  pull_request:
+    paths:
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - 'src/c26/status.mjs'
+      - 'src/worker.mjs'
+      - 'tests/c26-inline-monitor.test.mjs'
+      - 'tests/c26-source-status.test.mjs'
+      - '.github/workflows/c26-inline-monitor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  c26-inline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify C26 adapter, backend status, R1494 and FC23 historical engines
+        run: |
+          node --check src/worker.mjs
+          node --check src/c26/status.mjs
+          node --check public/r1494a/c26/inline-adapter.mjs
+          node --test tests/c26-inline-monitor.test.mjs tests/c26-source-status.test.mjs tests/c26-frozen-lock-parity.test.mjs
+          node tests/strategy-switch.test.mjs
+          node tests/c26-integration.test.mjs
+      - name: Ensure original index no longer redirects C26 out of monitoring UI
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const html=fs.readFileSync('public/r1494a/index.html','utf8');
+          const js=fs.readFileSync('public/r1494a/strategy-switch.js','utf8');
+          assert.match(html,/loadC26MonitorSnapshot/);
+          assert.match(html,/renderC26Monitor/);
+          assert.match(html,/model_version==='C26'/);
+          assert.doesNotMatch(html,/location\.href='\.\/c26\/'/);
+          assert.match(js,/isC26/);
+          console.log('C26 original monitoring dashboard integrated; frozen strategy live trade remains blocked');
+          JS

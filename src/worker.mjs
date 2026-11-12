@@ -1,4 +1,5 @@
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
+import {c26StatusRoute} from './c26/status.mjs';
 import {ValuationCache,valuationStub} from './valuation-cache.mjs';
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
@@ -43,6 +44,7 @@ export class ScanJob extends BaseScanJob {
 export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname.startsWith('/api/c26/'))return c26StatusRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/fc23/'))return fc23Route(request,env);
   if(new URL(request.url).pathname==='/api/pe-screener/snapshot'){
    if(request.method!=='GET')return new Response('Method not allowed',{status:405});
