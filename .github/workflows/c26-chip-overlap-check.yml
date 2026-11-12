@@ -1,0 +1,24 @@
+name: C26 F5 T5 original archived feature formula check
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'research/c26-lock/forward/audit-chip-overlap.mjs'
+      - 'tests/c26-chip-overlap.test.mjs'
+      - '.github/workflows/c26-chip-overlap-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  causal-formula-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: |
+          node --check research/c26-lock/forward/audit-chip-overlap.mjs
+          node --test tests/c26-chip-overlap.test.mjs
+          node --test tests/c26-forward-stage.test.mjs tests/c26-model-checkpoint.test.mjs
