@@ -7,7 +7,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'research/c26-lock/forward/**'
+      - 'research/c26-lock/forward/stage-finmind.mjs'
+      - 'research/c26-lock/forward/sync-private-store.mjs'
+      - 'research/c26-lock/forward/archive-feature-reference.json'
       - 'tests/c26-forward-stage.test.mjs'
       - '.github/workflows/c26-forward-eod.yml'
 permissions:
@@ -27,7 +29,12 @@ jobs:
       - name: Validate script and archive fingerprint
         run: |
           node --check research/c26-lock/forward/stage-finmind.mjs
+          node --check research/c26-lock/forward/sync-private-store.mjs
           node --test tests/c26-forward-stage.test.mjs
+      - name: Restore private incremental C26 EOD snapshot (never publish raw)
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/forward/sync-private-store.mjs restore
       - name: Fetch FinMind full-market EOD (NO TOKEN IN LOGS)
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
@@ -35,6 +42,10 @@ jobs:
           set -euo pipefail
           node research/c26-lock/forward/stage-finmind.mjs
           node --test tests/c26-forward-stage.test.mjs
+      - name: Persist complete source privately inside C26 Cloudflare Durable Object
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/forward/sync-private-store.mjs publish
       - name: Publish coverage summary ONLY (FinMind raw data stays private)
         run: |
           set -euo pipefail
