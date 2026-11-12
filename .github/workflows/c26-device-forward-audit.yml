@@ -1,0 +1,60 @@
+name: C26 device FinMind forward-audit live smoke
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/index.html'
+      - 'public/r1494a/c26/forward-audit.mjs'
+      - 'public/r1494a/c26/data/universe.json'
+      - 'tests/c26-device-forward-audit.test.mjs'
+      - '.github/workflows/c26-device-forward-audit.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Regression and device-only security checks
+        run: |
+          node --check public/r1494a/c26/forward-audit.mjs
+          node --test tests/c26-device-forward-audit.test.mjs
+          node --test tests/c26-integration.test.mjs tests/c26-next-session-plan-gate.test.mjs
+      - name: Verify actual Cloudflare deployment (no credentials used)
+        run: |
+          node --input-type=module <<'JS'
+          const root='https://tw-stock-api.victordogboy.workers.dev';
+          let last='';
+          for(let attempt=1;attempt<=35;attempt++){
+            try{
+              const get=async path=>{
+                const r=await fetch(root+path+'?audit='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(16000)});
+                if(!r.ok)throw Error(path+' HTTP '+r.status);
+                return r;
+              };
+              const [html,src,pool,api]=await Promise.all([
+                get('/r1494a/c26/').then(r=>r.text()),
+                get('/r1494a/c26/forward-audit.mjs').then(r=>r.text()),
+                get('/r1494a/c26/data/universe.json').then(r=>r.json()),
+                get('/api/c26/status').then(r=>r.json()),
+              ]);
+              if(!html.includes('id="c26-device-audit"')||!html.includes('forward-audit.mjs')||
+                 !src.includes('FinMind credentials are only read from THIS browser')||
+                 !src.includes('https://api.finmindtrade.com/api/v4/data?')||
+                 pool.count!==233||pool.codes.length!==233||new Set(pool.codes).size!==233)
+                throw Error('C26 device preflight assets not deployed');
+              if(!api.plan||!['blocked','ready_for_manual_review'].includes(api.plan.readiness)||
+                 api.no_broker_orders!==true)
+                throw Error('C26 live signal gate changed unsafely');
+              console.log('C26_BROWSER_PREFLIGHT_PRODUCTION_OK',JSON.stringify({
+                attempt,devicetoken_ui:true,pool:233,plan:api.plan.readiness,
+                source_as_of:api.forward_coverage?.source_as_of||null,
+                no_broker_orders:true}));
+              process.exit(0);
+            }catch(e){last=String(e.message||e);await new Promise(ok=>setTimeout(ok,6000))}
+          }
+          throw Error('C26 browser preflight NOT yet verified on Cloudflare: '+last);
+          JS
