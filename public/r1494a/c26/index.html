@@ -51,7 +51,7 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 </div>
 <pre id="c26-forward-stage" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;background:#eff5f0;padding:13px;border-radius:9px;font:13px/1.7 ui-monospace,'Noto Sans TC',monospace">讀取正式資料中…</pre>
 <pre id="c26-device-audit-results" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f5f7f5;font:13px/1.7 ui-monospace,'Noto Sans TC',monospace">本機 FinMind 資料核對尚未執行。</pre>
-<p class="sub">保護：Token 不傳送到本網站、GitHub 或 Cloudflare，僅於按下核對後直接傳至 FinMind；完整查詢結果不公開、不上傳、不儲存。GitHub Actions 的每日背景資料更新仍使用<strong>獨立設定的伺服器 Secret</strong>，與本機 Token 並非同一份設定。</p>
+<p class="sub">資料使用方式：按「用本機 Token 核對」只會從此瀏覽器直連 FinMind，不會上傳原始查詢結果；按「使用 Token 更新 C26 資料」則會透過 HTTPS 將 Token 傳給本站 Cloudflare Worker 作當次驗證及代理查詢，並將取得的市場資料保存於私有儲存，但不保存 Token 本身。GitHub Actions 背景更新使用另一組受保護的 Secret。兩種更新都不會直接啟動 C26 原始 Python 模型。</p>
 </section>
 <div class="metrics">
 <div class="metric"><label>歷史累積淨報酬</label><strong class="green" id="c26-ret">+1,720.50%</strong></div>
