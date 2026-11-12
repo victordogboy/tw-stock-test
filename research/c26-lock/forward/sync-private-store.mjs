@@ -1,6 +1,7 @@
 /** Persist/recover licensed C26 FinMind daily source in Cloudflare private DO.
- * No raw feed in repository or static assets. Uses the repository FINMIND_TOKEN
- * for direct authenticated Worker -> DO exchange over HTTPS; never logs token.
+ * No raw feed in repository or static assets. GitHub's short-lived OIDC identity
+ * authorizes only the c26-forward-eod.yml workflow without duplicating the
+ * FINMIND_TOKEN in Cloudflare. Never log either credential.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,8 +9,21 @@ import crypto from 'node:crypto';
 import {gunzipSync} from 'node:zlib';
 const mode=process.argv[2];
 if(!['restore','publish','status'].includes(mode))throw Error('Usage: node sync-private-store.mjs restore|publish|status');
-const token=process.env.FINMIND_TOKEN?.trim();
-if(!token||token.length<30)throw Error('FINMIND_TOKEN GitHub Actions secret unavailable; no raw source transfer');
+const oidcUrl=process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
+const oidcAccessToken=process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
+if(!oidcUrl||!oidcAccessToken)throw Error('GitHub Actions OIDC permission unavailable for private C26 source sync');
+const OIDC_AUDIENCE='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
+async function requestOidc(){
+ const url=new URL(oidcUrl);url.searchParams.set('audience',OIDC_AUDIENCE);
+ const res=await fetch(url,{headers:{authorization:'Bearer '+oidcAccessToken},
+  signal:AbortSignal.timeout(15000),cache:'no-store'});
+ if(!res.ok)throw Error('GitHub OIDC issuance failed HTTP '+res.status);
+ const payload=await res.json();
+ if(typeof payload?.value!=='string'||payload.value.split('.').length!==3)
+  throw Error('GitHub OIDC JWT unavailable');
+ return payload.value;
+}
+const token=await requestOidc();
 const root=process.cwd();
 const rawpath=path.join(root,'.c26-private/forward-eod.json.gz');
 const endpoint='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
@@ -25,10 +39,16 @@ function check(bytes){
  return {sha256:sha(bytes),date:dates.at(-1),n_dates:dates.length,bytes:bytes.length};
 }
 async function call(method,body=undefined){
- const res=await fetch(endpoint+(mode==='status'?'/status':''),{
-  method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/gzip'}:{})},body,signal:AbortSignal.timeout(55000),cache:'no-store'
- });
- return res;
+ let response;
+ for(let attempt=1;attempt<=8;attempt++){
+  response=await fetch(endpoint+(mode==='status'?'/status':''),{
+   method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/gzip'}:{})},
+   body,signal:AbortSignal.timeout(55000),cache:'no-store'
+  });
+  if(![502,503,504].includes(response.status)||attempt===8)break;
+  await new Promise(resolve=>setTimeout(resolve,5000));
+ }
+ return response;
 }
 if(mode==='restore'){
  const r=await call('GET');
