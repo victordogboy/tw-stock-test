@@ -1,7 +1,7 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-12T19:29:38.800Z",
+  "checked_at": "2026-11-12T19:52:28.692Z",
   "requested_through": "2026-11-12",
   "next_exchange_trade_date": "2026-11-13",
   "full_market_last_verified": "2026-11-12",
@@ -130,7 +130,7 @@
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "e2c73e2c054a8b956ec08ef0592f78d0386001d76d4ce6c10c3875d5923ebd41",
+  "sha256_gzip": "409f4812f0232ba552ec16c45540f46196f4e5cea0449cd4e4579f6fb21b3fc8",
   "bytes_gzip": 568593,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
