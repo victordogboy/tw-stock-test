@@ -8,7 +8,15 @@ main{max-width:1120px;padding:16px;margin:auto}h1{font-size:clamp(25px,5vw,40px)
 small,.muted{color:#99aec8}.tag{display:inline-block;background:#25466d;padding:4px 9px;border-radius:999px;font-size:11px;letter-spacing:.07em}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}.panel,.card{padding:17px;background:#15263b;border:1px solid #2e4762;border-radius:12px;margin-bottom:12px}
 .card{margin-bottom:0}.number{font-size:clamp(23px,5vw,34px);font-weight:750;margin-top:8px}.up{color:#6fe7af}.down{color:#ff9b9b}
-.alert{background:#42262e;border-color:#a25564}.alert b{color:#ffd9d9}
+.alert{background:#173049;border-color:#4f779c}.alert b{color:#e5f5ff}
+#signalPanel.is-long{background:linear-gradient(130deg,#154038,#112a34);border-color:#32ac85}
+#signalPanel.is-short{background:linear-gradient(130deg,#4c292d,#2d2330);border-color:#b7626d}
+#signalPanel.is-flat{background:#233345;border-color:#7991a8}
+#signalPanel.unverified{background:#3a3429;border-color:#9b8151}
+.signal-hero{font-size:clamp(29px,7.5vw,49px);font-weight:850;line-height:1.16;margin:10px 0}
+#signalPanel.is-long .signal-hero{color:#75efbb}
+#signalPanel.is-short .signal-hero{color:#ffaaa9}
+#signalPanel .livehead h2{margin:0}
 a{color:#98d2ff}button,select{font:inherit;background:#1b4e7e;color:#fff;border:1px solid #52799c;border-radius:8px;padding:9px 13px;cursor:pointer}
 button:focus,select:focus{outline:2px solid #8ac0ff}
 .top{display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
@@ -42,6 +50,24 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 <header><div class="tag">CANONICAL R26 · TX · <span id="r26NowDate">日期檢查中</span></div><h1>R26 台指期跨盤監控</h1>
 <div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
 <main>
+<section class="panel alert unverified" id="signalPanel" aria-label="R26 當盤多空決策">
+<div class="livehead"><h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2><span class="livepill wait" id="signalVerification">等待重播驗證</span></div>
+<div class="signal-hero" id="signalDirectionHero">方向尚未確認</div>
+<div class="info" id="signalActionHeadline">未驗證前不可依此頁下單</div>
+<div id="signalStatus">正在以官方逐筆歷史與指定月份分鐘 K 自動重播；下方會列出模型進場、停損及最後資料時間。</div>
+<div class="grid" style="margin-top:16px" aria-label="當前部位停損停利設定">
+ <div class="card"><small>部位類型</small><strong id="signalTradeType" style="display:block;margin-top:8px">計算中</strong></div>
+ <div class="card"><small>保護停損價</small><strong id="signalStopPrice" style="display:block;margin-top:8px">計算中</strong></div>
+ <div class="card"><small>停利設定</small><strong id="signalTakeProfit" style="display:block;margin-top:8px">計算中</strong></div>
+</div>
+<p class="info"><strong>出場條件：</strong><span id="signalExitRule">等待原版引擎重播。</span></p>
+<div class="divider"></div><div class="grid">
+<div>最近重播分鐘（起點）<br><strong id="signalAsOf">計算中</strong></div>
+<div>原始金標對帳<br><strong id="signalAudit">驗證中</strong></div>
+<div>當前模型倉位<br><strong id="signalPosition">計算中</strong></div>
+<div>下次檢查時點<br><strong id="signalNext">計算中</strong></div></div>
+<div class="info" id="signalReason" style="margin-top:14px">等待原版引擎驗證與接續重播。</div>
+</section>
 
 <section class="panel liveboard" id="liveQuotePanel" aria-label="台指期即時報價">
  <div class="livehead"><h2 style="margin:0">台指期近一 · 行情監控</h2>
@@ -50,10 +76,10 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
  <div class="grid" style="margin-top:12px;align-items:center">
  <div><small id="quoteInstrumentLabel">WTX&amp; 連續近月；失敗時改採指定月1分K</small><div id="txNow" class="quoteprice">—</div><b id="txChange" class="muted">—</b></div>
  <div class="grid" style="grid-template-columns:repeat(2,minmax(100px,1fr))">
-  <div class="livebox"><small>來源開盤價</small><strong id="txOpen">—</strong></div>
-  <div class="livebox"><small>來源最高／最低</small><strong id="txRange">—</strong></div>
-  <div class="livebox"><small>買一／賣一</small><strong id="txBidAsk">—</strong></div>
-  <div class="livebox"><small>來源總量</small><strong id="txVol">—</strong></div>
+  <div class="livebox"><small id="txOpenLabel">來源開盤價</small><strong id="txOpen">—</strong></div>
+  <div class="livebox"><small id="txRangeLabel">來源最高／最低</small><strong id="txRange">—</strong></div>
+  <div class="livebox"><small id="txBidAskLabel">買一／賣一</small><strong id="txBidAsk">—</strong></div>
+  <div class="livebox"><small id="txVolLabel">來源總量</small><strong id="txVol">—</strong></div>
  </div></div>
  <div class="divider"></div>
  <div class="grid">
@@ -63,7 +89,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
  </div>
  <svg id="ticks" viewBox="0 0 720 100" role="img" aria-label="最近10分鐘，網頁取得的報價快照示意圖"><text x="20" y="55" font-size="14" fill="#90abc3">開始蒐集報價後顯示本頁快照趨勢</text></svg>
  <p class="info" id="quoteDisclaimer">頁面可見時每 5 秒查詢一次；若近月報價 API 失敗，改顯示指定月份 TX 已完成的 1 分 K 收盤價，明確標示資料時間。5 秒查詢不代表 5 秒即時成交，也不是交易訊號。</p>
- <a href="https://tw.stock.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
+ <a href="https://tw.finance.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
 </section>
 
 <section class="panel" id="r26DataHealthPanel" aria-label="R26 近期分鐘 K 資料更新稽核">
@@ -92,22 +118,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
  <p class="info"><strong>資料來源：</strong>歷史以期交所原始逐筆彙整；當盤使用 Yahoo 指定月份合約，與上方 WTX&amp; 報價分開。FinMind Token 可選填並保留。</p>
 </section>
 
-<section class="panel alert">
-<h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2>
-<div id="signalStatus">正在以官方逐筆歷史與指定月份分鐘 K 自動重播；下方會列出模型進場、停損及最後資料時間。</div>
-<div class="grid" style="margin-top:16px" aria-label="當前部位停損停利設定">
- <div class="card"><small>部位類型</small><strong id="signalTradeType" style="display:block;margin-top:8px">計算中</strong></div>
- <div class="card"><small>保護停損價</small><strong id="signalStopPrice" style="display:block;margin-top:8px">計算中</strong></div>
- <div class="card"><small>停利設定</small><strong id="signalTakeProfit" style="display:block;margin-top:8px">計算中</strong></div>
-</div>
-<p class="info"><strong>出場條件：</strong><span id="signalExitRule">等待原版引擎重播。</span></p>
-<div class="divider"></div><div class="grid">
-<div>最近重播分鐘（起點）<br><strong id="signalAsOf">計算中</strong></div>
-<div>原始金標對帳<br><strong id="signalAudit">驗證中</strong></div>
-<div>當前模型倉位<br><strong id="signalPosition">計算中</strong></div>
-<div>下次檢查時點<br><strong id="signalNext">計算中</strong></div></div>
-<div class="info" id="signalReason" style="margin-top:14px">等待原版引擎驗證與接續重播。</div>
-</section>
+
 
 <section class="panel" id="replayPanel">
  <div class="top"><h2>原始 R26 引擎：逐盤接續結果</h2><span class="tag">自動重播 · 模型倉位</span></div>
@@ -216,9 +227,13 @@ function renderQuote(){
  $('txNow').textContent=fnum(q.price);
  $('txChange').textContent=Number.isFinite(q.change)?fmt(q.change)+(Number.isFinite(q.change_pct)?' ('+q.change_pct.toFixed(2)+'%)':''):'漲跌幅未提供';
  $('txChange').className=q.change>0?'up':q.change<0?'down':'muted';
- $('txOpen').textContent=fnum(q.open);
+ $('txOpenLabel').textContent=q.quote_type==='minute_k'?'當盤開盤（分K核對）':'來源開盤價';
+  $('txRangeLabel').textContent=q.quote_type==='minute_k'?'當盤至今高／低（分K）':'來源最高／最低';
+  $('txBidAskLabel').textContent=q.quote_type==='minute_k'?'買一／賣一（分K不提供）':'買一／賣一';
+  $('txVolLabel').textContent=q.quote_type==='minute_k'?'分K累計量（來源值）':'來源總量';
+  $('txOpen').textContent=fnum(q.open);
  $('txRange').textContent=Number.isFinite(q.high)&&Number.isFinite(q.low)?fnum(q.high)+'／'+fnum(q.low):'—';
- $('txBidAsk').textContent=Number.isFinite(q.bid)&&Number.isFinite(q.ask)?fnum(q.bid)+'／'+fnum(q.ask):'—';
+ $('txBidAsk').textContent=Number.isFinite(q.bid)&&Number.isFinite(q.ask)?fnum(q.bid)+'／'+fnum(q.ask):q.quote_type==='minute_k'?'無委託簿資料':'—';
  $('txVol').textContent=fnum(q.volume);
  $('liveSourceTime').textContent=twClock(q.source_time)+' （台灣時間）';
  $('liveLag').textContent=elapsed+' 秒／'+pollAge+' 秒前檢查';
@@ -230,7 +245,7 @@ function renderQuote(){
 }
 async function fetchQuote(){
  if(inflight||document.visibilityState!=='visible')return;
- inflight=true;const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),4400);
+ inflight=true;const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),16500);
  try{
   const month=$('r26DataContract')?.value||'202611';
   const r=await fetch('/api/r26/live-quote?contract='+encodeURIComponent(month),{cache:'no-store',headers:{accept:'application/json'},signal:ctl.signal});
@@ -250,5 +265,5 @@ window.addEventListener('online',()=>fetchQuote());
 fetchQuote();
 
 </script>
-<script type="module" src="/r26-live-monitor.mjs?v=20261111-cloud-persistent-2"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261112-signal-first"></script>
 </body></html>
