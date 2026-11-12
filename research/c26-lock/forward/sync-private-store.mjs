@@ -24,6 +24,26 @@ async function requestOidc(){
  return payload.value;
 }
 const token=await requestOidc();
+// Report only public identity-claim comparisons, never the signed JWT or FinMind
+// credential. This distinguishes a wrong workflow identity from Worker/JWKS failure.
+try{
+ const jwtClaims=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString('utf8'));
+ const now=Math.floor(Date.now()/1000);
+ console.log('C26_GH_OIDC_PUBLIC_CLAIM_CHECKS',JSON.stringify({
+  issuer:jwtClaims.iss==='https://token.actions.githubusercontent.com',
+  audience:jwtClaims.aud===OIDC_AUDIENCE,
+  repository:jwtClaims.repository==='victordogboy/tw-stock-test',
+  repo_id:String(jwtClaims.repository_id)==='1363009462',
+  owner:jwtClaims.repository_owner==='victordogboy',
+  ref:jwtClaims.ref==='refs/heads/main',
+  sub:jwtClaims.sub==='repo:victordogboy/tw-stock-test:ref:refs/heads/main',
+  workflow:jwtClaims.workflow_ref==='victordogboy/tw-stock-test/.github/workflows/c26-forward-eod.yml@refs/heads/main',
+  event:['push','schedule','workflow_dispatch'].includes(jwtClaims.event_name),
+  issue_time:Number.isInteger(jwtClaims.iat)&&jwtClaims.iat<=now+60,
+  expiry:Number.isInteger(jwtClaims.exp)&&jwtClaims.exp>now-30&&jwtClaims.exp-jwtClaims.iat<=600
+ }));
+}catch{console.log('C26_GH_OIDC_PUBLIC_CLAIM_CHECKS unavailable')}
+
 const root=process.cwd();
 const rawpath=path.join(root,'.c26-private/forward-eod.json.gz');
 const endpoint='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
