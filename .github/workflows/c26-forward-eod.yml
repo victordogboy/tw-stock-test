@@ -33,9 +33,12 @@ jobs:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
           set -euo pipefail
+          node research/c26-lock/forward/sync-private-store.mjs restore
           node research/c26-lock/forward/stage-finmind.mjs
           node research/c26-lock/forward/audit-chip-overlap.mjs
           node --test tests/c26-forward-stage.test.mjs tests/c26-chip-overlap.test.mjs
+          node research/c26-lock/forward/sync-private-store.mjs publish
+          node research/c26-lock/forward/sync-private-store.mjs status
       - name: Publish coverage summary ONLY (FinMind raw data stays private)
         run: |
           set -euo pipefail

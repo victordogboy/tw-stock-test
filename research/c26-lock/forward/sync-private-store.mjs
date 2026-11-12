@@ -44,6 +44,13 @@ if(mode==='restore'){
  if(!r.ok)throw Error('C26 private publish failed HTTP '+r.status);
  const ack=await r.json();
  if(ack.stored!==true||ack.sha256!==a.sha256||ack.source_as_of<a.date)throw Error('C26 private store acknowledgement mismatch');
+ const statusPath=path.join(root,'public/r1494a/c26/data/forward-status.json');
+ const status=JSON.parse(fs.readFileSync(statusPath,'utf8'));
+ if(status.sha256_gzip!==a.sha256)throw Error('Coverage report refers to different private data');
+ status.raw_storage='Cloudflare private Durable Object';
+ status.private_storage_verified=true;
+ status.private_storage_as_of=ack.source_as_of;
+ fs.writeFileSync(statusPath,JSON.stringify(status,null,2)+'\n');
  console.log('C26_PRIVATE_SOURCE_PERSISTED',JSON.stringify({source_as_of:ack.source_as_of,n_dates:a.n_dates,bytes:a.bytes,raw_public:false,live_plan:'BLOCKED'}));
 }else{
  const r=await call('GET');
