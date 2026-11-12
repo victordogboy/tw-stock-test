@@ -46,10 +46,41 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
 #r26DataTable td:first-child{min-width:120px}
 #r26DataTable td,#r26DataTable th{padding:7px;text-align:left}
 #r26DataProgress{white-space:pre-wrap;overflow-wrap:anywhere}
+
+#twoTxPanel{background:linear-gradient(125deg,#132a43,#102331);border-color:#3d7f94}
+#twoTxPanel.is-long{border-color:#32ac85}#twoTxPanel.is-short{border-color:#bc6f72}
+#twoTxPanel.unverified{border-color:#a58457;background:#302d2b}
+#twoTxDirection{font-weight:850;font-size:clamp(24px,7vw,43px);line-height:1.3;margin:12px 0 6px}
+#twoTxPanel.is-long #twoTxDirection{color:#6fe7af}#twoTxPanel.is-short #twoTxDirection{color:#ff9b9b}
+#twoTxPanel .paper-label{display:inline-block;background:#815b32;color:#fff3cd;padding:4px 9px;border-radius:100px;font-size:12px}
 </style></head><body>
 <header><div class="tag">CANONICAL R26 · TX · <span id="r26NowDate">日期檢查中</span></div><h1>R26 台指期跨盤監控</h1>
-<div class="muted">日盤 08:45／夜盤 15:00 · 一口大台 · 跨盤持有 · 凍結原始模型</div></header>
+<div class="muted">日盤 08:45／夜盤 15:00 · 置頂雙口研究訊號（僅模擬）／下方原始單口R26 · 跨盤持有</div></header>
 <main>
+<section class="panel unverified" id="twoTxPanel" aria-label="R26 凍結動態兩口紙上交易訊號">
+ <div class="livehead"><h2 style="margin:0">R26-2TX-ATR35-DD100｜雙口紙上監控</h2><span class="paper-label">僅模擬 · 不接券商</span></div>
+ <div class="livehead" style="margin-top:9px"><span class="livepill wait" id="twoTxVerification">等待官方分鐘K與回測引擎驗證</span>
+ <button id="twoTxRefresh" type="button">↻ 重新核對雙口訊號</button></div>
+ <div id="twoTxDirection">目前方向與口數未驗證</div>
+ <p class="info" id="twoTxSummary">只在原版金標、指定合約連續分K、交易日曆與模型重播均通過時顯示紙上持倉。沒有連接券商，請勿當作已成交部位。</p>
+ <div class="grid">
+  <div class="livebox"><small>模型盤前預計口數</small><strong id="twoTxPlanLots">—</strong></div>
+  <div class="livebox"><small>ATR 250日百分位／ATR20</small><strong id="twoTxAtr">—</strong></div>
+  <div class="livebox"><small>盤前權益回撤／二口資格</small><strong id="twoTxRisk">—</strong></div>
+  <div class="livebox"><small>模型停損價（非券商委託）</small><strong id="twoTxStop">—</strong></div>
+ </div>
+ <div class="grid" style="margin-top:12px">
+  <div class="livebox"><small>推算模型帳戶資金／占用原始保證金</small><strong id="twoTxMargin">—</strong></div>
+  <div class="livebox"><small>模型總點數／相對同期單口</small><strong id="twoTxPnL">—</strong></div>
+  <div class="livebox"><small>模型歷史至當前的分鐘最大回撤</small><strong id="twoTxMaxDD">—</strong></div>
+  <div class="livebox"><small>最後核對的分鐘與指定合約</small><strong id="twoTxAsOf">—</strong></div>
+ </div>
+ <p class="info" id="twoTxEvents" style="margin-top:12px">等待進出場／增減碼事件核對。</p>
+ <p class="info"><strong>固定盤前條件：</strong>上個已完成日盤 ATR20 低於過去250個交易日的第35百分位，且截至前盤模型權益回撤低於100點，帳戶可用資金足以支持兩口TX並保留30萬緩衝，才會考慮加第二口；否則單口或空手。原R26方向、停損與日夜跨盤邏輯不改。</p>
+ <div class="divider"></div>
+ <p class="info"><strong>歷史研究基準（截至2026/11/11日盤）：</strong>動態最多2口 +32,001 TX等值點、最大回撤806點、淨利／回撤39.70；單口 +29,657點、回撤806點。屬樣本內歷史模擬，非前向驗證或已實現帳戶損益。<a href="/r26-monitor.html#signalPanel">查看下方原版單口R26訊號</a>。</p>
+</section>
+
 <section class="panel alert unverified" id="signalPanel" aria-label="R26 當盤多空決策">
 <div class="livehead"><h2 id="mainSignalHeading">R26 最新交易訊號尚未驗證（禁止沿用歷史訊號）</h2><span class="livepill wait" id="signalVerification">等待重播驗證</span></div>
 <div class="signal-hero" id="signalDirectionHero">方向尚未確認</div>
@@ -308,5 +339,5 @@ window.addEventListener('online',()=>{fetchQuote();fetchNamedQuote();fetchCmoney
 fetchQuote();fetchNamedQuote();fetchCmoneyQuote();
 
 </script>
-<script type="module" src="/r26-live-monitor.mjs?v=20261112-tail-v2"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261113-2tx-paper-v1"></script>
 </body></html>
