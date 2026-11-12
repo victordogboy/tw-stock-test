@@ -64,6 +64,10 @@ export async function updateDeviceSource(token,progress=()=>{}){
 export function mountTokenPanel(doc=document){
  if(doc.getElementById('c26-device-token-panel'))return;
  const host=doc.querySelector('main');if(!host)return;
+ const legacy=doc.getElementById('finmind-device-panel');
+ legacy?.remove();
+ try{if(!readToken()&&globalThis.TWFinMindTokens?.activeToken())saveToken(globalThis.TWFinMindTokens.activeToken())}catch{}
+ globalThis.C26DeviceFinMind=Object.freeze({activeToken:()=>readToken(),headers:extra=>({...extra,...(readToken()?{Authorization:'Bearer '+readToken()}:{})})});
  const panel=doc.createElement('section');panel.id='c26-device-token-panel';
  panel.style.cssText='border:1px solid #b8ccbf;background:#f4faf6;border-radius:12px;padding:16px;margin:18px 0;color:#173b2d';
  panel.innerHTML='<h2 style="margin:0 0 8px;font-size:18px">FinMind Token · 僅記住此瀏覽器</h2><p style="margin:0 0 10px;font-size:13px">Token 只保存在此裝置的這個瀏覽器。更新時以 HTTPS 傳送，不寫入伺服器儲存。換裝置、換瀏覽器或清除網站資料後需重新輸入。</p><div style="display:flex;flex-wrap:wrap;gap:8px"><input id="c26-device-token" type="password" autocomplete="off" spellcheck="false" aria-label="FinMind Token" placeholder="貼上 FinMind Token" style="flex:1;min-width:180px;padding:10px;border:1px solid #aebfb3;border-radius:7px"><button id="c26-token-save" type="button">儲存到此瀏覽器</button><button id="c26-token-update" type="button">使用 Token 更新 C26 資料</button><button id="c26-token-clear" type="button">清除本機 Token</button></div><p id="c26-token-message" role="status" aria-live="polite" style="font-size:13px;margin:10px 0 0"></p>';
@@ -72,7 +76,7 @@ export function mountTokenPanel(doc=document){
  const say=x=>message.textContent=x;
  input.value=readToken();say(input.value?'已記住此瀏覽器的 Token。':'尚未設定 Token。');
  doc.getElementById('c26-token-save').onclick=()=>{try{input.value=saveToken(input.value);say('已儲存在此瀏覽器。')}catch(e){say(e.message)}};
- doc.getElementById('c26-token-clear').onclick=()=>{clearToken();input.value='';say('已清除這個瀏覽器的 Token。')};
+ doc.getElementById('c26-token-clear').onclick=()=>{clearToken();try{globalThis.TWFinMindTokens?.write({tokens:['',''],active:0})}catch{}input.value='';say('已清除這個瀏覽器的 Token。')};
  doc.getElementById('c26-token-update').onclick=async()=>{
   const buttons=panel.querySelectorAll('button');
   try{
