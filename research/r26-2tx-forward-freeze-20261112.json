@@ -1,0 +1,104 @@
+{
+  "name": "R26-2TX-ATR35-DD100-FORWARD-FROZEN",
+  "freezeDate": "2026-11-12",
+  "tradingDayLastVerified": "2026-11-11",
+  "sessionLastVerified": "2026-11-11 day session (sid=1)",
+  "eligibleProspectiveStart": "first complete officially verified minute-bar session AFTER 2026-11-11 day session",
+  "status": "RESEARCH_ONLY_NOT_DEPLOYED",
+  "instructions": "Never optimize or change these parameters when performing prospectively accumulating performance reports. Append new complete minute sessions and compare side-by-side against frozen 1TX and buy-hold.",
+  "data": "Original 2428 frozen golden TX day/night samples plus 24 verified official extensions; 2026 was ALREADY INSPECTED during model selection",
+  "risk": {
+    "positionLimitTX": 2,
+    "allowShort": true,
+    "allowLong": true,
+    "allowCarry": true,
+    "initialAccountNTD": 2000000,
+    "txPointValueNTD": 200,
+    "perContractInitialMarginNTD": 701000,
+    "minUnencumberedCashNTD": 300000,
+    "marginPolicy": "At previous close compute equity; at opening require actual opening gap adjusted account equity supporting remaining contracts. Never fill an infeasible second contract."
+  },
+  "core": {
+    "dayMaxATR20ForLong": 200,
+    "nightMaxATR20ForLong": 195,
+    "rescueConditionsOR": [
+      "ATR20 <= 0.75 * ATR20_20_completed_days_ago and prev_5day_close_momentum_over_ATR > 2",
+      "ATR20 percentile >= 70% among past <=250 completed daily ATRs and ATR20 <=0.90*ATR20_5_completed_days_ago and 5-day momentum>0",
+      "10-day efficiency > 0.80 and 5-day momentum>1.5 ATR",
+      "20-day efficiency >= 0.80 and up-day fraction last10days>=0.5"
+    ],
+    "shortEntry": "last completed SAME-contract TX close - round(0.005*ATR20), breakout stop entry valid 30 minutes after session open",
+    "profitProtect": "after historical favorable extreme gains at least 1.0*entryATR, from NEXT minute stop protects 30% of max achieved favorable move",
+    "localRiskCircuitPoints": 800,
+    "waitSessionsAfterStop": 8,
+    "shadowPnlLast8Minimum": 0,
+    "originalR26OtherRules": "frozen unchanged"
+  },
+  "sizing": {
+    "atrPercentileWindowCompletedDays": 250,
+    "additionalSecondContractWhenAtrPctBelow": 0.35,
+    "additionalSecondContractWhenPriorEquityDrawdownBelowPoints": 100,
+    "otherwise": "1 TX if original R26 has a position, 0 if R26 is flat",
+    "riskPriority": "margin and cash buffer cap before all increases; never exceed 2 whole TX",
+    "onlyPastKnownFeatures": true
+  },
+  "realizedStudies": {
+    "lowCost": {
+      "feePointsPerSide": 2.5,
+      "netTxPointEquivalents": 32001,
+      "minuteMaxDdTxPointEquivalents": 806,
+      "ratio": 39.7035
+    },
+    "sameCostOneTX": {
+      "net": 29657,
+      "maxDD": 806
+    },
+    "highCost": {
+      "feePointsPerSide": 5,
+      "newShortEntryExtraSlipPoints": 5,
+      "coreRiskExitExtraSlipPoints": 75,
+      "net": 29574,
+      "maxDD": 943
+    },
+    "severeCost": {
+      "feePointsPerSide": 5,
+      "newShortEntryExtraSlipPoints": 10,
+      "coreRiskExitExtraSlipPoints": 100,
+      "net": 28951,
+      "maxDD": 993
+    },
+    "extraSecondLot5ptEachSide": {
+      "lowCostNet": 31691,
+      "lowCostDd": 806,
+      "highCostNet": 29097,
+      "highCostDd": 943,
+      "severeCostNet": 28474,
+      "severeCostDd": 993
+    },
+    "incrementalAnnualAtBaseFee": {
+      "year2021": 0,
+      "year2022": 544,
+      "year2023": 64.5,
+      "year2024": 265.5,
+      "year2025": 622,
+      "year2026": 848
+    }
+  },
+  "integrity": {
+    "originalParity": "passed 29657 net / 806 minuteDD",
+    "historicalPrefixes": 15,
+    "overlappingSessionComparisons": 28659,
+    "marginGuardPostGap": "zero forced reductions under selected historical sample",
+    "optimisticCaveat": "1-minute OHLC cannot confirm execution sequencing; maxDD is minute-marked model",
+    "selectionBias": "2026 studied repeatedly and not untouched OOS",
+    "tradingStatus": "paper only"
+  },
+  "codeSha": {
+    "r26Engine": "c31d79000fe4da456a398edfcc783820ea9c2873",
+    "researchOrders": "ff103f94b0f3dabe8c9f44391cc07d94fa8bce28",
+    "regimeFeatures": "06c6bdf72823e732849b91dd378a6eae2c0454ed",
+    "multiLotLedger": "89ed221b5bc3522a5c31e8df1ec85b506af0227f",
+    "researchAudit": "f5abb02a2424dbd44ee6a2d71abd83ef7e3b4b75",
+    "causalPrefixAudit": "2730e12a27fedc5d5f6e8dc41e819bb0dc4b478e"
+  }
+}
