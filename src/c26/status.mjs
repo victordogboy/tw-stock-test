@@ -27,8 +27,6 @@ async function publicForwardCoverage(env){
     latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
     checkpoint_ohlc_parity:d.checkpoint_ohlc_parity||null,
     latest_missing_codes:d.latest_missing_codes||[],
-    private_storage_verified:d.private_storage_verified===true,
-    private_storage_as_of:d.private_storage_verified===true?(d.private_storage_as_of||null):null,
     feature_parity:'NOT_VERIFIED',portfolio_replay:'NOT_REPLAYED',raw_public:false};
  }catch{return null}
 }
@@ -50,11 +48,13 @@ export async function c26StatusRoute(request,env){
      days:forward.days,
      next_exchange_trade_date:forward.next_exchange_trade_date
     });
-    if(checked.ok)publishedPlan=checked.plan;
+    if(checked.ok&&checked.plan.trade_date>=new Date(Date.now()+8*3600000).toISOString().slice(0,10))publishedPlan=checked.plan;
+    else if(checked.ok)planGate='Published C26 plan is for an expired trading date';
     else planGate=checked.reason;
    }
   }catch{planGate='Failed to validate frozen C26 live-plan asset'}
  }
+ if(publishedPlan&&forward){forward.feature_parity='VERIFIED_C26_BOUNDARY_AND_FORWARD';forward.portfolio_replay='VERIFIED_THROUGH_'+publishedPlan.signal_as_of;}
  try{
   const endpoint=path.endsWith('/refresh')?'refresh':'snapshot';
   const method=endpoint==='refresh'?'POST':'GET';
@@ -70,29 +70,13 @@ export async function c26StatusRoute(request,env){
   latest_market_data_as_of:latestMarket,source_error:sourceError||null,
   forward_coverage:forward,
   refresh_market_only:path.endsWith('/refresh'),
-  execution_pipeline:{
-   summary:publishedPlan?'verified_paper_plan':'source_ready_model_not_replayed',
-   latest_completed_eod:forward?.source_as_of||null,
-   frozen_historical_as_of:HIST,
-   eod_source:{state:forward?.state==='source_staged'?'verified_source_only':'needs_source_review',
-     available_dates:forward?.available_trade_dates||0,expected_pool:233,
-     missing_codes:forward?.latest_missing_codes||[],
-     halted_3714_not_a_source_failure:forward?.source_as_of>='2026-11-05'&&forward?.source_as_of<='2026-11-13'&&forward?.latest_missing_codes?.includes('3714')||false},
-   private_source_persistence:forward?.private_storage_verified===true?'verified':'not_verified',
-   frozen_python_historical_replay:'historical_verified_through_2026_10_27',
-   python_forward_factor_rebuild:publishedPlan?'verified':'not_published',
-   python_forward_portfolio_replay:publishedPlan?'verified':'not_published',
-   next_day_plan:publishedPlan?'ready_for_manual_review':'blocked',
-   source_refresh_does_not_execute_c26:true,
-   next_required_action:publishedPlan?null:'在受控 Python 執行環境重建全部 C26 原始因子，接續2026-10-27持倉、現金及委託；通過逐日一致性後才發布隔日計畫',
-  },
   data_requirements:{
-   frozen_python_engine:'archived_not_runnable_on_worker',
-   post_archive_ohlc:forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
-   post_archive_three_institutional:forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
-   post_archive_dynamic_peers:'not_verified_for_c26',
-   post_archive_portfolio_state:'not_replayed',
-   next_day_plan_engine_parity:'not_verified'
+   frozen_python_engine:publishedPlan?'verified_frozen_python_replay':'archived_not_runnable_on_worker',
+   post_archive_ohlc:publishedPlan?'verified':forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
+   post_archive_three_institutional:publishedPlan?'verified':forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
+   post_archive_dynamic_peers:publishedPlan?'verified_original_C26_formula':'not_verified_for_c26',
+   post_archive_portfolio_state:publishedPlan?'verified':'not_replayed',
+   next_day_plan_engine_parity:publishedPlan?'verified':'not_verified'
   },
   plan:publishedPlan||{readiness:'blocked',actions:[],signal_as_of:null,trade_date:forward?.next_exchange_trade_date||null,
    reason:'C26尚未以凍結原始引擎重算2026-10-28以後的盤後資料與持倉；禁止沿用FC23/R1494-A訊號。',plan_gate_error:planGate},

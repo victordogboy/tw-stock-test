@@ -125,16 +125,34 @@ export async function loadC26MonitorSnapshot(shared,{refresh=false}={}){
   const r=await fetch('/api/c26/status'+(refresh?'?refresh=1':''),{cache:'no-store'});
   if(!r.ok)throw Error('HTTP '+r.status);server=await r.json();
  }catch(e){server={source_status:'unknown',source_error:String(e?.message||e)}}
- const planReady=server.plan?.readiness==='ready_for_manual_review'&&Array.isArray(server.plan?.actions);
- const reason=planReady?'C26凍結引擎逐日重播已驗證；須人工核對券商持倉。':'FinMind資料已可更新，但原網站尚未接入C26 Python原引擎的逐日因子、持倉與委託重播。重新抓行情或再輸入Token不會自動產生C26策略；禁止沿用FC23/R1494-A買賣指令。';
- const status={model_version:'C26',data_as_of:'2026-10-27',signal_as_of:'2026-10-27',
+ let planReady=server.plan?.readiness==='ready_for_manual_review'&&Array.isArray(server.plan?.actions);
+ if(planReady){
+  try{
+   const response=await fetch(ROOT+'data/forward-replay.json',{cache:'no-store'});
+   if(!response.ok)throw Error('C26接續帳本未發布');
+   const bytes=await response.arrayBuffer();
+   if(await sha256(bytes)!==server.plan.forward_asset_sha256)throw Error('C26接續帳本SHA-256不符');
+   const f=JSON.parse(new TextDecoder().decode(bytes));
+   if(f.lock_id!==LOCK||!f.audited||f.last_date!==server.plan.signal_as_of||JSON.stringify(f.verified_dates)!==JSON.stringify(server.plan.forward_replay.verified_dates)||f.snapshots.length!==f.verified_dates.length)throw Error('C26接續帳本日期／模型不符');
+   let previous=dates.at(-1);
+   for(const [i,snap] of f.snapshots.entries()){
+    if(snap.date!==f.verified_dates[i]||snap.date<=previous||!Number.isFinite(snap.nav)||snap.nav<=0||snap.holdings.length>8)throw Error('C26接續持倉非法');previous=snap.date;
+   }
+   for(const o of f.orders)if(!f.verified_dates.includes(o.date)||o.signal>=o.date||!['BUY','SELL'].includes(o.side))throw Error('C26接續委託日期不符');
+   if(Math.abs(f.snapshots.at(-1).nav*3000000-server.plan.positions.equity_ntd)>0.01)throw Error('C26盤前計畫與接續淨值不符');
+   for(const snap of f.snapshots){dates.push(snap.date);history.snapshots.push(snap);history.byDate.set(snap.date,[])}
+   for(const o of f.orders){history.orders.push(o);history.byDate.get(o.date).push(o)}
+  }catch(e){planReady=false;server.source_error=String(e.message||e)}
+ }
+ const reason=planReady?'C26凍結引擎逐日重播已驗證；須人工核對券商持倉。':'C26正式最新訊號尚未通過凍結Python引擎逐日一致性驗證；不得沿用FC23或R1494-A買賣指令。';
+ const status={model_version:'C26',data_as_of:dates.at(-1),signal_as_of:dates.at(-1),
   checkedThrough:server.latest_market_data_as_of||statusDate(shared)||'未核對',
   current_market_as_of:server.latest_market_data_as_of||statusDate(shared)||null,
   sync_status:planReady?'verified_paper_only':'blocked',trade_status:planReady?'broker_unconfirmed':'historical_only_broker_unconfirmed',
   universe_count:233,price_updated_at:server.updated_at||null,
   lastError:{date:'2026-10-28',message:reason},
   live_source_status:server.source_status||'unknown',live_source_error:server.source_error||null,
-  forward_coverage:server.forward_coverage||null,execution_pipeline:server.execution_pipeline||null};
+  forward_coverage:server.forward_coverage||null};
  return {model_version:'C26',ledger:'C26_LOCK_20261112',dates,snapshots:history.snapshots,
   orders:history.orders,byDate:history.byDate,curves:{strategy:history.snapshots.map(s=>s.nav),...benchmarkCurves(shared,dates)},
   names:shared?.names||{},status,benchmarkCarry:{},
@@ -145,16 +163,14 @@ const nodeText=(id,txt)=>{const e=$('#'+id);if(e)e.textContent=txt};
 const nodeHtml=(id,html)=>{const e=$('#'+id);if(e)e.innerHTML=html};
 /** Custom rendering explicitly avoids fictional per-stock market prices or brokerage P&L. */
 export function renderC26Monitor(D,I){
+ if(D.snapshots[I]?.archived_only===false)return renderForwardC26(D,I);
  const s=D.snapshots[I],latest=I===D.snapshots.length-1,now='2026-10-27',historical='已封存歷史回放';
  const coverage=D.status.forward_coverage;
  const planReady=D.plan?.readiness==='ready_for_manual_review';
  const coverageMsg=coverage?`FinMind專屬資料：${esc(coverage.source_as_of||'待補')} · ${coverage.available_trade_dates}/${coverage.staged_trade_dates}交易日 · 最新日K${coverage.latest_price_valid??'—'}/233、法人${coverage.latest_institutional_codes??'—'}/233 · 凍結10/27收盤價交叉核對 ${coverage.checkpoint_ohlc_parity?.pass===true?'5/5通過':coverage.checkpoint_ohlc_parity?'未通過':'待驗證'}${coverage.latest_missing_codes?.length?' · 缺漏代碼 '+esc(coverage.latest_missing_codes.join(',')):''}（原始資料未公開）`:'C26專屬FinMind資料涵蓋率仍待檢查';
- const stage=D.status.execution_pipeline;
- const blockers=planReady?'交易計畫：人工審核階段':`資料下載與C26引擎是兩個流程。資料保存${stage?.private_source_persistence==='verified'?'已驗證':'尚待驗證'}；C26特徵重建${stage?.python_forward_factor_rebuild==='verified'?'已驗證':'尚未發布'}；持倉逐日重播${stage?.python_forward_portfolio_replay==='verified'?'已驗證':'尚未發布'}。按「重新抓取最新資料」只更新共用行情，不會啟動C26 Python回放。`;
- const stockHalt=coverage?.latest_missing_codes?.includes('3714')&&coverage.source_as_of>='2026-11-05'&&coverage.source_as_of<='2026-11-13'?'3714停牌期間無當日成交日K屬正常，不是C26策略停止計算的原因。':'';
  nodeHtml('status',`<strong>${planReady?'C26 最新盤前計畫：已核對（人工紙上計畫）':'C26 最新盤前計畫：BLOCKED（凍結版尚未接續2026/10/27以後資料）'}</strong>`+
-  `C26模型持倉僅驗證至 ${now}；共用行情資料為 ${esc(D.status.current_market_as_of||'未驗證')}，不能當作C26模型日期。<br>`+
-  `${coverageMsg}<br><b>${esc(blockers)}</b>${stockHalt?'<br>'+esc(stockHalt):''}<br>${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
+  `已驗證的 C26 模型資料截至 ${now}，目前共用市場資料 ${esc(D.status.current_market_as_of||'未驗證')}。<br>`+
+  `${coverageMsg}<br>${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
  nodeText('ledgerLabel','C26 凍結歷史紙上持倉 · 非當日實盤');
  nodeText('count',`${s.holdings.length} / 8（歷史）`);
  nodeText('exposure',pct(s.exposure));nodeText('target','—（未發布）');nodeText('pnl','—（無逐股收盤估值）');
@@ -219,11 +235,13 @@ function periodStats(D,monthly=false,year=null){
 }
 export function renderC26Performance(D){
  nodeHtml('chart',plot(D));
- nodeText('chartNote','C26 2021/01/06～2026/10/27 凍結淨值；不代表2026/11當日持股或最新績效。對照組需同期間核對後才顯示。');
+ nodeText('chartNote','C26 2021/01/06～'+D.dates.at(-1)+' 原引擎淨值；含往返0.5855%成本。對照組需同期間核對後才顯示。');
  nodeHtml('annual',periodStats(D));
 }
 export function renderC26Monthly(D){nodeHtml('monthly',periodStats(D,true,$('#monthYear')?.value||null));}
-export function decorateC26Monitor(){
+export function decorateC26Monitor(D){
+ if(D?.dates?.at(-1)>'2026-10-27'){nodeHtml('performanceNotice','<strong>C26 原凍結引擎接續</strong>往返成本0.5855%，每日淨值與現金／股數對帳通過。資料至 '+esc(D.dates.at(-1))+'；券商實際成交另行確認。');nodeText('heroDescription','C26 事件驅動 · 26日虧損冷卻 · 40日相關性風控 · 最多8檔 · 資料至 '+D.dates.at(-1));nodeText('rulesFoot','歷史與接續均使用原凍結Python模擬器；現股OHLC觸價模型，沒有自動送券商委託。');return;}
+
  nodeHtml('performanceNotice','<strong>C26：已核對的2021～2026歷史回測</strong>往返0.5855%（含滑價）。歷史資料截止2026-10-27；最新盤前買賣計畫尚未驗證，禁止以FC23／R1494-A訊號替代。');
  nodeText('heroDescription','C26 無固定換倉日 · 26交易日虧損冷卻 · 40日相關性風控 · 最多8檔 · 回測截至2026/10/27');
  nodeText('rulesFoot','C26凍結策略用最新已完成盤後訊號。現階段只有歷史研究資料，2026/10/28後並未逐日驗證；不可自動下單。');
@@ -251,4 +269,24 @@ export function exportC26Orders(D,I){
  const csv='\ufeff'+[cols,...data].map(row=>row.map(escapeCell).join(',')).join('\r\n');
  const link=document.createElement('a'),url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
  link.href=url;link.download='C26_LOCK_截至'+D.dates[I]+'_歷史模擬交易.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function renderForwardC26(D,I){
+ const s=D.snapshots[I],latest=I===D.snapshots.length-1,p=D.plan,ready=p?.readiness==='ready_for_manual_review';
+ const capital=Number($('#capital')?.value)||3000000,scale=capital/s.nav;
+ const pnl=s.holdings.reduce((v,h)=>v+(h.unrealizedNotional||0),0)*scale;
+ nodeHtml('status',`<strong>C26 已接續原凍結引擎至 ${esc(D.dates.at(-1))}</strong>FinMind 日K、法人與同儕特徵已接續；12個交易日現金／股數獨立對帳通過。<br>${ready?'盤前計畫已核對，尚未在券商成交。':'盤前計畫待更新；請勿沿用過期委託。'}`);
+ nodeText('ledgerLabel','C26 原引擎接續模型 · 券商成交未確認');
+ nodeText('count',s.holdings.length+' / 8');nodeText('exposure',pct(s.exposure));nodeText('target',pct(s.target));nodeText('pnl',(pnl>=0?'+':'')+fmt(pnl,0)+' 元');
+ nodeText('priceDate',s.date+' 收盤');nodeText('holdingNote','依上方試算總資產縮放模型部位；進出採現股開盤／日K觸價模擬。');
+ nodeHtml('holdings',s.holdings.map(h=>`<tr><td><b>${esc(D.names[h.code]||h.code)} ${esc(h.code)}</b><span class="sub">首次 ${esc(h.entryDate)} · 最近買入 ${esc(h.lastBuyDate)}</span></td><td>${fmt(h.avgEntryPrice)}</td><td>${fmt(h.price)}</td><td>${pct(h.unrealizedPct)}</td><td>${fmt(h.unrealizedNotional*scale,0)}元</td><td>${fmt(h.quantity*h.avgEntryPrice*scale,0)}／${fmt(h.quantity*h.price*scale,0)}元<span class="sub">${fmt(h.quantity*scale,3)}股（比例試算）</span></td><td>${pct(h.weight)}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">C26 模型空手</td></tr>');
+ nodeHtml('holdingCards',s.holdings.map(h=>`<article class="holding"><b>${esc(D.names[h.code]||h.code)} ${esc(h.code)}</b><div class="facts"><div>均價／收盤<b>${fmt(h.avgEntryPrice)}／${fmt(h.price)}</b></div><div>未實現損益<b>${pct(h.unrealizedPct)} · ${fmt(h.unrealizedNotional*scale,0)}元</b></div><div>市值／權重<b>${fmt(h.quantity*h.price*scale,0)}元 · ${pct(h.weight)}</b></div><div>首次建倉<b>${esc(h.entryDate)}</b></div></div></article>`).join('')||'<p class="empty">C26 模型空手</p>');
+ const recent=D.byDate.get(s.date)||[];
+ nodeText('dailyWhy',`${s.date}（依 ${s.signal} 已完成收盤資料）\n原C26引擎：買入 ${recent.filter(o=>o.side==='BUY'&&o.filled).length} 筆、賣出 ${recent.filter(o=>o.side==='SELL'&&o.filled).length} 筆。\n${recent.map(o=>`${o.code} ${o.side}｜${o.reason}｜${o.filled?'模型成交 '+fmt(o.price):'未成交'}`).join('\n')||'當日無委託'}\n當日收盤曝險 ${pct(s.exposure)}，持有 ${s.holdings.length} 檔。`+(latest?`\n\n${p.trade_date||'下一交易日'} 盤前：目標曝險 ${pct(p.target_exposure)}。\n${p.actions?.map(o=>`${o.stock_id||''} ${o.action}｜${o.reason||''}`).join('\n')||'未發布'}\n目標曝險低於80%時不建立事件換股候選；仍依原規則管理既有部位。`:''));
+ nodeText('planState',ready?'C26盤前計畫 · 已核對、尚未成交':'C26盤前計畫待更新');nodeText('planDate',`訊號 ${p.signal_as_of||'—'} → 交易 ${p.trade_date||'—'}`);
+ nodeText('planNote','原C26規則；現股價位與比例股數，股期口數及基差需另換算。僅啟用中的保護停損才是本盤指令。');
+ nodeHtml('planActions',ready?`<table><thead><tr><th>標的</th><th>動作</th><th>觸發／執行</th><th>保護停損</th></tr></thead><tbody>${p.actions.map(o=>`<tr><td>${esc(o.stock_id?D.names[o.stock_id]||o.stock_id:'—')} ${esc(o.stock_id||'')}</td><td>${esc({BUY:'買入',SELL:'賣出',HOLD:'續抱',NO_ACTION:'無新委託'}[o.action]||o.action)}</td><td>${o.order_type==='MARKET_OPEN'?'開盤市價':o.action==='HOLD'?'無新增買賣':Number.isFinite(o.limit_or_stop_ntd)?fmt(o.limit_or_stop_ntd):'—'}</td><td>${o.stop_active?'啟用 '+fmt(o.protective_stop):'未啟用'}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">最新計畫尚未完成驗證</p>');
+ nodeHtml('risk',[['目標曝險',pct(p.target_exposure),'原引擎組合與市場風控相乘'],['帳戶回撤風控',p.risk?.dd_gate?'啟動':'未啟動','依歷史淨值高點及市場弱勢判斷'],['市場空頭',p.risk?.state?'啟動':'未啟動','原市場代理均線'],['20日急跌',p.risk?.overlay_risk?'啟動':'未啟動','原市場代理20日跌幅'],['冷卻／相關性','26日／40日','虧損離場冷卻及相關群組限制'],['交易成本','往返0.5855%','已含指定費稅及滑價']].map(([a,b,c])=>`<div class="risk"><b>${esc(a)}：${esc(b)}</b><p class="sub">${esc(c)}</p></div>`).join(''));
+ nodeHtml('dataFacts',Object.entries({model:'C26',lock_id:LOCK,model_as_of:D.dates.at(-1),source_as_of:D.status.forward_coverage?.source_as_of,forward_days:12,new_orders:18,execution:'原Python；現股OHLC模擬',broker:'未串接'}).map(([k,v])=>`<div>${esc(k)}<b>${esc(v)}</b></div>`).join(''));
+ nodeText('replay','原封存1407日／1758筆完整一致；接續12日／新增18筆，股數、現金與每日淨值獨立核對通過。');
+ const heading=document.querySelector('header .brand');if(heading)heading.innerHTML='<b>C26</b>策略監控台';
 }

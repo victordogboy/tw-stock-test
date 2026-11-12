@@ -1,0 +1,103 @@
+{
+  "historical_replay": {
+    "days": 1407,
+    "orders": 1758,
+    "passed": true,
+    "net_return_pct": 1720.495844396837,
+    "max_drawdown_pct": -17.989769234703846
+  },
+  "forward_dates": [
+    "2026-10-28",
+    "2026-10-29",
+    "2026-10-30",
+    "2026-11-02",
+    "2026-11-03",
+    "2026-11-04",
+    "2026-11-05",
+    "2026-11-06",
+    "2026-11-09",
+    "2026-11-10",
+    "2026-11-11",
+    "2026-11-12"
+  ],
+  "boundary_feature_comparisons": {
+    "P": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "BASE": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "TREND": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "RELAX": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "R20": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "EMA20": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "atr": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "RS5": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "RS20": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "VOL_RATIO": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "DOWN_SHARE": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "BUY_LEVEL": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    },
+    "SCORE": {
+      "max_abs_error": 5.960464477539063e-08,
+      "nan_mismatch": 0
+    },
+    "EXTRA_RANK_BONUS": {
+      "max_abs_error": 0.0,
+      "nan_mismatch": 0
+    }
+  },
+  "inventory_cash_audit": {
+    "max_open_positions": 8,
+    "max_abs_reconstructed_nav_difference": 7.105427357601002e-15,
+    "max_reconstructed_stock_weight_pct": 17.717726707165728,
+    "max_reconstructed_exposure_pct": 100.00000000000004,
+    "ending_cash_unit": 16.988810418293237,
+    "ending_cash_ntd": 50966431.25487971,
+    "ending_positions": {
+      "2801": 0.0006294303726376955
+    }
+  },
+  "forward_order_rows": 18,
+  "last_date": "2026-11-12",
+  "source_after_boundary": true,
+  "halted_stock_policy": "3714: no OHLC/no execution; last known mark for valuation only",
+  "independent_forward_factors": {
+    "peer_max_abs_error": 0.0,
+    "F5_T5_max_abs_error": 1.4880501553182768e-08,
+    "days": 12,
+    "stocks": 233,
+    "passed": true
+  }
+}

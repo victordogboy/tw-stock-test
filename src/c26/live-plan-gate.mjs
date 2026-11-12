@@ -52,7 +52,8 @@ export function validateC26NextDayPlan(p,coverage){
      !dateLike(x.signal_date)||x.signal_date!==p.signal_as_of ||
      !dateLike(x.execute_date)||x.execute_date!==p.trade_date ||
      (x.action==='BUY'&&(!Number.isFinite(x.notional_ntd)||x.notional_ntd<10000)) ||
-     (['BUY','SELL'].includes(x.action)&&(!Number.isFinite(x.limit_or_stop_ntd)||x.limit_or_stop_ntd<=0))))return fail('unexecutable or misdated order');
+     (x.action==='BUY'&&(!Number.isFinite(x.limit_or_stop_ntd)||x.limit_or_stop_ntd<=0)) ||
+     (x.action==='SELL'&&!(x.order_type==='MARKET_OPEN'&&Number.isFinite(x.quantity)&&x.quantity>0)&&(!Number.isFinite(x.limit_or_stop_ntd)||x.limit_or_stop_ntd<=0))))return fail('unexecutable or misdated order');
  if(new Set(p.actions.filter(x=>x.action!=='NO_ACTION').map(x=>x.action+':'+x.stock_id)).size!==p.actions.filter(x=>x.action!=='NO_ACTION').length)
   return fail('duplicate same-side stock order');
  return {ok:true,reason:null,plan:{...p,readiness:'ready_for_manual_review',live_trading_enabled:false,broker_orders_submitted:false}};
