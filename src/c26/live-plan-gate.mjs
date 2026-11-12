@@ -18,6 +18,8 @@ export function validateC26NextDayPlan(p,coverage){
     p.fc23_reused===true ||p.r1494a_reused===true)return fail('unverified or borrowed strategy engine');
  if(p.historical_replay?.days!==1407||p.historical_replay?.orders!==1758||
     p.historical_replay?.passed!==true||
+    !Number.isFinite(p.historical_replay.net_return_pct)||
+    !Number.isFinite(p.historical_replay.max_drawdown_pct)||
     Math.abs(p.historical_replay.net_return_pct-1720.495844396837)>1e-7 ||
     Math.abs(p.historical_replay.max_drawdown_pct+17.989769234703846)>1e-7)return fail('frozen historical parity not passed');
  const date=coverage.full_market_last_verified;
@@ -30,6 +32,10 @@ export function validateC26NextDayPlan(p,coverage){
     d.verified_dates.length!==d.trading_days || d.verified_dates[0]!==d.first_date ||
     d.verified_dates.at(-1)!==date ||new Set(d.verified_dates).size!==d.verified_dates.length ||
     d.verified_dates.some((x,i)=>!dateLike(x)||(i>0&&x<=d.verified_dates[i-1])))return fail('continuous forward replay not independently verified');
+ const expectedDates=(coverage.days||[]).filter(x=>x.date>'2026-10-27'&&x.date<=date);
+ if(expectedDates.length!==d.trading_days||expectedDates.some((x,i)=>
+    x.date!==d.verified_dates[i]||!['available','cached'].includes(x.state)))
+  return fail('forward replay dates do not match verified source calendar');
  if(p.factors?.full_parity!==true||p.factors?.causal_previous_close!==true||
     p.positions?.inventory_parity!==true ||p.positions?.cash_parity!==true ||
     p.orders_frozen_same_day_check!==true) return fail('factor/portfolio/order parity missing');
@@ -37,6 +43,8 @@ export function validateC26NextDayPlan(p,coverage){
     !Array.isArray(p.actions)||!Array.isArray(p.positions?.holdings)||
     p.positions.holdings.length>8||
     p.positions.holdings.some(x=>!codeLike(x.stock_id)||!Number.isFinite(x.quantity)||x.quantity<0))return fail('fees, holdings or order schema invalid');
+ if(new Set(p.positions.holdings.map(x=>String(x.stock_id))).size!==p.positions.holdings.length)
+  return fail('duplicate portfolio holding');
  if(!Number.isFinite(p.positions.cash_ntd)||p.positions.cash_ntd<0||
     !Number.isFinite(p.positions.equity_ntd)||p.positions.equity_ntd<=0)return fail('account balances missing');
  const allowed=new Set(['BUY','SELL','HOLD','TOPUP','TRIM','NO_ACTION']);

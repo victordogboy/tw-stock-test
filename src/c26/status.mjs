@@ -21,6 +21,7 @@ async function publicForwardCoverage(env){
   const last=d.days?.filter(x=>x.date===d.full_market_last_verified).at(-1)||null;
   return {state:d.state,source_as_of:d.full_market_last_verified||null,checked_at:d.checked_at||null,
     next_exchange_trade_date:d.next_exchange_trade_date||null,
+    days:(d.days||[]).map(x=>({date:x.date,state:x.state})),
     expected_pool:233,staged_trade_dates:d.staged_trade_dates||0,available_trade_dates:d.available_trade_dates||0,
     latest_price_valid:last?.price_valid??null,latest_price_missing:last?.missing_count??null,
     latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
@@ -44,6 +45,7 @@ export async function c26StatusRoute(request,env){
     const checked=validateC26NextDayPlan(await resp.json(),{
      state:forward.state,checkpoint_ohlc_parity:forward.checkpoint_ohlc_parity,
      full_market_last_verified:forward.source_as_of,
+     days:forward.days,
      next_exchange_trade_date:forward.next_exchange_trade_date
     });
     if(checked.ok)publishedPlan=checked.plan;

@@ -1,0 +1,55 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "simulator_sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5",
+  "historical_return_pct": 1720.495844396837,
+  "historical_mdd_pct": -17.989769234703846,
+  "continuation_parity_passed": true,
+  "comparisons": [
+    {
+      "checkpoint_date": "2021-01-06",
+      "resumed_trading_days": 1406,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    },
+    {
+      "checkpoint_date": "2021-11-02",
+      "resumed_trading_days": 1207,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    },
+    {
+      "checkpoint_date": "2023-11-22",
+      "resumed_trading_days": 707,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    },
+    {
+      "checkpoint_date": "2025-12-12",
+      "resumed_trading_days": 207,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    },
+    {
+      "checkpoint_date": "2026-10-06",
+      "resumed_trading_days": 12,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    },
+    {
+      "checkpoint_date": "2026-10-27",
+      "resumed_trading_days": 0,
+      "all_1758_order_rows_exact": true,
+      "all_1407_nav_values_exact": true,
+      "cash_inventory_cost_risk_state_parity": true
+    }
+  ],
+  "source_inputs_after_20261027_verified": false,
+  "forward_portfolio_verified": false,
+  "today_plan_ready": false,
+  "note": "Checkpoint continuation is verified on historical data only; no new market data or live plan is implied."
+}

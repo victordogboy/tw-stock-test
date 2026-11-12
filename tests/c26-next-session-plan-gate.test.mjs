@@ -9,6 +9,7 @@ const source={
 };
 const dates=['2026-10-28','2026-10-29','2026-10-30','2026-11-02','2026-11-03','2026-11-04',
  '2026-11-05','2026-11-06','2026-11-09','2026-11-10','2026-11-11','2026-11-12'];
+source.days=dates.map(date=>({date,state:'available'}));
 const valid=()=>({
  model_version:'C26',lock_id:C26_LOCK,simulator_sha256:C26_ENGINE_SHA,
  engine:'frozen_python_c26',strategy_source:'original_C26_LOCK',
@@ -48,4 +49,21 @@ test('C26 frozen verified plan is a paper plan, never an automated broker order'
 test('Missing or unverified upstream market data blocks any C26 plan',()=>{
  assert.equal(validateC26NextDayPlan(valid(),null).ok,false);
  assert.equal(validateC26NextDayPlan(valid(),{...source,checkpoint_ohlc_parity:{pass:false}}).ok,false);
+});
+test('Missing numerical historical evidence cannot pass via NaN comparisons',()=>{
+ for(const key of ['net_return_pct','max_drawdown_pct'])for(const bad of [undefined,null,NaN,Infinity,'1720.495844396837']){
+  const p=valid();p.historical_replay[key]=bad;
+  assert.equal(validateC26NextDayPlan(p,source).ok,false);
+ }
+});
+test('Every forward replay date must match the source trading calendar',()=>{
+ const p=valid();p.forward_replay.verified_dates[3]='2026-11-01';
+ assert.match(validateC26NextDayPlan(p,source).reason,/source calendar/);
+ assert.equal(validateC26NextDayPlan(valid(),{...source,days:source.days.slice(1)}).ok,false);
+ const days=structuredClone(source.days);days[5].state='partial';
+ assert.equal(validateC26NextDayPlan(valid(),{...source,days}).ok,false);
+});
+test('Duplicate holdings cannot inflate portfolio capacity checks',()=>{
+ const p=valid();p.positions.holdings.push({...p.positions.holdings[0]});
+ assert.match(validateC26NextDayPlan(p,source).reason,/duplicate portfolio/);
 });
