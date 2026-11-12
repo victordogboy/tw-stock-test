@@ -22,6 +22,8 @@ async function publicForwardCoverage(env){
     expected_pool:233,staged_trade_dates:d.staged_trade_dates||0,available_trade_dates:d.available_trade_dates||0,
     latest_price_valid:last?.price_valid??null,latest_price_missing:last?.missing_count??null,
     latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
+    checkpoint_ohlc_parity:d.checkpoint_ohlc_parity||null,
+    latest_missing_codes:d.latest_missing_codes||[],
     feature_parity:'NOT_VERIFIED',portfolio_replay:'NOT_REPLAYED',raw_public:false};
  }catch{return null}
 }
