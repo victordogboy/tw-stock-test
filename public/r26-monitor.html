@@ -88,7 +88,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
   <div class="info">來源／狀態<br><strong id="liveSourceName">—</strong></div>
  </div>
  <svg id="ticks" viewBox="0 0 720 100" role="img" aria-label="最近10分鐘，網頁取得的報價快照示意圖"><text x="20" y="55" font-size="14" fill="#90abc3">開始蒐集報價後顯示本頁快照趨勢</text></svg>
- <p class="info" id="quoteDisclaimer">頁面可見時每 5 秒查詢一次；若近月報價 API 失敗，改顯示指定月份 TX 已完成的 1 分 K 收盤價，明確標示資料時間。5 秒查詢不代表 5 秒即時成交，也不是交易訊號。</p>
+ <p class="info" id="quoteDisclaimer">頁面可見時每 5 秒查詢一次；來源可能僅每分鐘更新。當 WTX&amp; 即時報價失敗時，以指定 TX 合約當盤已完成的連續 1 分 K 顯示收盤與已核實的開高低、分鐘量；不假造買一賣一。策略模型獨立按分鐘資料檢查，非每 5 秒產生交易訊號。</p>
  <a href="https://tw.finance.yahoo.com/future/WTX%26" target="_blank" rel="noopener noreferrer">核對 Yahoo 台指期近一來源 ↗</a>
 </section>
 
@@ -238,6 +238,7 @@ function renderQuote(){
  $('liveSourceTime').textContent=twClock(q.source_time)+' （台灣時間）';
  $('liveLag').textContent=elapsed+' 秒／'+pollAge+' 秒前檢查';
  $('liveSourceName').textContent=q.source+(q.cache_hit?' · 來源快取':'');
+  if(q.quote_type==='minute_k'&&q.session_ohlc_verified===false)$('liveSourceName').textContent+=' · 當盤分鐘K尚未連續，開高低不顯示';
  $('quoteInstrumentLabel').textContent=q.quote_type==='minute_k'?'TX'+q.contract_month+' 指定月 1分K（非逐筆即時）':'WTX& · Yahoo 連續近月';
  if(quoteFailure)liveBadge('連線失敗，顯示上次資料','bad');
  else if(!fresh)liveBadge('來源逾 90 秒，非即時','bad');
