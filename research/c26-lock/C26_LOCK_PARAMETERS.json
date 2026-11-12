@@ -1,0 +1,29 @@
+{
+  "version": "C26-EVENT-CORR-LOCK-20261112",
+  "trading_allowed": false,
+  "live_deployed": false,
+  "backtest_period": [
+    "2021-01-06",
+    "2026-10-27"
+  ],
+  "capital_ntd": 3000000,
+  "max_open_stocks": 8,
+  "single_stock_target": 0.16,
+  "max_total_exposure": 1.0,
+  "min_new_position_ntd": 10000,
+  "total_round_trip_cost_pct": 0.5855,
+  "buy_side_cost_pct": 0.14275,
+  "sell_side_cost_pct": 0.44275,
+  "event_only_no_fixed_schedule": true,
+  "loss_exit_cooldown_trading_days": 26,
+  "block_fc17_during_cooldown": true,
+  "correlation_lookback_days": 40,
+  "correlation_threshold": 0.6,
+  "correlated_exposure_limit": 0.3,
+  "minimum_correlated_stocks": 1,
+  "exit_risk_threshold": -0.06,
+  "risk_recovery_threshold": -0.025,
+  "event_only_actual_fill_and_seat": true,
+  "fc09_target_rebalance_event_only": true,
+  "reference_frozen_engine_sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5"
+}
