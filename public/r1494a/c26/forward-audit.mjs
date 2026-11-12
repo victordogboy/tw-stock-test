@@ -10,6 +10,8 @@ const stage=$('c26-forward-stage'), results=$('c26-device-audit-results');
 function say(target,message){if(target)target.textContent=message;}
 const fmt=(v)=>Number.isFinite(+v)?Number(v).toLocaleString('zh-TW'):'—';
 const dateLike=v=>/^20\d\d-\d\d-\d\d$/.test(String(v||''));
+const knownHalt=(code,date)=>String(code)==='3714'&&date>='2026-11-05'&&date<='2026-11-13';
+const missingLabel=(codes,date)=>!codes?.length?'無（仍須確認其他驗證）':codes.map(code=>knownHalt(code,date)?code+' 富采（11/5～11/13 減資停牌，非 FinMind 失敗）':code).join('、');
 function nextDay(date){const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);}
 async function getJson(url){
  const r=await fetch(url,{cache:'no-store',credentials:'same-origin'});
@@ -22,7 +24,8 @@ function serverText(status,coverage){
   '完整行情來源：'+(coverage?.source_as_of||'未核對')+
     '，向前補齊 '+fmt(coverage?.available_trade_dates)+'／'+fmt(coverage?.staged_trade_dates)+' 個交易日',
   '最近交易日日K：'+fmt(coverage?.latest_price_valid)+'／233；法人代碼：'+fmt(coverage?.latest_institutional_codes)+'／233',
-  '最新缺漏代碼：'+(coverage?.latest_missing_codes?.join(', ')||'無（仍須確認其他驗證）'),
+  '最新缺漏代碼：'+missingLabel(coverage?.latest_missing_codes,coverage?.source_as_of||''),
+  '3714 恢復交易後（預定 11/16）必須核對現金減資換股、價格與模型持股成本；不可直接將新舊股價相接。',
   '已知OHLC封存邊界：'+(coverage?.checkpoint_ohlc_parity?.pass?'已通過':'未通過'),
   'C26 原始特徵一致性：'+(coverage?.feature_parity||'尚未驗證'),
   'C26 最新持倉、現金與逐筆交易重播：'+(coverage?.portfolio_replay||'尚未重播'),
@@ -120,7 +123,7 @@ async function localAudit(){
   say(results,[
    '本機 FinMind 即時核對：'+date,
    '有效日 K：'+report.priceValid+'/233；法人涵蓋：'+report.chipCodes+'/233',
-   '缺少日 K：'+(report.missing.join('、')||'無')+
+   '缺少日 K：'+missingLabel(report.missing,date)+
     '；異常日 K：'+(report.invalid.join('、')||'無')+
     '；重複代碼：'+(report.duplicate.join('、')||'無'),
    '缺少法人代碼：'+(report.absentChip.join('、')||'無'),
