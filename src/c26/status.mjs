@@ -27,6 +27,8 @@ async function publicForwardCoverage(env){
     latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
     checkpoint_ohlc_parity:d.checkpoint_ohlc_parity||null,
     latest_missing_codes:d.latest_missing_codes||[],
+    private_storage_verified:d.private_storage_verified===true,
+    private_storage_as_of:d.private_storage_verified===true?(d.private_storage_as_of||null):null,
     feature_parity:'NOT_VERIFIED',portfolio_replay:'NOT_REPLAYED',raw_public:false};
  }catch{return null}
 }
