@@ -1,7 +1,7 @@
 {
   "strategy": "C26",
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
-  "mode": "historical_archive_only",
+  "mode": "historical_archive_auto_verified",
   "live_plan_readiness": "blocked",
   "live_trading_enabled": false,
   "model_replay_asof": "2026-10-27",
@@ -33,12 +33,20 @@
     "max_total_exposure": 1
   },
   "blockers": [
-    "本網站尚未附上 C26 凍結逐筆完整資料。可在本機選擇已封存 ZIP 進行驗證與檢視；原始檔不會傳至網站。",
+    "C26 原始凍結 Python 引擎已封存於 GitHub，完整1407日/1758筆歷史資料已內建自動載入；此項不代表2026-10-28以後已有即時C26模型交易計畫。",
     "2026-10-28 以後的 C26 專用日K、法人、同儕特徵與盤前演算尚未經凍結引擎一致性核驗。",
     "C26 最新盤前計畫在一致性驗收前停止發布；不可沿用 FC23 或 R1494-A 的交易指令。",
     "股票整股、真實成交、券商持倉同步尚未完成。"
   ],
-  "do_not_substitute": ["FC23", "R1494-A"],
+  "do_not_substitute": [
+    "FC23",
+    "R1494-A"
+  ],
   "historical_out_of_sample": false,
-  "is_realized_profit": false
+  "is_realized_profit": false,
+  "historical_archive_loaded_from": "web root /r1494a/c26/data/historical-assets.json",
+  "historical_gzip_sha256": {
+    "nav": "de04853ddd00a8ca150b6e6ac29f7918ebb387bba2c5e9303bd1b26021b54f95",
+    "orders": "d47b865b9e816e34f73c057c5d779e1ca03234827d16d1409bde218946c00567"
+  }
 }

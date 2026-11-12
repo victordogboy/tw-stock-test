@@ -1,0 +1,41 @@
+name: C26 frozen Python lock and published historical data parity
+on:
+  pull_request:
+    paths:
+      - 'research/c26-lock/**'
+      - 'public/r1494a/c26/**'
+      - 'tests/c26-frozen-lock-parity.test.mjs'
+  push:
+    branches: [main, feature/c26-frozen-core-20261112]
+    paths:
+      - 'research/c26-lock/**'
+      - 'public/r1494a/c26/**'
+      - 'tests/c26-frozen-lock-parity.test.mjs'
+      - '.github/workflows/c26-frozen-parity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frozen-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate frozen source, shared site, and exact published archive
+        run: |
+          node --check public/r1494a/c26/app.mjs
+          node --test tests/c26-frozen-lock-parity.test.mjs tests/c26-integration.test.mjs
+      - name: Verify frozen Python syntax and prevent accidental live orders
+        run: |
+          python -m py_compile research/c26-lock/source/C26_SIMULATOR_FROZEN.py research/c26-lock/source/C26_FROZEN_ENGINE.py research/c26-lock/replay/replay_c26.py
+          python - <<'PY'
+          import json
+          r=json.load(open('research/c26-lock/C26_LOCK_PARAMETERS.json'))
+          assert r['trading_allowed'] is False
+          assert r['live_deployed'] is False
+          assert r['total_round_trip_cost_pct']==.5855
+          print('C26_FROZEN_LOCK_CHECK_PASS',r['version'])
+          PY
