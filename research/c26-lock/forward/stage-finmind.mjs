@@ -76,7 +76,9 @@ if(fs.existsSync(outPath)){
 }
 const payload={lock_id:refs.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:refs.pool_sha256,
  generated_at:now.toISOString(),through_requested:endAt,days:earlier?.days||{}};
-const statuses=[];const tradeDates=await tradingDays();let goodDays=0,errors=0;
+const statuses=[];const tradeDates=await tradingDays();
+const nextTradeDate=[...tradeDates].filter(d=>d>endAt).sort()[0]||null;
+let goodDays=0,errors=0;
 for(let d=inputSince;d<=endAt;d=addDate(d,1)){
  if(!tradeDates.has(d))continue;
  // Recheck last 2 trading dates daily for late correction; preserve older already validated rows.
@@ -114,6 +116,7 @@ console.log('C26_CHECKPOINT_OHLC_PARITY',JSON.stringify({date:checkpointOverlap.
 const file=gzipSync(Buffer.from(JSON.stringify(payload)),{level:9});
 fs.mkdirSync(path.dirname(outPath),{recursive:true,mode:0o700});fs.mkdirSync(basename,{recursive:true});fs.writeFileSync(outPath,file,{mode:0o600});
 const status={lock_id:refs.lock_id,archive_as_of:'2026-10-27',checked_at:now.toISOString(),requested_through:endAt,
+ next_exchange_trade_date:nextTradeDate,
  full_market_last_verified:availableDates.at(-1)||null,
  staged_trade_dates:closeDates.length,available_trade_dates:availableDates.length,
  days:statuses,universe_count:pool.length,sha256_gzip:sha(file),bytes_gzip:file.length,
