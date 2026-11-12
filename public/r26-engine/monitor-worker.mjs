@@ -1,5 +1,6 @@
 import {run,audit} from './engine.mjs';
 import {replayLive,parseOfficialZip} from './live.mjs?v=20261112-tail-v2';
+import {replayTwoTxPaper} from './two-tx-paper-live.mjs';
 let base;
 async function load(){
  if(base)return base;
@@ -18,4 +19,5 @@ self.onmessage=async({data:m})=>{try{
  if(m.type==='official'){const rows=await parseOfficialZip(m.buffer,m.date,m.contract);postMessage({type:'official',id:m.id,rows});return}
  const {meta,bars,gold}=await load();
  if(m.type==='replay')postMessage({type:'replay',id:m.id,gold,result:replayLive(meta,bars,m.rows,m.calendar,m.now||Date.now())});
+ if(m.type==='paper2tx')postMessage({type:'paper2tx',id:m.id,gold,paper:replayTwoTxPaper(meta,bars,m.rows,m.calendar,m.now||Date.now())});
 }catch(e){postMessage({type:'error',id:m.id,error:e.message})}};
