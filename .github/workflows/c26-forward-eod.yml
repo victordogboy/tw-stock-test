@@ -34,7 +34,8 @@ jobs:
         run: |
           set -euo pipefail
           node research/c26-lock/forward/stage-finmind.mjs
-          node --test tests/c26-forward-stage.test.mjs
+          node research/c26-lock/forward/audit-chip-overlap.mjs
+          node --test tests/c26-forward-stage.test.mjs tests/c26-chip-overlap.test.mjs
       - name: Publish coverage summary ONLY (FinMind raw data stays private)
         run: |
           set -euo pipefail
@@ -42,11 +43,13 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           tmpdir=$(mktemp -d)
           cp public/r1494a/c26/data/forward-status.json "$tmpdir/forward-status.json"
+          cp public/r1494a/c26/data/forward-chip-parity.json "$tmpdir/forward-chip-parity.json"
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
             cp "$tmpdir/forward-status.json" public/r1494a/c26/data/forward-status.json
-            git add public/r1494a/c26/data/forward-status.json
+            cp "$tmpdir/forward-chip-parity.json" public/r1494a/c26/data/forward-chip-parity.json
+            git add public/r1494a/c26/data/forward-status.json public/r1494a/c26/data/forward-chip-parity.json
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Stage FinMind forward C26 source data (trading plan remains blocked)'
             if git push origin HEAD:main; then exit 0; fi
