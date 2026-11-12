@@ -28,15 +28,27 @@ jobs:
         run: |
           node --check research/c26-lock/forward/stage-finmind.mjs
           node --test tests/c26-forward-stage.test.mjs
+      - name: Restore private source cache when configured
+        id: restore
+        continue-on-error: true
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/forward/sync-private-store.mjs restore
       - name: Fetch FinMind full-market EOD (NO TOKEN IN LOGS)
+        id: ingest
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
           set -euo pipefail
-          node research/c26-lock/forward/sync-private-store.mjs restore
           node research/c26-lock/forward/stage-finmind.mjs
           node research/c26-lock/forward/audit-chip-overlap.mjs
           node --test tests/c26-forward-stage.test.mjs tests/c26-chip-overlap.test.mjs
+      - name: Persist and verify private source cache
+        id: persist
+        continue-on-error: true
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
           node research/c26-lock/forward/sync-private-store.mjs publish
           node research/c26-lock/forward/sync-private-store.mjs status
       - name: Publish coverage summary ONLY (FinMind raw data stays private)
@@ -59,4 +71,9 @@ jobs:
             sleep 2
           done
           echo 'C26 source publish failed after retry' >&2
+          exit 1
+      - name: Report storage failure without discarding source coverage
+        if: steps.persist.outcome == 'failure'
+        run: |
+          echo '::error::Source coverage updated, but private persistence failed. Check Worker FINMIND_TOKEN and SCAN_JOBS; current C26 trading remains blocked.'
           exit 1
