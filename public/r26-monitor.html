@@ -111,7 +111,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
   <button id="r26DataExport" type="button">匯出缺漏報告</button>
  </div>
  <p class="info" id="r26DataProgress">載入瀏覽器快取、檢查指定合約中…</p>
- <p class="info">雲端保存：期交所官方歷史由定時任務驗證後封存；指定月份分 K 於交易時段排程約每小時保存一次。開頁再抓最新 Yahoo 分鐘；FinMind 為私人 Token 的缺口備援，並不在雲端使用 Token。雲端快照不等於每秒即時成交，若分鐘未更新或歷史有缺口，R26 會暫停發布確認訊號。</p>
+ <p class="info">歷史雲端快照：頁面載入已發布的期交所官方歷史與指定月分鐘資料快照，開頁再抓最新 Yahoo 分鐘資料。此 Worker 的定時觸發目前未提供 R26 每小時持續封存，請以「最新快照時間」核對；手機背景時本頁也不會持續輪詢。FinMind 私人 Token 只在瀏覽器作缺口備援。分鐘資料未更新或歷史有缺口時，R26 應暫停確認訊號。</p>
  <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>已取得成交分鐘</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
  <p class="info">時間判讀：日盤 13:45 收盤，最後一根分鐘 K 的正常起點為 13:44；夜盤最後一根為 04:59。未到收盤的當盤不列為歷史缺盤；週五夜盤跨週六仍依交易日曆歸屬下個交易日。</p>
  <p class="info" id="r26DataGap">風控：即使取得歷史 1 分 K，沒有完成原凍結版引擎重播前，仍不能產生新的 R26 訊號。交易日標記需核對期交所日曆。</p>
