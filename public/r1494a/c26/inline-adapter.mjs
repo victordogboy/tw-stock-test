@@ -146,7 +146,7 @@ const nodeHtml=(id,html)=>{const e=$('#'+id);if(e)e.innerHTML=html};
 export function renderC26Monitor(D,I){
  const s=D.snapshots[I],latest=I===D.snapshots.length-1,now='2026-10-27',historical='已封存歷史回放';
  const coverage=D.status.forward_coverage;
- const coverageMsg=coverage?`FinMind專屬資料：${esc(coverage.source_as_of||'待補')} · ${coverage.available_trade_dates}/${coverage.staged_trade_dates}交易日 · 最新日K${coverage.latest_price_valid??'—'}/233、法人${coverage.latest_institutional_codes??'—'}/233（原始資料未公開）`:'C26專屬FinMind資料涵蓋率仍待檢查';
+ const coverageMsg=coverage?`FinMind專屬資料：${esc(coverage.source_as_of||'待補')} · ${coverage.available_trade_dates}/${coverage.staged_trade_dates}交易日 · 最新日K${coverage.latest_price_valid??'—'}/233、法人${coverage.latest_institutional_codes??'—'}/233 · 凍結10/27收盤價交叉核對 ${coverage.checkpoint_ohlc_parity?.pass===true?'5/5通過':coverage.checkpoint_ohlc_parity?'未通過':'待驗證'}${coverage.latest_missing_codes?.length?' · 缺漏代碼 '+esc(coverage.latest_missing_codes.join(',')):''}（原始資料未公開）`:'C26專屬FinMind資料涵蓋率仍待檢查';
  nodeHtml('status',`<strong>C26 最新盤前計畫：BLOCKED（凍結版尚未接續2026/10/27以後資料）</strong>`+
   `已驗證的 C26 模型資料截至 ${now}，目前共用市場資料 ${esc(D.status.current_market_as_of||'未驗證')}。<br>`+
   `${coverageMsg}<br>${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
