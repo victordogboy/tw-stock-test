@@ -1,0 +1,49 @@
+name: C26 FinMind source coverage production smoke (safe, not trading)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/data/forward-status.json'
+      - 'src/c26/status.mjs'
+      - 'public/r1494a/c26/inline-adapter.mjs'
+      - '.github/workflows/c26-forward-production.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Confirm production source coverage without exposing licensed raw feed or false orders
+        run: |
+          node --input-type=module <<'JS'
+          const base='https://tw-stock-api.victordogboy.workers.dev';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          const get=async p=>{const r=await fetch(base+p+(p.includes('?')?'&':'?')+'audit='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});return r};
+          let done=false,last={};
+          for(let i=0;i<25;i++){
+            try{
+              const [covRsp,statusRsp,rawRsp,appRsp]=await Promise.all([
+                get('/r1494a/c26/data/forward-status.json'),
+                get('/api/c26/status'),
+                get('/r1494a/c26/data/forward-eod.json.gz'),
+                get('/r1494a/c26/inline-adapter.mjs')
+              ]);
+              if(!covRsp.ok||!statusRsp.ok||!appRsp.ok)throw Error('HTTP '+[covRsp.status,statusRsp.status,appRsp.status].join(','));
+              const [cov,c26,app]=await Promise.all([covRsp.json(),statusRsp.json(),appRsp.text()]);
+              const f=c26.forward_coverage;
+              if(cov.public_raw_data!==false||rawRsp.ok)throw Error('Licensed FinMind raw dataset exposed');
+              if(c26.plan?.readiness!=='blocked'||c26.plan?.actions?.length!==0||!c26.no_live_positions||!c26.no_broker_orders)throw Error('C26 allowed unverified live signals');
+              if(!f||f.expected_pool!==233||f.source_as_of!=='2026-11-12'||f.available_trade_dates!==12||f.latest_price_valid<230||f.raw_public!==false||f.feature_parity!=='NOT_VERIFIED')throw Error('C26 forward source coverage not yet live');
+              if(!app.includes('FinMind專屬資料'))throw Error('C26 forward status not visible in original monitor');
+              last={passed:true,attempt:i+1,source_as_of:f.source_as_of,days:f.available_trade_dates,valid_stocks:f.latest_price_valid,live_plan:c26.plan.readiness,raw_public:false};done=true;break;
+            }catch(e){last={passed:false,attempt:i+1,error:String(e.message||e)}}
+            await sleep(9000);
+          }
+          console.log('C26_PRODUCTION_FORWARD_SOURCE_AUDIT',JSON.stringify(last));
+          if(!done)process.exitCode=1;
+          JS
