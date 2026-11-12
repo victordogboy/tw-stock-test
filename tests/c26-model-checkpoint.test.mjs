@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const c=JSON.parse(fs.readFileSync('research/c26-lock/forward/model_checkpoint_20261027.json','utf8'));
+test('C26 checkpoint contains actual frozen simulator state, not FC23/R1494 model positions',()=>{
+ assert.equal(c.lock_id,'C26-EVENT-CORR-LOCK-20261112');
+ assert.equal(c.date,'2026-10-27');assert.equal(c.forward_trade_plan_ready,false);
+ assert.equal(c.model_not_broker_account,true);
+ assert.equal(c.simulator_sha256,'741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5');
+ assert.equal(c.buy_fills,539);assert.equal(c.sell_fills,1028);
+ assert.equal(Object.keys(c.quantity_by_code).length,5);
+ assert.deepEqual(Object.keys(c.quantity_by_code).sort(),['2801','3374','3406','3653','6213']);
+ assert.equal(c.event_pending,3);
+ assert.equal(Object.keys(c.cooldown_by_code).length,4);
+ assert.ok(Object.keys(c.fc17_watch_by_code).length>0);
+ assert.ok(c.last40_nav_units.length>=40);
+ const nav=c.cash_unit+Object.entries(c.quantity_by_code).reduce((v,[code,q])=>v+q*c.mark_close_by_code[code],0);
+ assert.ok(Math.abs(nav-c.nav_unit)<1e-11);
+ assert.ok(Math.abs(c.nav_unit-18.20495844396837)<1e-10);
+});
