@@ -42,6 +42,17 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 <p id="deviceFinmindStatus" role="status" aria-live="polite" style="font-size:13px;margin:9px 0 0">檢查本機設定中…</p>
 <p style="margin:7px 0 0;font-size:12px;color:#63776b">測試按鈕只會直接向 FinMind 查詢日線；本機儲存不等於 C26 全市場資料已補齊，盤前計畫仍須獨立驗證。瀏覽器儲存並未加密，請勿用共用裝置。</p>
 </section>
+<section id="c26-forward-audit" style="border:2px solid #a6c7b5;background:#f7fbf8" aria-label="C26正式上線資料驗收">
+<h2>C26 最新盤前上線驗收（獨立於歷史績效）</h2>
+<p class="muted">以下只顯示<strong>已驗證的來源及程序進度</strong>；C26 真正可供人工審核的隔日委託，必須先用凍結 Python 引擎重播全部新交易日，並核對策略因子、現金、持倉、委託。只輸入 Token 不會自動完成這些條件。</p>
+<div class="controls" style="margin:12px 0">
+<button id="c26-forward-state-refresh" type="button">重新查詢 C26 正式狀態</button>
+<button id="c26-device-audit" type="button">用本機 Token 核對最新 233 檔日 K 與法人</button>
+</div>
+<pre id="c26-forward-stage" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;background:#eff5f0;padding:13px;border-radius:9px;font:13px/1.7 ui-monospace,'Noto Sans TC',monospace">讀取正式資料中…</pre>
+<pre id="c26-device-audit-results" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f5f7f5;font:13px/1.7 ui-monospace,'Noto Sans TC',monospace">本機 FinMind 資料核對尚未執行。</pre>
+<p class="sub">保護：Token 不傳送到本網站、GitHub 或 Cloudflare，僅於按下核對後直接傳至 FinMind；完整查詢結果不公開、不上傳、不儲存。GitHub Actions 的每日背景資料更新仍使用<strong>獨立設定的伺服器 Secret</strong>，與本機 Token 並非同一份設定。</p>
+</section>
 <div class="metrics">
 <div class="metric"><label>歷史累積淨報酬</label><strong class="green" id="c26-ret">+1,720.50%</strong></div>
 <div class="metric"><label>歷史最大回撤</label><strong class="red" id="c26-dd">−17.99%</strong></div>
@@ -71,4 +82,5 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 <script type="module" src="./app.mjs"></script>
 <script src="../../finmind-token-manager.js" defer></script>
 <script src="../finmind-device-token.js" defer></script>
+<script type="module" src="./forward-audit.mjs"></script>
 </body></html>
