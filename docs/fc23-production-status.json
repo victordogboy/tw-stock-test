@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-11-12T16:37:42.619Z",
-  "commit": "1be0fccfef66085b0e7f63c7e0788cfdf210fbe6",
+  "checked_at": "2026-11-12T17:52:08.974Z",
+  "commit": "b14256c41305ef3cd80a1745407b53b01a881e24",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
   "rules_http": 200,
@@ -8,19 +8,19 @@
   "paper_status_label_deployed": true,
   "dynamic_risk_breakdown_deployed": true,
   "snapshot_http": 200,
-  "before_date": "2026-11-11",
-  "market_date": "2026-11-11",
-  "checked_through": "2026-11-11",
-  "sync_status": "blocked",
-  "update_progress": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
-  "update_error": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
-  "latest_snapshot_date": "2026-11-11",
-  "new_snapshots": 11,
+  "before_date": "2026-11-12",
+  "market_date": "2026-11-12",
+  "checked_through": "2026-11-12",
+  "sync_status": "current",
+  "update_progress": "FC23 已更新至最新完整交易日",
+  "update_error": null,
+  "latest_snapshot_date": "2026-11-12",
+  "new_snapshots": 12,
   "new_orders": 5,
-  "plan_signal_date": "2026-11-11",
-  "plan_trade_date": "2026-11-12",
-  "plan_readiness": "blocked",
-  "plan_actions": 0,
+  "plan_signal_date": "2026-11-12",
+  "plan_trade_date": "2026-11-13",
+  "plan_readiness": "ready",
+  "plan_actions": 1,
   "plan_decision": {
     "rebalance": false,
     "riskRelease": false,
@@ -28,27 +28,34 @@
     "portRisk": false,
     "ddGate": false,
     "marketCold": false,
-    "breadth": 0.35859519243240356,
-    "breadthDelta": -0.30205464363098145,
-    "market20": -0.16109309677456363,
-    "target": 0.07717499999999998
+    "breadth": 0.3308411240577698,
+    "breadthDelta": -0.25399643182754517,
+    "market20": -0.17550740727796565,
+    "target": 0.06945749999999999
   },
   "plan_snapshot": {
-    "target": 0.07717499999999998,
+    "target": 0.06945749999999999,
     "basket": false,
     "bear": true,
     "overlay": true,
-    "gate": 0.9
+    "gate": 0.81
   },
-  "plan_action_details": [],
+  "plan_action_details": [
+    {
+      "code": null,
+      "side": "REBALANCE",
+      "reason": "依FC23原引擎調整曝險與16%單股配置；補倉門檻1.6%淨值",
+      "level": null
+    }
+  ],
   "latest_holdings": 0,
   "refresh_http": 202,
   "refresh_state": "queued",
   "after_http": 200,
-  "after_date": "2026-11-11",
-  "after_market_date": "2026-11-11",
-  "after_checked_through": "2026-11-11",
-  "after_sync_status": "blocked",
-  "after_progress": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
-  "after_error": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC"
+  "after_date": "2026-11-12",
+  "after_market_date": "2026-11-12",
+  "after_checked_through": "2026-11-12",
+  "after_sync_status": "current",
+  "after_progress": "FC23 已更新至最新完整交易日",
+  "after_error": null
 }
