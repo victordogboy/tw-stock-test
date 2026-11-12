@@ -7,7 +7,7 @@ import {validateCloudSnapshot} from './r26-engine/cloud-minute-cache.mjs';
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
 const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261031-status',{type:'module'});
-let serial=0,rows=[],calendar=[],contract='',state=null,working=false,historyWorking=false,lastHistory=0,seedLoaded=false,fetchError='';
+let serial=0,rows=[],calendar=[],contract='',state=null,working=false,historyWorking=false,lastHistory=0,seedLoaded=false,fetchError='',historyFailures=[];
 const pending=new Map();
 worker.onmessage=({data:m})=>{const p=pending.get(m.id);if(!p)return;pending.delete(m.id);clearTimeout(p.timer);if(m.type==='error')p.reject(Error(m.error));else p.resolve(m)};
 worker.onerror=e=>{invalidatePosition('引擎啟動失敗：'+e.message);for(const p of pending.values())p.reject(Error(e.message));pending.clear()};
@@ -71,13 +71,13 @@ function draw(m){
  text('r26PositionState',r.positionConfirmed?'策略持倉已確認（截至 '+r.as_of+'）':'策略持倉無法確認；不發布確定的進出場指令');
  text('r26DataHealth',ready?(active?'✓ 正在交易，分鐘資料持續更新；策略已接續':'✓ 已完成交易盤次；策略已重播'):
   (missing.length?'已收盤的歷史資料缺失：'+missing.map(x=>x.date+' '+(x.sid?'日盤':'夜盤')).join('、'):
-   unverified.length?'已收盤資料完整性待核對':active?.label||'資料核對中')+'；策略持倉無法確認。'+r.issues.join('；'));
+   unverified.length?'已收盤資料未通過驗收：'+unverified.map(x=>x.label).join('、'):active?.label||'資料核對中')+'；策略持倉無法確認。'+r.issues.join('；'));
  const latestData=states.map(x=>x.last).filter(Boolean).sort().at(-1);
  text('r26DataLatest',(latestData||'—')+'（台灣時間，分鐘起點）');
  text('r26DataCount',fmt(rows.length)+' 根／已接續 '+r.added+' 盤');
  text('r26DataMissing','已收盤缺資料 '+missing.length+' 盤；完整性待核對 '+unverified.length+' 盤；交易中 '+(active?1:0)+' 盤');
- text('r26DataProgress',(fetchError?'最近來源檢查：'+fetchError+'；':'')+'期交所官方已封存 '+(officialArchiveAsOf||'待取得')+'；雲端指定月1分K至 '+(minuteCloudAsOf||'待取得')+'；官方 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
- text('r26DataGap','完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
+ text('r26DataProgress',(fetchError?'最新分K來源：'+fetchError+'；':'')+(historyFailures.length?'官方回補未完成：'+historyFailures.slice(0,3).join('；')+'；':'')+'期交所官方已封存 '+(officialArchiveAsOf||'待取得')+'；雲端指定月1分K至 '+(minuteCloudAsOf||'待取得')+'；官方 ZIP＋Yahoo 指定月 '+contract+'；報價每 5 秒、分鐘資料每 30 秒檢查，自動重播。');
+ text('r26DataGap',(unverified.length?'尚未核對：'+unverified.map(x=>x.reason).join('；')+'。':'')+'完成盤使用期交所整包逐筆並驗證 CRC，無成交分鐘不補造；當盤使用 Yahoo 指定月份 '+contract+'，分鐘結束標籤轉為起點（−60 秒）。'+(rows.some(x=>x.session_key===active?.key&&x.calendar_shift_seconds)?'Yahoo 週末排圖日期已用來源實際更新時間與交易日曆交叉核對；原時間保留於診斷檔。':'')+'重新開頁會補抓整盤，背景或休眠時暫停。');
  const table=$('r26DataTable');table.replaceChildren();
  for(const t of [...states].slice(-9).reverse()){
   const tr=document.createElement('tr');
@@ -149,7 +149,8 @@ async function history(manual=false){
  historyWorking=true;lastHistory=Date.now();
  try{
   const sessions=physicalSessions(calendar,'2026-10-22');
-  const jobs=pendingR26OfficialDownloads(sessions,rows);
+  const jobs=pendingR26OfficialDownloads(sessions,rows).sort((a,b)=>b.date.localeCompare(a.date));
+  const errors=[];
   for(const job of jobs){
    const {date,contract:jobContract}=job;
    text('r26DataProgress','期交所交易日 '+date+'，TX'+jobContract+'（涵蓋 '+job.sessions.join('、')+'）');
@@ -166,6 +167,7 @@ async function history(manual=false){
     add(verified);await save(verified);fetchError='';
    }catch(e){
     fetchError=date+' '+String(e?.message||e);
+    errors.push(fetchError);
     const bearer=$('r26DataToken').value.trim()||token();
     if(bearer){
      // FinMind uses physical minute dates, including the midnight successor;
@@ -175,11 +177,12 @@ async function history(manual=false){
        const x=await json('/api/r26/kbar?date='+d+'&contract='+jobContract,
         {headers:{Authorization:'Bearer '+bearer}});
        add(x.data);await save(x.data);
-      }catch(err){fetchError=date+' 官方與 FinMind 備援待補：'+String(err?.message||err)}
+      }catch(err){fetchError=date+' 官方與 FinMind 備援待補：'+String(err?.message||err);errors.push(fetchError)}
      }
     }
    }
   }
+  historyFailures=[...new Set(errors)].slice(0,8);
   await check();
  }finally{historyWorking=false}
 }
