@@ -1,0 +1,28 @@
+name: R26 frozen 2TX marginal profit concentration and extra fill slippage verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/r26-frozen2tx-extra-fill.yml'
+      - 'scripts/r26-frozen2tx-extra-fill-forward-audit.mjs'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: No further optimization - frozen 35pct DD100 two TX fee/gap and winner concentration audit
+        run: |
+          node --check public/r26-research/five-lot-tape.mjs
+          node --check scripts/r26-frozen2tx-extra-fill-forward-audit.mjs
+          node scripts/r26-frozen2tx-extra-fill-forward-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: r26-frozen2tx-forward-audit
+          path: r26-study-output/
+          retention-days: 30
