@@ -53,6 +53,15 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 <pre id="c26-device-audit-results" role="status" style="white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f5f7f5;font:13px/1.7 ui-monospace,'Noto Sans TC',monospace">本機 FinMind 資料核對尚未執行。</pre>
 <p class="sub">資料使用方式：按「用本機 Token 核對」只會從此瀏覽器直連 FinMind，不會上傳原始查詢結果；按「使用 Token 更新 C26 資料」則會透過 HTTPS 將 Token 傳給本站 Cloudflare Worker 作當次驗證及代理查詢，並將取得的市場資料保存於私有儲存，但不保存 Token 本身。GitHub Actions 背景更新使用另一組受保護的 Secret。兩種更新都不會直接啟動 C26 原始 Python 模型。</p>
 </section>
+<section id="c26-current-plan" style="border:2px solid #73a18b;background:#f6fbf7" aria-label="C26已驗證最新模型交易計畫">
+<div class="controls" style="justify-content:space-between;gap:10px"><h2 id="c26-current-heading" style="margin:0">C26 最新模型：正在核對...</h2><button id="c26-current-refresh" type="button">重新核對最新策略計畫</button></div>
+<p class="sub" id="c26-current-summary" role="status" style="margin:12px 0">僅在原始 C26 Python 引擎、前向帳本 SHA-256、持倉與成本全部核對通過後顯示。原有歷史回放仍保留在下方。</p>
+<h3>已驗證模型持股（非券商持股）</h3>
+<div class="scroll"><table><thead><tr><th>股票</th><th>模型股數</th><th>最近收盤</th><th>市值</th><th>未實現漲跌</th></tr></thead><tbody id="c26-current-holdings"><tr><td colspan="5">等待驗證</td></tr></tbody></table></div>
+<h3>下一交易日紙上買賣計畫</h3>
+<div class="scroll"><table><thead><tr><th>股票</th><th>動作</th><th>委託方式</th><th>觸發價</th><th>停損是否啟用</th><th>原因</th></tr></thead><tbody id="c26-current-actions"><tr><td colspan="6">等待驗證</td></tr></tbody></table></div>
+<p class="sub">僅供人工審核；原模型含小數股、假設日K撮合及再投入。實際券商倉位、交易整股／股期契約及成交價格仍須自行核對。歷史持股不是今日持股；過期或未驗證計畫不顯示下單建議。</p>
+</section>
 <div class="metrics">
 <div class="metric"><label>歷史累積淨報酬</label><strong class="green" id="c26-ret">+1,720.50%</strong></div>
 <div class="metric"><label>歷史最大回撤</label><strong class="red" id="c26-dd">−17.99%</strong></div>
@@ -83,4 +92,5 @@ button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-rad
 <script src="../../finmind-token-manager.js" defer></script>
 
 <script type="module" src="./forward-audit.mjs"></script>
+<script type="module" src="./forward-live.mjs"></script>
 <script type="module" src="./device-token.mjs?v=20261113-device1"></script></body></html>
