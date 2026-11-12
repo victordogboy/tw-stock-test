@@ -53,6 +53,7 @@ export function parseYahooQuotePage(html,sourceUrl='https://tw.stock.yahoo.com/f
   ask:num(section,/賣價\s*([\d,]+(?:\.\d+)?)/),
   open:num(section,/開盤\s*([\d,]+(?:\.\d+)?)/),
   high:num(section,/最高\s*([\d,]+(?:\.\d+)?)/),
+  volume:num(section,/(?:總量|成交量)\s*([\d,]+(?:\.\d+)?)/),
   low:num(section,/最低\s*([\d,]+(?:\.\d+)?)/),
   prev_close:num(section,/昨收\s*([\d,]+(?:\.\d+)?)/),
   change:num(section,/漲跌\s*([-+]?[\d,]+(?:\.\d+)?)/),
@@ -131,6 +132,12 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  // Edge cache limits upstream 5-second polling load. Never cache failures or imply cache is a live trade.
  const cache=globalThis.caches?.default,key=new Request(new URL(request.url).origin+'/__r26_live_quote_v2');
  try{if(cache){const hit=await cache.match(key);if(hit){const body=await hit.json();return json({...body,cache_hit:true,polled_at:new Date().toISOString()})}}}catch{}
+ // Start the named-contract fallback concurrently. Otherwise 3 seconds of
+ // blocked WTX providers + up to 12 seconds for Yahoo named minutes defeats 5s polling.
+ const contract=new URL(request.url).searchParams.get('contract')||'';
+ const namedFetch=/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)
+  ? r26MarketRoute(new Request(new URL('/api/r26/intraday?contract='+contract,request.url)),env,fetchImpl).catch(e=>e)
+  : null;
  const failures=[];
  // Fetch in parallel; one blocked vendor must not delay the five-second frontend cycle.
  const attempts=await Promise.all(providers.map(async([kind,url],priority)=>{
@@ -160,11 +167,10 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  // Exact named-contract 1-minute candle is a transparent *fallback* for
  // the broken continuous WTX& quote endpoint. It is never labelled a tick.
  // The original providers retain priority whenever they succeed.
- const contract=new URL(request.url).searchParams.get('contract')||'';
- if(/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)){
+ if(namedFetch){
   try{
-   const target=new URL('/api/r26/intraday?contract='+contract,request.url);
-   const rsp=await r26MarketRoute(new Request(target),env,fetchImpl);
+   const rsp=await namedFetch;
+   if(rsp instanceof Error)throw rsp;
    if(rsp.ok){
     const payload=await rsp.json();
     const observed=summarizeNamedMinuteSession(payload?.data,contract);
