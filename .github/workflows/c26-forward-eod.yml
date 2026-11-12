@@ -9,6 +9,7 @@ on:
     paths:
       - 'research/c26-lock/forward/**'
       - 'tests/c26-forward-stage.test.mjs'
+      - 'tests/c26-github-oidc.test.mjs'
       - 'src/c26/github-oidc.mjs'
       - 'src/c26/private-feed.mjs'
       - '.github/workflows/c26-forward-eod.yml'
@@ -30,7 +31,10 @@ jobs:
       - name: Validate script and archive fingerprint
         run: |
           node --check research/c26-lock/forward/stage-finmind.mjs
-          node --test tests/c26-forward-stage.test.mjs
+          node --check research/c26-lock/forward/sync-private-store.mjs
+          node --check src/c26/github-oidc.mjs
+          node --check src/c26/private-feed.mjs
+          node --test tests/c26-forward-stage.test.mjs tests/c26-github-oidc.test.mjs tests/c26-private-feed.test.mjs
       - name: Restore private source cache when configured
         id: restore
         continue-on-error: true
