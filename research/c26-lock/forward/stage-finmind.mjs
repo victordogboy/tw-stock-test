@@ -10,7 +10,8 @@ const root=process.cwd();
 const refs=JSON.parse(fs.readFileSync(path.join(root,'research/c26-lock/forward/archive-feature-reference.json'),'utf8'));
 const pool=refs.codes;const poolSet=new Set(pool);
 const basename=path.join(root,'public/r1494a/c26/data');
-const outPath=path.join(basename,'forward-eod.json.gz');
+// FinMind forbids redistribution of raw subscription data. Keep EOD only in this private job workspace.
+const outPath=path.join(root,'.c26-private/forward-eod.json.gz');
 const statusPath=path.join(basename,'forward-status.json');
 const token=process.env.FINMIND_TOKEN?.trim();
 const sha=x=>crypto.createHash('sha256').update(x).digest('hex');
@@ -94,15 +95,15 @@ for(let d=inputSince;d<=endAt;d=addDate(d,1)){
 const closeDates=Object.keys(payload.days).filter(x=>x>='2026-10-28').sort();
 const availableDates=closeDates.filter(x=>payload.days[x].source_state==='available');
 const file=gzipSync(Buffer.from(JSON.stringify(payload)),{level:9});
-fs.mkdirSync(basename,{recursive:true});fs.writeFileSync(outPath,file);
+fs.mkdirSync(path.dirname(outPath),{recursive:true,mode:0o700});fs.mkdirSync(basename,{recursive:true});fs.writeFileSync(outPath,file,{mode:0o600});
 const status={lock_id:refs.lock_id,archive_as_of:'2026-10-27',checked_at:now.toISOString(),requested_through:endAt,
  full_market_last_verified:availableDates.at(-1)||null,
  staged_trade_dates:closeDates.length,available_trade_dates:availableDates.length,
  days:statuses,universe_count:pool.length,sha256_gzip:sha(file),bytes_gzip:file.length,
- source:'FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending',secret_exposed:false,
+ source:'FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending',secret_exposed:false,public_raw_data:false,raw_storage:'private CI workspace (ephemeral)',
  state:availableDates.length===closeDates.length&&closeDates.length>0?'source_staged':'source_partial',
  exact_c26_feature_parity:'NOT_VERIFIED',frozen_c26_portfolio_replay:'NOT_IMPLEMENTED',live_plan_readiness:'BLOCKED',
- warning:'Public raw EOD stock/chip data only; no C26 trading signals or current portfolio positions.'};
+ warning:'僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。'};
 fs.writeFileSync(statusPath,JSON.stringify(status,null,2)+'\n');
 console.log('C26_EOD_STAGE_SUMMARY',JSON.stringify({requested:endAt,staged:closeDates.length,available:availableDates.length,
  last_available:status.full_market_last_verified,error_count:errors,compressed_bytes:file.length,lock_id:status.lock_id}));
