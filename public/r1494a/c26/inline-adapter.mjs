@@ -150,7 +150,7 @@ export async function loadC26MonitorSnapshot(shared,{refresh=false}={}){
   current_market_as_of:server.latest_market_data_as_of||statusDate(shared)||null,
   sync_status:planReady?'verified_paper_only':'blocked',trade_status:planReady?'broker_unconfirmed':'historical_only_broker_unconfirmed',
   universe_count:233,price_updated_at:server.updated_at||null,
-  lastError:{date:'2026-10-28',message:reason},
+  lastError:planReady?null:{date:'2026-10-28',message:reason},
   live_source_status:server.source_status||'unknown',live_source_error:server.source_error||null,
   forward_coverage:server.forward_coverage||null};
  return {model_version:'C26',ledger:'C26_LOCK_20261112',dates,snapshots:history.snapshots,
