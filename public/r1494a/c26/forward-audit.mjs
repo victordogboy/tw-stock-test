@@ -26,6 +26,8 @@ function serverText(status,coverage){
   '最近交易日日K：'+fmt(coverage?.latest_price_valid)+'／233；法人代碼：'+fmt(coverage?.latest_institutional_codes)+'／233',
   '最新缺漏代碼：'+missingLabel(coverage?.latest_missing_codes,coverage?.source_as_of||''),
   '3714 恢復交易後（預定 11/16）必須核對現金減資換股、價格與模型持股成本；不可直接將新舊股價相接。',
+  'Cloudflare 私有資料快取：'+(coverage?.private_storage_verified===true?
+   '已寫入並核對（'+(coverage.private_storage_as_of||'來源日期未列')+'）':'未完成持久化核對'),
   '已知OHLC封存邊界：'+(coverage?.checkpoint_ohlc_parity?.pass?'已通過':'未通過'),
   'C26 原始特徵一致性：'+(coverage?.feature_parity||'尚未驗證'),
   'C26 最新持倉、現金與逐筆交易重播：'+(coverage?.portfolio_replay||'尚未重播'),
