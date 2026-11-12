@@ -8,12 +8,30 @@ const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:
  'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
  'X-C26-Plan-Ready':'false','X-C26-Frozen-Lock':'C26-EVENT-CORR-LOCK-20261112'}});
 const HIST='2026-10-27';
+// Read ONLY the sanitized GitHub Actions coverage report. Licensed FinMind
+// raw price/chip records are never returned through this public API.
+async function publicForwardCoverage(env){
+ if(!env?.ASSETS?.fetch)return null;
+ try{
+  const response=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/c26/data/forward-status.json'));
+  if(!response.ok)return null;
+  const d=await response.json();
+  if(d.lock_id!=='C26-EVENT-CORR-LOCK-20261112'||d.live_plan_readiness!=='BLOCKED'||d.public_raw_data!==false)return null;
+  const last=d.days?.filter(x=>x.date===d.full_market_last_verified).at(-1)||null;
+  return {state:d.state,source_as_of:d.full_market_last_verified||null,checked_at:d.checked_at||null,
+    expected_pool:233,staged_trade_dates:d.staged_trade_dates||0,available_trade_dates:d.available_trade_dates||0,
+    latest_price_valid:last?.price_valid??null,latest_price_missing:last?.missing_count??null,
+    latest_institutional_codes:last?.institutional_codes??null,latest_errors:last?.source_errors?.length??null,
+    feature_parity:'NOT_VERIFIED',portfolio_replay:'NOT_REPLAYED',raw_public:false};
+ }catch{return null}
+}
 export async function c26StatusRoute(request,env){
  const url=new URL(request.url),path=url.pathname;
  if(!['/api/c26/status','/api/c26/refresh'].includes(path))return json({error:'Unknown C26 path'},404);
  if(path.endsWith('/refresh')&&request.method!=='POST')return json({error:'POST required'},405);
  if(path.endsWith('/status')&&request.method!=='GET')return json({error:'GET required'},405);
  let upstream=null,err=null;
+ const forward=await publicForwardCoverage(env);
  try{
   const endpoint=path.endsWith('/refresh')?'refresh':'snapshot';
   const method=endpoint==='refresh'?'POST':'GET';
@@ -27,11 +45,12 @@ export async function c26StatusRoute(request,env){
   model_version:'C26',lock_id:'C26-EVENT-CORR-LOCK-20261112',
   historical_as_of:HIST,source_status:err?'unavailable':source.state||upstream?.sync_status||'unknown',
   latest_market_data_as_of:latestMarket,source_error:sourceError||null,
+  forward_coverage:forward,
   refresh_market_only:path.endsWith('/refresh'),
   data_requirements:{
    frozen_python_engine:'archived_not_runnable_on_worker',
-   post_archive_ohlc:'not_verified_for_c26',
-   post_archive_three_institutional:'not_verified_for_c26',
+   post_archive_ohlc:forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
+   post_archive_three_institutional:forward?.state==='source_staged'?'raw_source_coverage_staged_feature_parity_pending':'not_verified_for_c26',
    post_archive_dynamic_peers:'not_verified_for_c26',
    post_archive_portfolio_state:'not_replayed',
    next_day_plan_engine_parity:'not_verified'
