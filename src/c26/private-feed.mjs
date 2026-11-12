@@ -7,6 +7,9 @@ import {verifyC26GitHubOIDC} from './github-oidc.mjs';
 const LOCK='C26-EVENT-CORR-LOCK-20261112';
 const POOL='2bbeada91a53d219a1f6815f84ac567db8182affca586537c199290d73c8c7fe';
 const MAX_BYTES=12*1024*1024; // max gzip request bytes
+// Owner credential fingerprint only. The token itself is supplied per request
+// from this owner's browser and is never saved to Worker storage or source.
+const OWNER_TOKEN_SHA256='f023cdf875ffd734ef213d2061ca11b03b78aa959d703444865a57f9759e61c7';
 const json=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','x-c26-live-trading':'blocked'}});
 const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 async function sha256(bytes){return hex(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))}
@@ -36,9 +39,9 @@ async function validateGzip(body){
 }
 export async function c26PrivateFeedRoute(request,env){
  const path=new URL(request.url).pathname;
- const m=/^\/api\/c26\/private-feed(?:\/(status))?$/.exec(path);
+ const m=/^\/api\/c26\/private-feed(?:\/(status|finmind))?$/.exec(path);
  if(!m)return json({error:'Not found'},404);
- const allowed=new Set(m[1]?['GET']:['GET','POST']);
+ const allowed=new Set(m[1]==='finmind'?['POST']:m[1]?['GET']:['GET','POST']);
  if(!allowed.has(request.method))return json({error:'Method not allowed'},405);
  // GitHub Actions OIDC is scoped to ONE workflow and branch and verified
  // against GitHub JWKS. This avoids copying a licensed FinMind token into
@@ -49,9 +52,29 @@ export async function c26PrivateFeedRoute(request,env){
  const header=request.headers.get('authorization')||'';
  const bearer=header.startsWith('Bearer ')?header.slice(7).trim():'';
  const secretValid=secretReady&&secureEqual(bearer,key);
- const oidcValid=!secretValid&&bearer.split('.').length===3?await verifyC26GitHubOIDC(bearer):false;
- if(!secretValid&&!oidcValid)return json({error:!secretReady&&bearer.split('.').length!==3?
+ const deviceValid=bearer.length>=30&&secureEqual(await sha256(new TextEncoder().encode(bearer)),OWNER_TOKEN_SHA256);
+ const oidcValid=!secretValid&&!deviceValid&&bearer.split('.').length===3?await verifyC26GitHubOIDC(bearer):false;
+ if(!secretValid&&!deviceValid&&!oidcValid)return json({error:!secretReady&&bearer.split('.').length!==3?
    'C26 private authentication unavailable':'Not authorized'},!secretReady&&bearer.split('.').length!==3?503:401);
+ if(m[1]==='finmind'){
+  // OIDC credentials authorize storage only and must never be sent to FinMind.
+  if(!deviceValid&&!secretValid)return json({error:'FinMind user credential required'},403);
+  let query;try{query=await request.json()}catch{return json({error:'Invalid request'},400)}
+  const datasets=new Set(['TaiwanStockTradingDate','TaiwanStockPrice','TaiwanStockInstitutionalInvestorsBuySell','TaiwanStockMarginPurchaseShortSale','TaiwanStockSecuritiesLending']);
+  if(!datasets.has(query.dataset))return json({error:'Unsupported dataset'},400);
+  const q=new URLSearchParams({dataset:query.dataset});
+  if(query.dataset!=='TaiwanStockTradingDate'){
+   const clock=new Date(Date.now()+8*3600000).toISOString();
+   const cutoff=clock.slice(11,16)>='20:00'?clock.slice(0,10):new Date(Date.parse(clock.slice(0,10)) - 86400000).toISOString().slice(0,10);
+   if(!/^20\d\d-\d\d-\d\d$/.test(query.date||'')||query.date<'2026-10-16'||query.date>cutoff)return json({error:'Only completed source dates are allowed'},400);
+   q.set('start_date',query.date);q.set('end_date',query.date);
+  }
+  let upstream;try{upstream=await fetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(28000),cache:'no-store'})}catch{return json({error:'FinMind connection failed; retry later'},502)}
+  if(!upstream.ok)return json({error:'FinMind HTTP '+upstream.status},502);
+  let data;try{data=await upstream.json()}catch{return json({error:'Invalid FinMind response'},502)}
+  if(data.status!==200||!Array.isArray(data.data))return json({error:'FinMind rejected request',upstream_status:data.status},502);
+  return json({status:200,data:data.data});
+ }
  if(!env.SCAN_JOBS)return json({error:'C26 private DO unavailable'},503);
  const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c26:licensed-eod:v1'));
  if(request.method==='GET'){

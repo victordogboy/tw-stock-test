@@ -92,4 +92,4 @@ $('#strategy').onchange=()=>{localStorage.setItem('r1494a-strategy',$('#strategy
 (async()=>{try{const cap=localStorage.getItem('r1494a-capital');if(cap&&Number(cap)>0)$('#capital').value=cap;const chosenStrategy=localStorage.getItem('r1494a-strategy');if(['R1494-A','FC23','C26'].includes(chosenStrategy))$('#strategy').value=chosenStrategy;await poll();setInterval(()=>{if(!document.hidden)poll()},600000)}catch(e){$('#status').textContent='讀取失敗：'+e.message}})();
 </script><script src="../finmind-token-manager.js" defer></script>
 <script src="./finmind-device-token.js" defer></script>
-</body></html>
+<script type="module" src="./c26/device-token.mjs?v=20261113-device1"></script></body></html>
