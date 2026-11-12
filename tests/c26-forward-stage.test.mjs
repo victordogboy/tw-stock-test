@@ -27,6 +27,12 @@ test('C26 forward staging never changes trading readiness, even with good FinMin
  assert.equal(st.live_plan_readiness,'BLOCKED');
  assert.equal(st.public_raw_data,false);
  assert.equal(st.frozen_c26_portfolio_replay,'NOT_IMPLEMENTED');
+ assert.equal(st.checkpoint_ohlc_parity.date,'2026-10-27');
+ assert.equal(st.checkpoint_ohlc_parity.total,5);
+ assert.equal(st.checkpoint_ohlc_parity.matched,5);
+ assert.equal(st.checkpoint_ohlc_parity.pass,true,'Frozen five-held-close overlap must match the new FinMind OHLC before any forward source can be trusted');
+ assert.ok(Array.isArray(st.latest_missing_codes));
+ if(st.state==='source_staged')assert.equal(st.checkpoint_ohlc_parity.pass,true);
  assert.ok(st.state==='source_staged'||st.state==='source_partial');
  for(const day of Object.values(raw.days)){
   assert.ok(day.date>='2026-10-16');
