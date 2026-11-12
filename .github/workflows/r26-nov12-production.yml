@@ -1,0 +1,54 @@
+name: R26 Nov12 official close production check
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r26-monitor.html'
+      - 'public/r26-live-monitor.mjs'
+      - 'public/r26-engine/session-status.mjs'
+      - 'public/r26-engine/live.mjs'
+      - 'src/r26-market.mjs'
+      - 'public/r26-engine/data/verified-official-backfill.json.gz'
+      - '.github/workflows/r26-nov12-production.yml'
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with: {node-version: '24'}
+      - name: Verify Cloudflare live R26 HTML and CRC-audited day-session archive
+        run: |
+          node --input-type=module <<'JS'
+          import {gunzipSync} from 'node:zlib';
+          const origin='https://tw-stock-api.victordogboy.workers.dev';
+          const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+          let last={};
+          for(let i=0;i<36;i++){
+            try{
+              const q='?r26verify='+Date.now();
+              const [page,app,session,asset]=await Promise.all([
+                fetch(origin+'/r26-monitor.html'+q,{cache:'no-store',signal:AbortSignal.timeout(15000)}),
+                fetch(origin+'/r26-live-monitor.mjs'+q,{cache:'no-store',signal:AbortSignal.timeout(15000)}),
+                fetch(origin+'/r26-engine/session-status.mjs'+q,{cache:'no-store',signal:AbortSignal.timeout(15000)}),
+                fetch(origin+'/r26-engine/data/verified-official-backfill.json.gz'+q,{cache:'no-store',signal:AbortSignal.timeout(15000)})
+              ]);
+              const [html,js,ss]=await Promise.all([page.text(),app.text(),session.text()]);
+              const zip=asset.ok?new Uint8Array(await asset.arrayBuffer()):new Uint8Array();
+              let data={};
+              if(zip.length){try{data=JSON.parse(gunzipSync(zip))}catch(e){data={error:e.message}}}
+              const verified=page.ok&&app.ok&&session.ok&&asset.ok
+                &&html.includes('20261112-tail-v2')&&js.includes('historyFailures')
+                &&ss.includes('tailMissingMinutes')&&data.last_complete_trade_day>='2026-11-12'
+                &&data.sessions?.at(-1)?.day===300&&data.sessions?.at(-1)?.night===838;
+              last={verified,page:page.status,app:app.status,session:session.status,asset:asset.status,
+                last_archive: data.last_complete_trade_day||null,day:data.sessions?.at(-1)?.day??null,
+                night:data.sessions?.at(-1)?.night??null,attempt:i+1};
+              if(verified)break;
+            }catch(e){last={verified:false,attempt:i+1,error:String(e.message||e)}}
+            await sleep(7000);
+          }
+          console.log('R26_NOV12_PRODUCTION_ACCEPTANCE',JSON.stringify(last));
+          if(!last.verified)process.exitCode=1;
+          JS
