@@ -163,6 +163,11 @@ async function history(manual=false){
     const buffer=await rsp.arrayBuffer();
     const result=await ask('official',{buffer,date,contract:jobContract},[buffer]);
     const verified=result.rows.filter(x=>x.trade_date===date&&x.contract_date===jobContract);
+    const officialDay=verified.filter(x=>x.session==='day'&&x.session_key==='day:'+date);
+    // Partial official HTTP 200 ZIP has been observed: 838 night bars but 0
+    // daytime bars before final publication. Do not mistake it for the
+    // complete session or poison the browser's IndexedDB cache.
+    if(officialDay.length!==300)throw Error('期交所 ZIP 尚未完整發布 '+date+' 日盤：'+officialDay.length+'/300 根；拒絕封存並繼續重試');
     if(!verified.length)throw Error('官方 ZIP 未含指定交易日 TX 合約');
     add(verified);await save(verified);fetchError='';
    }catch(e){
