@@ -129,18 +129,27 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  if(request.method==='OPTIONS')return new Response(null,{status:204,headers:HEADERS});
  if(request.method!=='GET')return json({ok:false,error:'Method not allowed'},405);
  if(new URL(request.url).pathname!=='/api/r26/live-quote')return json({ok:false,error:'Not found'},404);
- // Edge cache limits upstream 5-second polling load. Never cache failures or imply cache is a live trade.
- const cache=globalThis.caches?.default,key=new Request(new URL(request.url).origin+'/__r26_live_quote_v2');
- try{if(cache){const hit=await cache.match(key);if(hit){const body=await hit.json();return json({...body,cache_hit:true,polled_at:new Date().toISOString()})}}}catch{}
- // Start the named-contract fallback concurrently. Otherwise 3 seconds of
- // blocked WTX providers + up to 12 seconds for Yahoo named minutes defeats 5s polling.
- const contract=new URL(request.url).searchParams.get('contract')||'';
- const namedFetch=/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)
-  ? r26MarketRoute(new Request(new URL('/api/r26/intraday?contract='+contract,request.url)),env,fetchImpl).catch(e=>e)
+ // Isolated lanes: WTX quick (<=3s) and slow verified named-month 1m candles.
+ // Legacy combined mode stays supported for existing clients.
+ const u=new URL(request.url),contract=u.searchParams.get('contract')||'';
+ const mode=u.searchParams.get('mode')||'combined';
+ if(!['combined','quick','named'].includes(mode))return json({ok:false,error:'Unsupported quote mode'},400);
+ if(mode==='named'&&!/^20\d{2}(0[1-9]|1[0-2])$/.test(contract))return json({ok:false,error:'Named month required'},400);
+ // Cache MUST be isolated per contract AND per lane.
+ const cache=globalThis.caches?.default,key=new Request(u.origin+'/__r26_live_quote_v3/'+mode+'/'+encodeURIComponent(contract));
+ try{if(cache){const hit=await cache.match(key);if(hit){
+  const body=await hit.json(),maxAge=mode==='named'?15000:4500;
+  if(body.ok&&body.requested_mode===mode&&body.requested_contract===contract&&
+   Number.isFinite(Date.parse(body.polled_at))&&Date.now()-Date.parse(body.polled_at)<maxAge&&
+   (body.quote_type!=='minute_k'||body.contract_month===contract))
+   return json({...body,cache_hit:true,served_at:new Date().toISOString()});
+ }}}catch{}
+ const namedFetch=mode!=='quick'&&/^20\d{2}(0[1-9]|1[0-2])$/.test(contract)
+  ? r26MarketRoute(new Request(new URL('/api/r26/intraday?contract='+contract,u)),env,fetchImpl).catch(e=>e)
   : null;
  const failures=[];
  // Fetch in parallel; one blocked vendor must not delay the five-second frontend cycle.
- const attempts=await Promise.all(providers.map(async([kind,url],priority)=>{
+ const attempts=mode==='named'?[]:await Promise.all(providers.map(async([kind,url],priority)=>{
   try{
    const rsp=await fetchImpl(url,{headers:{accept:kind==='chart'?'application/json':'text/html,application/xhtml+xml',
      'user-agent':'Mozilla/5.0 (compatible; TX-R26-quote-monitor/1.0)'},signal:AbortSignal.timeout(3000)});
@@ -157,7 +166,8 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
  if(candidates.length){
   const quote=candidates[0].quote;
   // Returning a stale vendor quote is permitted only when its true source timestamp is shown.
-  const body={ok:true,version:'r26-quote-5s-v1',market:'TX',...quote,
+  const body={ok:true,version:'r26-quote-5s-v2',market:'TX',quote_type:'snapshot',...quote,
+   requested_contract:contract,requested_mode:mode,
    polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
    strategy_signal_validated:false};
   if(cache)try{await cache.put(key,new Response(JSON.stringify(body),{headers:{'content-type':'application/json','cache-control':'public,max-age=4'}}))}catch{}
@@ -178,7 +188,8 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
     const t=Date.parse(last?.timestamp_tpe?.replace(' ','T')+'+08:00')+60000;
     if(last?.contract_verified===true&&last.contract_date===contract&&
        Number.isFinite(last.close)&&last.close>0&&Number.isFinite(t)&&t<=Date.now()+90000){
-     return json({ok:true,version:'r26-quote-named-minute-fallback-1',
+     const namedBody={ok:true,version:'r26-quote-named-minute-v2',
+      requested_contract:contract,requested_mode:mode,
       market:'TX_NAMED',symbol:'TX'+contract,product:'台指期指定月份',
       contract_month:contract,contract_verified:true,quote_type:'minute_k',
       price:last.close,change:null,change_pct:null,bid:null,ask:null,
@@ -190,12 +201,15 @@ export async function r26LiveQuoteRoute(request,env={},fetchImpl=fetch){
       quote_status:Date.now()-t<=90000?'recent':'stale',
       polled_at:new Date().toISOString(),cache_hit:false,poll_interval_seconds:5,
       strategy_signal_validated:false,source_url:payload.source_url,
-      note:'開高低和量僅由同一指定月份、同一實際盤次的已完成分鐘K彙整；必須從開盤分鐘連續，否則不提供。無買賣一檔、非逐筆即時或券商持倉。'});
+      note:'開高低和量僅由同一指定月份、同一實際盤次的已完成分鐘K彙整；必須從開盤分鐘連續，否則不提供。無買賣一檔、非逐筆即時或券商持倉。'};
+      if(cache)try{await cache.put(key,new Response(JSON.stringify(namedBody),{headers:{'content-type':'application/json','cache-control':'public,max-age=12'}}))}catch{}
+      return json(namedBody);
     }
    }
   }catch(e){failures.push('named-minute:'+String(e?.message||e).slice(0,90))}
  }
 
- return json({ok:false,version:'r26-quote-5s-v1',error:'Yahoo 近月報價來源暫時不可用；不回傳虛構現價。',
+ return json({ok:false,version:'r26-quote-5s-v2',error:'所查的行情來源暫時不可用；不回傳虛構現價。',
+   requested_contract:contract,requested_mode:mode,
    polled_at:new Date().toISOString(),retry_after_seconds:5,providers_checked:failures},503);
 }
