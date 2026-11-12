@@ -1,5 +1,6 @@
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
 import {c26StatusRoute} from './c26/status.mjs';
+import {C26PrivateStore,c26PrivateFeedRoute} from './c26/private-feed.mjs';
 import {ValuationCache,valuationStub} from './valuation-cache.mjs';
 import {stockFuturesRoute,StockFuturesBatch,StockFuturesData} from './stock-futures-download.mjs';
 import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
@@ -21,8 +22,9 @@ export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
- constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);}
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);}
  fetch(request){
+  if(new URL(request.url).pathname.startsWith('/c26-internal/'))return this.c26private.fetch(request);
   if(new URL(request.url).pathname.startsWith('/fc23/'))return this.fc23.fetch(request);
   if(new URL(request.url).pathname.startsWith('/valuation/'))return this.valuation.fetch(request);
   return super.fetch(request);
@@ -44,6 +46,7 @@ export class ScanJob extends BaseScanJob {
 export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname.startsWith('/api/c26/private-feed'))return c26PrivateFeedRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c26/'))return c26StatusRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/fc23/'))return fc23Route(request,env);
   if(new URL(request.url).pathname==='/api/pe-screener/snapshot'){

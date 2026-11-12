@@ -1,0 +1,44 @@
+name: C26 private licensed source storage security regression
+on:
+  push:
+    branches: [main, feature/c26-private-finmind-do-store-20261113]
+    paths:
+      - 'src/c26/private-feed.mjs'
+      - 'src/worker.mjs'
+      - 'tests/c26-private-feed.test.mjs'
+      - '.github/workflows/c26-private-store.yml'
+  pull_request:
+    paths:
+      - 'src/c26/private-feed.mjs'
+      - 'src/worker.mjs'
+      - 'tests/c26-private-feed.test.mjs'
+      - '.github/workflows/c26-private-store.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  security-and-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify C26 secret-protected ingest and private data integrity
+        run: |
+          node --check src/worker.mjs
+          node --check src/c26/private-feed.mjs
+          node --test tests/c26-private-feed.test.mjs tests/c26-source-status.test.mjs tests/c26-forward-stage.test.mjs tests/c26-model-checkpoint.test.mjs tests/c26-frozen-lock-parity.test.mjs
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const script=fs.readFileSync('src/worker.mjs','utf8');
+          assert.match(script,/c26PrivateFeedRoute/);
+          assert.ok(script.indexOf("'/api/c26/private-feed'")<script.indexOf("'/api/c26/'"));
+          const c=fs.readFileSync('src/c26/private-feed.mjs','utf8');
+          assert.match(c,/FINMIND_TOKEN/);
+          assert.match(c,/secureEqual/);
+          assert.doesNotMatch(c,/\bconsole\.log\(/);
+          console.log('C26_PRIVATE_STORE_SECURITY_PASS');
+          JS
