@@ -25,7 +25,7 @@ export function assessSession(target,records,now=Date.now()){
   marketState:closed?'closed':'trading',complete:closed,count:rr.length,contracts,
   last:last?.timestamp_tpe||null,source:official?'TAIFEX official ticks':first?.source||null,
   lastBarEndsAt:last?new Date(sessionTime(last.timestamp_tpe)+MINUTE+OFFSET).toISOString().slice(0,19).replace('T',' '):null,
-  ageMinutes:age,expectedFinalBar:expectedFinal,tailMissingMinutes:missingTail,tailMissingFrom:missingTail?nextMissing:null,historicalMissing:false,dataReady:false};
+  ageMinutes:age,expectedFinalBar:closed?expectedFinal:null,tailMissingMinutes:closed?missingTail:0,tailMissingFrom:closed&&missingTail?nextMissing:null,historicalMissing:false,dataReady:false};
  const title=target.date+' '+(target.sid?'日盤':'夜盤');
  if(!rr.length)return {...base,dataState:closed?'missing':'pending',historicalMissing:closed,
   label:closed?'已收盤但資料缺失':'正在交易，等待當盤分鐘資料',
