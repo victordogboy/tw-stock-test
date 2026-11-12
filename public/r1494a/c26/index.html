@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#123e33">
+<title>C26｜事件驅動飆股策略 · 原站第三策略</title>
+<style>
+:root{--bg:#f5f6f2;--ink:#172d26;--muted:#64746c;--line:#dfe6df;--green:#17684f;--red:#b64540}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--bg);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}
+a{color:#17684f}header{background:#123e33;color:#fff;padding:18px max(20px,calc((100vw - 1240px)/2))}header strong{font-size:23px}header small{color:#d9ebdf}
+main{max-width:1240px;margin:auto;padding:25px 20px 55px}nav{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 22px}
+nav a{border:1px solid #bdcfc4;border-radius:9px;text-decoration:none;padding:9px 13px;font-weight:650;background:#fff}nav a.active{background:#17684f;color:#fff}
+h1{font-size:clamp(25px,4vw,34px);margin:0 0 5px}h2{font-size:19px;margin:0 0 13px}h3{font-size:16px}p{margin:7px 0}.sub,.muted{color:var(--muted);font-size:13px}
+.warning{padding:15px 20px;border:2px solid #c68e36;background:#fff6e4;border-radius:12px;margin:16px 0}.warning b{color:#80500e}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin:18px 0}.metric,section{background:#fff;border:1px solid var(--line);padding:19px;border-radius:13px;min-width:0}
+.metric label{display:block;color:var(--muted);font-size:13px}.metric strong{display:block;font-size:clamp(19px,2.9vw,29px);font-variant-numeric:tabular-nums}.green{color:var(--green)}.red{color:var(--red)}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}section{margin:14px 0}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+button,select,input{font:inherit;padding:8px;border:1px solid #bccdc3;border-radius:8px;background:#fff;color:var(--ink)}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}
+.upload{border:1px dashed #77a58f;padding:16px;background:#f3faf6;border-radius:10px}input[type=file]{max-width:100%}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:13px}th,td{text-align:left;padding:8px 9px;border-bottom:1px solid #e8ede8}th{color:var(--muted)}.scroll{overflow:auto;max-height:470px}
+#c26-chart svg{width:100%;height:auto;max-height:290px}.chip{padding:2px 8px;border:1px solid #afcbb9;border-radius:30px;background:#eaf5eb;font-size:12px;white-space:nowrap}
+.why{white-space:pre-wrap;background:#f4f7f4;padding:12px;border-radius:9px}details{padding:6px 0}summary{cursor:pointer;font-weight:bold}footer{color:var(--muted);font-size:13px;margin-top:28px}
+@media(max-width:800px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.panels{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><strong>C26｜無日期事件驅動策略</strong><div><small>沿用既有 R1494-A / FC23 Cloudflare 網站；三套策略帳本互不混用。</small></div></header>
+<main>
+<nav aria-label="策略切換"><a href="../">R1494-A 即時監控</a><a href="../fc23/">FC23 原策略</a><a href="./" class="active" aria-current="page">C26 凍結研究</a></nav>
+<h1>C26-EVENT-CORR-LOCK</h1>
+<p class="muted">2026-11-12 版本 · 2021/01/06～2026/10/27 · 完整交易成本0.5855%（含滑價） · 2026年股期標的回溯池233檔</p>
+<div class="warning" role="status"><b id="c26-live-readiness">C26 最新盤前指令：尚未驗證，暫停發布</b><p id="c26-live-detail">原網站 FC23 的最新行情和買賣不能直接套用到 C26。此頁顯示已凍結的歷史研究指標，非今日可執行計畫。</p></div>
+<div class="metrics">
+<div class="metric"><label>歷史累積淨報酬</label><strong class="green" id="c26-ret">+1,720.50%</strong></div>
+<div class="metric"><label>歷史最大回撤</label><strong class="red" id="c26-dd">−17.99%</strong></div>
+<div class="metric"><label>往返總成本</label><strong id="c26-fee">0.5855%</strong></div>
+<div class="metric"><label>歷史資料截至</label><strong id="c26-asof">2026-10-27</strong></div>
+</div>
+<section><h2>C26 歷史回放檔案</h2>
+<p>可在此頁從本機載入先前封存的 <code>C26_LOCK_完整資料程式重播_20261112.zip</code> 或程式碼版 ZIP，驗證每日淨值與逐筆委託，並查看歷史持股和每年、每月績效。<strong>全部檔案只在瀏覽器本機處理，不會上傳至 Worker 或 GitHub。</strong></p>
+<div class="upload"><div class="controls"><label for="c26-file">選擇 C26 凍結 ZIP／兩個 CSV.gz 檔：</label><input id="c26-file" type="file" accept=".zip,.gz,.json" multiple></div><p class="sub">請保留原封存檔名。大 ZIP 只讀取必要的歷史資料條目，不會整份載入記憶體。匯入前不會生成虛構的持股或交易。</p></div>
+<p id="c26-archive-state" class="sub" aria-live="polite">目前：尚未載入 C26 完整歷史帳本。上方績效指標為封存版本已驗證數字。</p>
+</section>
+<div class="panels"><section><h2>歷史資金曲線</h2><div id="c26-chart"><p class="muted">載入 C26 凍結資料後顯示1,407個交易日的實際回放淨值。</p></div><p id="c26-nav-summary" class="sub"></p></section>
+<section><h2>指定歷史日持股與交易</h2><div class="controls"><label for="c26-date">日期</label><select id="c26-date" disabled><option>待載入</option></select><label for="c26-capital">換算初始資金</label><input id="c26-capital" type="number" min="10000" step="10000" value="3000000" style="max-width:160px"></div>
+<p class="sub">股數與金額使用原回測的小數股模型；本次只顯示歷史模擬結果，不代表券商真實持股。</p><div id="c26-day-summary" class="why">載入後提供交易日、持股清單、模型資產與當日交易原因。</div>
+<div class="scroll"><table><thead><tr><th>股票</th><th>模型股數</th></tr></thead><tbody id="c26-holdings"></tbody></table></div></section></div>
+<div class="panels"><section><h2>逐年／逐月績效</h2><label for="c26-month-mode">顯示</label><select id="c26-month-mode"><option value="annual">年度</option><option value="monthly">月度</option></select><div class="scroll"><table><thead><tr><th>期間</th><th>報酬率</th><th>期間最大回撤</th></tr></thead><tbody id="c26-periods"><tr><td colspan="3">待載入完整淨值</td></tr></tbody></table></div></section>
+<section><h2>逐筆交易與未成交</h2><div class="controls"><select id="c26-order-side"><option value="all">全部方向</option><option value="BUY">買入</option><option value="SELL">賣出</option></select><select id="c26-order-fill"><option value="all">全部成交狀態</option><option value="true">已成交</option><option value="false">未成交</option></select><input id="c26-order-code" placeholder="股票代號" inputmode="numeric"></div>
+<p class="sub" id="c26-order-count">載入後核對1,758筆歷史委託。</p><div class="scroll"><table><thead><tr><th>成交日</th><th>股票</th><th>方向</th><th>狀態</th><th>價位</th><th>回測原因</th></tr></thead><tbody id="c26-orders"></tbody></table></div></section></div>
+<section><h2>C26 完整核心規則</h2>
+<details open><summary>一、交易事件，不存在固定換倉日</summary><p>原FC23的20日主要調倉、5日定期配置改為賣出事件後的更強股票補位。保留既有大盤趨勢、廣度、法人籌碼、風控與事件補倉。候選仍採原FC23因子排名，沒有為了C26重新套用R1494-A追價規則。</p></details>
+<details><summary>二、虧損冷卻與相關性防集中</summary><p>因 risk_exit 或 protective_stop 完整虧損退出時，個股冷卻26交易日；FC17提前重進場也受限制。用訊號日前40交易日報酬計算持股相關性，相關係數≥0.60且相似持股權重合計≥30%時，限制同向候選進場。這是歷史條件，不使用當日未知收盤資訊。</p></details>
+<details><summary>三、資金與成交約束</summary><p>最多8檔、名義總曝險≤100%、單股補倉目標16%、整體單檔風控上限30%、新建倉名目額至少NT$10,000；初始資金300萬元、獲利再投入。買入成本0.14275%，賣出成本0.44275%，合計往返0.5855%，包含設定滑價。日K模擬成交不等於實際券商撮合。</p></details>
+<details><summary>四、版本鎖定與限制</summary><p>凍結C26歷史回放：1,407交易日、1,758筆委託、539筆買入成交、1,028筆賣出成交、191筆未成交買入、309筆新建倉。固定股票池採2026年現存具股期標的回溯歷史，仍有生存者偏差與樣本內多輪優化限制。與R1494-A、舊FC23各自使用獨立帳本。</p></details>
+</section>
+<footer><span class="chip">C26 研究凍結版</span> <span id="c26-lock-id">C26-EVENT-CORR-LOCK-20261112</span>。即使網站成功部署，也不代表2026/11/12當日 C26 盤前指令已經驗證；未取得C26專用最新完整資料與同引擎一致性前，一律維持 BLOCKED。</footer>
+</main>
+<script type="module" src="./app.mjs"></script>
+</body></html>

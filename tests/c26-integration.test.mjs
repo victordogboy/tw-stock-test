@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {gzipSync} from 'node:zlib';
+import {parseCsv,computeMdd,validateC26} from '../public/r1494a/c26/app.mjs';
+const dir='public/r1494a/c26/';
+const html=fs.readFileSync(dir+'index.html','utf8');
+const script=fs.readFileSync(dir+'app.mjs','utf8');
+const manifest=JSON.parse(fs.readFileSync(dir+'manifest.json','utf8'));
+assert.equal(manifest.strategy,'C26');assert.equal(manifest.lock_id,'C26-EVENT-CORR-LOCK-20261112');
+assert.equal(manifest.live_plan_readiness,'blocked');assert.equal(manifest.live_trading_enabled,false);
+assert.equal(manifest.model_replay_asof,'2026-10-27');
+assert.equal(manifest.rules.calendar_rebalance,false);assert.equal(manifest.rules.loss_exit_cooldown_trading_days,26);
+assert.equal(manifest.simulated_orders,1758);assert.equal(manifest.trading_days,1407);
+assert.equal(manifest.roundtrip_total_cost_pct,0.5855);
+assert.match(html,/href="\.\.\/"/);assert.match(html,/href="\.\.\/fc23\/"/);
+assert.match(html,/C26 最新盤前指令：尚未驗證/);assert.match(html,/src="\.\/app\.mjs"/);
+assert.doesNotMatch(script,/\/api\/fc23\/snapshot|\/api\/r1494a\/|fetch\(.+FC23/i,'must not silently fetch another strategy as C26');
+assert.match(script,/validateC26/);assert.match(script,/readZipEntries/);
+assert.deepEqual(parseCsv('a,b\n"hi, there","hello ""world"""\n'),[{a:'hi, there',b:'hello "world"'}]);
+assert.ok(Math.abs(computeMdd([1.2,1.25,1,1.4])+20)<1e-10);
+assert.throws(()=>validateC26([],[],manifest),/回放筆數不符/);
+assert.throws(()=>validateC26([],[],{...manifest,live_trading_enabled:true}),/不是受控/);
+assert.match(html,/R1494-A/);assert.match(html,/FC23/);
+// Do not ever turn 2026-10-27 frozen positions into November broker holdings.
+assert.match(html,/不代表券商真實持股/);
+console.log('PASS C26 isolated third-strategy historical archive; fail-closed live trading, strict replay, no changes to existing calculations');
