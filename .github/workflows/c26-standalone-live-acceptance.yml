@@ -1,0 +1,64 @@
+name: C26 verified forward paper-plan standalone live acceptance
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/index.html'
+      - 'public/r1494a/c26/forward-live.mjs'
+      - 'public/r1494a/c26/data/verified-next-day-plan.json'
+      - 'public/r1494a/c26/data/forward-replay.json'
+      - 'tests/c26-forward-live-display.test.mjs'
+      - '.github/workflows/c26-standalone-live-acceptance.yml'
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Check frozen source plus forward model and plan assets
+        run: |
+          node --check public/r1494a/c26/forward-live.mjs
+          node --test tests/c26-forward-live-display.test.mjs tests/c26-next-session-plan-gate.test.mjs
+      - name: Prove Cloudflare deploys the plan panel and exact verified data
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const root='https://tw-stock-api.victordogboy.workers.dev';
+          const get=async path=>{
+           const r=await fetch(root+path+'?c26verify='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});
+           if(!r.ok)throw Error(path+' HTTP '+r.status);
+           return r;
+          };
+          let lastError='';
+          for(let i=0;i<35;i++){
+           try{
+            const [html,script,status,plan,replay]=await Promise.all([
+             get('/r1494a/c26/').then(x=>x.text()),
+             get('/r1494a/c26/forward-live.mjs').then(x=>x.text()),
+             get('/api/c26/status').then(x=>x.json()),
+             get('/r1494a/c26/data/verified-next-day-plan.json').then(x=>x.json()),
+             get('/r1494a/c26/data/forward-replay.json').then(x=>x.arrayBuffer())
+            ]);
+            const hash=createHash('sha256').update(Buffer.from(replay)).digest('hex');
+            if(!html.includes('id="c26-current-plan"')||!html.includes('src="./forward-live.mjs"')||
+               !script.includes('async function verifiedReplay')||!script.includes('plan.trade_date<today')||
+               plan.forward_asset_sha256!==hash ||status.no_broker_orders!==true ||
+               status.model_version!=='C26'||status.forward_coverage?.source_as_of!==plan.signal_as_of)
+             throw Error('C26 forward-plan output/site assets not aligned');
+            const taipeiDay=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
+            if(plan.trade_date>=taipeiDay && status.plan?.readiness!=='ready_for_manual_review')
+             throw Error('Nonexpired verified plan not served: '+status.plan?.plan_gate_error);
+            if(plan.trade_date<taipeiDay && status.plan?.readiness!=='blocked')
+             throw Error('Old C26 plan was not blocked');
+            console.log('C26_LIVE_SITE_VERIFIED',JSON.stringify({attempt:i+1,
+              planDate:plan.trade_date,modelAsOf:plan.signal_as_of,
+              readiness:status.plan.readiness,assetsHashPassed:true,paperOnly:true}));
+            process.exit(0);
+           }catch(e){lastError=String(e.message||e);await new Promise(r=>setTimeout(r,6500))}
+          }
+          throw Error(lastError);
+          JS
