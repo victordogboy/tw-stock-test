@@ -1,5 +1,5 @@
 import {run,audit,stop,simulate} from './engine.mjs';
-import {assessSessions,validReplayBar,positionPublication} from './session-status.mjs';
+import {assessSessions,validReplayBar,positionPublication} from './session-status.mjs?v=20261112-tail-v2';
 const offset=8*3600000,dayms=86400000;
 const tpe=ms=>new Date(ms+offset).toISOString().slice(0,19).replace('T',' ');
 const ms=s=>Date.parse(s.replace(' ','T')+'+08:00');
