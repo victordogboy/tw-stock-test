@@ -1,2 +1,5 @@
 node_modules/
 .wrangler/
+
+# FinMind license prohibits raw-data redistribution; NEVER commit C26 EOD datasets.
+public/r1494a/c26/data/forward-eod.json.gz
