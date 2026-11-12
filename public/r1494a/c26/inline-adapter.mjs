@@ -132,7 +132,8 @@ export async function loadC26MonitorSnapshot(shared,{refresh=false}={}){
   sync_status:'blocked',trade_status:'historical_only_broker_unconfirmed',
   universe_count:233,price_updated_at:server.updated_at||null,
   lastError:{date:'2026-10-28',message:reason},
-  live_source_status:server.source_status||'unknown',live_source_error:server.source_error||null};
+  live_source_status:server.source_status||'unknown',live_source_error:server.source_error||null,
+  forward_coverage:server.forward_coverage||null};
  return {model_version:'C26',ledger:'C26_LOCK_20261112',dates,snapshots:history.snapshots,
   orders:history.orders,byDate:history.byDate,curves:{strategy:history.snapshots.map(s=>s.nav),...benchmarkCurves(shared,dates)},
   names:shared?.names||{},status,benchmarkCarry:{},
@@ -144,9 +145,11 @@ const nodeHtml=(id,html)=>{const e=$('#'+id);if(e)e.innerHTML=html};
 /** Custom rendering explicitly avoids fictional per-stock market prices or brokerage P&L. */
 export function renderC26Monitor(D,I){
  const s=D.snapshots[I],latest=I===D.snapshots.length-1,now='2026-10-27',historical='已封存歷史回放';
+ const coverage=D.status.forward_coverage;
+ const coverageMsg=coverage?`FinMind專屬資料：${esc(coverage.source_as_of||'待補')} · ${coverage.available_trade_dates}/${coverage.staged_trade_dates}交易日 · 最新日K${coverage.latest_price_valid??'—'}/233、法人${coverage.latest_institutional_codes??'—'}/233（原始資料未公開）`:'C26專屬FinMind資料涵蓋率仍待檢查';
  nodeHtml('status',`<strong>C26 最新盤前計畫：BLOCKED（凍結版尚未接續2026/10/27以後資料）</strong>`+
   `已驗證的 C26 模型資料截至 ${now}，目前共用市場資料 ${esc(D.status.current_market_as_of||'未驗證')}。<br>`+
-  `${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
+  `${coverageMsg}<br>${esc(D.c26Meta.reason)}<br>共用資料來源：${esc(typeof D.status.live_source_error==='object'?(D.status.live_source_error?.message||'驗證未完成'):(D.status.live_source_error||'待驗證'))}<br>選取歷史日期只會顯示當時模擬，不代表今日持股或交易計畫。`);
  nodeText('ledgerLabel','C26 凍結歷史紙上持倉 · 非當日實盤');
  nodeText('count',`${s.holdings.length} / 8（歷史）`);
  nodeText('exposure',pct(s.exposure));nodeText('target','—（未發布）');nodeText('pnl','—（無逐股收盤估值）');
@@ -179,6 +182,9 @@ export function renderC26Monitor(D,I){
  nodeHtml('dataFacts',Object.entries({model_version:'C26',lock_id:LOCK,
   historical_as_of:'2026-10-27',historical_orders:'1,758',historical_days:'1,407',
   market_source_as_of:D.status.current_market_as_of||'未核對',
+  c26_finmind_source_as_of:D.status.forward_coverage?.source_as_of||'未核對',
+  c26_finmind_valid_prices:D.status.forward_coverage?.latest_price_valid??'未核對',
+  c26_feature_parity:'尚未通過',
   signal_as_of:'未發布',live_state:'BLOCKED',transaction_cost:'0.5855% (含滑價)',
   benchmark_note:'2026現存股期名單回溯，樣本內研究'}).map(([k,v])=>`<div>${esc(k)}<b>${esc(v)}</b></div>`).join(''));
  nodeText('replay','C26 凍結源碼SHA-256驗證；1407日淨值與1758筆委託通過。最低新建倉1萬元、最多8檔。最新C26資料尚未接續。');
