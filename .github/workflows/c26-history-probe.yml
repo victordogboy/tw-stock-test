@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - research/c26-lock/experiments/history-fetch.mjs
+      - research/c26-lock/experiments/history-priceid-probe.mjs
       - .github/workflows/c26-history-probe.yml
 permissions:
   contents: read
@@ -19,19 +20,9 @@ jobs:
           node-version: 24
       - name: Validate fetch code
         run: node --check research/c26-lock/experiments/history-fetch.mjs
-      - name: Verify FinMind full-market historical coverage without printing raw bars
+      - name: Verify per-stock historical ranges are actually multi-day
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
         run: |
-          set -euo pipefail
-          node research/c26-lock/experiments/history-fetch.mjs --from=2026-09 --to=2026-10
-          node research/c26-lock/experiments/history-fetch.mjs --from=2022-08 --to=2022-08
-      - name: Verify private-only storage and source coverage
-        run: |
-          node --input-type=module <<'JS'
-          import fs from 'node:fs';
-          const dir='.c26-private/rs-history/';
-          const files=['2026-09.json.gz','2026-10.json.gz','2022-08.json.gz'];
-          for(const f of files)if(!fs.existsSync(dir+f)||fs.statSync(dir+f).size<4000)throw Error('Missing private month cache '+f);
-          console.log('C26_RESEARCH_HISTORY_PRIVATE_PROBE_OK',JSON.stringify({months:files.length,raw_public:false,token_embedded:false}));
-          JS
+          node --check research/c26-lock/experiments/history-priceid-probe.mjs
+          node research/c26-lock/experiments/history-priceid-probe.mjs
