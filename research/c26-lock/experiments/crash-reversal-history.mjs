@@ -96,6 +96,7 @@ const results=[];
 for(const c of configs){
  const tradePnl=[],incomesByYear=new Map(),eventDaysByYear=new Map(),tradesByYear=new Map();
  let possible=0,haltedEntries=0,nontradableExits=0,triggered=0,candidateDays=0,sourceDays=0;
+ const byYearDaily=new Map();
  const dayReturns=[],eventDates=[];
  for(let d=22;d<N-2;d++){
   const body=c.kind==='close_confirmation';
@@ -107,7 +108,7 @@ for(const c of configs){
   for(const item of chosen){
    const row=by[item.j][buyIndex],exit=by[item.j][sellIndex];
    if(!valid(row)){haltedEntries++;continue}
-   if(!valid(exit)){nontradableExits++;continue}
+   if(!valid(exit)){nontradableExits++;sum-=.20;continue}
    let price=row.o;
    if(!body){
     // Precommitted buy-stop fixed at signal CLOSE. 9am gap must be large,
@@ -119,7 +120,7 @@ for(const c of configs){
     // Signal after fully known close d; execute next OPEN, no future order selection.
     if(row.o<=0)continue;
    }
-   if(!Number.isFinite(chg[item.j*N+sellIndex])&&Math.abs(exit.o/row.c-1)>.35){nontradableExits++;continue}
+   if(!Number.isFinite(chg[item.j*N+sellIndex])&&Math.abs(exit.o/row.c-1)>.35){nontradableExits++;sum-=.20;continue}
    const net=ret(price,exit.o);
    if(!Number.isFinite(net)||Math.abs(net)>1){nontradableExits++;continue}
    tradePnl.push(net);sum+=net;dayCount++;triggered++;
@@ -131,6 +132,8 @@ for(const c of configs){
   const dailyReturn=sum/c.cap;
   dayReturns.push(dailyReturn);
   const y=dates[buyIndex].slice(0,4);eventDaysByYear.set(y,(eventDaysByYear.get(y)||0)+(dayCount>0?1:0));
+  if(!byYearDaily.has(y))byYearDaily.set(y,[]);
+  byYearDaily.get(y).push(dailyReturn);
   sourceDays++;
  }
  // Cash-only book, no C26 integration. Return attributed to a 100% conditional
@@ -138,7 +141,9 @@ for(const c of configs){
  const compound=dayReturns.reduce((v,x)=>v*(1+x),1),perYear={};
  for(let y=2021;y<=2026;y++){
   const key=String(y),series=dayReturns; // per-year return more precise via new pass below.
-  perYear[key]={event_days:eventDaysByYear.get(key)||0,trades:tradesByYear.get(key)||0,per_day_book_sum_pct:100*(incomesByYear.get(key)||0)};
+  perYear[key]={event_days:eventDaysByYear.get(key)||0,trades:tradesByYear.get(key)||0,
+   per_day_book_sum_pct:100*(incomesByYear.get(key)||0),
+   compounded_closed_trade_book_pct:100*(byYearDaily.get(key)||[]).reduce((v,x)=>v*(1+x),1)-100};
  }
  const win=tradePnl.filter(x=>x>0).length;
  let peak=1,nav=1,mdd=0;
@@ -151,10 +156,11 @@ for(const c of configs){
    worst_trade_pct:tradePnl.length?100*Math.min(...tradePnl):null,
    best_trade_pct:tradePnl.length?100*Math.max(...tradePnl):null,
    book_100pct_conditional_return_pct:100*(compound-1),
-   book_100pct_conditional_max_dd_pct:100*mdd,
+   book_closed_trade_equity_curve_max_dd_pct:100*mdd,
    cash_sleeve_10pct_contribution_approx_pp:10*(compound-1),
+   holdout_2025_2026_closed_trade_book_pct:100*(Array.from(byYearDaily.entries()).filter(([y])=>y>='2025').flatMap(([,a])=>a).reduce((v,x)=>v*(1+x),1)-1),
    yearly:perYear, sourceDays,
-   caveat:'Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills.'});
+   caveat:'Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill.'});
 }
 const groups={};
 for(const c of results){
@@ -186,7 +192,9 @@ const report={
  survivor_pool_bias:'2026 stock futures research pool applied backward',
  corporate_actions:'price jumps over 35pct excluded but full corporate actions not cleaned',
  money_model:'Independent conditional paper sleeve, NO integration with original C26 cash/holdings; return not directly comparable with frozen C26.',
- event_known_in_advance:false
+ event_known_in_advance:false,
+ missing_exit_stress_return:-.20,
+ drawdown_definition:'Closed-event booking only; does not include intra-trade mark-to-market or overnight gap tail risk.'
  },results,stability,
  high_level:{
  configurations_profitable:results.filter(x=>x.book_100pct_conditional_return_pct>0).length,
