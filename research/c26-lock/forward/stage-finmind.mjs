@@ -70,9 +70,13 @@ async function tradingDays(){
 }
 function validPrice(r){return Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&Number.isFinite(r.close)&&r.open>0&&r.low>0&&r.high>=r.low&&r.open>=r.low-.001&&r.open<=r.high+.001&&r.close>=r.low-.001&&r.close<=r.high+.001&&r.volume>=0}
 function normalizePrice(v){const r={stock_id:String(v.stock_id),open:Number(v.open),high:Number(v.max),low:Number(v.min),close:Number(v.close),volume:Number(v.Trading_Volume),value:Number(v.Trading_money)};return {...r,valid:validPrice(r)}}
-let earlier=null;
+let earlier=null,earlierBytes=null;
 if(fs.existsSync(outPath)){
- try{const previous=JSON.parse(gunzipSync(fs.readFileSync(outPath)).toString('utf8'));if(previous.lock_id===refs.lock_id&&previous.pool_sha256===refs.pool_sha256)earlier=previous}catch{}
+ try{
+  const bytes=fs.readFileSync(outPath);
+  const previous=JSON.parse(gunzipSync(bytes).toString('utf8'));
+  if(previous.lock_id===refs.lock_id&&previous.pool_sha256===refs.pool_sha256){earlier=previous;earlierBytes=bytes}
+ }catch{}
 }
 const payload={lock_id:refs.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:refs.pool_sha256,
  generated_at:now.toISOString(),through_requested:endAt,days:earlier?.days||{}};
@@ -113,7 +117,12 @@ const closeDates=Object.keys(payload.days).filter(x=>x>='2026-10-28').sort();
 const availableDates=closeDates.filter(x=>payload.days[x].source_state==='available');
 const checkpointOverlap=checkBoundary(payload.days[checkpoint.date]);
 console.log('C26_CHECKPOINT_OHLC_PARITY',JSON.stringify({date:checkpointOverlap.date,pass:checkpointOverlap.pass,matched:checkpointOverlap.matched,total:checkpointOverlap.total,failed_codes:checkpointOverlap.rows.filter(x=>!x.match).map(x=>x.code)}));
-const file=gzipSync(Buffer.from(JSON.stringify(payload)),{level:9});
+// Preserve byte-identical canonical source when the verified data did not change.
+ // Do not churn the private DO every time only generated_at advances.
+const sameSource=!!(earlier&&earlierBytes&&earlier.through_requested===payload.through_requested
+  &&JSON.stringify(earlier.days)===JSON.stringify(payload.days));
+const file=sameSource?earlierBytes:gzipSync(Buffer.from(JSON.stringify(payload)),{level:9});
+if(sameSource)console.log('C26_SOURCE_UNCHANGED_REUSE_PRIVATE_BYTES',{source_as_of:endAt,bytes:file.length});
 fs.mkdirSync(path.dirname(outPath),{recursive:true,mode:0o700});fs.mkdirSync(basename,{recursive:true});fs.writeFileSync(outPath,file,{mode:0o600});
 const status={lock_id:refs.lock_id,archive_as_of:'2026-10-27',checked_at:now.toISOString(),requested_through:endAt,
  next_exchange_trade_date:nextTradeDate,
