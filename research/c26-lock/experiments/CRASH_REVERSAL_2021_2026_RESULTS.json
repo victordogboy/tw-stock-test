@@ -1,0 +1,3118 @@
+{
+  "mode": "RESEARCH_ONLY",
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "source": "2021-2026 private FinMind monthly stock OHLC",
+  "source_window": [
+    "2021-01-06",
+    "2026-10-27"
+  ],
+  "universe_size": 233,
+  "observations": 1407,
+  "experimental_variants": 48,
+  "transaction_cost_pct": 0.5855,
+  "selection_limit_at_most": 8,
+  "source_quality": {
+    "monthly_files": 70,
+    "total_licensed_rows": 328826,
+    "invalid_rows": 83,
+    "price_jumps_over_35pct": 4,
+    "missing_exchange_sessions": 0,
+    "nontradable_rows": 251
+  },
+  "methodology": {
+    "no_future_in_screen": true,
+    "trigger_on_next_day_high_is_touch_not_certified_fill": true,
+    "no_same_day_stop_order_assumed": true,
+    "exec_exit_second_next_open": true,
+    "preopen_buy_stop_price_fixed_at_prior_close": true,
+    "open_gap_filter_requires_7pct": true,
+    "factor": "Price vs 20-day EMA, previous close falling 8/9.5%, close near day low, prior 20d volume ratio, <=8 top-ranked symbols",
+    "eod_confirm": "prior day drop, current green body>=5%, close high in candle, confirm after 13:30, buy next session open",
+    "survivor_pool_bias": "2026 stock futures research pool applied backward",
+    "corporate_actions": "price jumps over 35pct excluded but full corporate actions not cleaned",
+    "money_model": "Independent conditional paper sleeve, NO integration with original C26 cash/holdings; return not directly comparable with frozen C26.",
+    "event_known_in_advance": false
+  },
+  "results": [
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 1026,
+      "event_days": 7,
+      "filtered_days": 308,
+      "actual_buy_triggers": 9,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 77.77777777777777,
+      "mean_trade_pct": 1.3739010738630437,
+      "median_trade_pct": 1.3372479327061093,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 6.5523303199546135,
+      "book_100pct_conditional_return_pct": 4.107448358338184,
+      "book_100pct_conditional_max_dd_pct": -2.1987631394455476,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.4107448358338184,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 3,
+          "per_day_book_sum_pct": -2.210395896076748
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.44574931090203646
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 3.830246358263471
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7461627093922507
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.309940739108121
+        }
+      },
+      "sourceDays": 308,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 1026,
+      "event_days": 8,
+      "filtered_days": 308,
+      "actual_buy_triggers": 12,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 75,
+      "mean_trade_pct": 1.8830789654601525,
+      "median_trade_pct": 0.8201097293549453,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 2.8406514617063117,
+      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.28406514617063117,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 6,
+          "per_day_book_sum_pct": 0.45008127906552425
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.16715599158826366
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.4363423843488015
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.279811016022094
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 0.49122777716554544
+        }
+      },
+      "sourceDays": 308,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 1026,
+      "event_days": 8,
+      "filtered_days": 308,
+      "actual_buy_triggers": 10,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 70,
+      "mean_trade_pct": 2.4575162241954063,
+      "median_trade_pct": 2.9365310031884695,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 8.751552823978459,
+      "book_100pct_conditional_return_pct": 8.307456321778716,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897565,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.8307456321778717,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 3,
+          "per_day_book_sum_pct": -0.02217821662065338
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.173485382232061
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 5.3075645599936605
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.4517423376060323
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.28110668410692086
+        }
+      },
+      "sourceDays": 308,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 1026,
+      "event_days": 9,
+      "filtered_days": 308,
+      "actual_buy_triggers": 13,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 76.92307692307692,
+      "mean_trade_pct": 3.1742086279150343,
+      "median_trade_pct": 2.359296682573331,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 5.245376992131634,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461753,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5245376992131634,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 6,
+          "per_day_book_sum_pct": 2.0778769088849276
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.4400570183370228
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.9903367099976226
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.5444033766022621
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.10541500654009522
+        }
+      },
+      "sourceDays": 308,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 0.8,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 150,
+      "event_days": 77,
+      "filtered_days": 78,
+      "actual_buy_triggers": 111,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 52.252252252252255,
+      "mean_trade_pct": 0.6613930783533549,
+      "median_trade_pct": 0.08888023728244043,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 24.469583692520747,
+      "book_100pct_conditional_max_dd_pct": -10.83665125716985,
+      "cash_sleeve_10pct_contribution_approx_pp": 2.4469583692520747,
+      "yearly": {
+        "2021": {
+          "event_days": 14,
+          "trades": 22,
+          "per_day_book_sum_pct": -4.575021402583509
+        },
+        "2022": {
+          "event_days": 13,
+          "trades": 17,
+          "per_day_book_sum_pct": 0.9820105350507662
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 4,
+          "per_day_book_sum_pct": 5.874249212282937
+        },
+        "2024": {
+          "event_days": 12,
+          "trades": 17,
+          "per_day_book_sum_pct": 2.168383619296739
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 9,
+          "per_day_book_sum_pct": 0.4452477243590359
+        },
+        "2026": {
+          "event_days": 30,
+          "trades": 42,
+          "per_day_book_sum_pct": 19.576674210668166
+        }
+      },
+      "sourceDays": 78,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 0.8,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 150,
+      "event_days": 77,
+      "filtered_days": 78,
+      "actual_buy_triggers": 129,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 52.713178294573645,
+      "mean_trade_pct": 0.39793038584323087,
+      "median_trade_pct": 0.23021440172843466,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 5.311496127781812,
+      "book_100pct_conditional_max_dd_pct": -11.716155401755602,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5311496127781812,
+      "yearly": {
+        "2021": {
+          "event_days": 14,
+          "trades": 34,
+          "per_day_book_sum_pct": -8.941519870398123
+        },
+        "2022": {
+          "event_days": 13,
+          "trades": 17,
+          "per_day_book_sum_pct": 0.36825395064403743
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 5,
+          "per_day_book_sum_pct": 2.954555645409482
+        },
+        "2024": {
+          "event_days": 12,
+          "trades": 17,
+          "per_day_book_sum_pct": 0.8131438572362772
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 14,
+          "per_day_book_sum_pct": 3.8809410598298637
+        },
+        "2026": {
+          "event_days": 30,
+          "trades": 42,
+          "per_day_book_sum_pct": 7.3412528290005605
+        }
+      },
+      "sourceDays": 78,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 0.8,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 139,
+      "event_days": 73,
+      "filtered_days": 74,
+      "actual_buy_triggers": 104,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50,
+      "mean_trade_pct": 0.36867819523716133,
+      "median_trade_pct": 0.004766170726144825,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 11.1419748228069,
+      "book_100pct_conditional_max_dd_pct": -10.202959822721002,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.11419748228069,
+      "yearly": {
+        "2021": {
+          "event_days": 13,
+          "trades": 21,
+          "per_day_book_sum_pct": -5.23582048278853
+        },
+        "2022": {
+          "event_days": 13,
+          "trades": 16,
+          "per_day_book_sum_pct": 0.14846450247204146
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 4,
+          "per_day_book_sum_pct": 5.596062779870422
+        },
+        "2024": {
+          "event_days": 11,
+          "trades": 16,
+          "per_day_book_sum_pct": 2.8740766278834333
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 9,
+          "per_day_book_sum_pct": 0.4452477243590359
+        },
+        "2026": {
+          "event_days": 28,
+          "trades": 38,
+          "per_day_book_sum_pct": 8.952812949758524
+        }
+      },
+      "sourceDays": 74,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 0.8,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 139,
+      "event_days": 73,
+      "filtered_days": 74,
+      "actual_buy_triggers": 121,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50.413223140495866,
+      "mean_trade_pct": 0.09959000306323433,
+      "median_trade_pct": 0.051932270099608324,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 0.3676204451640519,
+      "book_100pct_conditional_max_dd_pct": -11.490759462273193,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.03676204451640519,
+      "yearly": {
+        "2021": {
+          "event_days": 13,
+          "trades": 33,
+          "per_day_book_sum_pct": -8.963923585992601
+        },
+        "2022": {
+          "event_days": 13,
+          "trades": 16,
+          "per_day_book_sum_pct": 0.05567418842701566
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 4,
+          "per_day_book_sum_pct": 2.0985235424514084
+        },
+        "2024": {
+          "event_days": 11,
+          "trades": 16,
+          "per_day_book_sum_pct": 1.0777787354562876
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 14,
+          "per_day_book_sum_pct": 3.8809410598298637
+        },
+        "2026": {
+          "event_days": 28,
+          "trades": 38,
+          "per_day_book_sum_pct": 3.357304856159446
+        }
+      },
+      "sourceDays": 74,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 767,
+      "event_days": 5,
+      "filtered_days": 282,
+      "actual_buy_triggers": 6,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 83.33333333333333,
+      "mean_trade_pct": 1.6536685564061422,
+      "median_trade_pct": 1.1962105317514848,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 6.5523303199546135,
+      "book_100pct_conditional_return_pct": 3.2764007961831876,
+      "book_100pct_conditional_max_dd_pct": -1.346417435699987,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.32764007961831876,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.2951064572579107
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 3.830246358263471
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7461627093922507
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.026034502414473693
+        }
+      },
+      "sourceDays": 282,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 767,
+      "event_days": 6,
+      "filtered_days": 282,
+      "actual_buy_triggers": 7,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 85.71428571428571,
+      "mean_trade_pct": 2.997226190717119,
+      "median_trade_pct": 2.238488128176752,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 2.6353431862581544,
+      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.26353431862581544,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.8966565781011557
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.4363423843488015
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.279811016022094
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.009762938405427635
+        }
+      },
+      "sourceDays": 282,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 767,
+      "event_days": 6,
+      "filtered_days": 282,
+      "actual_buy_triggers": 7,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 71.42857142857143,
+      "mean_trade_pct": 2.233930524514874,
+      "median_trade_pct": 2.3526058596807564,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 8.751552823978459,
+      "book_100pct_conditional_return_pct": 5.154932976914228,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5154932976914228,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 0.17271024676452917
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 5.3075645599936605
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.4517423376060323
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.719512587162849
+        }
+      },
+      "sourceDays": 282,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 767,
+      "event_days": 7,
+      "filtered_days": 282,
+      "actual_buy_triggers": 8,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 75,
+      "mean_trade_pct": 3.6242311533421376,
+      "median_trade_pct": 3.3539164362494267,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 3.6489026181017348,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.3648902618101735,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 1.734308286928321
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.9903367099976226
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.5444033766022621
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -0.6448172201860682
+        }
+      },
+      "sourceDays": 282,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.2,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 111,
+      "event_days": 64,
+      "filtered_days": 65,
+      "actual_buy_triggers": 86,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 53.48837209302326,
+      "mean_trade_pct": 0.6895721628133641,
+      "median_trade_pct": 0.18434800882364266,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 19.31378399009638,
+      "book_100pct_conditional_max_dd_pct": -13.393981744469452,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.9313783990096378,
+      "yearly": {
+        "2021": {
+          "event_days": 11,
+          "trades": 19,
+          "per_day_book_sum_pct": -7.679642421646447
+        },
+        "2022": {
+          "event_days": 12,
+          "trades": 16,
+          "per_day_book_sum_pct": -0.3293939501980576
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 4.28731811669721
+        },
+        "2024": {
+          "event_days": 10,
+          "trades": 12,
+          "per_day_book_sum_pct": -3.4640185572705464
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 8,
+          "per_day_book_sum_pct": 2.1064390580959027
+        },
+        "2026": {
+          "event_days": 24,
+          "trades": 29,
+          "per_day_book_sum_pct": 24.84703308830504
+        }
+      },
+      "sourceDays": 65,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.2,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 111,
+      "event_days": 64,
+      "filtered_days": 65,
+      "actual_buy_triggers": 95,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 53.68421052631579,
+      "mean_trade_pct": 0.647740739838085,
+      "median_trade_pct": 0.2798157803648449,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 7.357311542785383,
+      "book_100pct_conditional_max_dd_pct": -8.360448362460138,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.7357311542785383,
+      "yearly": {
+        "2021": {
+          "event_days": 11,
+          "trades": 23,
+          "per_day_book_sum_pct": -6.3148185359790485
+        },
+        "2022": {
+          "event_days": 12,
+          "trades": 16,
+          "per_day_book_sum_pct": -0.1235227313242715
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.607744293761454
+        },
+        "2024": {
+          "event_days": 10,
+          "trades": 12,
+          "per_day_book_sum_pct": -1.299006958976455
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 13,
+          "per_day_book_sum_pct": 4.5038878099811885
+        },
+        "2026": {
+          "event_days": 24,
+          "trades": 29,
+          "per_day_book_sum_pct": 9.317637408114392
+        }
+      },
+      "sourceDays": 65,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.2,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 102,
+      "event_days": 60,
+      "filtered_days": 61,
+      "actual_buy_triggers": 78,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50,
+      "mean_trade_pct": 0.23355652670467505,
+      "median_trade_pct": -0.001023140250810961,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 4.4801165538266075,
+      "book_100pct_conditional_max_dd_pct": -15.945880851667427,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.44801165538266075,
+      "yearly": {
+        "2021": {
+          "event_days": 10,
+          "trades": 18,
+          "per_day_book_sum_pct": -8.340441501851469
+        },
+        "2022": {
+          "event_days": 12,
+          "trades": 15,
+          "per_day_book_sum_pct": -1.1629399827767823
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.0045658421423473
+        },
+        "2024": {
+          "event_days": 9,
+          "trades": 11,
+          "per_day_book_sum_pct": -2.7583255486838523
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 8,
+          "per_day_book_sum_pct": 2.1064390580959027
+        },
+        "2026": {
+          "event_days": 22,
+          "trades": 25,
+          "per_day_book_sum_pct": 14.223171827395406
+        }
+      },
+      "sourceDays": 61,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.2,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 102,
+      "event_days": 60,
+      "filtered_days": 61,
+      "actual_buy_triggers": 87,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50.57471264367816,
+      "mean_trade_pct": 0.23505256742107367,
+      "median_trade_pct": 0.051932270099608324,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 15.370882139819475,
+      "book_100pct_conditional_return_pct": 2.04474962515262,
+      "book_100pct_conditional_max_dd_pct": -9.399429445914098,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.20447496251526198,
+      "yearly": {
+        "2021": {
+          "event_days": 10,
+          "trades": 22,
+          "per_day_book_sum_pct": -6.562618191055932
+        },
+        "2022": {
+          "event_days": 12,
+          "trades": 15,
+          "per_day_book_sum_pct": -0.43610249354129327
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7517121908033803
+        },
+        "2024": {
+          "event_days": 9,
+          "trades": 11,
+          "per_day_book_sum_pct": -1.0343720807564447
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 13,
+          "per_day_book_sum_pct": 4.5038878099811885
+        },
+        "2026": {
+          "event_days": 22,
+          "trades": 25,
+          "per_day_book_sum_pct": 5.333689435273277
+        }
+      },
+      "sourceDays": 61,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.6,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 543,
+      "event_days": 2,
+      "filtered_days": 247,
+      "actual_buy_triggers": 2,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 100,
+      "mean_trade_pct": 3.3152169135990173,
+      "median_trade_pct": 3.3152169135990173,
+      "worst_trade_pct": 0.07810350724342108,
+      "best_trade_pct": 6.5523303199546135,
+      "book_100pct_conditional_return_pct": 2.2107132312644717,
+      "book_100pct_conditional_max_dd_pct": 0,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.22107132312644717,
+      "yearly": {
+        "2021": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.184110106651538
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.026034502414473693
+        }
+      },
+      "sourceDays": 247,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.6,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 543,
+      "event_days": 3,
+      "filtered_days": 247,
+      "actual_buy_triggers": 3,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 100,
+      "mean_trade_pct": 5.89633527459367,
+      "median_trade_pct": 6.5523303199546135,
+      "worst_trade_pct": 0.07810350724342108,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 2.222663534846614,
+      "book_100pct_conditional_max_dd_pct": 0,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.2222663534846614,
+      "yearly": {
+        "2021": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.382321499572872
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.8190412899943267
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.009762938405427635
+        }
+      },
+      "sourceDays": 247,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.6,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 543,
+      "event_days": 3,
+      "filtered_days": 247,
+      "actual_buy_triggers": 3,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 66.66666666666667,
+      "mean_trade_pct": 1.1976716874966375,
+      "median_trade_pct": 2.3526058596807564,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 8.751552823978459,
+      "book_100pct_conditional_return_pct": 1.1273033932114984,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.11273033932114984,
+      "yearly": {
+        "2021": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.917184274659486
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.719512587162849
+        }
+      },
+      "sourceDays": 247,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.08,
+      "vol": 1.6,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 543,
+      "event_days": 4,
+      "filtered_days": 247,
+      "actual_buy_triggers": 4,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 75,
+      "mean_trade_pct": 4.2373376544057235,
+      "median_trade_pct": 5.552079341829607,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 2.116157618444081,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.2116157618444081,
+      "yearly": {
+        "2021": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.6695419443916226
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.0939441029973074
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -0.6448172201860682
+        }
+      },
+      "sourceDays": 247,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.6,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 77,
+      "event_days": 44,
+      "filtered_days": 44,
+      "actual_buy_triggers": 58,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 58.62068965517241,
+      "mean_trade_pct": 0.6084509528969704,
+      "median_trade_pct": 0.563311899795016,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 10.757623725002396,
+      "book_100pct_conditional_max_dd_pct": -13.773210590745366,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.0757623725002396,
+      "yearly": {
+        "2021": {
+          "event_days": 8,
+          "trades": 14,
+          "per_day_book_sum_pct": -9.614232603837575
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 13,
+          "per_day_book_sum_pct": 0.08701819867548526
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 8,
+          "trades": 10,
+          "per_day_book_sum_pct": -3.481823548207167
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 6,
+          "per_day_book_sum_pct": 7.4423091882502845
+        },
+        "2026": {
+          "event_days": 14,
+          "trades": 15,
+          "per_day_book_sum_pct": 17.3301138544604
+        }
+      },
+      "sourceDays": 44,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.6,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 77,
+      "event_days": 44,
+      "filtered_days": 44,
+      "actual_buy_triggers": 64,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 60.9375,
+      "mean_trade_pct": 1.0901039905409746,
+      "median_trade_pct": 1.1729817522492691,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 8.63493448698447,
+      "book_100pct_conditional_max_dd_pct": -5.600867910134255,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.8634934486984469,
+      "yearly": {
+        "2021": {
+          "event_days": 8,
+          "trades": 15,
+          "per_day_book_sum_pct": -4.035173993306061
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 13,
+          "per_day_book_sum_pct": 0.03263182450330693
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 8,
+          "trades": 10,
+          "per_day_book_sum_pct": -1.3056838305776877
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 11,
+          "per_day_book_sum_pct": 7.53026522828559
+        },
+        "2026": {
+          "event_days": 14,
+          "trades": 15,
+          "per_day_book_sum_pct": 6.498792695422649
+        }
+      },
+      "sourceDays": 44,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.6,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 72,
+      "event_days": 41,
+      "filtered_days": 41,
+      "actual_buy_triggers": 54,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 55.55555555555556,
+      "mean_trade_pct": 0.3080033487979139,
+      "median_trade_pct": 0.18434800882364266,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 4.145744722388933,
+      "book_100pct_conditional_max_dd_pct": -15.044914489069294,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.4145744722388933,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 13,
+          "per_day_book_sum_pct": -10.275031684042595
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 12,
+          "per_day_book_sum_pct": -0.7465278339032396
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 8,
+          "trades": 10,
+          "per_day_book_sum_pct": -3.481823548207167
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 6,
+          "per_day_book_sum_pct": 7.4423091882502845
+        },
+        "2026": {
+          "event_days": 12,
+          "trades": 13,
+          "per_day_book_sum_pct": 12.605134156265166
+        }
+      },
+      "sourceDays": 41,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.08,
+      "vol": 1.6,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 72,
+      "event_days": 41,
+      "filtered_days": 41,
+      "actual_buy_triggers": 60,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 58.333333333333336,
+      "mean_trade_pct": 0.8518113493614242,
+      "median_trade_pct": 0.563311899795016,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 6.140261889849663,
+      "book_100pct_conditional_max_dd_pct": -6.127251227658759,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.6140261889849663,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 14,
+          "per_day_book_sum_pct": -4.282973648382944
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 12,
+          "per_day_book_sum_pct": -0.27994793771371485
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 8,
+          "trades": 10,
+          "per_day_book_sum_pct": -1.3056838305776877
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 11,
+          "per_day_book_sum_pct": 7.53026522828559
+        },
+        "2026": {
+          "event_days": 12,
+          "trades": 13,
+          "per_day_book_sum_pct": 4.726925308599437
+        }
+      },
+      "sourceDays": 41,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 788,
+      "event_days": 7,
+      "filtered_days": 240,
+      "actual_buy_triggers": 8,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 75,
+      "mean_trade_pct": 0.7265974181015975,
+      "median_trade_pct": 0.7455904340161634,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 4.938408754835799,
+      "book_100pct_conditional_return_pct": 1.9175071984899317,
+      "book_100pct_conditional_max_dd_pct": -2.1987631394455476,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.19175071984899317,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 3,
+          "per_day_book_sum_pct": -2.210395896076748
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.44574931090203646
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.646136251611933
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7461627093922507
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.309940739108121
+        }
+      },
+      "sourceDays": 240,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 788,
+      "event_days": 8,
+      "filtered_days": 240,
+      "actual_buy_triggers": 11,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 72.72727272727273,
+      "mean_trade_pct": 1.4586015695970198,
+      "median_trade_pct": 0.3029715260037813,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 2.0102711674534257,
+      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.20102711674534257,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 6,
+          "per_day_book_sum_pct": 0.45008127906552425
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.16715599158826366
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.6173010943544749
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.279811016022094
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 0.49122777716554544
+        }
+      },
+      "sourceDays": 240,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 788,
+      "event_days": 8,
+      "filtered_days": 240,
+      "actual_buy_triggers": 9,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 66.66666666666667,
+      "mean_trade_pct": 1.7581788242195115,
+      "median_trade_pct": 2.3526058596807564,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 7.1711408560025225,
+      "book_100pct_conditional_return_pct": 5.307170352481005,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897565,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5307170352481005,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 3,
+          "per_day_book_sum_pct": -0.02217821662065338
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.173485382232061
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.3903802853341745
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.4517423376060323
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.28110668410692086
+        }
+      },
+      "sourceDays": 240,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 788,
+      "event_days": 9,
+      "filtered_days": 240,
+      "actual_buy_triggers": 12,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 75,
+      "mean_trade_pct": 2.7094299449097488,
+      "median_trade_pct": 2.3559512711270436,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 4.116519462661561,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461642,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.4116519462661561,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 6,
+          "per_day_book_sum_pct": 2.0778769088849276
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.4400570183370228
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.8963926070003153
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.5444033766022621
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.10541500654009522
+        }
+      },
+      "sourceDays": 240,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 0.8,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 97,
+      "event_days": 45,
+      "filtered_days": 46,
+      "actual_buy_triggers": 64,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 54.6875,
+      "mean_trade_pct": 0.6444214063545044,
+      "median_trade_pct": 0.28746605621016164,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 12.84926731862923,
+      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.2849267318629232,
+      "yearly": {
+        "2021": {
+          "event_days": 9,
+          "trades": 16,
+          "per_day_book_sum_pct": -7.760051490573283
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -1.5734636539082545
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 3,
+          "per_day_book_sum_pct": 5.625524967580094
+        },
+        "2024": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -1.0065439481331355
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 18,
+          "trades": 22,
+          "per_day_book_sum_pct": 12.600266974613861
+        }
+      },
+      "sourceDays": 46,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 0.8,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 97,
+      "event_days": 45,
+      "filtered_days": 46,
+      "actual_buy_triggers": 80,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 53.75,
+      "mean_trade_pct": 0.1872758736929772,
+      "median_trade_pct": 0.28746605621016164,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 0.8337136130866396,
+      "book_100pct_conditional_max_dd_pct": -11.31830291435385,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.08337136130866396,
+      "yearly": {
+        "2021": {
+          "event_days": 9,
+          "trades": 27,
+          "per_day_book_sum_pct": -9.906604986066469
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -0.5900488702155954
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 3,
+          "per_day_book_sum_pct": 2.109571862842535
+        },
+        "2024": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -0.3774539805499258
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 5.91219459543903
+        },
+        "2026": {
+          "event_days": 18,
+          "trades": 22,
+          "per_day_book_sum_pct": 4.725100115480198
+        }
+      },
+      "sourceDays": 46,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 0.8,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 88,
+      "event_days": 42,
+      "filtered_days": 43,
+      "actual_buy_triggers": 57,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50.87719298245614,
+      "mean_trade_pct": 0.037536321549450614,
+      "median_trade_pct": 0.051932270099608324,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": -0.4995000493159707,
+      "book_100pct_conditional_max_dd_pct": -10.296057808846449,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.04995000493159707,
+      "yearly": {
+        "2021": {
+          "event_days": 9,
+          "trades": 16,
+          "per_day_book_sum_pct": -7.760051490573283
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -2.407009686486979
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 3.342772693025231
+        },
+        "2024": {
+          "event_days": 6,
+          "trades": 8,
+          "per_day_book_sum_pct": -0.30085093954644143
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 16,
+          "trades": 18,
+          "per_day_book_sum_pct": 1.976405713704222
+        }
+      },
+      "sourceDays": 43,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 0.8,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 88,
+      "event_days": 42,
+      "filtered_days": 43,
+      "actual_buy_triggers": 73,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 50.68493150684932,
+      "mean_trade_pct": -0.23767178243247455,
+      "median_trade_pct": 0.051932270099608324,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": -2.9974401661969186,
+      "book_100pct_conditional_max_dd_pct": -10.471891706183756,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.29974401661969186,
+      "yearly": {
+        "2021": {
+          "event_days": 9,
+          "trades": 27,
+          "per_day_book_sum_pct": -9.060193777896371
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -0.9026286324326172
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.2535397598844615
+        },
+        "2024": {
+          "event_days": 6,
+          "trades": 8,
+          "per_day_book_sum_pct": -0.11281910232991549
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 5.91219459543903
+        },
+        "2026": {
+          "event_days": 16,
+          "trades": 18,
+          "per_day_book_sum_pct": 0.741152142639083
+        }
+      },
+      "sourceDays": 43,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 583,
+      "event_days": 5,
+      "filtered_days": 218,
+      "actual_buy_triggers": 5,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 80,
+      "mean_trade_pct": 0.673936203696448,
+      "median_trade_pct": 0.15393293532621755,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 4.938408754835799,
+      "book_100pct_conditional_return_pct": 1.103941048960566,
+      "book_100pct_conditional_max_dd_pct": -1.346417435699987,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.11039410489605661,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.2951064572579107
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.646136251611933
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7461627093922507
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.026034502414473693
+        }
+      },
+      "sourceDays": 218,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 583,
+      "event_days": 6,
+      "filtered_days": 218,
+      "actual_buy_triggers": 6,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 83.33333333333333,
+      "mean_trade_pct": 2.404708835844203,
+      "median_trade_pct": 1.1962105317514848,
+      "worst_trade_pct": -4.03925230709995,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 1.8066206406071705,
+      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.18066206406071705,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 0.8966565781011557
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.6173010943544749
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.279811016022094
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.009762938405427635
+        }
+      },
+      "sourceDays": 218,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 583,
+      "event_days": 6,
+      "filtered_days": 218,
+      "actual_buy_triggers": 6,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 66.66666666666667,
+      "mean_trade_pct": 1.1476601412709433,
+      "median_trade_pct": 2.3171199749652094,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 7.1711408560025225,
+      "book_100pct_conditional_return_pct": 2.2419768358730385,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.22419768358730385,
+      "yearly": {
+        "2021": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": 0.17271024676452917
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.3903802853341745
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.4517423376060323
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.719512587162849
+        }
+      },
+      "sourceDays": 218,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 583,
+      "event_days": 7,
+      "filtered_days": 218,
+      "actual_buy_triggers": 7,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 71.42857142857143,
+      "mean_trade_pct": 2.89175662896552,
+      "median_trade_pct": 2.3526058596807564,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 2.537168806264045,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.2537168806264045,
+      "yearly": {
+        "2021": {
+          "event_days": 3,
+          "trades": 3,
+          "per_day_book_sum_pct": 1.734308286928321
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.8963926070003153
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.5444033766022621
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -0.6448172201860682
+        }
+      },
+      "sourceDays": 218,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.2,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 79,
+      "event_days": 39,
+      "filtered_days": 40,
+      "actual_buy_triggers": 55,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 52.72727272727273,
+      "mean_trade_pct": 0.616931672154414,
+      "median_trade_pct": 0.07197486486323346,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 10.208486283001083,
+      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.0208486283001084,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 14,
+          "per_day_book_sum_pct": -7.231483227045675
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -1.5734636539082545
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 4.28731811669721
+        },
+        "2024": {
+          "event_days": 6,
+          "trades": 7,
+          "per_day_book_sum_pct": -1.959118136085273
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 15,
+          "trades": 18,
+          "per_day_book_sum_pct": 11.925237070522774
+        }
+      },
+      "sourceDays": 40,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.2,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 79,
+      "event_days": 39,
+      "filtered_days": 40,
+      "actual_buy_triggers": 64,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 53.125,
+      "mean_trade_pct": 0.565053222674399,
+      "median_trade_pct": 0.17589532261403917,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 4.082285352051973,
+      "book_100pct_conditional_max_dd_pct": -6.852539419814474,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.4082285352051973,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 18,
+          "per_day_book_sum_pct": -6.146758838003759
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -0.5900488702155954
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "per_day_book_sum_pct": 1.607744293761454
+        },
+        "2024": {
+          "event_days": 6,
+          "trades": 7,
+          "per_day_book_sum_pct": -0.7346693010319774
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 5.91219459543903
+        },
+        "2026": {
+          "event_days": 15,
+          "trades": 18,
+          "per_day_book_sum_pct": 4.471963901446039
+        }
+      },
+      "sourceDays": 40,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.2,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 71,
+      "event_days": 36,
+      "filtered_days": 37,
+      "actual_buy_triggers": 48,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 47.916666666666664,
+      "mean_trade_pct": -0.10775328562243382,
+      "median_trade_pct": -0.057702668773534915,
+      "worst_trade_pct": -13.81331878582034,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": -2.855450178901686,
+      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.2855450178901686,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 14,
+          "per_day_book_sum_pct": -7.231483227045675
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -2.407009686486979
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 2.0045658421423473
+        },
+        "2024": {
+          "event_days": 5,
+          "trades": 6,
+          "per_day_book_sum_pct": -1.2534251274985788
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 13,
+          "trades": 14,
+          "per_day_book_sum_pct": 1.3013758096131334
+        }
+      },
+      "sourceDays": 37,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.2,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 71,
+      "event_days": 36,
+      "filtered_days": 37,
+      "actual_buy_triggers": 57,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 1,
+      "win_rate_pct": 49.12280701754386,
+      "mean_trade_pct": -0.051578832056281845,
+      "median_trade_pct": -0.053978550601230246,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": -0.8230597126822059,
+      "book_100pct_conditional_max_dd_pct": -7.026898372780755,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.08230597126822059,
+      "yearly": {
+        "2021": {
+          "event_days": 7,
+          "trades": 18,
+          "per_day_book_sum_pct": -6.146758838003759
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -0.9026286324326172
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.7517121908033803
+        },
+        "2024": {
+          "event_days": 5,
+          "trades": 6,
+          "per_day_book_sum_pct": -0.4700344228119671
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 5.91219459543903
+        },
+        "2026": {
+          "event_days": 13,
+          "trades": 14,
+          "per_day_book_sum_pct": 0.4880159286049249
+        }
+      },
+      "sourceDays": 37,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.6,
+      "trigger_discount": 0.04,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 406,
+      "event_days": 1,
+      "filtered_days": 187,
+      "actual_buy_triggers": 1,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 100,
+      "mean_trade_pct": 0.07810350724342108,
+      "median_trade_pct": 0.07810350724342108,
+      "worst_trade_pct": 0.07810350724342108,
+      "best_trade_pct": 0.07810350724342108,
+      "book_100pct_conditional_return_pct": 0.026034502414473693,
+      "book_100pct_conditional_max_dd_pct": 0,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.0026034502414473693,
+      "yearly": {
+        "2021": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.026034502414473693
+        }
+      },
+      "sourceDays": 187,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.6,
+      "trigger_discount": 0.04,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 406,
+      "event_days": 2,
+      "filtered_days": 187,
+      "actual_buy_triggers": 2,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 100,
+      "mean_trade_pct": 5.5683377519132,
+      "median_trade_pct": 5.5683377519132,
+      "worst_trade_pct": 0.07810350724342108,
+      "best_trade_pct": 11.058571996582977,
+      "book_100pct_conditional_return_pct": 1.392219393174865,
+      "book_100pct_conditional_max_dd_pct": 0,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.1392219393174865,
+      "yearly": {
+        "2021": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.382321499572872
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 0.009762938405427635
+        }
+      },
+      "sourceDays": 187,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.6,
+      "trigger_discount": 0.06,
+      "cap": 3,
+      "ranking": "volume",
+      "selected_candidate_count": 406,
+      "event_days": 2,
+      "filtered_days": 187,
+      "actual_buy_triggers": 2,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 50,
+      "mean_trade_pct": -2.579268880744273,
+      "median_trade_pct": -2.579268880744273,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 2.3526058596807564,
+      "book_100pct_conditional_return_pct": -1.7391467654918058,
+      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.17391467654918058,
+      "yearly": {
+        "2021": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -1.719512587162849
+        }
+      },
+      "sourceDays": 187,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "prior_day_stop",
+      "fall": 0.095,
+      "vol": 1.6,
+      "trigger_discount": 0.06,
+      "cap": 8,
+      "ranking": "volume",
+      "selected_candidate_count": 406,
+      "event_days": 3,
+      "filtered_days": 187,
+      "actual_buy_triggers": 3,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 66.66666666666667,
+      "mean_trade_pct": 2.732599264548145,
+      "median_trade_pct": 2.3526058596807564,
+      "worst_trade_pct": -7.511143621169303,
+      "best_trade_pct": 13.356335555132981,
+      "book_100pct_conditional_return_pct": 1.0111520769288784,
+      "book_100pct_conditional_max_dd_pct": -0.9388929526461753,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.10111520769288784,
+      "yearly": {
+        "2021": {
+          "event_days": 1,
+          "trades": 1,
+          "per_day_book_sum_pct": 1.6695419443916226
+        },
+        "2022": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2025": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2026": {
+          "event_days": 2,
+          "trades": 2,
+          "per_day_book_sum_pct": -0.6448172201860682
+        }
+      },
+      "sourceDays": 187,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.6,
+      "closeLoc": 0.55,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 56,
+      "event_days": 28,
+      "filtered_days": 28,
+      "actual_buy_triggers": 38,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 55.26315789473684,
+      "mean_trade_pct": 0.2494658384091417,
+      "median_trade_pct": 0.17589532261403917,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 1.8724791745630798,
+      "book_100pct_conditional_max_dd_pct": -14.335492890120715,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.18724791745630798,
+      "yearly": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "per_day_book_sum_pct": -11.052714313430148
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -1.5734636539082545
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 4,
+          "trades": 5,
+          "per_day_book_sum_pct": -1.9769231270218937
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 9,
+          "trades": 9,
+          "per_day_book_sum_pct": 11.901077894892609
+        }
+      },
+      "sourceDays": 28,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.6,
+      "closeLoc": 0.55,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 56,
+      "event_days": 28,
+      "filtered_days": 28,
+      "actual_buy_triggers": 44,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 59.09090909090909,
+      "mean_trade_pct": 0.9990045905942155,
+      "median_trade_pct": 0.6749920981675706,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 5.221849055915362,
+      "book_100pct_conditional_max_dd_pct": -5.851003487283357,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5221849055915362,
+      "yearly": {
+        "2021": {
+          "event_days": 5,
+          "trades": 11,
+          "per_day_book_sum_pct": -4.574604634403276
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 9,
+          "per_day_book_sum_pct": -0.5900488702155954
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 4,
+          "trades": 5,
+          "per_day_book_sum_pct": -0.7413461726332102
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 6.937620714935538
+        },
+        "2026": {
+          "event_days": 9,
+          "trades": 9,
+          "per_day_book_sum_pct": 4.462904210584728
+        }
+      },
+      "sourceDays": 28,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.6,
+      "closeLoc": 0.65,
+      "cap": 3,
+      "ranking": "body",
+      "selected_candidate_count": 52,
+      "event_days": 26,
+      "filtered_days": 26,
+      "actual_buy_triggers": 35,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 51.42857142857143,
+      "mean_trade_pct": -0.2055964380792709,
+      "median_trade_pct": 0.051932270099608324,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": -3.5759987199538212,
+      "book_100pct_conditional_max_dd_pct": -15.041182379836515,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.3575998719953821,
+      "yearly": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "per_day_book_sum_pct": -11.052714313430148
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -2.407009686486979
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 4,
+          "trades": 5,
+          "per_day_book_sum_pct": -1.9769231270218937
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "per_day_book_sum_pct": 5.8619238193168135
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 7,
+          "per_day_book_sum_pct": 7.176098196697378
+        }
+      },
+      "sourceDays": 26,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    },
+    {
+      "kind": "close_confirmation",
+      "fall": 0.095,
+      "vol": 1.6,
+      "closeLoc": 0.65,
+      "cap": 8,
+      "ranking": "body",
+      "selected_candidate_count": 52,
+      "event_days": 26,
+      "filtered_days": 26,
+      "actual_buy_triggers": 41,
+      "censored_missing_entry": 0,
+      "censored_missing_exit": 0,
+      "win_rate_pct": 56.09756097560975,
+      "mean_trade_pct": 0.6653810925322833,
+      "median_trade_pct": 0.2798157803648449,
+      "worst_trade_pct": -15.204567538662083,
+      "best_trade_pct": 14.478264096184512,
+      "book_100pct_conditional_return_pct": 3.060305731074875,
+      "book_100pct_conditional_max_dd_pct": -6.143992043514412,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.3060305731074875,
+      "yearly": {
+        "2021": {
+          "event_days": 5,
+          "trades": 11,
+          "per_day_book_sum_pct": -4.574604634403276
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "per_day_book_sum_pct": -0.9026286324326172
+        },
+        "2023": {
+          "event_days": 0,
+          "trades": 0,
+          "per_day_book_sum_pct": 0
+        },
+        "2024": {
+          "event_days": 4,
+          "trades": 5,
+          "per_day_book_sum_pct": -0.7413461726332102
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 10,
+          "per_day_book_sum_pct": 6.937620714935538
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 7,
+          "per_day_book_sum_pct": 2.6910368237615168
+        }
+      },
+      "sourceDays": 26,
+      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+    }
+  ],
+  "stability": [
+    {
+      "key": "prior_day_stop|0.08|0.8|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 4.107448358338184,
+      "best_net_pct": 8.307456321778716,
+      "min_trades": 9,
+      "all_years_event_days": {
+        "2021": 2,
+        "2022": 1,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 2
+      }
+    },
+    {
+      "key": "prior_day_stop|0.08|0.8|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 2.8406514617063117,
+      "best_net_pct": 5.245376992131634,
+      "min_trades": 12,
+      "all_years_event_days": {
+        "2021": 3,
+        "2022": 1,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 2
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|0.8|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 11.1419748228069,
+      "best_net_pct": 24.469583692520747,
+      "min_trades": 104,
+      "all_years_event_days": {
+        "2021": 13,
+        "2022": 13,
+        "2023": 2,
+        "2024": 11,
+        "2025": 6,
+        "2026": 28
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|0.8|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 0.3676204451640519,
+      "best_net_pct": 5.311496127781812,
+      "min_trades": 121,
+      "all_years_event_days": {
+        "2021": 13,
+        "2022": 13,
+        "2023": 2,
+        "2024": 11,
+        "2025": 6,
+        "2026": 28
+      }
+    },
+    {
+      "key": "prior_day_stop|0.08|1.2|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 3.2764007961831876,
+      "best_net_pct": 5.154932976914228,
+      "min_trades": 6,
+      "all_years_event_days": {
+        "2021": 2,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 1
+      }
+    },
+    {
+      "key": "prior_day_stop|0.08|1.2|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 2.6353431862581544,
+      "best_net_pct": 3.6489026181017348,
+      "min_trades": 7,
+      "all_years_event_days": {
+        "2021": 3,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 1
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|1.2|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 4.4801165538266075,
+      "best_net_pct": 19.31378399009638,
+      "min_trades": 78,
+      "all_years_event_days": {
+        "2021": 10,
+        "2022": 12,
+        "2023": 1,
+        "2024": 9,
+        "2025": 6,
+        "2026": 22
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|1.2|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 2.04474962515262,
+      "best_net_pct": 7.357311542785383,
+      "min_trades": 87,
+      "all_years_event_days": {
+        "2021": 10,
+        "2022": 12,
+        "2023": 1,
+        "2024": 9,
+        "2025": 6,
+        "2026": 22
+      }
+    },
+    {
+      "key": "prior_day_stop|0.08|1.6|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 1.1273033932114984,
+      "best_net_pct": 2.2107132312644717,
+      "min_trades": 2,
+      "all_years_event_days": {
+        "2021": 0,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 0,
+        "2026": 1
+      }
+    },
+    {
+      "key": "prior_day_stop|0.08|1.6|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 2.116157618444081,
+      "best_net_pct": 2.222663534846614,
+      "min_trades": 3,
+      "all_years_event_days": {
+        "2021": 1,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 0,
+        "2026": 1
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|1.6|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 4.145744722388933,
+      "best_net_pct": 10.757623725002396,
+      "min_trades": 54,
+      "all_years_event_days": {
+        "2021": 7,
+        "2022": 10,
+        "2023": 0,
+        "2024": 8,
+        "2025": 4,
+        "2026": 12
+      }
+    },
+    {
+      "key": "close_confirmation|0.08|1.6|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 6.140261889849663,
+      "best_net_pct": 8.63493448698447,
+      "min_trades": 60,
+      "all_years_event_days": {
+        "2021": 7,
+        "2022": 10,
+        "2023": 0,
+        "2024": 8,
+        "2025": 4,
+        "2026": 12
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|0.8|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 1.9175071984899317,
+      "best_net_pct": 5.307170352481005,
+      "min_trades": 8,
+      "all_years_event_days": {
+        "2021": 2,
+        "2022": 1,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 2
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|0.8|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 2.0102711674534257,
+      "best_net_pct": 4.116519462661561,
+      "min_trades": 11,
+      "all_years_event_days": {
+        "2021": 3,
+        "2022": 1,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 2
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|0.8|3",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -0.4995000493159707,
+      "best_net_pct": 12.84926731862923,
+      "min_trades": 57,
+      "all_years_event_days": {
+        "2021": 9,
+        "2022": 7,
+        "2023": 1,
+        "2024": 6,
+        "2025": 3,
+        "2026": 16
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|0.8|8",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -2.9974401661969186,
+      "best_net_pct": 0.8337136130866396,
+      "min_trades": 73,
+      "all_years_event_days": {
+        "2021": 9,
+        "2022": 7,
+        "2023": 1,
+        "2024": 6,
+        "2025": 3,
+        "2026": 16
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|1.2|3",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 1.103941048960566,
+      "best_net_pct": 2.2419768358730385,
+      "min_trades": 5,
+      "all_years_event_days": {
+        "2021": 2,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 1
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|1.2|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 1.8066206406071705,
+      "best_net_pct": 2.537168806264045,
+      "min_trades": 6,
+      "all_years_event_days": {
+        "2021": 3,
+        "2022": 0,
+        "2023": 0,
+        "2024": 1,
+        "2025": 1,
+        "2026": 1
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|1.2|3",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -2.855450178901686,
+      "best_net_pct": 10.208486283001083,
+      "min_trades": 48,
+      "all_years_event_days": {
+        "2021": 7,
+        "2022": 7,
+        "2023": 1,
+        "2024": 5,
+        "2025": 3,
+        "2026": 13
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|1.2|8",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -0.8230597126822059,
+      "best_net_pct": 4.082285352051973,
+      "min_trades": 57,
+      "all_years_event_days": {
+        "2021": 7,
+        "2022": 7,
+        "2023": 1,
+        "2024": 5,
+        "2025": 3,
+        "2026": 13
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|1.6|3",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -1.7391467654918058,
+      "best_net_pct": 0.026034502414473693,
+      "min_trades": 1,
+      "all_years_event_days": {
+        "2021": 0,
+        "2022": 0,
+        "2023": 0,
+        "2024": 0,
+        "2025": 0,
+        "2026": 1
+      }
+    },
+    {
+      "key": "prior_day_stop|0.095|1.6|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 1.0111520769288784,
+      "best_net_pct": 1.392219393174865,
+      "min_trades": 2,
+      "all_years_event_days": {
+        "2021": 1,
+        "2022": 0,
+        "2023": 0,
+        "2024": 0,
+        "2025": 0,
+        "2026": 1
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|1.6|3",
+      "variants": 2,
+      "both_positive": false,
+      "worst_net_pct": -3.5759987199538212,
+      "best_net_pct": 1.8724791745630798,
+      "min_trades": 35,
+      "all_years_event_days": {
+        "2021": 5,
+        "2022": 7,
+        "2023": 0,
+        "2024": 4,
+        "2025": 3,
+        "2026": 7
+      }
+    },
+    {
+      "key": "close_confirmation|0.095|1.6|8",
+      "variants": 2,
+      "both_positive": true,
+      "worst_net_pct": 3.060305731074875,
+      "best_net_pct": 5.221849055915362,
+      "min_trades": 41,
+      "all_years_event_days": {
+        "2021": 5,
+        "2022": 7,
+        "2023": 0,
+        "2024": 4,
+        "2025": 3,
+        "2026": 7
+      }
+    }
+  ],
+  "high_level": {
+    "configurations_profitable": 42,
+    "configurations_with_10plus_trades": 29,
+    "stop_configs_profitable": 23,
+    "confirmation_configs_profitable": 19
+  }
+}
