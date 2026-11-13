@@ -6,6 +6,7 @@ on:
     paths:
       - research/c26-lock/experiments/history-backtest.mjs
       - research/c26-lock/experiments/crash-reversal-history.mjs
+      - research/c26-lock/experiments/crash-gap-slippage-robustness.mjs
       - research/c26-lock/experiments/history-fetch.mjs
       - .github/workflows/c26-rs-fiveyear-private.yml
 permissions:
@@ -27,6 +28,7 @@ jobs:
           node --check research/c26-lock/experiments/history-fetch.mjs
           node --check research/c26-lock/experiments/history-backtest.mjs
           node --check research/c26-lock/experiments/crash-reversal-history.mjs
+          node --check research/c26-lock/experiments/crash-gap-slippage-robustness.mjs
           git diff --exit-code
       - name: Check FinMind multi-year entitlement with per-stock date_id
         env:
@@ -43,6 +45,7 @@ jobs:
           set -euo pipefail
           node research/c26-lock/experiments/history-backtest.mjs
           node research/c26-lock/experiments/crash-reversal-history.mjs
+          node research/c26-lock/experiments/crash-gap-slippage-robustness.mjs
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
@@ -66,6 +69,14 @@ jobs:
           assert.ok(crash.results.every(x=>Number.isFinite(x.book_100pct_conditional_return_pct)&&Number.isFinite(x.book_closed_trade_equity_curve_max_dd_pct)));
           assert.ok(crash.results.every(x=>x.cap<=8));
           console.log('C26_CRASH_RESEARCH_SAFETY_PASS',JSON.stringify({n:crash.experimental_variants,window:crash.source_window}));
+          const stress=JSON.parse(fs.readFileSync('research/c26-lock/experiments/CRASH_GAP_SLIPPAGE_2021_2026_RESULTS.json'));
+          assert.equal(stress.scenario_count,216);
+          assert.equal(stress.range[1],'2026-10-27');
+          assert.equal(stress.strictly_not_original_c26,true);
+          assert.equal(stress.quality.missing_sessions,0);
+          assert.equal(stress.frozen_pool_count,233);
+          assert.ok(stress.all_results.every(v=>Number.isFinite(v.closed_equity_book_pct)&&Number.isFinite(v.closed_equity_max_dd_pct)));
+          console.log('C26_CRASH_SLIPPAGE_RESEARCH_SAFETY_PASS',JSON.stringify({cases:stress.scenario_count,history:stress.range}));
           console.log('C26_5YR_INDEPENDENT_PROXY_CHECKS_PASS',JSON.stringify({
             configs:r.configs,
             days:r.data_quality.backtest_days,
@@ -78,6 +89,7 @@ jobs:
           set -euo pipefail
           cp research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json /tmp/C26_5YR_RESULTS.json
           cp research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json /tmp/C26_CRASH_HISTORY_RESULTS.json
+          cp research/c26-lock/experiments/CRASH_GAP_SLIPPAGE_2021_2026_RESULTS.json /tmp/C26_CRASH_SLIPPAGE_RESULTS.json
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           for attempt in 1 2 3 4 5; do
@@ -85,7 +97,8 @@ jobs:
             git reset --hard origin/main
             cp /tmp/C26_5YR_RESULTS.json research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json
             cp /tmp/C26_CRASH_HISTORY_RESULTS.json research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json
-            git add research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json
+            cp /tmp/C26_CRASH_SLIPPAGE_RESULTS.json research/c26-lock/experiments/CRASH_GAP_SLIPPAGE_2021_2026_RESULTS.json
+            git add research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json research/c26-lock/experiments/CRASH_GAP_SLIPPAGE_2021_2026_RESULTS.json
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Publish C26 research-only five-year RS sleeve proxy summary'
             if git push origin HEAD:main; then exit 0; fi
