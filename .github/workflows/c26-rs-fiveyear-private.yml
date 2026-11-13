@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - research/c26-lock/experiments/history-backtest.mjs
+      - research/c26-lock/experiments/crash-reversal-history.mjs
       - research/c26-lock/experiments/history-fetch.mjs
       - .github/workflows/c26-rs-fiveyear-private.yml
 permissions:
@@ -25,6 +26,7 @@ jobs:
         run: |
           node --check research/c26-lock/experiments/history-fetch.mjs
           node --check research/c26-lock/experiments/history-backtest.mjs
+          node --check research/c26-lock/experiments/crash-reversal-history.mjs
           git diff --exit-code
       - name: Check FinMind multi-year entitlement with per-stock date_id
         env:
@@ -40,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           node research/c26-lock/experiments/history-backtest.mjs
+          node research/c26-lock/experiments/crash-reversal-history.mjs
           node --input-type=module <<'JS'
           import assert from 'node:assert/strict';
           import fs from 'node:fs';
@@ -53,6 +56,16 @@ jobs:
           assert.equal(r.pass_criteria.output_raw_prices,false);
           assert.ok(r.results.every(x=>Number.isFinite(x.return_pct)&&Number.isFinite(x.max_dd_pct)));
           assert.ok(r.robustness.length===12);
+          const crash=JSON.parse(fs.readFileSync('research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json'));
+          assert.equal(crash.experimental_variants,48);
+          assert.equal(crash.observations,1407);
+          assert.equal(crash.universe_size,233);
+          assert.equal(crash.source_quality.monthly_files,70);
+          assert.equal(crash.source_quality.missing_exchange_sessions,0);
+          assert.equal(crash.mode,'RESEARCH_ONLY');
+          assert.ok(crash.results.every(x=>Number.isFinite(x.book_100pct_conditional_return_pct)&&Number.isFinite(x.book_100pct_conditional_max_dd_pct)));
+          assert.ok(crash.results.every(x=>x.cap<=8));
+          console.log('C26_CRASH_RESEARCH_SAFETY_PASS',JSON.stringify({n:crash.experimental_variants,window:crash.source_window}));
           console.log('C26_5YR_INDEPENDENT_PROXY_CHECKS_PASS',JSON.stringify({
             configs:r.configs,
             days:r.data_quality.backtest_days,
@@ -64,13 +77,15 @@ jobs:
         run: |
           set -euo pipefail
           cp research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json /tmp/C26_5YR_RESULTS.json
+          cp research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json /tmp/C26_CRASH_HISTORY_RESULTS.json
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
             cp /tmp/C26_5YR_RESULTS.json research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json
-            git add research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json
+            cp /tmp/C26_CRASH_HISTORY_RESULTS.json research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json
+            git add research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json research/c26-lock/experiments/CRASH_REVERSAL_2021_2026_RESULTS.json
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Publish C26 research-only five-year RS sleeve proxy summary'
             if git push origin HEAD:main; then exit 0; fi
