@@ -1,9 +1,10 @@
-name: C26 RS satellite isolated 2026 proxy research
+name: C26 RS satellite and early reversal isolated 2026 proxy research
 on:
   push:
     branches: [main]
     paths:
       - 'research/c26-lock/experiments/rs-shadow-proxy.mjs'
+      - 'research/c26-lock/experiments/rs-reversal-proxy.mjs'
       - '.github/workflows/c26-rs-shadow-proxy.yml'
   workflow_dispatch:
 permissions:
@@ -23,6 +24,8 @@ jobs:
         run: |
           node --check research/c26-lock/experiments/rs-shadow-proxy.mjs
           node research/c26-lock/experiments/rs-shadow-proxy.mjs
+          node --check research/c26-lock/experiments/rs-reversal-proxy.mjs
+          node research/c26-lock/experiments/rs-reversal-proxy.mjs
       - name: Verify report is clearly not a complete C26 engine backtest
         run: |
           node --input-type=module <<'JS'
@@ -37,23 +40,33 @@ jobs:
           assert.ok(p.all_results.every(x=>x.days>50&&x.c26_same_window_mdd_pct<=0&&Number.isFinite(x.relative_return_pp)));
           assert.equal(p.investigated_stocks.length,4);
           assert.equal(p.seed.target_stocks.length,4);
+          const rev=JSON.parse(fs.readFileSync('research/c26-lock/experiments/RS_REVERSAL_PROXY_RESULTS.json'));
+          assert.equal(rev.scanned_variants,48);
+          assert.equal(rev.baseline.window_start,p.baseline.window_start);
+          assert.equal(rev.baseline.window_end,p.baseline.window_end);
+          assert.ok(rev.all_results.every(x=>Number.isFinite(x.relative_return_pp)&&x.c26_same_window_mdd_pct<=0));
+          assert.equal(rev.assumptions.stockWhitelist,false);
           console.log('C26_RS_PROXY_RESEARCH_SAFETY_PASS');
           JS
       - uses: actions/upload-artifact@v4
         with:
-          name: c26-rs-shadow-2026-proxy
-          path: research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json
+          name: c26-rs-2026-proxy-both-families
+          path: |
+            research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json
+            research/c26-lock/experiments/RS_REVERSAL_PROXY_RESULTS.json
           retention-days: 30
       - name: Publish only annotated aggregate experimental report (never raw market data)
         run: |
           cp research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json /tmp/C26_RS_SHADOW_PROXY_RESULTS.json
+          cp research/c26-lock/experiments/RS_REVERSAL_PROXY_RESULTS.json /tmp/C26_RS_REVERSAL_PROXY_RESULTS.json
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
             cp /tmp/C26_RS_SHADOW_PROXY_RESULTS.json research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json
-            git add research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json
+            cp /tmp/C26_RS_REVERSAL_PROXY_RESULTS.json research/c26-lock/experiments/RS_REVERSAL_PROXY_RESULTS.json
+            git add research/c26-lock/experiments/RS_SHADOW_PROXY_RESULTS.json research/c26-lock/experiments/RS_REVERSAL_PROXY_RESULTS.json
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Record non-production C26 relative-strength shadow proxy diagnostics'
             if git push origin HEAD:main; then exit 0; fi
