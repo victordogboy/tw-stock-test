@@ -49,11 +49,13 @@ jobs:
                plan.forward_asset_sha256!==hash ||status.no_broker_orders!==true ||
                status.model_version!=='C26'||status.forward_coverage?.source_as_of!==plan.signal_as_of)
              throw Error('C26 forward-plan output/site assets not aligned');
-            const taipeiDay=new Date(Date.now()+8*3600000).toISOString().slice(0,10);
-            if(plan.trade_date>=taipeiDay && status.plan?.readiness!=='ready_for_manual_review')
+            const taipeiNow=new Date(Date.now()+8*3600000).toISOString();
+            const taipeiDay=taipeiNow.slice(0,10),taipeiHm=taipeiNow.slice(11,16);
+            const inSession=plan.trade_date>taipeiDay||(plan.trade_date===taipeiDay&&taipeiHm<'13:30');
+            if(inSession && status.plan?.readiness!=='ready_for_manual_review')
              throw Error('Nonexpired verified plan not served: '+status.plan?.plan_gate_error);
-            if(plan.trade_date<taipeiDay && status.plan?.readiness!=='blocked')
-             throw Error('Old C26 plan was not blocked');
+            if(!inSession && status.plan?.readiness!=='blocked')
+             throw Error('Expired C26 plan was not blocked after Taipei close');
             console.log('C26_LIVE_SITE_VERIFIED',JSON.stringify({attempt:i+1,
               planDate:plan.trade_date,modelAsOf:plan.signal_as_of,
               readiness:status.plan.readiness,assetsHashPassed:true,paperOnly:true}));
