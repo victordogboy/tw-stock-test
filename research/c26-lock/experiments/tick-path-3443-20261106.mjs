@@ -33,7 +33,7 @@ const report={research_only:true,lock_id:'C26-EVENT-CORR-LOCK-20261112',
 for(const day of days){
  const x=await get(day);
  const first=x[0],last=x.at(-1);
- const low=Math.min(...x.map(v=>v.price)),high=Math.max(...x.map(v=>v.price));
+ const low=x.reduce((n,v)=>Math.min(n,v.price),Infinity),high=x.reduce((n,v)=>Math.max(n,v.price),-Infinity);
  const lowIx=x.findIndex(v=>v.price===low);
  let cross=-1,seenBelow=false;
  for(let i=0;i<x.length;i++){
@@ -54,9 +54,9 @@ for(const day of days){
   first_trade_at_exact_6025:near.length?near[0].time:null,
   exact_6025_trade_count:near.length,
   exact_6025_volume_total:near.reduce((n,v)=>n+v.volume,0),
-  after_cross_min_price:post.length?Math.min(...post.map(z=>z.price)):null,
+  after_cross_min_price:post.length?post.reduce((n,z)=>Math.min(n,z.price),Infinity):null,
   after_cross_min_drawdown_pct:post.length?100*(Math.min(...post.map(z=>z.price))/threshold-1):null,
-  after_cross_max_price:post.length?Math.max(...post.map(z=>z.price)):null,
+  after_cross_max_price:post.length?post.reduce((n,z)=>Math.max(n,z.price),-Infinity):null,
   low_before_reclaim:cross>=0?lowIx<cross:null
  };
  report.sessions.push(m);
