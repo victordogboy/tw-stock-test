@@ -1,0 +1,63 @@
+name: C26 3443 Nov06 protected historical tick chronology verification
+on:
+  push:
+    branches: [main]
+    paths:
+      - research/c26-lock/experiments/tick-path-3443-20261106.mjs
+      - .github/workflows/c26-3443-tick-path.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: c26-3443-tick-path-study
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Syntax and secret-handling check
+        run: |
+          node --check research/c26-lock/experiments/tick-path-3443-20261106.mjs
+      - name: Query only three 3443 tick days with GitHub protected FinMind credential
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          node research/c26-lock/experiments/tick-path-3443-20261106.mjs
+      - name: Validate no raw tick data was exported
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const p=JSON.parse(fs.readFileSync('research/c26-lock/experiments/C26_3443_20261106_TICK_PATH.json'));
+          assert.equal(p.research_only,true);
+          assert.equal(p.stock_id,'3443');
+          assert.equal(p.sessions.length,3);
+          assert.equal(p.execution_check.certified_user_broker_fill,false);
+          for(const d of p.sessions){
+            assert.ok(d.valid_ticks>10);
+            assert.equal(Object.hasOwn(d,'ticks'),false);
+            assert.equal(Object.hasOwn(d,'raw'),false);
+          }
+          console.log('C26_3443_TICK_AUDIT_SAFETY_PASS',JSON.stringify({source:'private',broker_fill_certified:false}));
+          JS
+      - name: Commit only derived chronology, never licensed ticks or tokens
+        run: |
+          set -euo pipefail
+          cp research/c26-lock/experiments/C26_3443_20261106_TICK_PATH.json /tmp/C26_3443_TICK_PATH.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/C26_3443_TICK_PATH.json research/c26-lock/experiments/C26_3443_20261106_TICK_PATH.json
+            git add research/c26-lock/experiments/C26_3443_20261106_TICK_PATH.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Publish privacy-preserving 3443 Nov06 tick touch and timing audit'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 3
+          done
+          exit 1
