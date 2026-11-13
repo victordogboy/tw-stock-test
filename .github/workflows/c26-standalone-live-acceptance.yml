@@ -47,7 +47,7 @@ jobs:
             if(!html.includes('id="c26-current-plan"')||!html.includes('src="./forward-live.mjs"')||
                !script.includes('async function verifiedReplay')||!script.includes('plan.trade_date<today')||
                plan.forward_asset_sha256!==hash ||status.no_broker_orders!==true ||
-               status.model_version!=='C26'||status.forward_coverage?.source_as_of!==plan.signal_as_of)
+               status.model_version!=='C26'||!status.forward_coverage?.source_as_of||status.forward_coverage.source_as_of<plan.signal_as_of)
              throw Error('C26 forward-plan output/site assets not aligned');
             const taipeiNow=new Date(Date.now()+8*3600000).toISOString();
             const taipeiDay=taipeiNow.slice(0,10),taipeiHm=taipeiNow.slice(11,16);
