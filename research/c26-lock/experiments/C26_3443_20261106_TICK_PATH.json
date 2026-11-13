@@ -77,6 +77,24 @@
       "low_before_reclaim": null
     }
   ],
+  "alternative_rebound_4pct": {
+    "prior_close": 6405,
+    "threshold": 6150,
+    "trigger_discount_pct": 4,
+    "min_next_open_gap_pct": 3,
+    "actual_open_gap_pct": 9.992193598750976,
+    "touched_after_opening_below": true,
+    "first_touch_time": "09:53:10.567123",
+    "first_trade_at_or_above_threshold": 6150,
+    "prints_exact_threshold": 45,
+    "day_low_observed_after_touch": 6030,
+    "day_last_trade": 6205,
+    "price_path_verified": true,
+    "broker_execution_verified": false,
+    "next_open_exit": 6420,
+    "net_with_first_touch_price_pct": 3.7799102756425063,
+    "net_with_plus_halfpct_each_side_pct": 2.747274352501794
+  },
   "execution_check": {
     "daybar_1106_ohlc_parity": true,
     "buy_stop_6025_trade_path_supported": true,
