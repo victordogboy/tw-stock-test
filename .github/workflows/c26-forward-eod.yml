@@ -31,6 +31,7 @@ jobs:
       - name: Validate script and archive fingerprint
         run: |
           node --check research/c26-lock/forward/stage-finmind.mjs
+          node --check research/c26-lock/forward/diagnose-rotation.mjs
           node --check research/c26-lock/forward/sync-private-store.mjs
           node --check src/c26/github-oidc.mjs
           node --check src/c26/private-feed.mjs
@@ -48,6 +49,10 @@ jobs:
           node research/c26-lock/forward/stage-finmind.mjs
           node research/c26-lock/forward/audit-chip-overlap.mjs
           node --test tests/c26-forward-stage.test.mjs tests/c26-chip-overlap.test.mjs
+      - name: Publish candidate-screen diagnostics only (never raw FinMind or a trade order)
+        if: steps.ingest.outcome == 'success'
+        continue-on-error: true
+        run: node research/c26-lock/forward/diagnose-rotation.mjs
       - name: Persist and verify private source cache
         id: persist
         continue-on-error: true
@@ -62,12 +67,15 @@ jobs:
           tmpdir=$(mktemp -d)
           cp public/r1494a/c26/data/forward-status.json "$tmpdir/forward-status.json"
           cp public/r1494a/c26/data/forward-chip-parity.json "$tmpdir/forward-chip-parity.json"
+          if [ -f public/r1494a/c26/data/rotation-diagnostic.json ]; then cp public/r1494a/c26/data/rotation-diagnostic.json "$tmpdir/rotation-diagnostic.json"; fi
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
             cp "$tmpdir/forward-status.json" public/r1494a/c26/data/forward-status.json
             cp "$tmpdir/forward-chip-parity.json" public/r1494a/c26/data/forward-chip-parity.json
+            if [ -f "$tmpdir/rotation-diagnostic.json" ]; then cp "$tmpdir/rotation-diagnostic.json" public/r1494a/c26/data/rotation-diagnostic.json; fi
             git add public/r1494a/c26/data/forward-status.json public/r1494a/c26/data/forward-chip-parity.json
+            if [ -f public/r1494a/c26/data/rotation-diagnostic.json ]; then git add public/r1494a/c26/data/rotation-diagnostic.json; fi
             if git diff --cached --quiet; then exit 0; fi
             git commit -m 'Stage FinMind forward C26 source data (trading plan remains blocked)'
             if git push origin HEAD:main; then exit 0; fi
