@@ -60,6 +60,30 @@ for(const day of days){
   low_before_reclaim:cross>=0?lowIx<cross:null
  };
  report.sessions.push(m);
+ // Out-of-sample 2026-11-06 check for the broader 4% rebound rule selected
+ // by the 2021-2026-10 historical robustness grid. No future bar in the trigger.
+ if(day==='2026-11-06'){
+  const alt=6150;
+  let pos=-1,wasBelow=false;
+  for(let i=0;i<x.length;i++){
+   if(x[i].price<alt)wasBelow=true;
+   if(wasBelow&&x[i].price>=alt){pos=i;break}
+  }
+  const after=pos>=0?x.slice(pos):[];
+  report.alternative_rebound_4pct={
+   prior_close:6405,threshold:alt,trigger_discount_pct:4,
+   min_next_open_gap_pct:3,
+   actual_open_gap_pct:100*(1-first.price/6405),
+   touched_after_opening_below:pos>=0,
+   first_touch_time:pos>=0?x[pos].time:null,
+   first_trade_at_or_above_threshold:pos>=0?x[pos].price:null,
+   prints_exact_threshold:x.filter(z=>z.price===alt).length,
+   day_low_observed_after_touch:after.length?after.reduce((m,z)=>Math.min(m,z.price),Infinity):null,
+   day_last_trade:last.price,
+   price_path_verified:pos>=0,
+   broker_execution_verified:false
+  };
+ }
  console.log('C26_TICK_3443_AGGREGATE',JSON.stringify({date:day,valid_ticks:x.length,stop_crossed:m.stop_6025_recross_after_trading_below,
    first_recross_time:m.first_recross_time,low_time:m.minimum_first_seen_at,low_before_reclaim:m.low_before_reclaim,
    minimum:m.minimum_trade_price,maximum:m.maximum_trade_price,first:m.first_trade_price,last:m.last_trade_price}));
@@ -74,5 +98,15 @@ report.execution_check={
  modeled_roundtrip_net_pct:100*(sell.first_trade_price*(1-.0044275)/(threshold*(1+.0014275))-1),
  certified_user_broker_fill:false
 };
+if(report.alternative_rebound_4pct){
+ const a=report.alternative_rebound_4pct;
+ a.next_open_exit=sell.first_trade_price;
+ a.net_with_first_touch_price_pct=a.first_trade_at_or_above_threshold?
+  100*(sell.first_trade_price*(1-.0044275)/(a.first_trade_at_or_above_threshold*(1+.0014275))-1):null;
+ a.net_with_plus_halfpct_each_side_pct=a.first_trade_at_or_above_threshold?
+  100*(sell.first_trade_price*(1-.005)*(1-.0044275)/
+   (a.first_trade_at_or_above_threshold*(1+.005)*(1+.0014275))-1):null;
+ console.log('C26_3443_4PCT_REBOUND_TICK_VERIFIED',JSON.stringify(a));
+}
 fs.writeFileSync('research/c26-lock/experiments/C26_3443_20261106_TICK_PATH.json',JSON.stringify(report,null,2)+'\n');
 console.log('C26_TICK_3443_VERDICT',JSON.stringify(report.execution_check));
