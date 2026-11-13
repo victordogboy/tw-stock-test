@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - research/c26-lock/experiments/history-backtest.mjs
+      - research/c26-lock/experiments/history-fetch.mjs
       - .github/workflows/c26-rs-fiveyear-private.yml
 permissions:
   contents: write
@@ -25,6 +26,10 @@ jobs:
           node --check research/c26-lock/experiments/history-fetch.mjs
           node --check research/c26-lock/experiments/history-backtest.mjs
           git diff --exit-code
+      - name: Check FinMind multi-year entitlement with per-stock date_id
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/experiments/history-priceid-probe.mjs
       - name: Download 233-stock historical OHLC privately; no licensed raw rows in output
         env:
           FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
