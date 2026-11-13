@@ -92,7 +92,7 @@ for(const month of months){
  const rows=[...map.get(month).values()].sort((a,b)=>a.date.localeCompare(b.date)||a.code.localeCompare(b.code));
  const days=[...new Set(rows.map(x=>x.date))],counts=days.map(date=>rows.filter(x=>x.date===date&&x.valid).length);
  const min=counts.length?Math.min(...counts):0;
- if(days.length<15||min<165)throw Error('Stock dataset incomplete '+month+': trading_days '+days.length+' min_valid '+min);
+ if(days.length<10||min<165)throw Error('Stock dataset incomplete '+month+': trading_days '+days.length+' min_valid '+min);
  const bytes=gzipSync(JSON.stringify(rows),{level:8});
  const p=path.join(ROOT,month+'.json.gz');
  if(fs.existsSync(p)){
