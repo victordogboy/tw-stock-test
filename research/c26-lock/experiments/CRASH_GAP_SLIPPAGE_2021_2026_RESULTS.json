@@ -15,6 +15,8 @@
     "missing_sessions": 0
   },
   "scenario_count": 216,
+  "local_neighborhood_cases": 80,
+  "local_neighborhood_is_post_selected": true,
   "selection_rule": "All 233 stocks, prior close shock -8%/-9.5%, close within 0.5% of low, 4% below EMA20, 20-day volume ratio; rank from prior bar only.",
   "execution_rule": "Precommitted buy-stop prior close discounted 2/4/6%; next-open gap 3/5/7%, intraday high only as trigger; follow-day open exit.",
   "cost_pct": 0.5855,
@@ -134,6 +136,4460 @@
       }
     }
   ],
+  "local_trigger_neighborhood": [
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 49,
+      "hypothetical_trades": 49,
+      "modeled_profitable": 28,
+      "win_rate_pct": 57.142857142857146,
+      "avg_net_trade_pct": 0.9197401819555991,
+      "closed_equity_book_pct": 15.476036717200369,
+      "closed_equity_max_dd_pct": -3.7495412284121787,
+      "return_2021_2024_pct": 12.467102285309274,
+      "return_2025_2026_pct": 2.675390732712124,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 12,
+          "return_pct": 6.312424764246849
+        },
+        "2022": {
+          "event_days": 8,
+          "trades": 11,
+          "return_pct": 2.7801437288012654
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.9191329374634849
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 1.990272196593934
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": 1.0495876700069129
+        },
+        "2026": {
+          "event_days": 10,
+          "trades": 10,
+          "return_pct": 1.6089160779305
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 70,
+      "hypothetical_trades": 70,
+      "modeled_profitable": 43,
+      "win_rate_pct": 61.42857142857143,
+      "avg_net_trade_pct": 1.5366901076651311,
+      "closed_equity_book_pct": 14.002560482020776,
+      "closed_equity_max_dd_pct": -1.8389693637170024,
+      "return_2021_2024_pct": 7.600537706847166,
+      "return_2025_2026_pct": 5.949805560094634,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 9,
+          "trades": 20,
+          "return_pct": 5.679522461043551
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 16,
+          "return_pct": 0.36364967302817686
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.3503667416922429
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.0946538660778549
+        },
+        "2025": {
+          "event_days": 7,
+          "trades": 11,
+          "return_pct": 0.7965839543349729
+        },
+        "2026": {
+          "event_days": 10,
+          "trades": 14,
+          "return_pct": 5.112496280721457
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 17,
+      "hypothetical_trades": 17,
+      "modeled_profitable": 11,
+      "win_rate_pct": 64.70588235294117,
+      "avg_net_trade_pct": 1.2231167738270283,
+      "closed_equity_book_pct": 7.002293698260154,
+      "closed_equity_max_dd_pct": -4.013501602013003,
+      "return_2021_2024_pct": 6.901849902427659,
+      "return_2025_2026_pct": 0.09395889399870239,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 0.09706748274633803
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 2.393171376816561
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.848995338869508
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.408527725069076
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.06830424447719086
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.02563713826790881
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 23,
+      "hypothetical_trades": 23,
+      "modeled_profitable": 14,
+      "win_rate_pct": 60.869565217391305,
+      "avg_net_trade_pct": 1.1051333339066967,
+      "closed_equity_book_pct": 3.185148220274958,
+      "closed_equity_max_dd_pct": -1.4128059097058387,
+      "return_2021_2024_pct": 3.5507897957915757,
+      "return_2025_2026_pct": -0.3531036086134254,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.746038021811474,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "return_pct": 0.6671619256343853
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.895279749486777
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.6933732520760572
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.2497249016795164
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.36535448656357383
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.01229580121153706
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 40,
+      "hypothetical_trades": 40,
+      "modeled_profitable": 21,
+      "win_rate_pct": 52.5,
+      "avg_net_trade_pct": 0.45158448894188324,
+      "closed_equity_book_pct": 5.783510864349828,
+      "closed_equity_max_dd_pct": -4.1817940191742125,
+      "return_2021_2024_pct": 7.136694363258056,
+      "return_2025_2026_pct": -1.2630439150195905,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 4,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 11,
+          "return_pct": -0.8844697419927328
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 4.559288931614902
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.8098051671600492
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.5489309043909225
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 1.9474050443513358
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 9,
+          "return_pct": -3.1491227834335223
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 58,
+      "hypothetical_trades": 58,
+      "modeled_profitable": 34,
+      "win_rate_pct": 58.62068965517241,
+      "avg_net_trade_pct": 1.5588596826814607,
+      "closed_equity_book_pct": 11.677298428007688,
+      "closed_equity_max_dd_pct": -1.479207627244361,
+      "return_2021_2024_pct": 6.406244611046397,
+      "return_2025_2026_pct": 4.953707215426073,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 4,
+      "years": {
+        "2021": {
+          "event_days": 9,
+          "trades": 18,
+          "return_pct": 2.32979742020083
+        },
+        "2022": {
+          "event_days": 6,
+          "trades": 9,
+          "return_pct": 2.260964849142777
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.3096114186539545
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.3707284817477738
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 10,
+          "return_pct": 1.3760247642880197
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 13,
+          "return_pct": 3.5291208739508306
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 18,
+      "hypothetical_trades": 18,
+      "modeled_profitable": 11,
+      "win_rate_pct": 61.111111111111114,
+      "avg_net_trade_pct": 1.3641153395978038,
+      "closed_equity_book_pct": 8.30728736881563,
+      "closed_equity_max_dd_pct": -3.583694276858107,
+      "return_2021_2024_pct": 9.144490133326277,
+      "return_2025_2026_pct": -0.7670591190521492,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.0386293966397675
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 2.9027004777653964
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.1080129012306825
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.8082042499965487
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.20298826696836247
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.9680822925520305
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 14,
+      "win_rate_pct": 58.333333333333336,
+      "avg_net_trade_pct": 1.3623701916338924,
+      "closed_equity_book_pct": 4.1215030024777555,
+      "closed_equity_max_dd_pct": -1.1458784280086953,
+      "return_2021_2024_pct": 4.749042708773921,
+      "return_2025_2026_pct": -0.5990887267971257,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "return_pct": 1.3265942399757424
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 1.0842550855217459
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.7905048379615032
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.4666872904582684
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.24291236188701548
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.35704366811730726
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 36,
+      "hypothetical_trades": 36,
+      "modeled_profitable": 22,
+      "win_rate_pct": 61.111111111111114,
+      "avg_net_trade_pct": 0.9363946130640051,
+      "closed_equity_book_pct": 11.315184077069397,
+      "closed_equity_max_dd_pct": -3.7337997102477427,
+      "return_2021_2024_pct": 7.255983915232522,
+      "return_2025_2026_pct": 3.7845908579282606,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 10,
+          "return_pct": 1.2785594415513302
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 5,
+          "return_pct": 0.25955444504466296
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.520056504386181
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 3.0313543473483584
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 3.3396570715972906
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 8,
+          "return_pct": 0.4305547346868943
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 53,
+      "hypothetical_trades": 53,
+      "modeled_profitable": 34,
+      "win_rate_pct": 64.15094339622641,
+      "avg_net_trade_pct": 1.7201266080460855,
+      "closed_equity_book_pct": 11.834832409863738,
+      "closed_equity_max_dd_pct": -1.4523993389792267,
+      "return_2021_2024_pct": 7.206612524835365,
+      "return_2025_2026_pct": 4.317102999552613,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 5,
+      "years": {
+        "2021": {
+          "event_days": 9,
+          "trades": 17,
+          "return_pct": 3.630378571933379
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "return_pct": 0.8502232011479816
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 0.9448300135836085
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.6186787987499063
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 10,
+          "return_pct": 1.3375710563167997
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 11,
+          "return_pct": 2.9402046172785967
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 21,
+      "hypothetical_trades": 21,
+      "modeled_profitable": 13,
+      "win_rate_pct": 61.904761904761905,
+      "avg_net_trade_pct": 1.0552060749497327,
+      "closed_equity_book_pct": 7.345040787054913,
+      "closed_equity_max_dd_pct": -5.170750693017201,
+      "return_2021_2024_pct": 6.261638149799187,
+      "return_2025_2026_pct": 1.0195613921634372,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": -0.06490547300007643
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.6032917897764278
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.4864355316816855
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.128784537119911
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4070632462805479
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.6100149990250658
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 27,
+      "hypothetical_trades": 27,
+      "modeled_profitable": 16,
+      "win_rate_pct": 59.25925925925926,
+      "avg_net_trade_pct": 1.2255024772908218,
+      "closed_equity_book_pct": 4.157051263877665,
+      "closed_equity_max_dd_pct": -1.398735583049593,
+      "return_2021_2024_pct": 4.034895881865408,
+      "return_2025_2026_pct": 0.11741770006763463,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 1.151298439633619
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.24194501175303085
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.9324133243806321
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.6546928807894101
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.11802341139315331
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.23571931543817648
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 28,
+      "hypothetical_trades": 28,
+      "modeled_profitable": 17,
+      "win_rate_pct": 60.714285714285715,
+      "avg_net_trade_pct": 1.273235375037259,
+      "closed_equity_book_pct": 12.161975637627776,
+      "closed_equity_max_dd_pct": -4.67387948031226,
+      "return_2021_2024_pct": 7.992676703704693,
+      "return_2025_2026_pct": 3.860723764966245,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 9,
+          "return_pct": 0.8076880553705701
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.2646518728159029
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.7502565292645054
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.9579441875770662
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 2.937786628567274
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 0.8965970287754699
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 42,
+      "hypothetical_trades": 42,
+      "modeled_profitable": 27,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 2.225178392429444,
+      "closed_equity_book_pct": 12.21506189789061,
+      "closed_equity_max_dd_pct": -1.2417248878235476,
+      "return_2021_2024_pct": 7.9336761441208825,
+      "return_2025_2026_pct": 3.9666820465309893,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 15,
+          "return_pct": 3.8673609148804244
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 1.1722877122796627
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.0313461984742034
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.6623540359811395
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 7,
+          "return_pct": 1.3906327260818196
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": 2.540717274552029
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 22,
+      "hypothetical_trades": 22,
+      "modeled_profitable": 13,
+      "win_rate_pct": 59.09090909090909,
+      "avg_net_trade_pct": 1.4432578328577448,
+      "closed_equity_book_pct": 10.805047955628577,
+      "closed_equity_max_dd_pct": -4.450367634021724,
+      "return_2021_2024_pct": 8.408262336079474,
+      "return_2025_2026_pct": 2.210888328897598,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 1.1956238679412312
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.2646518728159029
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.7502565292645054
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.9579441875770662
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6136371028904408
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 1.5875096776133413
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 28,
+      "hypothetical_trades": 28,
+      "modeled_profitable": 16,
+      "win_rate_pct": 57.142857142857146,
+      "avg_net_trade_pct": 1.6356584657448237,
+      "closed_equity_book_pct": 5.8187477599690896,
+      "closed_equity_max_dd_pct": -1.2417248878235476,
+      "return_2021_2024_pct": 5.153509360557584,
+      "return_2025_2026_pct": 0.6326354711857274,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 1.8799904390839561
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.4890115068272971
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.0313461984742034
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.6623540359811395
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.032927113612624126
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.5995109559195244
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 16,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.2995991089150782,
+      "closed_equity_book_pct": 10.486993516902032,
+      "closed_equity_max_dd_pct": -4.113800511890108,
+      "return_2021_2024_pct": 11.673661792671219,
+      "return_2025_2026_pct": -1.0626214424420688,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 2.47809847268492
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.9358492535006988
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.284076850643136
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 3.504535572768397
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 7,
+          "return_pct": -1.8018220053922285
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 30,
+      "hypothetical_trades": 30,
+      "modeled_profitable": 20,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.6344983961924853,
+      "closed_equity_book_pct": 6.228389531171241,
+      "closed_equity_max_dd_pct": -1.5498570737945139,
+      "return_2021_2024_pct": 6.7624554876726695,
+      "return_2025_2026_pct": -0.500237610742349,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 2.701937041216218
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.7389825589517951
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.2315288189911788
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.9357594818973256
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 7,
+          "return_pct": -0.6588080562231813
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 16,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.2995991089150782,
+      "closed_equity_book_pct": 10.486993516902032,
+      "closed_equity_max_dd_pct": -4.113800511890108,
+      "return_2021_2024_pct": 11.673661792671219,
+      "return_2025_2026_pct": -1.0626214424420688,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 2.47809847268492
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.9358492535006988
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.284076850643136
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 3.504535572768397
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 7,
+          "return_pct": -1.8018220053922285
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 308,
+      "hypothetical_entry_crosses": 30,
+      "hypothetical_trades": 30,
+      "modeled_profitable": 20,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.6344983961924853,
+      "closed_equity_book_pct": 6.228389531171241,
+      "closed_equity_max_dd_pct": -1.5498570737945139,
+      "return_2021_2024_pct": 6.7624554876726695,
+      "return_2025_2026_pct": -0.500237610742349,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 2.701937041216218
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.7389825589517951
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.2315288189911788
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.9357594818973256
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 7,
+          "return_pct": -0.6588080562231813
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 40,
+      "hypothetical_trades": 40,
+      "modeled_profitable": 23,
+      "win_rate_pct": 57.5,
+      "avg_net_trade_pct": 0.7438553406429796,
+      "closed_equity_book_pct": 9.9207064384786,
+      "closed_equity_max_dd_pct": -3.5311254988834806,
+      "return_2021_2024_pct": 6.884287921798404,
+      "return_2025_2026_pct": 2.8408464665094835,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": 2.3425931965309177
+        },
+        "2022": {
+          "event_days": 8,
+          "trades": 10,
+          "return_pct": 3.02435233791154
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.6063115642109818
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 1.990272196593934
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": 1.0495876700069129
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 7,
+          "return_pct": 1.7726532465943468
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 56,
+      "hypothetical_trades": 56,
+      "modeled_profitable": 36,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 1.6152110332611165,
+      "closed_equity_book_pct": 11.626264588823808,
+      "closed_equity_max_dd_pct": -1.4068913903357516,
+      "return_2021_2024_pct": 5.906130755082373,
+      "return_2025_2026_pct": 5.401135697205106,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 14,
+          "return_pct": 4.799277645789002
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 13,
+          "return_pct": 0.18732828825196446
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.22497911826331318
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.0946538660778549
+        },
+        "2025": {
+          "event_days": 7,
+          "trades": 11,
+          "return_pct": 0.7965839543349729
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 10,
+          "return_pct": 4.568162493439454
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 13,
+      "hypothetical_trades": 13,
+      "modeled_profitable": 9,
+      "win_rate_pct": 69.23076923076923,
+      "avg_net_trade_pct": 1.2372946320137257,
+      "closed_equity_book_pct": 5.393091142831641,
+      "closed_equity_max_dd_pct": -2.516640154069838,
+      "return_2021_2024_pct": 5.294157916607989,
+      "return_2025_2026_pct": 0.09395889399870239,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.13473356596834796
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 2.6388179998689143
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.3094954896484259
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.408527725069076
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.06830424447719086
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.02563713826790881
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 17,
+      "hypothetical_trades": 17,
+      "modeled_profitable": 12,
+      "win_rate_pct": 70.58823529411765,
+      "avg_net_trade_pct": 1.504182117033135,
+      "closed_equity_book_pct": 3.219776466512614,
+      "closed_equity_max_dd_pct": -0.7152625358843645,
+      "return_2021_2024_pct": 3.585540748898697,
+      "return_2025_2026_pct": -0.3531036086134254,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.1907308726854193
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.9859137653581485
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.11606080861816803
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.2497249016795164
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.36535448656357383
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.01229580121153706
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 34,
+      "hypothetical_trades": 34,
+      "modeled_profitable": 18,
+      "win_rate_pct": 52.94117647058823,
+      "avg_net_trade_pct": 0.37560869997371604,
+      "closed_equity_book_pct": 4.031813879098456,
+      "closed_equity_max_dd_pct": -3.51626548808629,
+      "return_2021_2024_pct": 3.057531697493343,
+      "return_2025_2026_pct": 0.9453769807576284,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 4,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": -3.150117074293368
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 5,
+          "return_pct": 4.627325139856686
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.8245049642596869
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.5489309043909225
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 1.9474050443513358
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 8,
+          "return_pct": -0.9828872673686817
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 47,
+      "hypothetical_trades": 47,
+      "modeled_profitable": 29,
+      "win_rate_pct": 61.702127659574465,
+      "avg_net_trade_pct": 1.7123752368805718,
+      "closed_equity_book_pct": 10.32200138528876,
+      "closed_equity_max_dd_pct": -1.2921123004431267,
+      "return_2021_2024_pct": 4.9070963917936306,
+      "return_2025_2026_pct": 5.1616193563037704,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 4,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 13,
+          "return_pct": 1.9060890391204843
+        },
+        "2022": {
+          "event_days": 6,
+          "trades": 6,
+          "return_pct": 1.8668000875729618
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.30818547095187165
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.3707284817477738
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 10,
+          "return_pct": 1.3760247642880197
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 11,
+          "return_pct": 3.734210924937864
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 1.2880991307701317,
+      "closed_equity_book_pct": 6.0371380802157315,
+      "closed_equity_max_dd_pct": -2.254153360393696,
+      "return_2021_2024_pct": 6.856792854130034,
+      "return_2025_2026_pct": -0.7670591190521492,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.4848231816119375
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 2.970415026306217
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4526564633632546
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.8082042499965487
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.20298826696836247
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.9680822925520305
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 18,
+      "hypothetical_trades": 18,
+      "modeled_profitable": 12,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.6585311776853264,
+      "closed_equity_book_pct": 3.764599571509053,
+      "closed_equity_max_dd_pct": -0.9707761463235043,
+      "return_2021_2024_pct": 4.389988222856989,
+      "return_2025_2026_pct": -0.5990887267971257,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.5799901777616032
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.1091890547415106
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.16974617376122048
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.4666872904582684
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.24291236188701548
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.35704366811730726
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 27,
+      "hypothetical_trades": 27,
+      "modeled_profitable": 17,
+      "win_rate_pct": 62.96296296296296,
+      "avg_net_trade_pct": 1.3663354065174051,
+      "closed_equity_book_pct": 12.691847042834814,
+      "closed_equity_max_dd_pct": -2.863956650872135,
+      "return_2021_2024_pct": 7.362752062943101,
+      "return_2025_2026_pct": 4.963634852399723,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.821823087950074,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 0.5281032930346763
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 3.0075560707277793
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.6300421864988026
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 3.0313543473483584
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 3.3396570715972906
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 1.571495229248998
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 39,
+      "hypothetical_trades": 39,
+      "modeled_profitable": 27,
+      "win_rate_pct": 69.23076923076923,
+      "avg_net_trade_pct": 2.2407910098902892,
+      "closed_equity_book_pct": 11.345703526010741,
+      "closed_equity_max_dd_pct": -1.0756889758098853,
+      "return_2021_2024_pct": 7.022231462305495,
+      "return_2025_2026_pct": 4.039788747282835,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.821823087950074,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 3.6896152912575975
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.330576716884213
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.2362199150046651
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 1.6186787987499063
+        },
+        "2025": {
+          "event_days": 6,
+          "trades": 10,
+          "return_pct": 1.3375710563167997
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 8,
+          "return_pct": 2.666550680856883
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 1.7967378163937207,
+      "closed_equity_book_pct": 8.56127522331489,
+      "closed_equity_max_dd_pct": -1.9408940379702089,
+      "return_2021_2024_pct": 8.475189583577091,
+      "return_2025_2026_pct": 0.07935975043535937,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.821823087950074,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.1602299023614204
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 3.3607148694781763
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.597041035143997
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.128784537119911
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4070632462805479
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.3263749434055163
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 18,
+      "hypothetical_trades": 18,
+      "modeled_profitable": 12,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 2.1606736866545817,
+      "closed_equity_book_pct": 4.937069967454821,
+      "closed_equity_max_dd_pct": -0.7415279587753787,
+      "return_2021_2024_pct": 5.183255344278259,
+      "return_2025_2026_pct": -0.23405377216900725,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.821823087950074,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.9612017449290864
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.254182793561598
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.22389038817900442
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.6546928807894101
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.11802341139315331
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.11616746558166247
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 19,
+      "hypothetical_trades": 19,
+      "modeled_profitable": 12,
+      "win_rate_pct": 63.1578947368421,
+      "avg_net_trade_pct": 1.596822468477379,
+      "closed_equity_book_pct": 10.361532510567951,
+      "closed_equity_max_dd_pct": -3.9869518774884205,
+      "return_2021_2024_pct": 7.480385236242482,
+      "return_2025_2026_pct": 2.6806261142371834,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.41587601028315,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -0.5988846406568715
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 3.7003561306643062
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.742664959472239
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.5009351751310813
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 2.937786628567274
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -0.24982129765234173
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 29,
+      "hypothetical_trades": 29,
+      "modeled_profitable": 21,
+      "win_rate_pct": 72.41379310344827,
+      "avg_net_trade_pct": 2.9137404014732673,
+      "closed_equity_book_pct": 10.997619846983198,
+      "closed_equity_max_dd_pct": -0.9778935958008383,
+      "return_2021_2024_pct": 7.222813258466365,
+      "return_2025_2026_pct": 3.5205255987990514,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.41587601028315,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 9,
+          "return_pct": 3.5406615353149817
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.3801729040838984
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.27849935980208684
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.8627527931537324
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 7,
+          "return_pct": 1.3906327260818196
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 2.1006801273953712
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 2.3484474992495774,
+      "closed_equity_book_pct": 11.365931454044453,
+      "closed_equity_max_dd_pct": -1.5492405688013355,
+      "return_2021_2024_pct": 10.209245070148754,
+      "return_2025_2026_pct": 1.0495366184202215,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.289448280983134,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.924847578513944
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 3.7003561306643062
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.742664959472239
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.5009351751310813
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6136371028904408
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.4332409880819732
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 18,
+      "hypothetical_trades": 18,
+      "modeled_profitable": 12,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 2.7082587112446097,
+      "closed_equity_book_pct": 6.230416651493265,
+      "closed_equity_max_dd_pct": -0.5318424975323754,
+      "return_2021_2024_pct": 6.017547671933099,
+      "return_2025_2026_pct": 0.20078655301374315,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.289448280983134,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.376786121464569
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.3801729040838984
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.27849935980208684
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 1.8627527931537324
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.032927113612624126
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.1678041863260482
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 12,
+      "win_rate_pct": 80,
+      "avg_net_trade_pct": 2.0575829077340755,
+      "closed_equity_book_pct": 10.524696565630709,
+      "closed_equity_max_dd_pct": -3.1811998688708654,
+      "return_2021_2024_pct": 12.063591091395764,
+      "return_2025_2026_pct": -1.3732332783356727,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.824198067478436,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 2.6230841848939868
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 4.043819922645686
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.0376952477216372
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.877084769192507
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -2.1101131365400816
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 19,
+      "hypothetical_trades": 19,
+      "modeled_profitable": 15,
+      "win_rate_pct": 78.94736842105263,
+      "avg_net_trade_pct": 2.595307107555486,
+      "closed_equity_book_pct": 6.286765819170226,
+      "closed_equity_max_dd_pct": -1.1929499508265606,
+      "return_2021_2024_pct": 6.950394775097379,
+      "return_2025_2026_pct": -0.6205016422077603,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.824198067478436,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.8221568877893066
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.5074507828197303
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.38913571789560564
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 2.073039140807298
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -0.7788804257128579
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 12,
+      "win_rate_pct": 80,
+      "avg_net_trade_pct": 2.0575829077340755,
+      "closed_equity_book_pct": 10.524696565630709,
+      "closed_equity_max_dd_pct": -3.1811998688708654,
+      "return_2021_2024_pct": 12.063591091395764,
+      "return_2025_2026_pct": -1.3732332783356727,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.824198067478436,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 2.6230841848939868
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 4.043819922645686
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.0376952477216372
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.877084769192507
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -2.1101131365400816
+        }
+      }
+    },
+    {
+      "fall": 0.08,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 282,
+      "hypothetical_entry_crosses": 19,
+      "hypothetical_trades": 19,
+      "modeled_profitable": 15,
+      "win_rate_pct": 78.94736842105263,
+      "avg_net_trade_pct": 2.595307107555486,
+      "closed_equity_book_pct": 6.286765819170226,
+      "closed_equity_max_dd_pct": -1.1929499508265606,
+      "return_2021_2024_pct": 6.950394775097379,
+      "return_2025_2026_pct": -0.6205016422077603,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.824198067478436,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.8221568877893066
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.5074507828197303
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.38913571789560564
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 3,
+          "return_pct": 2.073039140807298
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": -0.7788804257128579
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 41,
+      "hypothetical_trades": 41,
+      "modeled_profitable": 24,
+      "win_rate_pct": 58.53658536585366,
+      "avg_net_trade_pct": 0.9264386370680635,
+      "closed_equity_book_pct": 12.980455583399465,
+      "closed_equity_max_dd_pct": -3.74954122841219,
+      "return_2021_2024_pct": 9.837048206433563,
+      "return_2025_2026_pct": 2.8618826054556346,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 10,
+          "return_pct": 7.383808922895829
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 8,
+          "return_pct": 0.7963148008163223
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.9191329374634849
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.5522710338488279
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.163165270313838
+        },
+        "2026": {
+          "event_days": 9,
+          "trades": 10,
+          "return_pct": 0.683922951381799
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 59,
+      "hypothetical_trades": 59,
+      "modeled_profitable": 35,
+      "win_rate_pct": 59.32203389830509,
+      "avg_net_trade_pct": 1.2996995897530401,
+      "closed_equity_book_pct": 9.713757769462529,
+      "closed_equity_max_dd_pct": -2.4899300172764205,
+      "return_2021_2024_pct": 4.634942259847308,
+      "return_2025_2026_pct": 4.853842702949707,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 4,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 18,
+          "return_pct": 6.053981054973101
+        },
+        "2022": {
+          "event_days": 10,
+          "trades": 11,
+          "return_pct": -1.886606640209132
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 0.3503667416922429
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.2080250110782833
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 9,
+          "return_pct": 1.2105880830483695
+        },
+        "2026": {
+          "event_days": 10,
+          "trades": 14,
+          "return_pct": 3.5996773548157446
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 9,
+      "win_rate_pct": 60,
+      "avg_net_trade_pct": 0.753592854155393,
+      "closed_equity_book_pct": 3.7107017170424195,
+      "closed_equity_max_dd_pct": -4.013501602013003,
+      "return_2021_2024_pct": 3.6133477614507026,
+      "return_2025_2026_pct": 0.09395889399870239,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 0.09706748274633803
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.6626471267719758
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.848995338869508
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.964629412298601
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.06830424447719086
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.02563713826790881
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 20,
+      "hypothetical_trades": 20,
+      "modeled_profitable": 11,
+      "win_rate_pct": 55,
+      "avg_net_trade_pct": 0.6578379149448299,
+      "closed_equity_book_pct": 1.6250342754790648,
+      "closed_equity_max_dd_pct": -1.4128059097058387,
+      "return_2021_2024_pct": 1.9851475115922224,
+      "return_2025_2026_pct": -0.3531036086134254,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.746038021811474,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "return_pct": 0.6671619256343853
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.2489998350558853
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.6933732520760572
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.3617360296119809
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.36535448656357383
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.01229580121153706
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 34,
+      "hypothetical_trades": 34,
+      "modeled_profitable": 18,
+      "win_rate_pct": 52.94117647058823,
+      "avg_net_trade_pct": 0.7264160727721105,
+      "closed_equity_book_pct": 8.278892988381026,
+      "closed_equity_max_dd_pct": -2.5405989381138583,
+      "return_2021_2024_pct": 5.407652638615934,
+      "return_2025_2026_pct": 2.7239391807812874,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 10,
+          "return_pct": 1.9879274879666564
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.6090827523007833
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.8098051671600492
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.8992804574452729
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "return_pct": 2.741043555628342
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 9,
+          "return_pct": -0.016648044690925623
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 50,
+      "hypothetical_trades": 50,
+      "modeled_profitable": 28,
+      "win_rate_pct": 56,
+      "avg_net_trade_pct": 1.5009758131431794,
+      "closed_equity_book_pct": 9.575266148814388,
+      "closed_equity_max_dd_pct": -1.4877984943341915,
+      "return_2021_2024_pct": 4.012426398493751,
+      "return_2025_2026_pct": 5.348245342348079,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 17,
+          "return_pct": 3.422093373158286
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": -0.0772692598245861
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.3096114186539545
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.3379124965824376
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 8,
+          "return_pct": 1.6704935495952533
+        },
+        "2026": {
+          "event_days": 9,
+          "trades": 13,
+          "return_pct": 3.6173246183356156
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 9,
+      "win_rate_pct": 60,
+      "avg_net_trade_pct": 1.2289701039383576,
+      "closed_equity_book_pct": 6.192234163792998,
+      "closed_equity_max_dd_pct": -3.583694276858107,
+      "return_2021_2024_pct": 5.407420204204549,
+      "return_2025_2026_pct": 0.7445528579183458,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.0386293966397675
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.004147621667073
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.1080129012306825
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.1543830097848096
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.20298826696836247
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.5404675053273911
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 20,
+      "hypothetical_trades": 20,
+      "modeled_profitable": 11,
+      "win_rate_pct": 55,
+      "avg_net_trade_pct": 1.1634237235925915,
+      "closed_equity_book_pct": 2.9167300296622845,
+      "closed_equity_max_dd_pct": -1.1458784280086953,
+      "return_2021_2024_pct": 2.95609059564812,
+      "return_2025_2026_pct": -0.03823043955738514,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "return_pct": 1.3265942399757424
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.3767203692618848
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.7905048379615032
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.43289362866931747
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.24291236188701548
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.20518033071710295
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 31,
+      "hypothetical_trades": 31,
+      "modeled_profitable": 20,
+      "win_rate_pct": 64.51612903225806,
+      "avg_net_trade_pct": 1.3049550124528522,
+      "closed_equity_book_pct": 13.953019036798153,
+      "closed_equity_max_dd_pct": -3.70833882893179,
+      "return_2021_2024_pct": 5.933178894731728,
+      "return_2025_2026_pct": 7.570659377678024,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 9,
+          "return_pct": 3.971801068266534
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -1.7987830329964427
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 2.520056504386181
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.2023811815457641
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "return_pct": 3.751342145090053
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 8,
+          "return_pct": 3.681222000238682
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 44,
+      "hypothetical_trades": 44,
+      "modeled_profitable": 29,
+      "win_rate_pct": 65.9090909090909,
+      "avg_net_trade_pct": 1.9157648123516255,
+      "closed_equity_book_pct": 10.90840647985749,
+      "closed_equity_max_dd_pct": -1.4523993389792267,
+      "return_2021_2024_pct": 5.61904895697114,
+      "return_2025_2026_pct": 5.007957915850225,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 5,
+      "years": {
+        "2021": {
+          "event_days": 8,
+          "trades": 16,
+          "return_pct": 4.646902005543518
+        },
+        "2022": {
+          "event_days": 5,
+          "trades": 5,
+          "return_pct": -0.4647867434769082
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 3,
+          "return_pct": 0.9448300135836085
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.45118036971067976
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 8,
+          "return_pct": 1.4883328191914513
+        },
+        "2026": {
+          "event_days": 8,
+          "trades": 10,
+          "return_pct": 3.468009572025621
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 18,
+      "hypothetical_trades": 18,
+      "modeled_profitable": 11,
+      "win_rate_pct": 61.111111111111114,
+      "avg_net_trade_pct": 0.8030738448275195,
+      "closed_equity_book_pct": 4.701805264571135,
+      "closed_equity_max_dd_pct": -5.170750693017201,
+      "return_2021_2024_pct": 2.232487669570582,
+      "return_2025_2026_pct": 2.415394216935951,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": -0.06490547300007643
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -1.4621026462092623
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.4864355316816855
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.2980818278811368
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4070632462805479
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 2.000188936638181
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 23,
+      "hypothetical_trades": 23,
+      "modeled_profitable": 13,
+      "win_rate_pct": 56.52173913043478,
+      "avg_net_trade_pct": 0.9362338732542398,
+      "closed_equity_book_pct": 2.681207919264139,
+      "closed_equity_max_dd_pct": -1.398735583049593,
+      "return_2021_2024_pct": 2.0376063404898614,
+      "return_2025_2026_pct": 0.6307493892267813,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.036247334754798,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 1.151298439633619
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.539827128085224
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 0.9324133243806321
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4867806854554235
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.11802341139315331
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.7496575720602472
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 15,
+      "win_rate_pct": 62.5,
+      "avg_net_trade_pct": 1.4055462638747913,
+      "closed_equity_book_pct": 11.573266070759258,
+      "closed_equity_max_dd_pct": -4.450367634021724,
+      "return_2021_2024_pct": 6.18487934364762,
+      "return_2025_2026_pct": 5.074532984751179,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 8,
+          "return_pct": 3.3671322765520095
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.9734139166395428
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.7502565292645054
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.9591041370271114
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 2.937786628567274
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 5,
+          "return_pct": 2.0757648150080854
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 35,
+      "hypothetical_trades": 35,
+      "modeled_profitable": 23,
+      "win_rate_pct": 65.71428571428571,
+      "avg_net_trade_pct": 2.333403175996819,
+      "closed_equity_book_pct": 10.607787292567217,
+      "closed_equity_max_dd_pct": -1.2417248878235476,
+      "return_2021_2024_pct": 5.927100096210558,
+      "return_2025_2026_pct": 4.418781588569254,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 7,
+          "trades": 14,
+          "return_pct": 4.840836234846724
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.35550013547975823
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.0313461984742034
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.3614980476425167
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 7,
+          "return_pct": 1.3906327260818196
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 7,
+          "return_pct": 2.9866160029480504
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 19,
+      "hypothetical_trades": 19,
+      "modeled_profitable": 11,
+      "win_rate_pct": 57.89473684210526,
+      "avg_net_trade_pct": 1.1792619637295,
+      "closed_equity_book_pct": 7.494248736131404,
+      "closed_equity_max_dd_pct": -4.450367634021724,
+      "return_2021_2024_pct": 3.954176476268567,
+      "return_2025_2026_pct": 3.4054160976119574,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 1.1956238679412312
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.9734139166395428
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 2.7502565292645054
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.9591041370271114
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6136371028904408
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 2.774752086406096
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 13,
+      "win_rate_pct": 54.166666666666664,
+      "avg_net_trade_pct": 1.3355635503753553,
+      "closed_equity_book_pct": 4.037231276070052,
+      "closed_equity_max_dd_pct": -1.2417248878235476,
+      "return_2021_2024_pct": 2.9355767524377407,
+      "return_2025_2026_pct": 1.0702368980569643,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.591444690423476,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 1.8799904390839561
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.35550013547975823
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.0313461984742034
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.3614980476425167
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.032927113612624126
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 1.0369683407006614
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 21,
+      "hypothetical_trades": 21,
+      "modeled_profitable": 14,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 0.9710991825805164,
+      "closed_equity_book_pct": 6.679990143441916,
+      "closed_equity_max_dd_pct": -4.113800511890098,
+      "return_2021_2024_pct": 6.730538927854246,
+      "return_2025_2026_pct": -0.04736112542865767,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 2.47809847268492
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.4781684888034654
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.284076850643136
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.3225035557651754
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 6,
+          "return_pct": -0.7941471025955549
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 26,
+      "hypothetical_trades": 26,
+      "modeled_profitable": 17,
+      "win_rate_pct": 65.38461538461539,
+      "avg_net_trade_pct": 1.2801768187354854,
+      "closed_equity_book_pct": 4.182371684232233,
+      "closed_equity_max_dd_pct": -1.549857073794525,
+      "return_2021_2024_pct": 4.307159871279986,
+      "return_2025_2026_pct": -0.11963530327327998,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 2.701937041216218
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.1690855318524198
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.2315288189911788
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.4973570463215893
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 6,
+          "return_pct": -0.2788123057548275
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 21,
+      "hypothetical_trades": 21,
+      "modeled_profitable": 14,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 0.9710991825805164,
+      "closed_equity_book_pct": 6.679990143441916,
+      "closed_equity_max_dd_pct": -4.113800511890098,
+      "return_2021_2024_pct": 6.730538927854246,
+      "return_2025_2026_pct": -0.04736112542865767,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 2.47809847268492
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.4781684888034654
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 3.284076850643136
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.3225035557651754
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 6,
+          "return_pct": -0.7941471025955549
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 0.8,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 240,
+      "hypothetical_entry_crosses": 26,
+      "hypothetical_trades": 26,
+      "modeled_profitable": 17,
+      "win_rate_pct": 65.38461538461539,
+      "avg_net_trade_pct": 1.2801768187354854,
+      "closed_equity_book_pct": 4.182371684232233,
+      "closed_equity_max_dd_pct": -1.549857073794525,
+      "return_2021_2024_pct": 4.307159871279986,
+      "return_2025_2026_pct": -0.11963530327327998,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.142365097588964,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 11,
+          "return_pct": 2.701937041216218
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.1690855318524198
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 2,
+          "return_pct": 1.2315288189911788
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.4973570463215893
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 6,
+          "trades": 6,
+          "return_pct": -0.2788123057548275
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 33,
+      "hypothetical_trades": 33,
+      "modeled_profitable": 20,
+      "win_rate_pct": 60.60606060606061,
+      "avg_net_trade_pct": 0.9571575698372327,
+      "closed_equity_book_pct": 10.691623194107303,
+      "closed_equity_max_dd_pct": -2.297726083142615,
+      "return_2021_2024_pct": 6.460700431235056,
+      "return_2025_2026_pct": 3.9741639363016112,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 5.42978029021759
+        },
+        "2022": {
+          "event_days": 7,
+          "trades": 7,
+          "return_pct": 1.0358097747278139
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.6063115642109818
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.5522710338488279
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.163165270313838
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 7,
+          "return_pct": 1.7726532465943468
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 47,
+      "hypothetical_trades": 47,
+      "modeled_profitable": 31,
+      "win_rate_pct": 65.95744680851064,
+      "avg_net_trade_pct": 1.8379484178913503,
+      "closed_equity_book_pct": 11.079124446917277,
+      "closed_equity_max_dd_pct": -1.542153595780682,
+      "return_2021_2024_pct": 4.955940106496648,
+      "return_2025_2026_pct": 5.834052207247686,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.8680670720471575,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 13,
+          "return_pct": 5.962826033303781
+        },
+        "2022": {
+          "event_days": 9,
+          "trades": 9,
+          "return_pct": -0.9329660482598201
+        },
+        "2023": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.22497911826331318
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.2080250110782833
+        },
+        "2025": {
+          "event_days": 5,
+          "trades": 9,
+          "return_pct": 1.2105880830483695
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 10,
+          "return_pct": 4.568162493439454
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 11,
+      "hypothetical_trades": 11,
+      "modeled_profitable": 7,
+      "win_rate_pct": 63.63636363636363,
+      "avg_net_trade_pct": 0.5996125339499861,
+      "closed_equity_book_pct": 2.151001261471186,
+      "closed_equity_max_dd_pct": -2.516640154069838,
+      "return_2021_2024_pct": 2.0551114075235244,
+      "return_2025_2026_pct": 0.09395889399870239,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": -0.13473356596834796
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.9041421308011222
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.3094954896484259
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.964629412298601
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.06830424447719086
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.02563713826790881
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.03,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 0.9506991149004194,
+      "closed_equity_book_pct": 1.6591389579018623,
+      "closed_equity_max_dd_pct": -0.7152625358843645,
+      "return_2021_2024_pct": 2.0193730456107284,
+      "return_2025_2026_pct": -0.3531036086134254,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.6675446297922,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.1907308726854193
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.33905329905041803
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.11606080861816803
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.3617360296119809
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.36535448656357383
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.01229580121153706
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 27,
+      "hypothetical_trades": 27,
+      "modeled_profitable": 14,
+      "win_rate_pct": 51.851851851851855,
+      "avg_net_trade_pct": 0.5334249768365167,
+      "closed_equity_book_pct": 4.720951254204131,
+      "closed_equity_max_dd_pct": -2.540598938113847,
+      "return_2021_2024_pct": 1.3943221556773189,
+      "return_2025_2026_pct": 3.280883019681524,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": -0.34337897065276346
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 1.6751992760838608
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.8245049642596869
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.8992804574452729
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "return_pct": 2.741043555628342
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 7,
+          "return_pct": 0.5254370068383585
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 39,
+      "hypothetical_trades": 39,
+      "modeled_profitable": 24,
+      "win_rate_pct": 61.53846153846154,
+      "avg_net_trade_pct": 2.020628952184359,
+      "closed_equity_book_pct": 10.114630699083072,
+      "closed_equity_max_dd_pct": -0.9548670346542942,
+      "return_2021_2024_pct": 3.8208349772579586,
+      "return_2025_2026_pct": 6.062170202352757,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.487356605402729,
+      "modeled_entry_above_same_day_high": 3,
+      "years": {
+        "2021": {
+          "event_days": 6,
+          "trades": 12,
+          "return_pct": 2.9938622141427285
+        },
+        "2022": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.7740263620063415
+        },
+        "2023": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": -0.30818547095187165
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.3379124965824376
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 8,
+          "return_pct": 1.6704935495952533
+        },
+        "2026": {
+          "event_days": 7,
+          "trades": 10,
+          "return_pct": 4.319519360467372
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 11,
+      "hypothetical_trades": 11,
+      "modeled_profitable": 7,
+      "win_rate_pct": 63.63636363636363,
+      "avg_net_trade_pct": 1.083078479736067,
+      "closed_equity_book_pct": 3.9664169478114797,
+      "closed_equity_max_dd_pct": -2.254153360393696,
+      "return_2021_2024_pct": 3.19805289566073,
+      "return_2025_2026_pct": 0.7445528579183458,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 0.4848231816119375
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.0706128380821633
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4526564633632546
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.1543830097848096
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.20298826696836247
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.5404675053273911
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.035,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 1.4589393622124494,
+      "closed_equity_book_pct": 2.5639562702324925,
+      "closed_equity_max_dd_pct": -0.6699366225608405,
+      "return_2021_2024_pct": 2.6031819176794757,
+      "return_2025_2026_pct": -0.03823043955738514,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -7.258390470101483,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.5799901777616032
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4014798142808029
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.16974617376122048
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.43289362866931747
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.24291236188701548
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.20518033071710295
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 21,
+      "hypothetical_trades": 21,
+      "modeled_profitable": 14,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.8164448573611307,
+      "closed_equity_book_pct": 13.289442820109198,
+      "closed_equity_max_dd_pct": -2.177873692093568,
+      "return_2021_2024_pct": 6.038630253982902,
+      "return_2025_2026_pct": 6.837897234959733,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.766651395687151,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 5,
+          "return_pct": 3.2013884773463452
+        },
+        "2022": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.8928018774202906
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.6300421864988026
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 1.2023811815457641
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 5,
+          "return_pct": 3.751342145090053
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 5,
+          "return_pct": 2.9749543726897754
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 32,
+      "hypothetical_trades": 32,
+      "modeled_profitable": 23,
+      "win_rate_pct": 71.875,
+      "avg_net_trade_pct": 2.6498108118556076,
+      "closed_equity_book_pct": 11.009635147084929,
+      "closed_equity_max_dd_pct": -0.8178105086833809,
+      "return_2021_2024_pct": 5.997230571085965,
+      "return_2025_2026_pct": 4.728807110330546,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.766651395687151,
+      "modeled_entry_above_same_day_high": 2,
+      "years": {
+        "2021": {
+          "event_days": 5,
+          "trades": 10,
+          "return_pct": 4.706719785307301
+        },
+        "2022": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.5403144989901243
+        },
+        "2023": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.2362199150046651
+        },
+        "2024": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.45118036971067976
+        },
+        "2025": {
+          "event_days": 4,
+          "trades": 8,
+          "return_pct": 1.4883328191914513
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 7,
+          "return_pct": 3.1929525307231366
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 11,
+      "hypothetical_trades": 11,
+      "modeled_profitable": 7,
+      "win_rate_pct": 63.63636363636363,
+      "avg_net_trade_pct": 1.5863937329511868,
+      "closed_equity_book_pct": 5.888091469948509,
+      "closed_equity_max_dd_pct": -1.9408940379702089,
+      "return_2021_2024_pct": 4.362107291476325,
+      "return_2025_2026_pct": 1.4622013852309879,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.70717733768007,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.1602299023614204
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.2387102949457551
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.597041035143997
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.2980818278811368
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4070632462805479
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 1.0508604721984227
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.04,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 1.9526384684127003,
+      "closed_equity_book_pct": 3.4501742226592524,
+      "closed_equity_max_dd_pct": -0.6242607021846314,
+      "return_2021_2024_pct": 3.16391929317561,
+      "return_2025_2026_pct": 0.2774758185273507,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.70717733768007,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 1.9612017449290864
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.46451636060464985
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.22389038817900442
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.4867806854554235
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": -0.11802341139315331
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.39596656316633894
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 10,
+      "win_rate_pct": 66.66666666666667,
+      "avg_net_trade_pct": 1.8948097822014631,
+      "closed_equity_book_pct": 9.7822730098869,
+      "closed_equity_max_dd_pct": -1.5492405688013355,
+      "return_2021_2024_pct": 5.681163635123188,
+      "return_2025_2026_pct": 3.88064365843217,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.326110035596066,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.924847578513944
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.408458463333373
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.742664959472239
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.4915534209605452
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 4,
+          "return_pct": 2.937786628567274
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": 0.915948419667334
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 24,
+      "hypothetical_trades": 24,
+      "modeled_profitable": 18,
+      "win_rate_pct": 75,
+      "avg_net_trade_pct": 3.2575739439516593,
+      "closed_equity_book_pct": 10.151702357688741,
+      "closed_equity_max_dd_pct": -0.5318424975323754,
+      "return_2021_2024_pct": 5.944961628695755,
+      "return_2025_2026_pct": 3.9706850276998606,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.326110035596066,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 8,
+          "return_pct": 4.511074933034931
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5281719237500093
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.27849935980208684
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5593325328602017
+        },
+        "2025": {
+          "event_days": 3,
+          "trades": 7,
+          "return_pct": 1.3906327260818196
+        },
+        "2026": {
+          "event_days": 5,
+          "trades": 6,
+          "return_pct": 2.544665352457498
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 11,
+      "hypothetical_trades": 11,
+      "modeled_profitable": 7,
+      "win_rate_pct": 63.63636363636363,
+      "avg_net_trade_pct": 2.139324543407655,
+      "closed_equity_book_pct": 8.038373317123849,
+      "closed_equity_max_dd_pct": -1.5492405688013355,
+      "return_2021_2024_pct": 5.681163635123188,
+      "return_2025_2026_pct": 2.2304917933523294,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.289448280983134,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 1.924847578513944
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.408458463333373
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.742664959472239
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.4915534209605452
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6136371028904408
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 1.6069935816040992
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.045,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 14,
+      "hypothetical_trades": 14,
+      "modeled_profitable": 9,
+      "win_rate_pct": 64.28571428571429,
+      "avg_net_trade_pct": 2.5002674978968886,
+      "closed_equity_book_pct": 4.441969496690623,
+      "closed_equity_max_dd_pct": -0.5318424975323754,
+      "return_2021_2024_pct": 3.781390481893765,
+      "return_2025_2026_pct": 0.636510083098285,
+      "both_periods_positive": true,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -6.289448280983134,
+      "modeled_entry_above_same_day_high": 0,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.376786121464569
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5281719237500093
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.27849935980208684
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5593325328602017
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.032927113612624126
+        },
+        "2026": {
+          "event_days": 3,
+          "trades": 3,
+          "return_pct": 0.6033842924541677
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 12,
+      "hypothetical_trades": 12,
+      "modeled_profitable": 10,
+      "win_rate_pct": 83.33333333333333,
+      "avg_net_trade_pct": 1.6722039863533416,
+      "closed_equity_book_pct": 6.716394074246113,
+      "closed_equity_max_dd_pct": -3.1811998688708654,
+      "return_2021_2024_pct": 7.103208396451932,
+      "return_2025_2026_pct": -0.3611603499065974,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.734485467399841,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 2.6230841848939868
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.5798817781195629
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.0376952477216372
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.6871988521644399
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -1.1056018080780605
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.03,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 12,
+      "win_rate_pct": 80,
+      "avg_net_trade_pct": 2.2373653629934864,
+      "closed_equity_book_pct": 4.239623612466237,
+      "closed_equity_max_dd_pct": -1.1929499508265828,
+      "return_2021_2024_pct": 4.490776979091549,
+      "return_2025_2026_pct": -0.24035936365518484,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.734485467399841,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.8221568877893066
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5924556667948444
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.38913571789560564
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6326995695616677
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.39934397102366903
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 3,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 12,
+      "hypothetical_trades": 12,
+      "modeled_profitable": 10,
+      "win_rate_pct": 83.33333333333333,
+      "avg_net_trade_pct": 1.6722039863533416,
+      "closed_equity_book_pct": 6.716394074246113,
+      "closed_equity_max_dd_pct": -3.1811998688708654,
+      "return_2021_2024_pct": 7.103208396451932,
+      "return_2025_2026_pct": -0.3611603499065974,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.734485467399841,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 3,
+          "trades": 4,
+          "return_pct": 2.6230841848939868
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.5798817781195629
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.0376952477216372
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 1.6871988521644399
+        },
+        "2025": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.7527640309077377
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -1.1056018080780605
+        }
+      }
+    },
+    {
+      "fall": 0.095,
+      "vol": 1.2,
+      "trigger_discount": 0.05,
+      "minimum_open_gap": 0.05,
+      "cap": 8,
+      "execution_slippage_each_side": 0.005,
+      "historical_signals": 218,
+      "hypothetical_entry_crosses": 15,
+      "hypothetical_trades": 15,
+      "modeled_profitable": 12,
+      "win_rate_pct": 80,
+      "avg_net_trade_pct": 2.2373653629934864,
+      "closed_equity_book_pct": 4.239623612466237,
+      "closed_equity_max_dd_pct": -1.1929499508265828,
+      "return_2021_2024_pct": 4.490776979091549,
+      "return_2025_2026_pct": -0.24035936365518484,
+      "both_periods_positive": false,
+      "missing_entry_days": 0,
+      "forced_stress_exits": 0,
+      "conservative_daylow_relative_entry_pct": -5.734485467399841,
+      "modeled_entry_above_same_day_high": 1,
+      "years": {
+        "2021": {
+          "event_days": 4,
+          "trades": 6,
+          "return_pct": 2.8221568877893066
+        },
+        "2022": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.5924556667948444
+        },
+        "2023": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.38913571789560564
+        },
+        "2024": {
+          "event_days": 1,
+          "trades": 1,
+          "return_pct": 0.6326995695616677
+        },
+        "2025": {
+          "event_days": 2,
+          "trades": 2,
+          "return_pct": 0.15962204839516936
+        },
+        "2026": {
+          "event_days": 4,
+          "trades": 4,
+          "return_pct": -0.39934397102366903
+        }
+      }
+    }
+  ],
+  "local_neighborhood_summary": {
+    "variants": 80,
+    "both_periods_positive": 52,
+    "trades20_and_both_periods_positive": 35,
+    "a2_adjacent": [
+      {
+        "trigger_discount": 0.03,
+        "trades": 40,
+        "book": 9.9207064384786,
+        "train": 6.884287921798404,
+        "holdout": 2.8408464665094835,
+        "max_dd_closed": -3.5311254988834806,
+        "synthetic_price_above_day_high": 2
+      },
+      {
+        "trigger_discount": 0.035,
+        "trades": 34,
+        "book": 4.031813879098456,
+        "train": 3.057531697493343,
+        "holdout": 0.9453769807576284,
+        "max_dd_closed": -3.51626548808629,
+        "synthetic_price_above_day_high": 4
+      },
+      {
+        "trigger_discount": 0.04,
+        "trades": 27,
+        "book": 12.691847042834814,
+        "train": 7.362752062943101,
+        "holdout": 4.963634852399723,
+        "max_dd_closed": -2.863956650872135,
+        "synthetic_price_above_day_high": 0
+      },
+      {
+        "trigger_discount": 0.045,
+        "trades": 19,
+        "book": 10.361532510567951,
+        "train": 7.480385236242482,
+        "holdout": 2.6806261142371834,
+        "max_dd_closed": -3.9869518774884205,
+        "synthetic_price_above_day_high": 1
+      },
+      {
+        "trigger_discount": 0.05,
+        "trades": 15,
+        "book": 10.524696565630709,
+        "train": 12.063591091395764,
+        "holdout": -1.3732332783356727,
+        "max_dd_closed": -3.1811998688708654,
+        "synthetic_price_above_day_high": 1
+      }
+    ]
+  },
   "counts": {
     "positive": 187,
     "each_period_positive": 130,
