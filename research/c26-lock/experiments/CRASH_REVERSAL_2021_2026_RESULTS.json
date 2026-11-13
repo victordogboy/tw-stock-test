@@ -31,7 +31,9 @@
     "survivor_pool_bias": "2026 stock futures research pool applied backward",
     "corporate_actions": "price jumps over 35pct excluded but full corporate actions not cleaned",
     "money_model": "Independent conditional paper sleeve, NO integration with original C26 cash/holdings; return not directly comparable with frozen C26.",
-    "event_known_in_advance": false
+    "event_known_in_advance": false,
+    "missing_exit_stress_return": -0.2,
+    "drawdown_definition": "Closed-event booking only; does not include intra-trade mark-to-market or overnight gap tail risk."
   },
   "results": [
     {
@@ -53,42 +55,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 6.5523303199546135,
       "book_100pct_conditional_return_pct": 4.107448358338184,
-      "book_100pct_conditional_max_dd_pct": -2.1987631394455476,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.1987631394455476,
       "cash_sleeve_10pct_contribution_approx_pp": 0.4107448358338184,
+      "holdout_2025_2026_closed_trade_book_pct": 2.0662144905239543,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 3,
-          "per_day_book_sum_pct": -2.210395896076748
+          "per_day_book_sum_pct": -2.210395896076748,
+          "compounded_closed_trade_book_pct": -2.1987631394455462
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.44574931090203646
+          "per_day_book_sum_pct": 0.44574931090203646,
+          "compounded_closed_trade_book_pct": 0.4457493109020447
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 3.830246358263471
+          "per_day_book_sum_pct": 3.830246358263471,
+          "compounded_closed_trade_book_pct": 3.83024635826348
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7461627093922507
+          "per_day_book_sum_pct": 0.7461627093922507,
+          "compounded_closed_trade_book_pct": 0.7461627093922516
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 1.309940739108121
+          "per_day_book_sum_pct": 1.309940739108121,
+          "compounded_closed_trade_book_pct": 1.3102749977083334
         }
       },
       "sourceDays": 308,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -109,42 +118,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 2.8406514617063117,
-      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.5049065383874951,
       "cash_sleeve_10pct_contribution_approx_pp": 0.28406514617063117,
+      "holdout_2025_2026_closed_trade_book_pct": 0.7724604392630674,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 6,
-          "per_day_book_sum_pct": 0.45008127906552425
+          "per_day_book_sum_pct": 0.45008127906552425,
+          "compounded_closed_trade_book_pct": 0.43938218323373235
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.16715599158826366
+          "per_day_book_sum_pct": 0.16715599158826366,
+          "compounded_closed_trade_book_pct": 0.16715599158825967
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.4363423843488015
+          "per_day_book_sum_pct": 1.4363423843488015,
+          "compounded_closed_trade_book_pct": 1.436342384348805
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.279811016022094
+          "per_day_book_sum_pct": 0.279811016022094,
+          "compounded_closed_trade_book_pct": 0.27981101602210856
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 0.49122777716554544
+          "per_day_book_sum_pct": 0.49122777716554544,
+          "compounded_closed_trade_book_pct": 0.49127478228119514
         }
       },
       "sourceDays": 308,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -165,42 +181,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 8.751552823978459,
       "book_100pct_conditional_return_pct": 8.307456321778716,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897565,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897565,
       "cash_sleeve_10pct_contribution_approx_pp": 0.8307456321778717,
+      "holdout_2025_2026_closed_trade_book_pct": 1.6817119301541616,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 3,
-          "per_day_book_sum_pct": -0.02217821662065338
+          "per_day_book_sum_pct": -0.02217821662065338,
+          "compounded_closed_trade_book_pct": -0.02550333882885525
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.173485382232061
+          "per_day_book_sum_pct": 1.173485382232061,
+          "compounded_closed_trade_book_pct": 1.1734853822320588
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 5.3075645599936605
+          "per_day_book_sum_pct": 5.3075645599936605,
+          "compounded_closed_trade_book_pct": 5.307564559993665
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.4517423376060323
+          "per_day_book_sum_pct": 1.4517423376060323,
+          "compounded_closed_trade_book_pct": 1.451742337606035
         },
         "2026": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.28110668410692086
+          "per_day_book_sum_pct": 0.28110668410692086,
+          "compounded_closed_trade_book_pct": 0.22667880043188404
         }
       },
       "sourceDays": 308,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -221,42 +244,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 5.245376992131634,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461753,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461753,
       "cash_sleeve_10pct_contribution_approx_pp": 0.5245376992131634,
+      "holdout_2025_2026_closed_trade_book_pct": 0.6427313884903141,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 6,
-          "per_day_book_sum_pct": 2.0778769088849276
+          "per_day_book_sum_pct": 2.0778769088849276,
+          "compounded_closed_trade_book_pct": 2.0832850377827867
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.4400570183370228
+          "per_day_book_sum_pct": 0.4400570183370228,
+          "compounded_closed_trade_book_pct": 0.44005701833702915
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.9903367099976226
+          "per_day_book_sum_pct": 1.9903367099976226,
+          "compounded_closed_trade_book_pct": 1.9903367099976208
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.5444033766022621
+          "per_day_book_sum_pct": 0.5444033766022621,
+          "compounded_closed_trade_book_pct": 0.5444033766022613
         },
         "2026": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.10541500654009522
+          "per_day_book_sum_pct": 0.10541500654009522,
+          "compounded_closed_trade_book_pct": 0.09779560928890874
         }
       },
       "sourceDays": 308,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -276,43 +306,50 @@
       "median_trade_pct": 0.08888023728244043,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 24.469583692520747,
-      "book_100pct_conditional_max_dd_pct": -10.83665125716985,
-      "cash_sleeve_10pct_contribution_approx_pp": 2.4469583692520747,
+      "book_100pct_conditional_return_pct": 16.171611446352664,
+      "book_closed_trade_equity_curve_max_dd_pct": -13.13664665845703,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.6171611446352663,
+      "holdout_2025_2026_closed_trade_book_pct": 20.470599108093413,
       "yearly": {
         "2021": {
           "event_days": 14,
           "trades": 22,
-          "per_day_book_sum_pct": -4.575021402583509
+          "per_day_book_sum_pct": -4.575021402583509,
+          "compounded_closed_trade_book_pct": -11.477703014778257
         },
         "2022": {
           "event_days": 13,
           "trades": 17,
-          "per_day_book_sum_pct": 0.9820105350507662
+          "per_day_book_sum_pct": 0.9820105350507662,
+          "compounded_closed_trade_book_pct": 0.8436730477722136
         },
         "2023": {
           "event_days": 2,
           "trades": 4,
-          "per_day_book_sum_pct": 5.874249212282937
+          "per_day_book_sum_pct": 5.874249212282937,
+          "compounded_closed_trade_book_pct": 5.859656180680673
         },
         "2024": {
           "event_days": 12,
           "trades": 17,
-          "per_day_book_sum_pct": 2.168383619296739
+          "per_day_book_sum_pct": 2.168383619296739,
+          "compounded_closed_trade_book_pct": 2.043920131705292
         },
         "2025": {
           "event_days": 6,
           "trades": 9,
-          "per_day_book_sum_pct": 0.4452477243590359
+          "per_day_book_sum_pct": 0.4452477243590359,
+          "compounded_closed_trade_book_pct": 0.06291011519006418
         },
         "2026": {
           "event_days": 30,
           "trades": 42,
-          "per_day_book_sum_pct": 19.576674210668166
+          "per_day_book_sum_pct": 19.576674210668166,
+          "compounded_closed_trade_book_pct": 20.394858563887936
         }
       },
       "sourceDays": 78,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -332,43 +369,50 @@
       "median_trade_pct": 0.23021440172843466,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 5.311496127781812,
-      "book_100pct_conditional_max_dd_pct": -11.716155401755602,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.5311496127781812,
+      "book_100pct_conditional_return_pct": 2.678708724587331,
+      "book_closed_trade_equity_curve_max_dd_pct": -12.169111059238357,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.2678708724587331,
+      "holdout_2025_2026_closed_trade_book_pct": 11.481289906341807,
       "yearly": {
         "2021": {
           "event_days": 14,
           "trades": 34,
-          "per_day_book_sum_pct": -8.941519870398123
+          "per_day_book_sum_pct": -8.941519870398123,
+          "compounded_closed_trade_book_pct": -11.551729497883812
         },
         "2022": {
           "event_days": 13,
           "trades": 17,
-          "per_day_book_sum_pct": 0.36825395064403743
+          "per_day_book_sum_pct": 0.36825395064403743,
+          "compounded_closed_trade_book_pct": 0.3488756720084041
         },
         "2023": {
           "event_days": 2,
           "trades": 5,
-          "per_day_book_sum_pct": 2.954555645409482
+          "per_day_book_sum_pct": 2.954555645409482,
+          "compounded_closed_trade_book_pct": 2.9518305608636126
         },
         "2024": {
           "event_days": 12,
           "trades": 17,
-          "per_day_book_sum_pct": 0.8131438572362772
+          "per_day_book_sum_pct": 0.8131438572362772,
+          "compounded_closed_trade_book_pct": 0.7958111122012212
         },
         "2025": {
           "event_days": 6,
           "trades": 14,
-          "per_day_book_sum_pct": 3.8809410598298637
+          "per_day_book_sum_pct": 3.8809410598298637,
+          "compounded_closed_trade_book_pct": 3.74066414074899
         },
         "2026": {
           "event_days": 30,
           "trades": 42,
-          "per_day_book_sum_pct": 7.3412528290005605
+          "per_day_book_sum_pct": 7.3412528290005605,
+          "compounded_closed_trade_book_pct": 7.461515529812672
         }
       },
       "sourceDays": 78,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -388,43 +432,50 @@
       "median_trade_pct": 0.004766170726144825,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 11.1419748228069,
-      "book_100pct_conditional_max_dd_pct": -10.202959822721002,
-      "cash_sleeve_10pct_contribution_approx_pp": 1.11419748228069,
+      "book_100pct_conditional_return_pct": 3.7325098346197683,
+      "book_closed_trade_equity_curve_max_dd_pct": -13.921582671009835,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.3732509834619768,
+      "holdout_2025_2026_closed_trade_book_pct": 8.69590180202746,
       "yearly": {
         "2021": {
           "event_days": 13,
           "trades": 21,
-          "per_day_book_sum_pct": -5.23582048278853
+          "per_day_book_sum_pct": -5.23582048278853,
+          "compounded_closed_trade_book_pct": -12.058817539598039
         },
         "2022": {
           "event_days": 13,
           "trades": 16,
-          "per_day_book_sum_pct": 0.14846450247204146
+          "per_day_book_sum_pct": 0.14846450247204146,
+          "compounded_closed_trade_book_pct": 0.012940197317988122
         },
         "2023": {
           "event_days": 2,
           "trades": 4,
-          "per_day_book_sum_pct": 5.596062779870422
+          "per_day_book_sum_pct": 5.596062779870422,
+          "compounded_closed_trade_book_pct": 5.582133841554835
         },
         "2024": {
           "event_days": 11,
           "trades": 16,
-          "per_day_book_sum_pct": 2.8740766278834333
+          "per_day_book_sum_pct": 2.8740766278834333,
+          "compounded_closed_trade_book_pct": 2.7691548726250375
         },
         "2025": {
           "event_days": 6,
           "trades": 9,
-          "per_day_book_sum_pct": 0.4452477243590359
+          "per_day_book_sum_pct": 0.4452477243590359,
+          "compounded_closed_trade_book_pct": 0.06291011519006418
         },
         "2026": {
           "event_days": 28,
           "trades": 38,
-          "per_day_book_sum_pct": 8.952812949758524
+          "per_day_book_sum_pct": 8.952812949758524,
+          "compounded_closed_trade_book_pct": 8.62756407633887
         }
       },
       "sourceDays": 74,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -444,43 +495,50 @@
       "median_trade_pct": 0.051932270099608324,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 0.3676204451640519,
-      "book_100pct_conditional_max_dd_pct": -11.490759462273193,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.03676204451640519,
+      "book_100pct_conditional_return_pct": -2.141570065965015,
+      "book_closed_trade_equity_curve_max_dd_pct": -12.22707000532558,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.2141570065965015,
+      "holdout_2025_2026_closed_trade_book_pct": 7.17982541526534,
       "yearly": {
         "2021": {
           "event_days": 13,
           "trades": 33,
-          "per_day_book_sum_pct": -8.963923585992601
+          "per_day_book_sum_pct": -8.963923585992601,
+          "compounded_closed_trade_book_pct": -11.545104690976544
         },
         "2022": {
           "event_days": 13,
           "trades": 16,
-          "per_day_book_sum_pct": 0.05567418842701566
+          "per_day_book_sum_pct": 0.05567418842701566,
+          "compounded_closed_trade_book_pct": 0.03659329735157257
         },
         "2023": {
           "event_days": 2,
           "trades": 4,
-          "per_day_book_sum_pct": 2.0985235424514084
+          "per_day_book_sum_pct": 2.0985235424514084,
+          "compounded_closed_trade_book_pct": 2.0965647855007745
         },
         "2024": {
           "event_days": 11,
           "trades": 16,
-          "per_day_book_sum_pct": 1.0777787354562876
+          "per_day_book_sum_pct": 1.0777787354562876,
+          "compounded_closed_trade_book_pct": 1.063259746556696
         },
         "2025": {
           "event_days": 6,
           "trades": 14,
-          "per_day_book_sum_pct": 3.8809410598298637
+          "per_day_book_sum_pct": 3.8809410598298637,
+          "compounded_closed_trade_book_pct": 3.74066414074899
         },
         "2026": {
           "event_days": 28,
           "trades": 38,
-          "per_day_book_sum_pct": 3.357304856159446
+          "per_day_book_sum_pct": 3.357304856159446,
+          "compounded_closed_trade_book_pct": 3.3151525518000824
         }
       },
       "sourceDays": 74,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -501,42 +559,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 6.5523303199546135,
       "book_100pct_conditional_return_pct": 3.2764007961831876,
-      "book_100pct_conditional_max_dd_pct": -1.346417435699987,
+      "book_closed_trade_equity_curve_max_dd_pct": -1.346417435699987,
       "cash_sleeve_10pct_contribution_approx_pp": 0.32764007961831876,
+      "holdout_2025_2026_closed_trade_book_pct": 0.7723914715553226,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.2951064572579107
+          "per_day_book_sum_pct": -1.2951064572579107,
+          "compounded_closed_trade_book_pct": -1.2957973172180886
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 3.830246358263471
+          "per_day_book_sum_pct": 3.830246358263471,
+          "compounded_closed_trade_book_pct": 3.83024635826348
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7461627093922507
+          "per_day_book_sum_pct": 0.7461627093922507,
+          "compounded_closed_trade_book_pct": 0.7461627093922516
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.026034502414473693
+          "per_day_book_sum_pct": 0.026034502414473693,
+          "compounded_closed_trade_book_pct": 0.02603450241447547
         }
       },
       "sourceDays": 282,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -557,42 +622,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 2.6353431862581544,
-      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.5049065383874951,
       "cash_sleeve_10pct_contribution_approx_pp": 0.26353431862581544,
+      "holdout_2025_2026_closed_trade_book_pct": 0.2896012722046759,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.8966565781011557
+          "per_day_book_sum_pct": 0.8966565781011557,
+          "compounded_closed_trade_book_pct": 0.8898446323383951
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.4363423843488015
+          "per_day_book_sum_pct": 1.4363423843488015,
+          "compounded_closed_trade_book_pct": 1.436342384348805
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.279811016022094
+          "per_day_book_sum_pct": 0.279811016022094,
+          "compounded_closed_trade_book_pct": 0.27981101602210856
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.009762938405427635
+          "per_day_book_sum_pct": 0.009762938405427635,
+          "compounded_closed_trade_book_pct": 0.009762938405415866
         }
       },
       "sourceDays": 282,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -613,42 +685,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 8.751552823978459,
       "book_100pct_conditional_return_pct": 5.154932976914228,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897676,
       "cash_sleeve_10pct_contribution_approx_pp": 0.5154932976914228,
+      "holdout_2025_2026_closed_trade_book_pct": -0.3126523577935192,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 0.17271024676452917
+          "per_day_book_sum_pct": 0.17271024676452917,
+          "compounded_closed_trade_book_pct": 0.16823950302948276
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 5.3075645599936605
+          "per_day_book_sum_pct": 5.3075645599936605,
+          "compounded_closed_trade_book_pct": 5.307564559993665
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.4517423376060323
+          "per_day_book_sum_pct": 1.4517423376060323,
+          "compounded_closed_trade_book_pct": 1.451742337606035
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.719512587162849
+          "per_day_book_sum_pct": -1.719512587162849,
+          "compounded_closed_trade_book_pct": -1.7391467654918102
         }
       },
       "sourceDays": 282,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -669,42 +748,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 3.6489026181017348,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461531,
       "cash_sleeve_10pct_contribution_approx_pp": 0.3648902618101735,
+      "holdout_2025_2026_closed_trade_book_pct": -0.10670033791478906,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 1.734308286928321
+          "per_day_book_sum_pct": 1.734308286928321,
+          "compounded_closed_trade_book_pct": 1.734750393462619
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.9903367099976226
+          "per_day_book_sum_pct": 1.9903367099976226,
+          "compounded_closed_trade_book_pct": 1.9903367099976208
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.5444033766022621
+          "per_day_book_sum_pct": 0.5444033766022621,
+          "compounded_closed_trade_book_pct": 0.5444033766022613
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -0.6448172201860682
+          "per_day_book_sum_pct": -0.6448172201860682,
+          "compounded_closed_trade_book_pct": -0.6475782765135705
         }
       },
       "sourceDays": 282,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -724,43 +810,50 @@
       "median_trade_pct": 0.18434800882364266,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 19.31378399009638,
-      "book_100pct_conditional_max_dd_pct": -13.393981744469452,
-      "cash_sleeve_10pct_contribution_approx_pp": 1.9313783990096378,
+      "book_100pct_conditional_return_pct": 11.359531724090012,
+      "book_closed_trade_equity_curve_max_dd_pct": -19.167716294838133,
+      "cash_sleeve_10pct_contribution_approx_pp": 1.135953172409001,
+      "holdout_2025_2026_closed_trade_book_pct": 29.397571490528595,
       "yearly": {
         "2021": {
           "event_days": 11,
           "trades": 19,
-          "per_day_book_sum_pct": -7.679642421646447
+          "per_day_book_sum_pct": -7.679642421646447,
+          "compounded_closed_trade_book_pct": -14.10501035927301
         },
         "2022": {
           "event_days": 12,
           "trades": 16,
-          "per_day_book_sum_pct": -0.3293939501980576
+          "per_day_book_sum_pct": -0.3293939501980576,
+          "compounded_closed_trade_book_pct": -0.4616769847906994
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 4.28731811669721
+          "per_day_book_sum_pct": 4.28731811669721,
+          "compounded_closed_trade_book_pct": 4.287318116697207
         },
         "2024": {
           "event_days": 10,
           "trades": 12,
-          "per_day_book_sum_pct": -3.4640185572705464
+          "per_day_book_sum_pct": -3.4640185572705464,
+          "compounded_closed_trade_book_pct": -3.48126530210952
         },
         "2025": {
           "event_days": 6,
           "trades": 8,
-          "per_day_book_sum_pct": 2.1064390580959027
+          "per_day_book_sum_pct": 2.1064390580959027,
+          "compounded_closed_trade_book_pct": 1.81576792804114
         },
         "2026": {
           "event_days": 24,
           "trades": 29,
-          "per_day_book_sum_pct": 24.84703308830504
+          "per_day_book_sum_pct": 24.84703308830504,
+          "compounded_closed_trade_book_pct": 27.089913599611677
         }
       },
       "sourceDays": 65,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -780,43 +873,50 @@
       "median_trade_pct": 0.2798157803648449,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 7.357311542785383,
-      "book_100pct_conditional_max_dd_pct": -8.360448362460138,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.7357311542785383,
+      "book_100pct_conditional_return_pct": 4.673378754215807,
+      "book_closed_trade_equity_curve_max_dd_pct": -10.651437153398613,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.4673378754215807,
+      "holdout_2025_2026_closed_trade_book_pct": 14.451328094842486,
       "yearly": {
         "2021": {
           "event_days": 11,
           "trades": 23,
-          "per_day_book_sum_pct": -6.3148185359790485
+          "per_day_book_sum_pct": -6.3148185359790485,
+          "compounded_closed_trade_book_pct": -8.673614019261592
         },
         "2022": {
           "event_days": 12,
           "trades": 16,
-          "per_day_book_sum_pct": -0.1235227313242715
+          "per_day_book_sum_pct": -0.1235227313242715,
+          "compounded_closed_trade_book_pct": -0.14220169518162606
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.607744293761454
+          "per_day_book_sum_pct": 1.607744293761454,
+          "compounded_closed_trade_book_pct": 1.6077442937614421
         },
         "2024": {
           "event_days": 10,
           "trades": 12,
-          "per_day_book_sum_pct": -1.299006958976455
+          "per_day_book_sum_pct": -1.299006958976455,
+          "compounded_closed_trade_book_pct": -1.3015486988927876
         },
         "2025": {
           "event_days": 6,
           "trades": 13,
-          "per_day_book_sum_pct": 4.5038878099811885
+          "per_day_book_sum_pct": 4.5038878099811885,
+          "compounded_closed_trade_book_pct": 4.399689911611588
         },
         "2026": {
           "event_days": 24,
           "trades": 29,
-          "per_day_book_sum_pct": 9.317637408114392
+          "per_day_book_sum_pct": 9.317637408114392,
+          "compounded_closed_trade_book_pct": 9.628034519777756
         }
       },
       "sourceDays": 65,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -836,43 +936,50 @@
       "median_trade_pct": -0.001023140250810961,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 4.4801165538266075,
-      "book_100pct_conditional_max_dd_pct": -15.945880851667427,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.44801165538266075,
+      "book_100pct_conditional_return_pct": -2.4852245497618664,
+      "book_closed_trade_equity_curve_max_dd_pct": -21.549488794889626,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.24852245497618664,
+      "holdout_2025_2026_closed_trade_book_pct": 16.750359243547752,
       "yearly": {
         "2021": {
           "event_days": 10,
           "trades": 18,
-          "per_day_book_sum_pct": -8.340441501851469
+          "per_day_book_sum_pct": -8.340441501851469,
+          "compounded_closed_trade_book_pct": -14.668877631015874
         },
         "2022": {
           "event_days": 12,
           "trades": 15,
-          "per_day_book_sum_pct": -1.1629399827767823
+          "per_day_book_sum_pct": -1.1629399827767823,
+          "compounded_closed_trade_book_pct": -1.2816565859768474
         },
         "2023": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.0045658421423473
+          "per_day_book_sum_pct": 2.0045658421423473,
+          "compounded_closed_trade_book_pct": 2.004565842142341
         },
         "2024": {
           "event_days": 9,
           "trades": 11,
-          "per_day_book_sum_pct": -2.7583255486838523
+          "per_day_book_sum_pct": -2.7583255486838523,
+          "compounded_closed_trade_book_pct": -2.795298519745799
         },
         "2025": {
           "event_days": 6,
           "trades": 8,
-          "per_day_book_sum_pct": 2.1064390580959027
+          "per_day_book_sum_pct": 2.1064390580959027,
+          "compounded_closed_trade_book_pct": 1.81576792804114
         },
         "2026": {
           "event_days": 22,
           "trades": 25,
-          "per_day_book_sum_pct": 14.223171827395406
+          "per_day_book_sum_pct": 14.223171827395406,
+          "compounded_closed_trade_book_pct": 14.668249937535933
         }
       },
       "sourceDays": 61,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -892,43 +999,50 @@
       "median_trade_pct": 0.051932270099608324,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 15.370882139819475,
-      "book_100pct_conditional_return_pct": 2.04474962515262,
-      "book_100pct_conditional_max_dd_pct": -9.399429445914098,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.20447496251526198,
+      "book_100pct_conditional_return_pct": -0.5063691154761685,
+      "book_closed_trade_equity_curve_max_dd_pct": -11.664443709766271,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.05063691154761685,
+      "holdout_2025_2026_closed_trade_book_pct": 10.035265774697999,
       "yearly": {
         "2021": {
           "event_days": 10,
           "trades": 22,
-          "per_day_book_sum_pct": -6.562618191055932
+          "per_day_book_sum_pct": -6.562618191055932,
+          "compounded_closed_trade_book_pct": -8.899361088257734
         },
         "2022": {
           "event_days": 12,
           "trades": 15,
-          "per_day_book_sum_pct": -0.43610249354129327
+          "per_day_book_sum_pct": -0.43610249354129327,
+          "compounded_closed_trade_book_pct": -0.45295585335034616
         },
         "2023": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7517121908033803
+          "per_day_book_sum_pct": 0.7517121908033803,
+          "compounded_closed_trade_book_pct": 0.7517121908033886
         },
         "2024": {
           "event_days": 9,
           "trades": 11,
-          "per_day_book_sum_pct": -1.0343720807564447
+          "per_day_book_sum_pct": -1.0343720807564447,
+          "compounded_closed_trade_book_pct": -1.0396651372426078
         },
         "2025": {
           "event_days": 6,
           "trades": 13,
-          "per_day_book_sum_pct": 4.5038878099811885
+          "per_day_book_sum_pct": 4.5038878099811885,
+          "compounded_closed_trade_book_pct": 4.399689911611588
         },
         "2026": {
           "event_days": 22,
           "trades": 25,
-          "per_day_book_sum_pct": 5.333689435273277
+          "per_day_book_sum_pct": 5.333689435273277,
+          "compounded_closed_trade_book_pct": 5.398077204882142
         }
       },
       "sourceDays": 61,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -949,42 +1063,49 @@
       "worst_trade_pct": 0.07810350724342108,
       "best_trade_pct": 6.5523303199546135,
       "book_100pct_conditional_return_pct": 2.2107132312644717,
-      "book_100pct_conditional_max_dd_pct": 0,
+      "book_closed_trade_equity_curve_max_dd_pct": 0,
       "cash_sleeve_10pct_contribution_approx_pp": 0.22107132312644717,
+      "holdout_2025_2026_closed_trade_book_pct": 0.026034502414473693,
       "yearly": {
         "2021": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.184110106651538
+          "per_day_book_sum_pct": 2.184110106651538,
+          "compounded_closed_trade_book_pct": 2.1841101066515307
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.026034502414473693
+          "per_day_book_sum_pct": 0.026034502414473693,
+          "compounded_closed_trade_book_pct": 0.02603450241447547
         }
       },
       "sourceDays": 247,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1005,42 +1126,49 @@
       "worst_trade_pct": 0.07810350724342108,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 2.222663534846614,
-      "book_100pct_conditional_max_dd_pct": 0,
+      "book_closed_trade_equity_curve_max_dd_pct": 0,
       "cash_sleeve_10pct_contribution_approx_pp": 0.2222663534846614,
+      "holdout_2025_2026_closed_trade_book_pct": 0.009762938405422084,
       "yearly": {
         "2021": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.382321499572872
+          "per_day_book_sum_pct": 1.382321499572872,
+          "compounded_closed_trade_book_pct": 1.3823214995728677
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.8190412899943267
+          "per_day_book_sum_pct": 0.8190412899943267,
+          "compounded_closed_trade_book_pct": 0.8190412899943311
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.009762938405427635
+          "per_day_book_sum_pct": 0.009762938405427635,
+          "compounded_closed_trade_book_pct": 0.009762938405415866
         }
       },
       "sourceDays": 247,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1061,42 +1189,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 8.751552823978459,
       "book_100pct_conditional_return_pct": 1.1273033932114984,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897676,
       "cash_sleeve_10pct_contribution_approx_pp": 0.11273033932114984,
+      "holdout_2025_2026_closed_trade_book_pct": -1.7391467654918058,
       "yearly": {
         "2021": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.917184274659486
+          "per_day_book_sum_pct": 2.917184274659486,
+          "compounded_closed_trade_book_pct": 2.9171842746594763
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.719512587162849
+          "per_day_book_sum_pct": -1.719512587162849,
+          "compounded_closed_trade_book_pct": -1.7391467654918102
         }
       },
       "sourceDays": 247,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1117,42 +1252,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 2.116157618444081,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461531,
       "cash_sleeve_10pct_contribution_approx_pp": 0.2116157618444081,
+      "holdout_2025_2026_closed_trade_book_pct": -0.6475782765135718,
       "yearly": {
         "2021": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.6695419443916226
+          "per_day_book_sum_pct": 1.6695419443916226,
+          "compounded_closed_trade_book_pct": 1.6695419443916109
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.0939441029973074
+          "per_day_book_sum_pct": 1.0939441029973074,
+          "compounded_closed_trade_book_pct": 1.0939441029972983
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -0.6448172201860682
+          "per_day_book_sum_pct": -0.6448172201860682,
+          "compounded_closed_trade_book_pct": -0.6475782765135705
         }
       },
       "sourceDays": 247,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1173,42 +1315,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 10.757623725002396,
-      "book_100pct_conditional_max_dd_pct": -13.773210590745366,
+      "book_closed_trade_equity_curve_max_dd_pct": -13.773210590745366,
       "cash_sleeve_10pct_contribution_approx_pp": 1.0757623725002396,
+      "holdout_2025_2026_closed_trade_book_pct": 27.360726366406894,
       "yearly": {
         "2021": {
           "event_days": 8,
           "trades": 14,
-          "per_day_book_sum_pct": -9.614232603837575
+          "per_day_book_sum_pct": -9.614232603837575,
+          "compounded_closed_trade_book_pct": -9.857478761729084
         },
         "2022": {
           "event_days": 10,
           "trades": 13,
-          "per_day_book_sum_pct": 0.08701819867548526
+          "per_day_book_sum_pct": 0.08701819867548526,
+          "compounded_closed_trade_book_pct": -0.03408849119350066
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 8,
           "trades": 10,
-          "per_day_book_sum_pct": -3.481823548207167
+          "per_day_book_sum_pct": -3.481823548207167,
+          "compounded_closed_trade_book_pct": -3.4935209649746213
         },
         "2025": {
           "event_days": 4,
           "trades": 6,
-          "per_day_book_sum_pct": 7.4423091882502845
+          "per_day_book_sum_pct": 7.4423091882502845,
+          "compounded_closed_trade_book_pct": 7.48195971045476
         },
         "2026": {
           "event_days": 14,
           "trades": 15,
-          "per_day_book_sum_pct": 17.3301138544604
+          "per_day_book_sum_pct": 17.3301138544604,
+          "compounded_closed_trade_book_pct": 18.494979724507772
         }
       },
       "sourceDays": 44,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1229,42 +1378,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 8.63493448698447,
-      "book_100pct_conditional_max_dd_pct": -5.600867910134255,
+      "book_closed_trade_equity_curve_max_dd_pct": -5.600867910134255,
       "cash_sleeve_10pct_contribution_approx_pp": 0.8634934486984469,
+      "holdout_2025_2026_closed_trade_book_pct": 14.712794469256195,
       "yearly": {
         "2021": {
           "event_days": 8,
           "trades": 15,
-          "per_day_book_sum_pct": -4.035173993306061
+          "per_day_book_sum_pct": -4.035173993306061,
+          "compounded_closed_trade_book_pct": -4.05869097661666
         },
         "2022": {
           "event_days": 10,
           "trades": 13,
-          "per_day_book_sum_pct": 0.03263182450330693
+          "per_day_book_sum_pct": 0.03263182450330693,
+          "compounded_closed_trade_book_pct": 0.015554661347266574
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 8,
           "trades": 10,
-          "per_day_book_sum_pct": -1.3056838305776877
+          "per_day_book_sum_pct": -1.3056838305776877,
+          "compounded_closed_trade_book_pct": -1.3074296767302371
         },
         "2025": {
           "event_days": 4,
           "trades": 11,
-          "per_day_book_sum_pct": 7.53026522828559
+          "per_day_book_sum_pct": 7.53026522828559,
+          "compounded_closed_trade_book_pct": 7.550005434473903
         },
         "2026": {
           "event_days": 14,
           "trades": 15,
-          "per_day_book_sum_pct": 6.498792695422649
+          "per_day_book_sum_pct": 6.498792695422649,
+          "compounded_closed_trade_book_pct": 6.65996157401058
         }
       },
       "sourceDays": 44,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1285,42 +1441,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 4.145744722388933,
-      "book_100pct_conditional_max_dd_pct": -15.044914489069294,
+      "book_closed_trade_equity_curve_max_dd_pct": -15.044914489069294,
       "cash_sleeve_10pct_contribution_approx_pp": 0.4145744722388933,
+      "holdout_2025_2026_closed_trade_book_pct": 21.55036352684281,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 13,
-          "per_day_book_sum_pct": -10.275031684042595
+          "per_day_book_sum_pct": -10.275031684042595,
+          "compounded_closed_trade_book_pct": -10.449229429972334
         },
         "2022": {
           "event_days": 10,
           "trades": 12,
-          "per_day_book_sum_pct": -0.7465278339032396
+          "per_day_book_sum_pct": -0.7465278339032396,
+          "compounded_closed_trade_book_pct": -0.8575904929167706
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 8,
           "trades": 10,
-          "per_day_book_sum_pct": -3.481823548207167
+          "per_day_book_sum_pct": -3.481823548207167,
+          "compounded_closed_trade_book_pct": -3.4935209649746213
         },
         "2025": {
           "event_days": 4,
           "trades": 6,
-          "per_day_book_sum_pct": 7.4423091882502845
+          "per_day_book_sum_pct": 7.4423091882502845,
+          "compounded_closed_trade_book_pct": 7.48195971045476
         },
         "2026": {
           "event_days": 12,
           "trades": 13,
-          "per_day_book_sum_pct": 12.605134156265166
+          "per_day_book_sum_pct": 12.605134156265166,
+          "compounded_closed_trade_book_pct": 13.089083837219675
         }
       },
       "sourceDays": 41,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1341,42 +1504,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 6.140261889849663,
-      "book_100pct_conditional_max_dd_pct": -6.127251227658759,
+      "book_closed_trade_equity_curve_max_dd_pct": -6.127251227658759,
       "cash_sleeve_10pct_contribution_approx_pp": 0.6140261889849663,
+      "holdout_2025_2026_closed_trade_book_pct": 12.707021795159502,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 14,
-          "per_day_book_sum_pct": -4.282973648382944
+          "per_day_book_sum_pct": -4.282973648382944,
+          "compounded_closed_trade_book_pct": -4.295845541259652
         },
         "2022": {
           "event_days": 10,
           "trades": 12,
-          "per_day_book_sum_pct": -0.27994793771371485
+          "per_day_book_sum_pct": -0.27994793771371485,
+          "compounded_closed_trade_book_pct": -0.2956904293735789
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 8,
           "trades": 10,
-          "per_day_book_sum_pct": -1.3056838305776877
+          "per_day_book_sum_pct": -1.3056838305776877,
+          "compounded_closed_trade_book_pct": -1.3074296767302371
         },
         "2025": {
           "event_days": 4,
           "trades": 11,
-          "per_day_book_sum_pct": 7.53026522828559
+          "per_day_book_sum_pct": 7.53026522828559,
+          "compounded_closed_trade_book_pct": 7.550005434473903
         },
         "2026": {
           "event_days": 12,
           "trades": 13,
-          "per_day_book_sum_pct": 4.726925308599437
+          "per_day_book_sum_pct": 4.726925308599437,
+          "compounded_closed_trade_book_pct": 4.7949940493750205
         }
       },
       "sourceDays": 41,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1397,42 +1567,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 4.938408754835799,
       "book_100pct_conditional_return_pct": 1.9175071984899317,
-      "book_100pct_conditional_max_dd_pct": -2.1987631394455476,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.1987631394455476,
       "cash_sleeve_10pct_contribution_approx_pp": 0.19175071984899317,
+      "holdout_2025_2026_closed_trade_book_pct": 2.0662144905239543,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 3,
-          "per_day_book_sum_pct": -2.210395896076748
+          "per_day_book_sum_pct": -2.210395896076748,
+          "compounded_closed_trade_book_pct": -2.1987631394455462
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.44574931090203646
+          "per_day_book_sum_pct": 0.44574931090203646,
+          "compounded_closed_trade_book_pct": 0.4457493109020447
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.646136251611933
+          "per_day_book_sum_pct": 1.646136251611933,
+          "compounded_closed_trade_book_pct": 1.646136251611935
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7461627093922507
+          "per_day_book_sum_pct": 0.7461627093922507,
+          "compounded_closed_trade_book_pct": 0.7461627093922516
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 1.309940739108121
+          "per_day_book_sum_pct": 1.309940739108121,
+          "compounded_closed_trade_book_pct": 1.3102749977083334
         }
       },
       "sourceDays": 240,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1453,42 +1630,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 2.0102711674534257,
-      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.5049065383874951,
       "cash_sleeve_10pct_contribution_approx_pp": 0.20102711674534257,
+      "holdout_2025_2026_closed_trade_book_pct": 0.7724604392630674,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 6,
-          "per_day_book_sum_pct": 0.45008127906552425
+          "per_day_book_sum_pct": 0.45008127906552425,
+          "compounded_closed_trade_book_pct": 0.43938218323373235
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.16715599158826366
+          "per_day_book_sum_pct": 0.16715599158826366,
+          "compounded_closed_trade_book_pct": 0.16715599158825967
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.6173010943544749
+          "per_day_book_sum_pct": 0.6173010943544749,
+          "compounded_closed_trade_book_pct": 0.6173010943544739
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.279811016022094
+          "per_day_book_sum_pct": 0.279811016022094,
+          "compounded_closed_trade_book_pct": 0.27981101602210856
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 0.49122777716554544
+          "per_day_book_sum_pct": 0.49122777716554544,
+          "compounded_closed_trade_book_pct": 0.49127478228119514
         }
       },
       "sourceDays": 240,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1509,42 +1693,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 7.1711408560025225,
       "book_100pct_conditional_return_pct": 5.307170352481005,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897565,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897565,
       "cash_sleeve_10pct_contribution_approx_pp": 0.5307170352481005,
+      "holdout_2025_2026_closed_trade_book_pct": 1.6817119301541616,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 3,
-          "per_day_book_sum_pct": -0.02217821662065338
+          "per_day_book_sum_pct": -0.02217821662065338,
+          "compounded_closed_trade_book_pct": -0.02550333882885525
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.173485382232061
+          "per_day_book_sum_pct": 1.173485382232061,
+          "compounded_closed_trade_book_pct": 1.1734853822320588
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.3903802853341745
+          "per_day_book_sum_pct": 2.3903802853341745,
+          "compounded_closed_trade_book_pct": 2.3903802853341745
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.4517423376060323
+          "per_day_book_sum_pct": 1.4517423376060323,
+          "compounded_closed_trade_book_pct": 1.451742337606035
         },
         "2026": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.28110668410692086
+          "per_day_book_sum_pct": 0.28110668410692086,
+          "compounded_closed_trade_book_pct": 0.22667880043188404
         }
       },
       "sourceDays": 240,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1565,42 +1756,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 4.116519462661561,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461642,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461642,
       "cash_sleeve_10pct_contribution_approx_pp": 0.4116519462661561,
+      "holdout_2025_2026_closed_trade_book_pct": 0.6427313884903141,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 6,
-          "per_day_book_sum_pct": 2.0778769088849276
+          "per_day_book_sum_pct": 2.0778769088849276,
+          "compounded_closed_trade_book_pct": 2.0832850377827867
         },
         "2022": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.4400570183370228
+          "per_day_book_sum_pct": 0.4400570183370228,
+          "compounded_closed_trade_book_pct": 0.44005701833702915
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.8963926070003153
+          "per_day_book_sum_pct": 0.8963926070003153,
+          "compounded_closed_trade_book_pct": 0.8963926070003225
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.5444033766022621
+          "per_day_book_sum_pct": 0.5444033766022621,
+          "compounded_closed_trade_book_pct": 0.5444033766022613
         },
         "2026": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.10541500654009522
+          "per_day_book_sum_pct": 0.10541500654009522,
+          "compounded_closed_trade_book_pct": 0.09779560928890874
         }
       },
       "sourceDays": 240,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1620,43 +1818,50 @@
       "median_trade_pct": 0.28746605621016164,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": 12.84926731862923,
-      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
-      "cash_sleeve_10pct_contribution_approx_pp": 1.2849267318629232,
+      "book_100pct_conditional_return_pct": 5.3259828307206325,
+      "book_closed_trade_equity_curve_max_dd_pct": -15.81656409722636,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.5325982830720632,
+      "holdout_2025_2026_closed_trade_book_pct": 19.3346412772023,
       "yearly": {
         "2021": {
           "event_days": 9,
           "trades": 16,
-          "per_day_book_sum_pct": -7.760051490573283
+          "per_day_book_sum_pct": -7.760051490573283,
+          "compounded_closed_trade_book_pct": -14.15431572086996
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -1.5734636539082545
+          "per_day_book_sum_pct": -1.5734636539082545,
+          "compounded_closed_trade_book_pct": -1.6617897504381887
         },
         "2023": {
           "event_days": 1,
           "trades": 3,
-          "per_day_book_sum_pct": 5.625524967580094
+          "per_day_book_sum_pct": 5.625524967580094,
+          "compounded_closed_trade_book_pct": 5.625524967580091
         },
         "2024": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -1.0065439481331355
+          "per_day_book_sum_pct": -1.0065439481331355,
+          "compounded_closed_trade_book_pct": -1.0172896931850488
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 18,
           "trades": 22,
-          "per_day_book_sum_pct": 12.600266974613861
+          "per_day_book_sum_pct": 12.600266974613861,
+          "compounded_closed_trade_book_pct": 12.782264869911316
         }
       },
       "sourceDays": 46,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1676,43 +1881,50 @@
       "median_trade_pct": 0.28746605621016164,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": 0.8337136130866396,
-      "book_100pct_conditional_max_dd_pct": -11.31830291435385,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.08337136130866396,
+      "book_100pct_conditional_return_pct": -1.6871292272405025,
+      "book_closed_trade_equity_curve_max_dd_pct": -12.980326579025647,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.16871292272405025,
+      "holdout_2025_2026_closed_trade_book_pct": 10.92656079258354,
       "yearly": {
         "2021": {
           "event_days": 9,
           "trades": 27,
-          "per_day_book_sum_pct": -9.906604986066469
+          "per_day_book_sum_pct": -9.906604986066469,
+          "compounded_closed_trade_book_pct": -12.343837181452997
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -0.5900488702155954
+          "per_day_book_sum_pct": -0.5900488702155954,
+          "compounded_closed_trade_book_pct": -0.6026259488437802
         },
         "2023": {
           "event_days": 1,
           "trades": 3,
-          "per_day_book_sum_pct": 2.109571862842535
+          "per_day_book_sum_pct": 2.109571862842535,
+          "compounded_closed_trade_book_pct": 2.109571862842529
         },
         "2024": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -0.3774539805499258
+          "per_day_book_sum_pct": -0.3774539805499258,
+          "compounded_closed_trade_book_pct": -0.3789744991890558
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 5.91219459543903
+          "per_day_book_sum_pct": 5.91219459543903,
+          "compounded_closed_trade_book_pct": 5.893955821256796
         },
         "2026": {
           "event_days": 18,
           "trades": 22,
-          "per_day_book_sum_pct": 4.725100115480198
+          "per_day_book_sum_pct": 4.725100115480198,
+          "compounded_closed_trade_book_pct": 4.752495014749897
         }
       },
       "sourceDays": 46,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1732,43 +1944,50 @@
       "median_trade_pct": 0.051932270099608324,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": -0.4995000493159707,
-      "book_100pct_conditional_max_dd_pct": -10.296057808846449,
-      "cash_sleeve_10pct_contribution_approx_pp": -0.04995000493159707,
+      "book_100pct_conditional_return_pct": -7.132866712694874,
+      "book_closed_trade_equity_curve_max_dd_pct": -16.276320621590013,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.7132866712694874,
+      "holdout_2025_2026_closed_trade_book_pct": 7.670971555544703,
       "yearly": {
         "2021": {
           "event_days": 9,
           "trades": 16,
-          "per_day_book_sum_pct": -7.760051490573283
+          "per_day_book_sum_pct": -7.760051490573283,
+          "compounded_closed_trade_book_pct": -14.15431572086996
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -2.407009686486979
+          "per_day_book_sum_pct": -2.407009686486979,
+          "compounded_closed_trade_book_pct": -2.471883028878068
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 3.342772693025231
+          "per_day_book_sum_pct": 3.342772693025231,
+          "compounded_closed_trade_book_pct": 3.342772693025225
         },
         "2024": {
           "event_days": 6,
           "trades": 8,
-          "per_day_book_sum_pct": -0.30085093954644143
+          "per_day_book_sum_pct": -0.30085093954644143,
+          "compounded_closed_trade_book_pct": -0.31381122849802523
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 16,
           "trades": 18,
-          "per_day_book_sum_pct": 1.976405713704222
+          "per_day_book_sum_pct": 1.976405713704222,
+          "compounded_closed_trade_book_pct": 1.7590190309475986
         }
       },
       "sourceDays": 43,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -1788,43 +2007,50 @@
       "median_trade_pct": 0.051932270099608324,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": -2.9974401661969186,
-      "book_100pct_conditional_max_dd_pct": -10.471891706183756,
-      "cash_sleeve_10pct_contribution_approx_pp": -0.29974401661969186,
+      "book_100pct_conditional_return_pct": -5.422504162041964,
+      "book_closed_trade_equity_curve_max_dd_pct": -12.314221611191057,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.5422504162041963,
+      "holdout_2025_2026_closed_trade_book_pct": 6.646500319948245,
       "yearly": {
         "2021": {
           "event_days": 9,
           "trades": 27,
-          "per_day_book_sum_pct": -9.060193777896371
+          "per_day_book_sum_pct": -9.060193777896371,
+          "compounded_closed_trade_book_pct": -11.507214055001697
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -0.9026286324326172
+          "per_day_book_sum_pct": -0.9026286324326172,
+          "compounded_closed_trade_book_pct": -0.9119472819975556
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.2535397598844615
+          "per_day_book_sum_pct": 1.2535397598844615,
+          "compounded_closed_trade_book_pct": 1.2535397598844753
         },
         "2024": {
           "event_days": 6,
           "trades": 8,
-          "per_day_book_sum_pct": -0.11281910232991549
+          "per_day_book_sum_pct": -0.11281910232991549,
+          "compounded_closed_trade_book_pct": -0.11464300634928293
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 5.91219459543903
+          "per_day_book_sum_pct": 5.91219459543903,
+          "compounded_closed_trade_book_pct": 5.893955821256796
         },
         "2026": {
           "event_days": 16,
           "trades": 18,
-          "per_day_book_sum_pct": 0.741152142639083
+          "per_day_book_sum_pct": 0.741152142639083,
+          "compounded_closed_trade_book_pct": 0.7106585950586748
         }
       },
       "sourceDays": 43,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1845,42 +2071,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 4.938408754835799,
       "book_100pct_conditional_return_pct": 1.103941048960566,
-      "book_100pct_conditional_max_dd_pct": -1.346417435699987,
+      "book_closed_trade_equity_curve_max_dd_pct": -1.346417435699987,
       "cash_sleeve_10pct_contribution_approx_pp": 0.11039410489605661,
+      "holdout_2025_2026_closed_trade_book_pct": 0.7723914715553226,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.2951064572579107
+          "per_day_book_sum_pct": -1.2951064572579107,
+          "compounded_closed_trade_book_pct": -1.2957973172180886
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.646136251611933
+          "per_day_book_sum_pct": 1.646136251611933,
+          "compounded_closed_trade_book_pct": 1.646136251611935
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7461627093922507
+          "per_day_book_sum_pct": 0.7461627093922507,
+          "compounded_closed_trade_book_pct": 0.7461627093922516
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.026034502414473693
+          "per_day_book_sum_pct": 0.026034502414473693,
+          "compounded_closed_trade_book_pct": 0.02603450241447547
         }
       },
       "sourceDays": 218,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1901,42 +2134,49 @@
       "worst_trade_pct": -4.03925230709995,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 1.8066206406071705,
-      "book_100pct_conditional_max_dd_pct": -0.5049065383874951,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.5049065383874951,
       "cash_sleeve_10pct_contribution_approx_pp": 0.18066206406071705,
+      "holdout_2025_2026_closed_trade_book_pct": 0.2896012722046759,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 0.8966565781011557
+          "per_day_book_sum_pct": 0.8966565781011557,
+          "compounded_closed_trade_book_pct": 0.8898446323383951
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.6173010943544749
+          "per_day_book_sum_pct": 0.6173010943544749,
+          "compounded_closed_trade_book_pct": 0.6173010943544739
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.279811016022094
+          "per_day_book_sum_pct": 0.279811016022094,
+          "compounded_closed_trade_book_pct": 0.27981101602210856
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.009762938405427635
+          "per_day_book_sum_pct": 0.009762938405427635,
+          "compounded_closed_trade_book_pct": 0.009762938405415866
         }
       },
       "sourceDays": 218,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -1957,42 +2197,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 7.1711408560025225,
       "book_100pct_conditional_return_pct": 2.2419768358730385,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897676,
       "cash_sleeve_10pct_contribution_approx_pp": 0.22419768358730385,
+      "holdout_2025_2026_closed_trade_book_pct": -0.3126523577935192,
       "yearly": {
         "2021": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": 0.17271024676452917
+          "per_day_book_sum_pct": 0.17271024676452917,
+          "compounded_closed_trade_book_pct": 0.16823950302948276
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.3903802853341745
+          "per_day_book_sum_pct": 2.3903802853341745,
+          "compounded_closed_trade_book_pct": 2.3903802853341745
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.4517423376060323
+          "per_day_book_sum_pct": 1.4517423376060323,
+          "compounded_closed_trade_book_pct": 1.451742337606035
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.719512587162849
+          "per_day_book_sum_pct": -1.719512587162849,
+          "compounded_closed_trade_book_pct": -1.7391467654918102
         }
       },
       "sourceDays": 218,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -2013,42 +2260,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 2.537168806264045,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461531,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461531,
       "cash_sleeve_10pct_contribution_approx_pp": 0.2537168806264045,
+      "holdout_2025_2026_closed_trade_book_pct": -0.10670033791478906,
       "yearly": {
         "2021": {
           "event_days": 3,
           "trades": 3,
-          "per_day_book_sum_pct": 1.734308286928321
+          "per_day_book_sum_pct": 1.734308286928321,
+          "compounded_closed_trade_book_pct": 1.734750393462619
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.8963926070003153
+          "per_day_book_sum_pct": 0.8963926070003153,
+          "compounded_closed_trade_book_pct": 0.8963926070003225
         },
         "2025": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.5444033766022621
+          "per_day_book_sum_pct": 0.5444033766022621,
+          "compounded_closed_trade_book_pct": 0.5444033766022613
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -0.6448172201860682
+          "per_day_book_sum_pct": -0.6448172201860682,
+          "compounded_closed_trade_book_pct": -0.6475782765135705
         }
       },
       "sourceDays": 218,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2068,43 +2322,50 @@
       "median_trade_pct": 0.07197486486323346,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": 10.208486283001083,
-      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
-      "cash_sleeve_10pct_contribution_approx_pp": 1.0208486283001084,
+      "book_100pct_conditional_return_pct": 2.861253864134361,
+      "book_closed_trade_equity_curve_max_dd_pct": -15.369684395951644,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.2861253864134361,
+      "holdout_2025_2026_closed_trade_book_pct": 18.537089506152228,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 14,
-          "per_day_book_sum_pct": -7.231483227045675
+          "per_day_book_sum_pct": -7.231483227045675,
+          "compounded_closed_trade_book_pct": -13.698612133400715
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -1.5734636539082545
+          "per_day_book_sum_pct": -1.5734636539082545,
+          "compounded_closed_trade_book_pct": -1.6617897504381887
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 4.28731811669721
+          "per_day_book_sum_pct": 4.28731811669721,
+          "compounded_closed_trade_book_pct": 4.287318116697207
         },
         "2024": {
           "event_days": 6,
           "trades": 7,
-          "per_day_book_sum_pct": -1.959118136085273
+          "per_day_book_sum_pct": -1.959118136085273,
+          "compounded_closed_trade_book_pct": -1.954881576326784
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 15,
           "trades": 18,
-          "per_day_book_sum_pct": 11.925237070522774
+          "per_day_book_sum_pct": 11.925237070522774,
+          "compounded_closed_trade_book_pct": 12.028504736832346
         }
       },
       "sourceDays": 40,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2124,43 +2385,50 @@
       "median_trade_pct": 0.17589532261403917,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": 4.082285352051973,
-      "book_100pct_conditional_max_dd_pct": -6.852539419814474,
-      "cash_sleeve_10pct_contribution_approx_pp": 0.4082285352051973,
+      "book_100pct_conditional_return_pct": 1.4802282182506454,
+      "book_closed_trade_equity_curve_max_dd_pct": -9.181225934319126,
+      "cash_sleeve_10pct_contribution_approx_pp": 0.14802282182506454,
+      "holdout_2025_2026_closed_trade_book_pct": 10.646812420072216,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 18,
-          "per_day_book_sum_pct": -6.146758838003759
+          "per_day_book_sum_pct": -6.146758838003759,
+          "compounded_closed_trade_book_pct": -8.516948713767988
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -0.5900488702155954
+          "per_day_book_sum_pct": -0.5900488702155954,
+          "compounded_closed_trade_book_pct": -0.6026259488437802
         },
         "2023": {
           "event_days": 1,
           "trades": 2,
-          "per_day_book_sum_pct": 1.607744293761454
+          "per_day_book_sum_pct": 1.607744293761454,
+          "compounded_closed_trade_book_pct": 1.6077442937614421
         },
         "2024": {
           "event_days": 6,
           "trades": 7,
-          "per_day_book_sum_pct": -0.7346693010319774
+          "per_day_book_sum_pct": -0.7346693010319774,
+          "compounded_closed_trade_book_pct": -0.7340814549918093
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 5.91219459543903
+          "per_day_book_sum_pct": 5.91219459543903,
+          "compounded_closed_trade_book_pct": 5.893955821256796
         },
         "2026": {
           "event_days": 15,
           "trades": 18,
-          "per_day_book_sum_pct": 4.471963901446039
+          "per_day_book_sum_pct": 4.471963901446039,
+          "compounded_closed_trade_book_pct": 4.488317167825855
         }
       },
       "sourceDays": 40,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2180,43 +2448,50 @@
       "median_trade_pct": -0.057702668773534915,
       "worst_trade_pct": -13.81331878582034,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": -2.855450178901686,
-      "book_100pct_conditional_max_dd_pct": -9.990124999745243,
-      "cash_sleeve_10pct_contribution_approx_pp": -0.2855450178901686,
+      "book_100pct_conditional_return_pct": -9.331753500308281,
+      "book_closed_trade_equity_curve_max_dd_pct": -15.8318814937614,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.9331753500308282,
+      "holdout_2025_2026_closed_trade_book_pct": 6.951371838851128,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 14,
-          "per_day_book_sum_pct": -7.231483227045675
+          "per_day_book_sum_pct": -7.231483227045675,
+          "compounded_closed_trade_book_pct": -13.698612133400715
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -2.407009686486979
+          "per_day_book_sum_pct": -2.407009686486979,
+          "compounded_closed_trade_book_pct": -2.471883028878068
         },
         "2023": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 2.0045658421423473
+          "per_day_book_sum_pct": 2.0045658421423473,
+          "compounded_closed_trade_book_pct": 2.004565842142341
         },
         "2024": {
           "event_days": 5,
           "trades": 6,
-          "per_day_book_sum_pct": -1.2534251274985788
+          "per_day_book_sum_pct": -1.2534251274985788,
+          "compounded_closed_trade_book_pct": -1.2580666561760836
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 13,
           "trades": 14,
-          "per_day_book_sum_pct": 1.3013758096131334
+          "per_day_book_sum_pct": 1.3013758096131334,
+          "compounded_closed_trade_book_pct": 1.078930793535207
         }
       },
       "sourceDays": 37,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2236,43 +2511,50 @@
       "median_trade_pct": -0.053978550601230246,
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
-      "book_100pct_conditional_return_pct": -0.8230597126822059,
-      "book_100pct_conditional_max_dd_pct": -7.026898372780755,
-      "cash_sleeve_10pct_contribution_approx_pp": -0.08230597126822059,
+      "book_100pct_conditional_return_pct": -3.30248321986516,
+      "book_closed_trade_equity_curve_max_dd_pct": -9.351225913461247,
+      "cash_sleeve_10pct_contribution_approx_pp": -0.330248321986516,
+      "holdout_2025_2026_closed_trade_book_pct": 6.37754593530524,
       "yearly": {
         "2021": {
           "event_days": 7,
           "trades": 18,
-          "per_day_book_sum_pct": -6.146758838003759
+          "per_day_book_sum_pct": -6.146758838003759,
+          "compounded_closed_trade_book_pct": -8.516948713767988
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -0.9026286324326172
+          "per_day_book_sum_pct": -0.9026286324326172,
+          "compounded_closed_trade_book_pct": -0.9119472819975556
         },
         "2023": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.7517121908033803
+          "per_day_book_sum_pct": 0.7517121908033803,
+          "compounded_closed_trade_book_pct": 0.7517121908033886
         },
         "2024": {
           "event_days": 5,
           "trades": 6,
-          "per_day_book_sum_pct": -0.4700344228119671
+          "per_day_book_sum_pct": -0.4700344228119671,
+          "compounded_closed_trade_book_pct": -0.47069219248216143
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 5.91219459543903
+          "per_day_book_sum_pct": 5.91219459543903,
+          "compounded_closed_trade_book_pct": 5.893955821256796
         },
         "2026": {
           "event_days": 13,
           "trades": 14,
-          "per_day_book_sum_pct": 0.4880159286049249
+          "per_day_book_sum_pct": 0.4880159286049249,
+          "compounded_closed_trade_book_pct": 0.45667395301076397
         }
       },
       "sourceDays": 37,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -2293,42 +2575,49 @@
       "worst_trade_pct": 0.07810350724342108,
       "best_trade_pct": 0.07810350724342108,
       "book_100pct_conditional_return_pct": 0.026034502414473693,
-      "book_100pct_conditional_max_dd_pct": 0,
+      "book_closed_trade_equity_curve_max_dd_pct": 0,
       "cash_sleeve_10pct_contribution_approx_pp": 0.0026034502414473693,
+      "holdout_2025_2026_closed_trade_book_pct": 0.026034502414473693,
       "yearly": {
         "2021": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.026034502414473693
+          "per_day_book_sum_pct": 0.026034502414473693,
+          "compounded_closed_trade_book_pct": 0.02603450241447547
         }
       },
       "sourceDays": 187,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -2349,42 +2638,49 @@
       "worst_trade_pct": 0.07810350724342108,
       "best_trade_pct": 11.058571996582977,
       "book_100pct_conditional_return_pct": 1.392219393174865,
-      "book_100pct_conditional_max_dd_pct": 0,
+      "book_closed_trade_equity_curve_max_dd_pct": 0,
       "cash_sleeve_10pct_contribution_approx_pp": 0.1392219393174865,
+      "holdout_2025_2026_closed_trade_book_pct": 0.009762938405422084,
       "yearly": {
         "2021": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.382321499572872
+          "per_day_book_sum_pct": 1.382321499572872,
+          "compounded_closed_trade_book_pct": 1.3823214995728677
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 0.009762938405427635
+          "per_day_book_sum_pct": 0.009762938405427635,
+          "compounded_closed_trade_book_pct": 0.009762938405415866
         }
       },
       "sourceDays": 187,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -2405,42 +2701,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 2.3526058596807564,
       "book_100pct_conditional_return_pct": -1.7391467654918058,
-      "book_100pct_conditional_max_dd_pct": -2.5037145403897676,
+      "book_closed_trade_equity_curve_max_dd_pct": -2.5037145403897676,
       "cash_sleeve_10pct_contribution_approx_pp": -0.17391467654918058,
+      "holdout_2025_2026_closed_trade_book_pct": -1.7391467654918058,
       "yearly": {
         "2021": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -1.719512587162849
+          "per_day_book_sum_pct": -1.719512587162849,
+          "compounded_closed_trade_book_pct": -1.7391467654918102
         }
       },
       "sourceDays": 187,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "prior_day_stop",
@@ -2461,42 +2764,49 @@
       "worst_trade_pct": -7.511143621169303,
       "best_trade_pct": 13.356335555132981,
       "book_100pct_conditional_return_pct": 1.0111520769288784,
-      "book_100pct_conditional_max_dd_pct": -0.9388929526461753,
+      "book_closed_trade_equity_curve_max_dd_pct": -0.9388929526461753,
       "cash_sleeve_10pct_contribution_approx_pp": 0.10111520769288784,
+      "holdout_2025_2026_closed_trade_book_pct": -0.6475782765135718,
       "yearly": {
         "2021": {
           "event_days": 1,
           "trades": 1,
-          "per_day_book_sum_pct": 1.6695419443916226
+          "per_day_book_sum_pct": 1.6695419443916226,
+          "compounded_closed_trade_book_pct": 1.6695419443916109
         },
         "2022": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2025": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2026": {
           "event_days": 2,
           "trades": 2,
-          "per_day_book_sum_pct": -0.6448172201860682
+          "per_day_book_sum_pct": -0.6448172201860682,
+          "compounded_closed_trade_book_pct": -0.6475782765135705
         }
       },
       "sourceDays": 187,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2517,42 +2827,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 1.8724791745630798,
-      "book_100pct_conditional_max_dd_pct": -14.335492890120715,
+      "book_closed_trade_equity_curve_max_dd_pct": -14.335492890120715,
       "cash_sleeve_10pct_contribution_approx_pp": 0.18724791745630798,
+      "holdout_2025_2026_closed_trade_book_pct": 18.920288707077205,
       "yearly": {
         "2021": {
           "event_days": 5,
           "trades": 10,
-          "per_day_book_sum_pct": -11.052714313430148
+          "per_day_book_sum_pct": -11.052714313430148,
+          "compounded_closed_trade_book_pct": -11.1396961301798
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -1.5734636539082545
+          "per_day_book_sum_pct": -1.5734636539082545,
+          "compounded_closed_trade_book_pct": -1.6617897504381887
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 4,
           "trades": 5,
-          "per_day_book_sum_pct": -1.9769231270218937
+          "per_day_book_sum_pct": -1.9769231270218937,
+          "compounded_closed_trade_book_pct": -1.9673310548733838
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 9,
           "trades": 9,
-          "per_day_book_sum_pct": 11.901077894892609
+          "per_day_book_sum_pct": 11.901077894892609,
+          "compounded_closed_trade_book_pct": 12.39066339683336
         }
       },
       "sourceDays": 28,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2573,42 +2890,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 5.221849055915362,
-      "book_100pct_conditional_max_dd_pct": -5.851003487283357,
+      "book_closed_trade_equity_curve_max_dd_pct": -5.851003487283357,
       "cash_sleeve_10pct_contribution_approx_pp": 0.5221849055915362,
+      "holdout_2025_2026_closed_trade_book_pct": 11.760988383665971,
       "yearly": {
         "2021": {
           "event_days": 5,
           "trades": 11,
-          "per_day_book_sum_pct": -4.574604634403276
+          "per_day_book_sum_pct": -4.574604634403276,
+          "compounded_closed_trade_book_pct": -4.574048922746059
         },
         "2022": {
           "event_days": 7,
           "trades": 9,
-          "per_day_book_sum_pct": -0.5900488702155954
+          "per_day_book_sum_pct": -0.5900488702155954,
+          "compounded_closed_trade_book_pct": -0.6026259488437802
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 4,
           "trades": 5,
-          "per_day_book_sum_pct": -0.7413461726332102
+          "per_day_book_sum_pct": -0.7413461726332102,
+          "compounded_closed_trade_book_pct": -0.7399962455409934
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 6.937620714935538
+          "per_day_book_sum_pct": 6.937620714935538,
+          "compounded_closed_trade_book_pct": 6.916371425348601
         },
         "2026": {
           "event_days": 9,
           "trades": 9,
-          "per_day_book_sum_pct": 4.462904210584728
+          "per_day_book_sum_pct": 4.462904210584728,
+          "compounded_closed_trade_book_pct": 4.53122089136744
         }
       },
       "sourceDays": 28,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2629,42 +2953,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": -3.5759987199538212,
-      "book_100pct_conditional_max_dd_pct": -15.041182379836515,
+      "book_closed_trade_equity_curve_max_dd_pct": -15.041182379836515,
       "cash_sleeve_10pct_contribution_approx_pp": -0.3575998719953821,
+      "holdout_2025_2026_closed_trade_book_pct": 13.494989667984324,
       "yearly": {
         "2021": {
           "event_days": 5,
           "trades": 10,
-          "per_day_book_sum_pct": -11.052714313430148
+          "per_day_book_sum_pct": -11.052714313430148,
+          "compounded_closed_trade_book_pct": -11.1396961301798
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -2.407009686486979
+          "per_day_book_sum_pct": -2.407009686486979,
+          "compounded_closed_trade_book_pct": -2.471883028878068
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 4,
           "trades": 5,
-          "per_day_book_sum_pct": -1.9769231270218937
+          "per_day_book_sum_pct": -1.9769231270218937,
+          "compounded_closed_trade_book_pct": -1.9673310548733838
         },
         "2025": {
           "event_days": 3,
           "trades": 5,
-          "per_day_book_sum_pct": 5.8619238193168135
+          "per_day_book_sum_pct": 5.8619238193168135,
+          "compounded_closed_trade_book_pct": 5.809757779601981
         },
         "2026": {
           "event_days": 7,
           "trades": 7,
-          "per_day_book_sum_pct": 7.176098196697378
+          "per_day_book_sum_pct": 7.176098196697378,
+          "compounded_closed_trade_book_pct": 7.263254400780681
         }
       },
       "sourceDays": 26,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     },
     {
       "kind": "close_confirmation",
@@ -2685,42 +3016,49 @@
       "worst_trade_pct": -15.204567538662083,
       "best_trade_pct": 14.478264096184512,
       "book_100pct_conditional_return_pct": 3.060305731074875,
-      "book_100pct_conditional_max_dd_pct": -6.143992043514412,
+      "book_closed_trade_equity_curve_max_dd_pct": -6.143992043514412,
       "cash_sleeve_10pct_contribution_approx_pp": 0.3060305731074875,
+      "holdout_2025_2026_closed_trade_book_pct": 9.80682853979542,
       "yearly": {
         "2021": {
           "event_days": 5,
           "trades": 11,
-          "per_day_book_sum_pct": -4.574604634403276
+          "per_day_book_sum_pct": -4.574604634403276,
+          "compounded_closed_trade_book_pct": -4.574048922746059
         },
         "2022": {
           "event_days": 7,
           "trades": 8,
-          "per_day_book_sum_pct": -0.9026286324326172
+          "per_day_book_sum_pct": -0.9026286324326172,
+          "compounded_closed_trade_book_pct": -0.9119472819975556
         },
         "2023": {
           "event_days": 0,
           "trades": 0,
-          "per_day_book_sum_pct": 0
+          "per_day_book_sum_pct": 0,
+          "compounded_closed_trade_book_pct": 0
         },
         "2024": {
           "event_days": 4,
           "trades": 5,
-          "per_day_book_sum_pct": -0.7413461726332102
+          "per_day_book_sum_pct": -0.7413461726332102,
+          "compounded_closed_trade_book_pct": -0.7399962455409934
         },
         "2025": {
           "event_days": 3,
           "trades": 10,
-          "per_day_book_sum_pct": 6.937620714935538
+          "per_day_book_sum_pct": 6.937620714935538,
+          "compounded_closed_trade_book_pct": 6.916371425348601
         },
         "2026": {
           "event_days": 7,
           "trades": 7,
-          "per_day_book_sum_pct": 2.6910368237615168
+          "per_day_book_sum_pct": 2.6910368237615168,
+          "compounded_closed_trade_book_pct": 2.7034747587417343
         }
       },
       "sourceDays": 26,
-      "caveat": "Only event sleeve, fixed positions and one-session exit; NOT C26 full portfolio or guaranteed stop fills."
+      "caveat": "Closed-trade equity curve only (not intraday mark-to-market); NOT C26 full portfolio or guaranteed stop fills. Each missing exit stressed as -20% of that slot, no fictitious fill."
     }
   ],
   "stability": [
@@ -2760,8 +3098,8 @@
       "key": "close_confirmation|0.08|0.8|3",
       "variants": 2,
       "both_positive": true,
-      "worst_net_pct": 11.1419748228069,
-      "best_net_pct": 24.469583692520747,
+      "worst_net_pct": 3.7325098346197683,
+      "best_net_pct": 16.171611446352664,
       "min_trades": 104,
       "all_years_event_days": {
         "2021": 13,
@@ -2775,9 +3113,9 @@
     {
       "key": "close_confirmation|0.08|0.8|8",
       "variants": 2,
-      "both_positive": true,
-      "worst_net_pct": 0.3676204451640519,
-      "best_net_pct": 5.311496127781812,
+      "both_positive": false,
+      "worst_net_pct": -2.141570065965015,
+      "best_net_pct": 2.678708724587331,
       "min_trades": 121,
       "all_years_event_days": {
         "2021": 13,
@@ -2823,9 +3161,9 @@
     {
       "key": "close_confirmation|0.08|1.2|3",
       "variants": 2,
-      "both_positive": true,
-      "worst_net_pct": 4.4801165538266075,
-      "best_net_pct": 19.31378399009638,
+      "both_positive": false,
+      "worst_net_pct": -2.4852245497618664,
+      "best_net_pct": 11.359531724090012,
       "min_trades": 78,
       "all_years_event_days": {
         "2021": 10,
@@ -2839,9 +3177,9 @@
     {
       "key": "close_confirmation|0.08|1.2|8",
       "variants": 2,
-      "both_positive": true,
-      "worst_net_pct": 2.04474962515262,
-      "best_net_pct": 7.357311542785383,
+      "both_positive": false,
+      "worst_net_pct": -0.5063691154761685,
+      "best_net_pct": 4.673378754215807,
       "min_trades": 87,
       "all_years_event_days": {
         "2021": 10,
@@ -2952,8 +3290,8 @@
       "key": "close_confirmation|0.095|0.8|3",
       "variants": 2,
       "both_positive": false,
-      "worst_net_pct": -0.4995000493159707,
-      "best_net_pct": 12.84926731862923,
+      "worst_net_pct": -7.132866712694874,
+      "best_net_pct": 5.3259828307206325,
       "min_trades": 57,
       "all_years_event_days": {
         "2021": 9,
@@ -2968,8 +3306,8 @@
       "key": "close_confirmation|0.095|0.8|8",
       "variants": 2,
       "both_positive": false,
-      "worst_net_pct": -2.9974401661969186,
-      "best_net_pct": 0.8337136130866396,
+      "worst_net_pct": -5.422504162041964,
+      "best_net_pct": -1.6871292272405025,
       "min_trades": 73,
       "all_years_event_days": {
         "2021": 9,
@@ -3016,8 +3354,8 @@
       "key": "close_confirmation|0.095|1.2|3",
       "variants": 2,
       "both_positive": false,
-      "worst_net_pct": -2.855450178901686,
-      "best_net_pct": 10.208486283001083,
+      "worst_net_pct": -9.331753500308281,
+      "best_net_pct": 2.861253864134361,
       "min_trades": 48,
       "all_years_event_days": {
         "2021": 7,
@@ -3032,8 +3370,8 @@
       "key": "close_confirmation|0.095|1.2|8",
       "variants": 2,
       "both_positive": false,
-      "worst_net_pct": -0.8230597126822059,
-      "best_net_pct": 4.082285352051973,
+      "worst_net_pct": -3.30248321986516,
+      "best_net_pct": 1.4802282182506454,
       "min_trades": 57,
       "all_years_event_days": {
         "2021": 7,
@@ -3110,9 +3448,9 @@
     }
   ],
   "high_level": {
-    "configurations_profitable": 42,
+    "configurations_profitable": 38,
     "configurations_with_10plus_trades": 29,
     "stop_configs_profitable": 23,
-    "confirmation_configs_profitable": 19
+    "confirmation_configs_profitable": 15
   }
 }
