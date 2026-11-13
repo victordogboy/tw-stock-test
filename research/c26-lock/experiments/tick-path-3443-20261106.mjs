@@ -70,6 +70,16 @@ for(const day of days){
    if(wasBelow&&x[i].price>=alt){pos=i;break}
   }
   const after=pos>=0?x.slice(pos):[];
+  // First observed trade at fixed operational delays after the stop was touched.
+  // This is a latency sensitivity, never a promised broker fill.
+  const ms=z=>{const [h,m,sec]=z.split(':');return 3600000*(+h)+60000*(+m)+1000*(+sec)};
+  const start=pos>=0?ms(x[pos].time):NaN;
+  const delayedExecutionQuotes=pos<0?[]:[0,10,30,60,300].map(delaySec=>{
+    const next=x.find(z=>ms(z.time)>=start+delaySec*1000);
+    return {delay_seconds:delaySec,first_observed_price_after_delay:next?.price??null,
+     first_observed_time_after_delay:next?.time??null};
+  });
+
   report.alternative_rebound_4pct={
    prior_close:6405,threshold:alt,trigger_discount_pct:4,
    min_next_open_gap_pct:3,
@@ -81,6 +91,7 @@ for(const day of days){
    day_low_observed_after_touch:after.length?after.reduce((m,z)=>Math.min(m,z.price),Infinity):null,
    day_last_trade:last.price,
    price_path_verified:pos>=0,
+   hypothetical_broker_execution_quotes_after_delay:delayedExecutionQuotes,
    broker_execution_verified:false
   };
  }
@@ -101,6 +112,11 @@ report.execution_check={
 if(report.alternative_rebound_4pct){
  const a=report.alternative_rebound_4pct;
  a.next_open_exit=sell.first_trade_price;
+ a.hypothetical_broker_execution_quotes_after_delay=a.hypothetical_broker_execution_quotes_after_delay.map(z=>({
+  ...z,conditional_net_pct:z.first_observed_price_after_delay?
+   100*(sell.first_trade_price*(1-.0044275)/
+   (z.first_observed_price_after_delay*(1+.0014275))-1):null
+ }));
  a.net_with_first_touch_price_pct=a.first_trade_at_or_above_threshold?
   100*(sell.first_trade_price*(1-.0044275)/(a.first_trade_at_or_above_threshold*(1+.0014275))-1):null;
  a.net_with_plus_halfpct_each_side_pct=a.first_trade_at_or_above_threshold?
