@@ -63,7 +63,7 @@ jobs:
           assert.equal(crash.source_quality.monthly_files,70);
           assert.equal(crash.source_quality.missing_exchange_sessions,0);
           assert.equal(crash.mode,'RESEARCH_ONLY');
-          assert.ok(crash.results.every(x=>Number.isFinite(x.book_100pct_conditional_return_pct)&&Number.isFinite(x.book_100pct_conditional_max_dd_pct)));
+          assert.ok(crash.results.every(x=>Number.isFinite(x.book_100pct_conditional_return_pct)&&Number.isFinite(x.book_closed_trade_equity_curve_max_dd_pct)));
           assert.ok(crash.results.every(x=>x.cap<=8));
           console.log('C26_CRASH_RESEARCH_SAFETY_PASS',JSON.stringify({n:crash.experimental_variants,window:crash.source_window}));
           console.log('C26_5YR_INDEPENDENT_PROXY_CHECKS_PASS',JSON.stringify({
