@@ -9,6 +9,15 @@ const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:
  'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store',
  'X-C26-Plan-Ready':data?.plan?.readiness==='ready_for_manual_review'?'true':'false','X-C26-Frozen-Lock':'C26-EVENT-CORR-LOCK-20261112'}});
 const HIST='2026-10-27';
+// A paper plan is no longer actionable after the Taiwan regular session ends.
+ // It can remain in the archive, but must not pass the current T+1 trade gate.
+export function isCurrentC26PaperPlan(tradeDate,taipeiIso){
+ if(!/^20\d{2}-\d{2}-\d{2}$/.test(String(tradeDate||''))||
+    !/^20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(taipeiIso||'')))return false;
+ const date=taipeiIso.slice(0,10),clock=taipeiIso.slice(11,16);
+ return tradeDate>date||(tradeDate===date&&clock<'13:30');
+}
+
 // Read ONLY the sanitized GitHub Actions coverage report. Licensed FinMind
 // raw price/chip records are never returned through this public API.
 async function publicForwardCoverage(env){
@@ -50,8 +59,8 @@ export async function c26StatusRoute(request,env){
      days:forward.days,
      next_exchange_trade_date:forward.next_exchange_trade_date
     });
-    if(checked.ok&&checked.plan.trade_date>=new Date(Date.now()+8*3600000).toISOString().slice(0,10))publishedPlan=checked.plan;
-    else if(checked.ok)planGate='Published C26 plan is for an expired trading date';
+    if(checked.ok&&isCurrentC26PaperPlan(checked.plan.trade_date,new Date(Date.now()+8*3600000).toISOString()))publishedPlan=checked.plan;
+    else if(checked.ok)planGate='Published C26 paper plan has expired (Taiwan trading session ended or date passed)';
     else planGate=checked.reason;
    }
   }catch{planGate='Failed to validate frozen C26 live-plan asset'}
