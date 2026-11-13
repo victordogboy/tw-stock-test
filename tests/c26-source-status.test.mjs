@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {c26StatusRoute} from '../src/c26/status.mjs';
+import {c26StatusRoute,isCurrentC26PaperPlan} from '../src/c26/status.mjs';
 function fakeEnv(){
  return {SCAN_JOBS:{idFromName:n=>n,get:()=>({fetch:async request=>{
   if(new URL(request.url).pathname.endsWith('/refresh'))return Response.json({state:'queued',progress:{state:'queued',data_as_of:'2026-11-11'}});
@@ -53,4 +53,14 @@ test('C26 status exposes sanitized EOD coverage only, never raw licensed FinMind
  assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);
  assert.equal(d.no_live_positions,true);
  assert.ok(!JSON.stringify(d).includes('must-not-leak'));
+});
+
+test('C26 paper plan expires at Taipei regular session close, no stale orders',()=>{
+ assert.equal(isCurrentC26PaperPlan('2026-11-13','2026-11-13T08:44:59.000Z'),true);
+ assert.equal(isCurrentC26PaperPlan('2026-11-13','2026-11-13T13:29:59.000Z'),true);
+ assert.equal(isCurrentC26PaperPlan('2026-11-13','2026-11-13T13:30:00.000Z'),false);
+ assert.equal(isCurrentC26PaperPlan('2026-11-13','2026-11-13T23:19:00.000Z'),false);
+ assert.equal(isCurrentC26PaperPlan('2026-11-13','2026-11-16T08:00:00.000Z'),false);
+ assert.equal(isCurrentC26PaperPlan('2026-11-16','2026-11-13T23:19:00.000Z'),true);
+ assert.equal(isCurrentC26PaperPlan('garbage','2026-11-13T09:00:00.000Z'),false);
 });
