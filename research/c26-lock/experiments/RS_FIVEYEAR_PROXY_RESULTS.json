@@ -1,0 +1,2842 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "source": "FinMind private OHLC + SHA-checked C26 frozen NAV",
+  "warning": "INDEPENDENT PAPER PROXY ONLY. Not full C26 Python execution nor broker advice; fractional shares, survivor-biased 2026 future-stock universe, raw unadjusted corporate actions can distort results.",
+  "data_quality": {
+    "monthly_files": 70,
+    "stock_count": 233,
+    "backtest_days": 1407,
+    "missing_session_days": 0,
+    "detected_large_unadjusted_price_events": 1237,
+    "suspended_marks_not_executable": true,
+    "method": "Carry last close for valuation only; exclude abnormal >35% changes as unknown corporate action; never simulate fill on missing quote."
+  },
+  "execution": "Signal from s=t-lag close; buy/sell at t open, skip >5% gap buys, buy 0.14275%, sell 0.44275%",
+  "starting_after_warmup": "2021-02-19",
+  "end_date": "2026-10-27",
+  "configs": 24,
+  "baseline_same_window": {
+    "return_pct": 1683.5768726229824,
+    "max_dd_pct": -17.989769234703846
+  },
+  "results": [
+    {
+      "family": "momentum",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1598.5959447804657,
+      "max_dd_pct": -17.705725779886926,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 412.640152093188,
+        "max_dd_pct": -17.2107825682027
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 97,
+        "sells": 97,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.5553050912680136,
+        "skipped_gaps": 7,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.250296223257524,
+            "max_dd_pct": -9.522350040197692
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.14562821568627,
+            "max_dd_pct": -17.43908147004516
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.650204827424519,
+            "max_dd_pct": -12.263261911410684
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.06351519402547,
+            "max_dd_pct": -11.252648016072808
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.9659741869573,
+            "max_dd_pct": -17.2107825682027
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1595.997644125109,
+      "max_dd_pct": -17.89523357536452,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 416.8403986065414,
+        "max_dd_pct": -17.22102683941823
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 115,
+        "sells": 115,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.3266760184075035,
+        "skipped_gaps": 24,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.648453016517265,
+            "max_dd_pct": -9.661071221645223
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.159134118056684,
+            "max_dd_pct": -17.50985248714324
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.510109771681858,
+            "max_dd_pct": -12.636886592206354
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.08202916474922,
+            "max_dd_pct": -11.315816992507521
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.6799081616238,
+            "max_dd_pct": -17.22102683941823
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1603.5731068537486,
+      "max_dd_pct": -17.437715451004177,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 405.1752451463533,
+        "max_dd_pct": -17.188449397127638
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 134,
+        "sells": 133,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 1.0911623224973097,
+        "skipped_gaps": 6,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.380096752790333,
+            "max_dd_pct": -9.638003755172486
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.84939442325003,
+            "max_dd_pct": -17.345283571550596
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 17.44734715033447,
+            "max_dd_pct": -11.651421754551272
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.06540222538077,
+            "max_dd_pct": -11.104790084114203
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 166.5313117829863,
+            "max_dd_pct": -17.188449397127638
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1596.8733412768347,
+      "max_dd_pct": -17.864368946354237,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 416.31585896341187,
+        "max_dd_pct": -17.214723541004652
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 165,
+        "sells": 164,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5555810720162712,
+        "skipped_gaps": 40,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.736743768351029,
+            "max_dd_pct": -9.653022277144318
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.36145266949697,
+            "max_dd_pct": -17.6868752074258
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.434557992929786,
+            "max_dd_pct": -12.674594570694087
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.09284067906088,
+            "max_dd_pct": -11.297310837848718
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.39868823303513,
+            "max_dd_pct": -17.214723541004652
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1513.61501693795,
+      "max_dd_pct": -17.697590890175075,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 406.48060013046364,
+        "max_dd_pct": -17.181081823375656
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 97,
+        "sells": 97,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.5553050912680136,
+        "skipped_gaps": 7,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.887585270597586,
+            "max_dd_pct": -9.2702548171252
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 54.009386981037835,
+            "max_dd_pct": -17.473600344094088
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.72202735721364,
+            "max_dd_pct": -11.822160971175844
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 85.71926993449514,
+            "max_dd_pct": -11.147379616340658
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 167.69531229259934,
+            "max_dd_pct": -17.181081823375656
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1508.4184156272368,
+      "max_dd_pct": -17.790971424618085,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 415.1840273330266,
+        "max_dd_pct": -17.20259017108082
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 115,
+        "sells": 115,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.3266760184075035,
+        "skipped_gaps": 24,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.72262329293445,
+            "max_dd_pct": -9.552501085161635
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.053739886006326,
+            "max_dd_pct": -17.6226523731283
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.429126648138759,
+            "max_dd_pct": -12.60222225857226
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.83281397434202,
+            "max_dd_pct": -11.279059661490198
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.18696770163672,
+            "max_dd_pct": -17.20259017108082
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1523.5693410845158,
+      "max_dd_pct": -17.485760978236943,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 391.459737023379,
+        "max_dd_pct": -17.13436673356735
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 134,
+        "sells": 133,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 1.0911623224973097,
+        "skipped_gaps": 6,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.151280126074012,
+            "max_dd_pct": -9.50820683768706
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 55.44953643355548,
+            "max_dd_pct": -17.485760978236943
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 19.44629795068378,
+            "max_dd_pct": -11.065114845384993
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 83.72940927750815,
+            "max_dd_pct": -10.845378779168902
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 162.6910585402272,
+            "max_dd_pct": -17.13436673356735
+          }
+        }
+      }
+    },
+    {
+      "family": "momentum",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1510.1698099306884,
+      "max_dd_pct": -17.990866062274502,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 414.08854697654016,
+        "max_dd_pct": -17.18931198946564
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 165,
+        "sells": 164,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5555810720162712,
+        "skipped_gaps": 40,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.899876255754712,
+            "max_dd_pct": -9.53592134547293
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.477867175620425,
+            "max_dd_pct": -17.990866062274502
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.271265534770983,
+            "max_dd_pct": -12.68148556388372
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.85630347110953,
+            "max_dd_pct": -11.24031448517041
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.5976186216643,
+            "max_dd_pct": -17.18931198946564
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1595.7986415326895,
+      "max_dd_pct": -18.142683423288087,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 414.81444793731663,
+        "max_dd_pct": -17.241126996981105
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 98,
+        "sells": 98,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.35224991273751854,
+        "skipped_gaps": 0,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.309916481705581,
+            "max_dd_pct": -9.648029948332294
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.33303180094524,
+            "max_dd_pct": -17.248380235209925
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.36941273115433,
+            "max_dd_pct": -12.640527635358511
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.415964159581,
+            "max_dd_pct": -11.308486847292587
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.57878292133822,
+            "max_dd_pct": -17.241126996981105
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1597.3863978476445,
+      "max_dd_pct": -18.160135446732017,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 412.5737652597176,
+        "max_dd_pct": -17.21648368955744
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 106,
+        "sells": 106,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.6023048361238402,
+        "skipped_gaps": 13,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.092651696122799,
+            "max_dd_pct": -9.52467767726215
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.45569166208275,
+            "max_dd_pct": -17.243974620034173
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.239501507948127,
+            "max_dd_pct": -12.568813813166601
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.80147440769146,
+            "max_dd_pct": -11.27939135772249
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.298476311411,
+            "max_dd_pct": -17.21648368955744
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1596.8871316483646,
+      "max_dd_pct": -18.3023760532649,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 414.8436002118362,
+        "max_dd_pct": -17.24136102223556
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 138,
+        "sells": 137,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5374010239087976,
+        "skipped_gaps": 3,
+        "halted_held_sessions": 1
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.162582833676079,
+            "max_dd_pct": -9.62379721271338
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.87454850832026,
+            "max_dd_pct": -17.222886919757464
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 14.576243548781509,
+            "max_dd_pct": -12.920853859705906
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.44172856745773,
+            "max_dd_pct": -11.294778297141828
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.56061499978495,
+            "max_dd_pct": -17.24136102223556
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1597.472392141115,
+      "max_dd_pct": -18.033019185157983,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 413.7338484787695,
+        "max_dd_pct": -17.21774301347875
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 147,
+        "sells": 146,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.811769991079067,
+        "skipped_gaps": 17,
+        "halted_held_sessions": 1
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.897848696854792,
+            "max_dd_pct": -9.406612884498655
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.054565018434374,
+            "max_dd_pct": -17.21627541082168
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 14.584224809155444,
+            "max_dd_pct": -12.831523157425007
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.34154350225218,
+            "max_dd_pct": -11.262390613856343
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.13325712188322,
+            "max_dd_pct": -17.21774301347875
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1508.0204104423974,
+      "max_dd_pct": -18.309903694993434,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 410.95615302503114,
+        "max_dd_pct": -17.244984171749078
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 98,
+        "sells": 98,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.35224991273751854,
+        "skipped_gaps": 0,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.024971329306263,
+            "max_dd_pct": -9.526183593703797
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.42423251996047,
+            "max_dd_pct": -17.075167265319212
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.136148953126781,
+            "max_dd_pct": -12.610138257145543
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.44047866904347,
+            "max_dd_pct": -11.263696270527602
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.9744222956963,
+            "max_dd_pct": -17.244984171749078
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1511.1959230723069,
+      "max_dd_pct": -18.351282819444425,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 406.3349521180136,
+        "max_dd_pct": -17.193049915703142
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 106,
+        "sells": 106,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.6023048361238402,
+        "skipped_gaps": 13,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -9.57455544917728,
+            "max_dd_pct": -9.759694650970886
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 54.64690256615907,
+            "max_dd_pct": -17.068364425843008
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 14.869663675172017,
+            "max_dd_pct": -12.460976004131597
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 85.17224173876794,
+            "max_dd_pct": -11.202930477530149
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.38832076341745,
+            "max_dd_pct": -17.193049915703142
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1510.197390673748,
+      "max_dd_pct": -18.64146835907451,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 411.02186136757535,
+        "max_dd_pct": -17.245471817124304
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 138,
+        "sells": 137,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5374010239087976,
+        "skipped_gaps": 3,
+        "halted_held_sessions": 1
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.725422256775616,
+            "max_dd_pct": -9.47512485576344
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 59.628947184902636,
+            "max_dd_pct": -17.02503037870846
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 13.496663389252216,
+            "max_dd_pct": -13.19478666076036
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.49557216966038,
+            "max_dd_pct": -11.23502312687169
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.9371195703377,
+            "max_dd_pct": -17.245471817124304
+          }
+        }
+      }
+    },
+    {
+      "family": "reversal",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1511.3679116592486,
+      "max_dd_pct": -18.154084253366065,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 408.7264768499191,
+        "max_dd_pct": -17.195698940721872
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 147,
+        "sells": 146,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.811769991079067,
+        "skipped_gaps": 17,
+        "halted_held_sessions": 1
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -9.186606232282458,
+            "max_dd_pct": -9.373261165564672
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 55.874301357857824,
+            "max_dd_pct": -17.012275568882618
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 13.51811607617266,
+            "max_dd_pct": -13.008089351550655
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.29148661993484,
+            "max_dd_pct": -11.167583392107561
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.0429038484713,
+            "max_dd_pct": -17.195698940721872
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1596.6476461659686,
+      "max_dd_pct": -17.8741430802268,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 415.9124804773395,
+        "max_dd_pct": -17.19512340139948
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 109,
+        "sells": 109,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.37591021857242274,
+        "skipped_gaps": 12,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.595483394250824,
+            "max_dd_pct": -9.658593084202849
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.39078359587011,
+            "max_dd_pct": -17.37265922933904
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.582076802942035,
+            "max_dd_pct": -12.478445512400448
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.70608628039118,
+            "max_dd_pct": -11.30953151817905
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.735786770269,
+            "max_dd_pct": -17.19512340139948
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.05,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1594.8416722408479,
+      "max_dd_pct": -17.981556675145494,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 417.53119960694096,
+        "max_dd_pct": -17.2439846089145
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 124,
+        "sells": 124,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.1665852522272818,
+        "skipped_gaps": 30,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.134635337881601,
+            "max_dd_pct": -9.720205073193489
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.8482626045842,
+            "max_dd_pct": -17.40082991035986
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.51916732932801,
+            "max_dd_pct": -12.666804680499965
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.16701476495159,
+            "max_dd_pct": -11.335503905418554
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.91052141172122,
+            "max_dd_pct": -17.2439846089145
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1597.7742486578545,
+      "max_dd_pct": -17.98441584546192,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 414.3720316909954,
+        "max_dd_pct": -17.176121053492665
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 149,
+        "sells": 148,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5437765545270885,
+        "skipped_gaps": 13,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.527193883909145,
+            "max_dd_pct": -9.630296060276011
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.65025299101521,
+            "max_dd_pct": -17.316430316925647
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.85600023827769,
+            "max_dd_pct": -12.512658272221099
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.38377208056053,
+            "max_dd_pct": -11.288583562249709
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.4026661431898,
+            "max_dd_pct": -17.176121053492665
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.05,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1595.1965691461698,
+      "max_dd_pct": -17.97699117621644,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 416.52423814253484,
+        "max_dd_pct": -17.248089440262337
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 184,
+        "sells": 183,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.4558922088609492,
+        "skipped_gaps": 55,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.684246230417314,
+            "max_dd_pct": -9.661363621784725
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.64564760770325,
+            "max_dd_pct": -17.421827826351176
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.340688193096774,
+            "max_dd_pct": -12.673652110640688
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.98812551742346,
+            "max_dd_pct": -11.31738435571663
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.64776100500728,
+            "max_dd_pct": -17.248089440262337
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 1,
+      "return_pct": 1509.7184197089555,
+      "max_dd_pct": -18.423642089604176,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 413.2456467218671,
+        "max_dd_pct": -17.14796731145729
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 109,
+        "sells": 109,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.37591021857242274,
+        "skipped_gaps": 12,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -10.63061708826284,
+            "max_dd_pct": -10.817422223184836
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 56.537521450656804,
+            "max_dd_pct": -17.334961050104436
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.580305860921829,
+            "max_dd_pct": -12.269314454840464
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.04555899007285,
+            "max_dd_pct": -11.265884473961417
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.3047544645537,
+            "max_dd_pct": -17.14796731145729
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.1,
+      "gate": 0.3,
+      "lag": 2,
+      "return_pct": 1506.1064718587143,
+      "max_dd_pct": -18.45704197271284,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 416.63238129912526,
+        "max_dd_pct": -17.251019377321185
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 124,
+        "sells": 124,
+        "open_positions": 0,
+        "fees_paid_sleeve_fraction": 0.1665852522272818,
+        "skipped_gaps": 30,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -7.677515863314877,
+            "max_dd_pct": -9.675366905801507
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.48628179467894,
+            "max_dd_pct": -17.393966951033434
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.44783298087269,
+            "max_dd_pct": -12.665130583775298
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.01080397375213,
+            "max_dd_pct": -11.320430832621021
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.67164719028855,
+            "max_dd_pct": -17.251019377321185
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 1,
+      "return_pct": 1511.9716246927276,
+      "max_dd_pct": -17.97857224867091,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 410.0483513666969,
+        "max_dd_pct": -17.10796017559946
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 149,
+        "sells": 148,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.5437765545270885,
+        "skipped_gaps": 13,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -10.493961981266665,
+            "max_dd_pct": -10.681295051707318
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.07839830073307,
+            "max_dd_pct": -17.21726998655566
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 16.15359974160626,
+            "max_dd_pct": -12.342745798082877
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 86.3773574003348,
+            "max_dd_pct": -11.22209116495194
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 168.6068411022671,
+            "max_dd_pct": -17.10796017559946
+          }
+        }
+      }
+    },
+    {
+      "family": "relay",
+      "sleeve": 0.1,
+      "gate": 0.8,
+      "lag": 2,
+      "return_pct": 1506.8162656693578,
+      "max_dd_pct": -17.962921386197028,
+      "baseline_return_pct": 1683.5768726229824,
+      "baseline_max_dd_pct": -17.989769234703846,
+      "holdout": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 414.5200006196275,
+        "max_dd_pct": -17.259676090864485
+      },
+      "holdout_base": {
+        "from": "2025-01-02",
+        "through": "2026-10-27",
+        "return_pct": 418.34326358310483,
+        "max_dd_pct": -17.237648571782994
+      },
+      "train": null,
+      "orders": {
+        "buys": 184,
+        "sells": 183,
+        "open_positions": 1,
+        "fees_paid_sleeve_fraction": 0.4558922088609492,
+        "skipped_gaps": 55,
+        "halted_held_sessions": 0
+      },
+      "annual": {
+        "2021": {
+          "baseline": null,
+          "combined": null
+        },
+        "2022": {
+          "baseline": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -6.635687822548741,
+            "max_dd_pct": -9.760916235913342
+          },
+          "combined": {
+            "from": "2022-01-03",
+            "through": "2022-12-30",
+            "return_pct": -8.79850867454447,
+            "max_dd_pct": -9.552814359202733
+          }
+        },
+        "2023": {
+          "baseline": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 58.17711431574541,
+            "max_dd_pct": -17.407038482519642
+          },
+          "combined": {
+            "from": "2023-01-03",
+            "through": "2023-12-29",
+            "return_pct": 57.06700033999537,
+            "max_dd_pct": -17.43802446116487
+          }
+        },
+        "2024": {
+          "baseline": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.58369204747818,
+            "max_dd_pct": -12.668317131593799
+          },
+          "combined": {
+            "from": "2024-01-02",
+            "through": "2024-12-31",
+            "return_pct": 15.074264222227818,
+            "max_dd_pct": -12.679526401717167
+          }
+        },
+        "2025": {
+          "baseline": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 88.30814802305062,
+            "max_dd_pct": -11.349104031279634
+          },
+          "combined": {
+            "from": "2025-01-02",
+            "through": "2025-12-31",
+            "return_pct": 87.63551851168975,
+            "max_dd_pct": -11.282347580629448
+          }
+        },
+        "2026": {
+          "baseline": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 170.12598945472863,
+            "max_dd_pct": -17.237648571782994
+          },
+          "combined": {
+            "from": "2026-01-02",
+            "through": "2026-10-27",
+            "return_pct": 169.11890327678694,
+            "max_dd_pct": -17.259676090864485
+          }
+        }
+      }
+    }
+  ],
+  "robustness": [
+    {
+      "key": "momentum/0.05/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -84.98092784251662,
+          "max_dd_improve_pp": 0.2840434548169206,
+          "holdout_pnl_pp": -5.703111489916807
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -87.57922849787337,
+          "max_dd_improve_pp": 0.09453565933932495,
+          "holdout_pnl_pp": -1.502864976563444
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "momentum/0.05/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -80.00376576923372,
+          "max_dd_improve_pp": 0.5520537836996695,
+          "holdout_pnl_pp": -13.168018436751538
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -86.70353134614766,
+          "max_dd_improve_pp": 0.12540028834960992,
+          "holdout_pnl_pp": -2.027404619692959
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "momentum/0.1/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -169.96185568503233,
+          "max_dd_improve_pp": 0.29217834452877156,
+          "holdout_pnl_pp": -11.862663452641186
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -175.1584569957456,
+          "max_dd_improve_pp": 0.19879781008576103,
+          "holdout_pnl_pp": -3.1592362500782087
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "momentum/0.1/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -160.00753153846654,
+          "max_dd_improve_pp": 0.5040082564669035,
+          "holdout_pnl_pp": -26.88352655972585
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -173.40706269229395,
+          "max_dd_improve_pp": -0.0010968275706559893,
+          "holdout_pnl_pp": -4.254716606564671
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "reversal/0.05/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -87.77823109029282,
+          "max_dd_improve_pp": -0.15291418858424066,
+          "holdout_pnl_pp": -3.5288156457881996
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -86.19047477533786,
+          "max_dd_improve_pp": -0.1703662120281706,
+          "holdout_pnl_pp": -5.769498323387211
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "reversal/0.05/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -86.68974097461773,
+          "max_dd_improve_pp": -0.3126068185610542,
+          "holdout_pnl_pp": -3.499663371268639
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -86.10448048186731,
+          "max_dd_improve_pp": -0.043249950454136155,
+          "holdout_pnl_pp": -4.609415104335312
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "reversal/0.1/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -175.55646218058496,
+          "max_dd_improve_pp": -0.32013446028958725,
+          "holdout_pnl_pp": -7.387110558073687
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -172.3809495506755,
+          "max_dd_improve_pp": -0.36151358474057815,
+          "holdout_pnl_pp": -12.008311465091253
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "reversal/0.1/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -173.37948194923433,
+          "max_dd_improve_pp": -0.651699124370662,
+          "holdout_pnl_pp": -7.321402215529474
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -172.20896096373372,
+          "max_dd_improve_pp": -0.16431501866221865,
+          "holdout_pnl_pp": -9.616786733185734
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "relay/0.05/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -86.92922645701378,
+          "max_dd_improve_pp": 0.11562615447704516,
+          "holdout_pnl_pp": -2.430783105765329
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -88.73520038213451,
+          "max_dd_improve_pp": 0.008212559558351984,
+          "holdout_pnl_pp": -0.8120639761638699
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "relay/0.05/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -85.80262396512785,
+          "max_dd_improve_pp": 0.005353389241925299,
+          "holdout_pnl_pp": -3.971231892109415
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -88.38030347681251,
+          "max_dd_improve_pp": 0.012778058487405985,
+          "holdout_pnl_pp": -1.8190254405699875
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "relay/0.1/0.3",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -173.85845291402688,
+          "max_dd_improve_pp": -0.43387285490032923,
+          "holdout_pnl_pp": -5.097616861237725
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -177.4704007642681,
+          "max_dd_improve_pp": -0.4672727380089938,
+          "holdout_pnl_pp": -1.710882283979572
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": false,
+      "both_lags_holdout_win": false
+    },
+    {
+      "key": "relay/0.1/0.8",
+      "pair": [
+        {
+          "lag": 1,
+          "total_pnl_pp": -171.6052479302548,
+          "max_dd_improve_pp": 0.011196986032935285,
+          "holdout_pnl_pp": -8.294912216407909
+        },
+        {
+          "lag": 2,
+          "total_pnl_pp": -176.76060695362457,
+          "max_dd_improve_pp": 0.02684784850681865,
+          "holdout_pnl_pp": -3.8232629634773048
+        }
+      ],
+      "both_lags_win": false,
+      "both_lags_mdd_better": true,
+      "both_lags_holdout_win": false
+    }
+  ],
+  "pass_criteria": {
+    "c26_historical_engine_changed": false,
+    "post_archive_11_16_model_not_verified": true,
+    "user_total_roundtrip_cost_pct": 0.5855,
+    "not_four_stock_whitelist": true,
+    "output_raw_prices": false
+  },
+  "research_generated_at": "2026-11-13T16:13:15.266Z"
+}
