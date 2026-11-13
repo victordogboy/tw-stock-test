@@ -38,15 +38,19 @@ function check(bytes){
  if(!dates.some(d=>d>='2026-10-28'))throw Error('C26 source does not include forward days');
  return {sha256:sha(bytes),date:dates.at(-1),n_dates:dates.length,bytes:bytes.length};
 }
-async function call(method,body=undefined){
+async function call(method,body=undefined,suffix=(mode==='status'?'/status':'')){
  let response;
- for(let attempt=1;attempt<=8;attempt++){
-  response=await fetch(endpoint+(mode==='status'?'/status':''),{
-   method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/gzip'}:{})},
-   body,signal:AbortSignal.timeout(55000),cache:'no-store'
-  });
-  if(![502,503,504].includes(response.status)||attempt===8)break;
-  await new Promise(resolve=>setTimeout(resolve,5000));
+ for(let attempt=1;attempt<=5;attempt++){
+  try{
+   response=await fetch(endpoint+suffix,{
+    method,headers:{authorization:'Bearer '+token,...(body?{'content-type':'application/gzip'}:{})},
+    body,signal:AbortSignal.timeout(45000),cache:'no-store'
+   });
+   if(![502,503,504].includes(response.status)||attempt===5)break;
+  }catch(e){
+   if(attempt===5)throw e;
+  }
+  await new Promise(resolve=>setTimeout(resolve,3000));
  }
  return response;
 }
@@ -60,10 +64,30 @@ if(mode==='restore'){
  console.log('C26_PRIVATE_SOURCE_RESTORED',JSON.stringify(a));
 }else if(mode==='publish'){
  const bytes=fs.readFileSync(rawpath);const a=check(bytes);
- const r=await call('POST',bytes);
- if(!r.ok)throw Error('C26 private publish failed HTTP '+r.status);
- const ack=await r.json();
- if(ack.stored!==true||ack.sha256!==a.sha256||ack.source_as_of<a.date)throw Error('C26 private store acknowledgement mismatch');
+ // Prefer an authenticated HEAD-like metadata read. Re-uploading an identical
+ // 600KB source can unnecessarily block or time out the Durable Object.
+ async function alreadyStored(){
+  const r=await call('GET',undefined,'/status');
+  if(r.status===404)return null;
+  if(!r.ok)throw Error('C26 private metadata check HTTP '+r.status);
+  const v=await r.json();
+  return v.exists===true&&v.sha256===a.sha256&&v.source_as_of>=a.date ? v:null;
+ }
+ let ack=await alreadyStored(),reused=!!ack;
+ if(!ack){
+  try{
+   const r=await call('POST',bytes,'');
+   if(!r.ok)throw Error('C26 private publish failed HTTP '+r.status);
+   ack=await r.json();
+  }catch(e){
+   // An upload may commit and still lose its network response. Check persisted
+   // digest rather than reporting a false failure or re-sending licensed data.
+   ack=await alreadyStored();
+   if(!ack)throw e;
+  }
+ }
+ if((ack.stored!==true&&!reused&&ack.exists!==true)||ack.sha256!==a.sha256||ack.source_as_of<a.date)
+  throw Error('C26 private store acknowledgement mismatch');
  const statusPath=path.join(root,'public/r1494a/c26/data/forward-status.json');
  const status=JSON.parse(fs.readFileSync(statusPath,'utf8'));
  if(status.sha256_gzip!==a.sha256)throw Error('Coverage report refers to different private data');
@@ -71,7 +95,7 @@ if(mode==='restore'){
  status.private_storage_verified=true;
  status.private_storage_as_of=ack.source_as_of;
  fs.writeFileSync(statusPath,JSON.stringify(status,null,2)+'\n');
- console.log('C26_PRIVATE_SOURCE_PERSISTED',JSON.stringify({source_as_of:ack.source_as_of,n_dates:a.n_dates,bytes:a.bytes,raw_public:false,live_plan:'BLOCKED'}));
+ console.log(reused?'C26_PRIVATE_SOURCE_ALREADY_IDENTICAL':'C26_PRIVATE_SOURCE_PERSISTED',JSON.stringify({source_as_of:ack.source_as_of,n_dates:a.n_dates,bytes:a.bytes,raw_public:false,live_plan:'BLOCKED'}));
 }else{
  const r=await call('GET');
  if(!r.ok)throw Error('C26 private store status failed HTTP '+r.status);
