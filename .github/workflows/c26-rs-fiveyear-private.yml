@@ -1,0 +1,75 @@
+name: C26 private 2021-2026 all-market RS satellite long-horizon research
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - research/c26-lock/experiments/history-backtest.mjs
+      - .github/workflows/c26-rs-fiveyear-private.yml
+permissions:
+  contents: write
+concurrency:
+  group: c26-5year-rs-private-research
+  cancel-in-progress: false
+jobs:
+  research:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 58
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Static security and syntax validation
+        run: |
+          node --check research/c26-lock/experiments/history-fetch.mjs
+          node --check research/c26-lock/experiments/history-backtest.mjs
+          git diff --exit-code
+      - name: Download 233-stock historical OHLC privately; no licensed raw rows in output
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          set -euo pipefail
+          node research/c26-lock/experiments/history-fetch.mjs --from=2021-01 --to=2026-10
+      - name: Compare independent RS rebound, momentum, relay proxy versus original C26 NAV
+        run: |
+          set -euo pipefail
+          node research/c26-lock/experiments/history-backtest.mjs
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const r=JSON.parse(fs.readFileSync('research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json'));
+          assert.equal(r.configs,24);
+          assert.equal(r.data_quality.monthly_files,70);
+          assert.equal(r.data_quality.stock_count,233);
+          assert.equal(r.data_quality.missing_session_days,0);
+          assert.equal(r.pass_criteria.user_total_roundtrip_cost_pct,0.5855);
+          assert.equal(r.pass_criteria.c26_historical_engine_changed,false);
+          assert.equal(r.pass_criteria.output_raw_prices,false);
+          assert.ok(r.results.every(x=>Number.isFinite(x.return_pct)&&Number.isFinite(x.max_dd_pct)));
+          assert.ok(r.robustness.length===12);
+          console.log('C26_5YR_INDEPENDENT_PROXY_CHECKS_PASS',JSON.stringify({
+            configs:r.configs,
+            days:r.data_quality.backtest_days,
+            corpEvents:r.data_quality.detected_large_unadjusted_price_events,
+            studyOnly:true
+          }));
+          JS
+      - name: Publish audited derived summaries without raw FinMind OHLC or JWT
+        run: |
+          set -euo pipefail
+          cp research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json /tmp/C26_5YR_RESULTS.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/C26_5YR_RESULTS.json research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json
+            git add research/c26-lock/experiments/RS_FIVEYEAR_PROXY_RESULTS.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Publish C26 research-only five-year RS sleeve proxy summary'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 3
+          done
+          echo 'C26 five-year summary could not be published'
+          exit 1
