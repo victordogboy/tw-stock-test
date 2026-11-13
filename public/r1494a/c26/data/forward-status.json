@@ -1,7 +1,7 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-13T15:34:47.421Z",
+  "checked_at": "2026-11-13T15:35:38.737Z",
   "requested_through": "2026-11-13",
   "next_exchange_trade_date": "2026-11-16",
   "full_market_last_verified": "2026-11-13",
@@ -139,12 +139,12 @@
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "be58d0962b711347d60f120f044bc883ff0dd5f5ddf7b1610f83c81bd9330675",
+  "sha256_gzip": "5609e94b19deecf0d5365300d23690aeb2c794474d21eb3a21254126088ffc8b",
   "bytes_gzip": 598764,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
   "public_raw_data": false,
-  "raw_storage": "Cloudflare private Durable Object",
+  "raw_storage": "private CI workspace (ephemeral)",
   "checkpoint_ohlc_parity": {
     "date": "2026-10-27",
     "pass": true,
@@ -159,7 +159,5 @@
   "exact_c26_feature_parity": "NOT_VERIFIED",
   "frozen_c26_portfolio_replay": "NOT_IMPLEMENTED",
   "live_plan_readiness": "BLOCKED",
-  "warning": "僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。",
-  "private_storage_verified": true,
-  "private_storage_as_of": "2026-11-13"
+  "warning": "僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。"
 }

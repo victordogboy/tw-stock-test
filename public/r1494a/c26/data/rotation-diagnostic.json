@@ -1,0 +1,232 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "model_version": "C26",
+  "research_only": true,
+  "live_plan_readiness": "NOT_A_TRADING_PLAN",
+  "portfolio_replay_not_performed": true,
+  "causal": true,
+  "universe_size": 233,
+  "source_as_of": "2026-11-13",
+  "market_benchmark": "median daily return of 233-pool, NOT C26 original full-market proxy",
+  "source": "C26 verified private FinMind EOD plus public frozen FC23 stock close seed",
+  "limitations": "Indicator-side screen only; C26 original rank, cash, position, cooldown, risk exposure and actual trade signals must come from frozen Python engine. No future execution data used.",
+  "assessed_dates": [
+    {
+      "close_as_of": "2026-11-12",
+      "candidate_for_next_session": "2026-11-13",
+      "all_features_available": 232,
+      "four_stock_technical": [
+        {
+          "code": "3443",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 21.964,
+          "rs20_pct": 10.427,
+          "near20_pct": 95.331,
+          "above_mean20_pct": 5.606
+        },
+        {
+          "code": "3661",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 23.403,
+          "rs20_pct": 3.958,
+          "near20_pct": 93.274,
+          "above_mean20_pct": 5.528
+        },
+        {
+          "code": "3035",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 3.329,
+          "rs20_pct": 6.298,
+          "near20_pct": 77.106,
+          "above_mean20_pct": -7.585
+        },
+        {
+          "code": "2454",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 10.519,
+          "rs20_pct": -1.588,
+          "near20_pct": 86.034,
+          "above_mean20_pct": -2.723
+        }
+      ],
+      "families": {
+        "momentum": {
+          "passing_count": 4,
+          "top5": [
+            "1802",
+            "2355",
+            "1476",
+            "6443"
+          ],
+          "four_stocks": [
+            {
+              "code": "3443",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "3661",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "3035",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "2454",
+              "passed": false,
+              "rank": null
+            }
+          ]
+        },
+        "reversal": {
+          "passing_count": 16,
+          "top5": [
+            "3661",
+            "3044",
+            "6271",
+            "1303",
+            "3105"
+          ],
+          "four_stocks": [
+            {
+              "code": "3443",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "3661",
+              "passed": true,
+              "rank": 1
+            },
+            {
+              "code": "3035",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "2454",
+              "passed": true,
+              "rank": 6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "close_as_of": "2026-11-13",
+      "candidate_for_next_session": "2026-11-16",
+      "all_features_available": 232,
+      "four_stock_technical": [
+        {
+          "code": "3443",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 31.921,
+          "rs20_pct": 17.299,
+          "near20_pct": 100,
+          "above_mean20_pct": 15.4
+        },
+        {
+          "code": "3661",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 35.211,
+          "rs20_pct": 14.903,
+          "near20_pct": 100,
+          "above_mean20_pct": 15.302
+        },
+        {
+          "code": "3035",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 15.28,
+          "rs20_pct": 5.763,
+          "near20_pct": 84.665,
+          "above_mean20_pct": 1.871
+        },
+        {
+          "code": "2454",
+          "available": true,
+          "tradable": true,
+          "rs5_pct": 14.695,
+          "rs20_pct": 4.939,
+          "near20_pct": 96.941,
+          "above_mean20_pct": 4.569
+        }
+      ],
+      "families": {
+        "momentum": {
+          "passing_count": 12,
+          "top5": [
+            "1802",
+            "2355",
+            "6510",
+            "1476",
+            "3443"
+          ],
+          "four_stocks": [
+            {
+              "code": "3443",
+              "passed": true,
+              "rank": 5
+            },
+            {
+              "code": "3661",
+              "passed": true,
+              "rank": 6
+            },
+            {
+              "code": "3035",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "2454",
+              "passed": false,
+              "rank": null
+            }
+          ]
+        },
+        "reversal": {
+          "passing_count": 25,
+          "top5": [
+            "3017",
+            "6271",
+            "3044",
+            "1303",
+            "6239"
+          ],
+          "four_stocks": [
+            {
+              "code": "3443",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "3661",
+              "passed": false,
+              "rank": null
+            },
+            {
+              "code": "3035",
+              "passed": true,
+              "rank": 6
+            },
+            {
+              "code": "2454",
+              "passed": true,
+              "rank": 7
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
