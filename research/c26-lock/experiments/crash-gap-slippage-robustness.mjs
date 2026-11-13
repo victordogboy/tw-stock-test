@@ -177,6 +177,20 @@ function test(c){
  };
 }
 const results=configs.map(test);
+// Post-scan local sensitivity check motivated by the 4%-discount winner:
+// NOT a pre-registered independent test. Keep separate from the original 216.
+const trigger_neighborhood=[];
+for(const fall of [.08,.095])
+ for(const vol of [.8,1.2])
+  for(const trigger_discount of [.03,.035,.04,.045,.05])
+   for(const minimum_open_gap of [.03,.05])
+    for(const cap of [3,8])
+     trigger_neighborhood.push(test({
+      fall,vol,trigger_discount,minimum_open_gap,cap,
+      execution_slippage_each_side:.005
+     }));
+if(trigger_neighborhood.length!==80)throw Error('80-case trigger local neighborhood missing');
+
 const matched=[];
 for(const d of [0,.005]){
  const defaultStudy=results.find(x=>x.fall===.095&&x.vol===1.2&&x.trigger_discount===.06&&x.minimum_open_gap===.07&&x.cap===8&&x.execution_slippage_each_side===d);
@@ -203,6 +217,8 @@ const report={
  range:[dates[0],dates.at(-1)],frozen_pool_count:233,
  quality:{month_count:months,rows:rowsSeen,invalid,anomalies,missing_sessions:missingSessions},
  scenario_count:configs.length,
+ local_neighborhood_cases:trigger_neighborhood.length,
+ local_neighborhood_is_post_selected:true,
  selection_rule:'All 233 stocks, prior close shock -8%/-9.5%, close within 0.5% of low, 4% below EMA20, 20-day volume ratio; rank from prior bar only.',
  execution_rule:'Precommitted buy-stop prior close discounted 2/4/6%; next-open gap 3/5/7%, intraday high only as trigger; follow-day open exit.',
  cost_pct:100*(buyFee+sellFee),
@@ -211,6 +227,16 @@ const report={
  closed_book_warning:'Returns and drawdown calculated only on booked event outcomes; NO mark-to-market C26 account risk; concurrent orders and transaction costs not full C26 replay.',
  limitations:'Fixed 2026 futures universe backward to 2021, company actions not fully adjusted, nonindependent hypothesis inspired by 2026 Nov 06, no same-account original C26 cash replay.',
  examples:matched,
+ local_trigger_neighborhood:trigger_neighborhood,
+ local_neighborhood_summary:{
+  variants:trigger_neighborhood.length,
+  both_periods_positive:trigger_neighborhood.filter(x=>x.both_periods_positive).length,
+  trades20_and_both_periods_positive:trigger_neighborhood.filter(x=>x.hypothetical_trades>=20&&x.both_periods_positive).length,
+  a2_adjacent:trigger_neighborhood.filter(x=>x.fall===.08&&x.vol===1.2&&x.minimum_open_gap===.03&&x.cap===3)
+    .map(x=>({trigger_discount:x.trigger_discount,trades:x.hypothetical_trades,
+       book:x.closed_equity_book_pct,train:x.return_2021_2024_pct,holdout:x.return_2025_2026_pct,
+       max_dd_closed:x.closed_equity_max_dd_pct,synthetic_price_above_day_high:x.modeled_entry_above_same_day_high}))
+ },
  counts:{
   positive:results.filter(x=>x.closed_equity_book_pct>0).length,
   each_period_positive:results.filter(x=>x.both_periods_positive).length,
