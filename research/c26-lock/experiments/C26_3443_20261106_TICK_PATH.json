@@ -90,6 +90,38 @@
     "day_low_observed_after_touch": 6030,
     "day_last_trade": 6205,
     "price_path_verified": true,
+    "hypothetical_broker_execution_quotes_after_delay": [
+      {
+        "delay_seconds": 0,
+        "first_observed_price_after_delay": 6150,
+        "first_observed_time_after_delay": "09:53:10.567123",
+        "conditional_net_pct": 3.7799102756425063
+      },
+      {
+        "delay_seconds": 10,
+        "first_observed_price_after_delay": 6170,
+        "first_observed_time_after_delay": "09:53:22.434651",
+        "conditional_net_pct": 3.4435086215885535
+      },
+      {
+        "delay_seconds": 30,
+        "first_observed_price_after_delay": 6215,
+        "first_observed_time_after_delay": "09:53:40.587795",
+        "conditional_net_pct": 2.69452102899459
+      },
+      {
+        "delay_seconds": 60,
+        "first_observed_price_after_delay": 6185,
+        "first_observed_time_after_delay": "09:54:10.844877",
+        "conditional_net_pct": 3.192635116443232
+      },
+      {
+        "delay_seconds": 300,
+        "first_observed_price_after_delay": 6120,
+        "first_observed_time_after_delay": "09:58:15.096225",
+        "conditional_net_pct": 4.28863532601329
+      }
+    ],
     "broker_execution_verified": false,
     "next_open_exit": 6420,
     "net_with_first_touch_price_pct": 3.7799102756425063,
