@@ -1,0 +1,55 @@
+name: C26 A24 guarded cross-event news incremental signal pilot
+on:
+  push:
+    branches: [main]
+    paths:
+      - research/c26-lock/experiments/a24-rolling-news-feature-pilot.mjs
+      - .github/workflows/c26-a24-news-model-pilot.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: c26-a24-news-model-pilot
+  cancel-in-progress: false
+jobs:
+  point-in-time-news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Syntax check
+        run: node --check research/c26-lock/experiments/a24-rolling-news-feature-pilot.mjs
+      - name: FinMind private token - news pre-signal metadata only
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/experiments/a24-rolling-news-feature-pilot.mjs
+      - name: Verify no licensed article text, 260 requests exactly
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import assert from 'node:assert/strict';
+          const f=JSON.parse(fs.readFileSync('research/c26-lock/experiments/A24_PREDECLARED_NEWS_FEATURES_260.json'));
+          assert.equal(f.total_requests,260);
+          assert.equal(f.rows.length,260);
+          assert.equal(f.raw_titles_or_articles_stored,false);
+          assert.ok(f.rows.every(z=>!Object.hasOwn(z,'title')&&!Object.hasOwn(z,'description')&&!Object.hasOwn(z,'link')));
+          console.log('A24_PRIVACY_OK',JSON.stringify({records:f.rows.length,success:f.success,news:f.pre_signal_distinct_news_total}));
+          JS
+      - name: Persist derived research only
+        run: |
+          set -euo pipefail
+          cp research/c26-lock/experiments/A24_PREDECLARED_NEWS_FEATURES_260.json /tmp/A24_PREDECLARED_NEWS_FEATURES_260.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/A24_PREDECLARED_NEWS_FEATURES_260.json research/c26-lock/experiments/A24_PREDECLARED_NEWS_FEATURES_260.json
+            git add research/c26-lock/experiments/A24_PREDECLARED_NEWS_FEATURES_260.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'A24 historical event news feature audit (no articles or secrets)'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 3
+          done
+          exit 1
