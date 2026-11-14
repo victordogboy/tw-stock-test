@@ -1,5 +1,5 @@
 /**
- * A24 PRE-COMMITTED news incremental signal pilot, 26 crash events x 10 stocks.
+ * A24 PRE-COMMITTED previous-calendar-day news signal pilot, 26 crash events x 10 stocks.
  * Price top 5: 0.5*(prior RS20 percentile+signal day return percentile).
  * Control 5: sha256("A24-FIXED-20261115:"+date+":"+code) lexicographic first 5.
  * The precommitted cohorts were created from A20 point-in-time candidate frame,
@@ -68,8 +68,8 @@ async function fetchOne(item) {
   financial_count:0,business_count:0,capacity_count:0,semiconductors_count:0,ai_count:0,
   price_reactive_count:0,regulatory_count:0,sentiment_positive_count:0,sentiment_negative_count:0,
   factual_preprice_count:0};
- const start=prevYMD(item.signal_date,7);
- const params=new URLSearchParams({dataset:'TaiwanStockNews',data_id:item.stock_id,start_date:start,end_date:item.signal_date});
+ const start=prevYMD(item.signal_date,1);
+ const params=new URLSearchParams({dataset:'TaiwanStockNews',data_id:item.stock_id,start_date:start});
  const url='https://api.finmindtrade.com/api/v4/data?'+params.toString();
  let records=null;
  for(let attempt=0;attempt<4;attempt++){
@@ -111,11 +111,11 @@ async function worker(){
  }}
 await Promise.all(Array.from({length:3},worker));
 const summary={
- study:'A24 precommitted 26 events x 10 stocks, news before signal day only',
+ study:'A24 precommitted 26 events x 10 stocks, previous-calendar-day news only',
  research_only:true,
  sample_design:'5 price rank top and 5 SHA256 predetermined unrelated controls per crash event',
  target_dates:'2021-05-07 through 2026-09-16',
- feature_cutoff:'strict news record date < signal_date at any time; allow conservative pre-open only',
+ feature_cutoff:'ONLY timestamp date equals prior calendar day; exclude signal day and anything later',
  timestamp_note:'FinMind date timezone/source-creation not independently authenticated; publication availability unproven',
  source_priority:'official MOPS publication needs separate historical archive; NOT conflated with media news',
  derived_metadata_only:true, raw_titles_or_articles_stored:false,
