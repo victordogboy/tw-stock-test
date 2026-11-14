@@ -62,6 +62,42 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 82.1,
       "next_available_trade_time_at_or_after_0930": "09:30:00.150546",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:01:35.564737",
+          "first_cross_trade_price": 78.4,
+          "open_price": 76.1,
+          "observed_trade_return_to_day_last_pct": -0.25510204081633514,
+          "min_trade_in_30min_after_cross": 75.6,
+          "min30_trade_drawdown_from_cross_pct": -3.571428571428581,
+          "max30_trade_rise_from_cross_pct": 5.229591836734682,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "09:20:09.693586",
+          "first_cross_trade_price": 80,
+          "open_price": 76.1,
+          "observed_trade_return_to_day_last_pct": -2.2499999999999964,
+          "min_trade_in_30min_after_cross": 78.5,
+          "min30_trade_drawdown_from_cross_pct": -1.8750000000000044,
+          "max30_trade_rise_from_cross_pct": 3.125,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": true,
+          "first_cross_time": "09:25:54.988421",
+          "first_cross_trade_price": 81.5,
+          "open_price": 76.1,
+          "observed_trade_return_to_day_last_pct": -4.049079754601226,
+          "min_trade_in_30min_after_cross": 80.2,
+          "min30_trade_drawdown_from_cross_pct": -1.5950920245398792,
+          "max30_trade_rise_from_cross_pct": 1.9631901840490684,
+          "no_broker_fill_certification": true
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -4.750304506699132
     },
     {
@@ -116,6 +152,34 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 73.6,
       "next_available_trade_time_at_or_after_0930": "09:30:00.047911",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:22:58.204544",
+          "first_cross_trade_price": 72,
+          "open_price": 69.9,
+          "observed_trade_return_to_day_last_pct": -7.500000000000007,
+          "min_trade_in_30min_after_cross": 71.3,
+          "min30_trade_drawdown_from_cross_pct": -0.9722222222222299,
+          "max30_trade_rise_from_cross_pct": 2.777777777777768,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "09:27:28.467872",
+          "first_cross_trade_price": 73.4,
+          "open_price": 69.9,
+          "observed_trade_return_to_day_last_pct": -9.264305177111732,
+          "min_trade_in_30min_after_cross": 71.8,
+          "min30_trade_drawdown_from_cross_pct": -2.1798365122615904,
+          "max30_trade_rise_from_cross_pct": 1.2261580381471182,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -9.510869565217394
     },
     {
@@ -170,6 +234,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 555,
       "next_available_trade_time_at_or_after_0930": "09:30:00.437261",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -1.0810810810810811
     },
     {
@@ -224,6 +300,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 931,
       "next_available_trade_time_at_or_after_0930": "09:30:01.592581",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -3.4371643394199736
     },
     {
@@ -274,10 +362,22 @@
       "m60_classified_buy_volume_frac": 0.43258997807369376,
       "m60_unclassified_volume_frac": 0,
       "m60_cumulative_volume": 18699,
-      "opening_30min_reclaims_first15_high": true,
+      "opening_30min_reclaims_first15_high": false,
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 645,
       "next_available_trade_time_at_or_after_0930": "09:30:04.791146",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -0.6201550387596955
     },
     {
@@ -332,6 +432,18 @@
       "opening_30min_above_first15_vwap": false,
       "next_available_trade_at_or_after_0930": 83.5,
       "next_available_trade_time_at_or_after_0930": "09:30:09.848417",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": 4.79041916167664
     },
     {
@@ -386,6 +498,18 @@
       "opening_30min_above_first15_vwap": false,
       "next_available_trade_at_or_after_0930": 2010,
       "next_available_trade_time_at_or_after_0930": "09:30:00.436489",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -1.4925373134328401
     },
     {
@@ -440,6 +564,26 @@
       "opening_30min_above_first15_vwap": false,
       "next_available_trade_at_or_after_0930": 863,
       "next_available_trade_time_at_or_after_0930": "09:30:00.349350",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "11:52:38.088715",
+          "first_cross_trade_price": 895,
+          "open_price": 868,
+          "observed_trade_return_to_day_last_pct": -1.6759776536312887,
+          "min_trade_in_30min_after_cross": 879,
+          "min30_trade_drawdown_from_cross_pct": -1.787709497206702,
+          "max30_trade_rise_from_cross_pct": 0,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": 1.969872537659323
     },
     {
@@ -494,6 +638,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 186,
       "next_available_trade_time_at_or_after_0930": "09:30:03.995481",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -0.5376344086021501
     },
     {
@@ -544,10 +700,22 @@
       "m60_classified_buy_volume_frac": 0.39345294302801387,
       "m60_unclassified_volume_frac": 0,
       "m60_cumulative_volume": 9531,
-      "opening_30min_reclaims_first15_high": true,
+      "opening_30min_reclaims_first15_high": false,
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 826,
       "next_available_trade_time_at_or_after_0930": "09:30:00.208615",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -1.210653753026636
     },
     {
@@ -602,6 +770,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 390,
       "next_available_trade_time_at_or_after_0930": "09:30:08.489225",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -0.2564102564102555
     },
     {
@@ -656,6 +836,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 1790,
       "next_available_trade_time_at_or_after_0930": "09:30:00.029893",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": 1.1173184357541999
     },
     {
@@ -710,6 +902,34 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 7160,
       "next_available_trade_time_at_or_after_0930": "09:31:20.021165",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:34:58.117894",
+          "first_cross_trade_price": 7250,
+          "open_price": 7035,
+          "observed_trade_return_to_day_last_pct": -1.5172413793103412,
+          "min_trade_in_30min_after_cross": 7200,
+          "min30_trade_drawdown_from_cross_pct": -0.6896551724137945,
+          "max30_trade_rise_from_cross_pct": 2.206896551724147,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "09:42:36.314280",
+          "first_cross_trade_price": 7410,
+          "open_price": 7035,
+          "observed_trade_return_to_day_last_pct": -3.6437246963562764,
+          "min_trade_in_30min_after_cross": 7200,
+          "min30_trade_drawdown_from_cross_pct": -2.8340080971659964,
+          "max30_trade_rise_from_cross_pct": 0,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -0.27932960893854997
     },
     {
@@ -764,6 +984,42 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 167.5,
       "next_available_trade_time_at_or_after_0930": "09:30:00.033618",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:26:17.082845",
+          "first_cross_trade_price": 163,
+          "open_price": 158,
+          "observed_trade_return_to_day_last_pct": -3.0674846625766916,
+          "min_trade_in_30min_after_cross": 160,
+          "min30_trade_drawdown_from_cross_pct": -1.8404907975460127,
+          "max30_trade_rise_from_cross_pct": 8.588957055214719,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "09:29:36.250567",
+          "first_cross_trade_price": 166.5,
+          "open_price": 158,
+          "observed_trade_return_to_day_last_pct": -5.1051051051051015,
+          "min_trade_in_30min_after_cross": 165.5,
+          "min30_trade_drawdown_from_cross_pct": -0.6006006006005982,
+          "max30_trade_rise_from_cross_pct": 6.3063063063063085,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": true,
+          "first_cross_time": "09:30:10.790200",
+          "first_cross_trade_price": 169.5,
+          "open_price": 158,
+          "observed_trade_return_to_day_last_pct": -6.784660766961648,
+          "min_trade_in_30min_after_cross": 165.5,
+          "min30_trade_drawdown_from_cross_pct": -2.359882005899705,
+          "max30_trade_rise_from_cross_pct": 4.424778761061954,
+          "no_broker_fill_certification": true
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -5.671641791044779
     },
     {
@@ -818,6 +1074,18 @@
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 2215,
       "next_available_trade_time_at_or_after_0930": "09:30:00.146663",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": false
+        },
+        "open_plus_5_pct": {
+          "touched": false
+        },
+        "open_plus_7_pct": {
+          "touched": false
+        }
+      },
+      "opening_30_min_traded_flat": false,
       "same_day_last_return_from_0930_pct": -0.4514672686230292
     },
     {
@@ -868,10 +1136,46 @@
       "m60_classified_buy_volume_frac": 0.26332094175960347,
       "m60_unclassified_volume_frac": 0,
       "m60_cumulative_volume": 1614,
-      "opening_30min_reclaims_first15_high": true,
+      "opening_30min_reclaims_first15_high": false,
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 5765,
       "next_available_trade_time_at_or_after_0930": "09:33:20.496646",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:48:59.272312",
+          "first_cross_trade_price": 5940,
+          "open_price": 5765,
+          "observed_trade_return_to_day_last_pct": 4.461279461279455,
+          "min_trade_in_30min_after_cross": 5905,
+          "min30_trade_drawdown_from_cross_pct": -0.5892255892255838,
+          "max30_trade_rise_from_cross_pct": 6.060606060606055,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "09:52:50.346209",
+          "first_cross_trade_price": 6055,
+          "open_price": 5765,
+          "observed_trade_return_to_day_last_pct": 2.4772914946325386,
+          "min_trade_in_30min_after_cross": 6050,
+          "min30_trade_drawdown_from_cross_pct": -0.08257638315442017,
+          "max30_trade_rise_from_cross_pct": 5.780346820809257,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": true,
+          "first_cross_time": "09:53:19.873305",
+          "first_cross_trade_price": 6170,
+          "open_price": 5765,
+          "observed_trade_return_to_day_last_pct": 0.5672609400324102,
+          "min_trade_in_30min_after_cross": 6050,
+          "min30_trade_drawdown_from_cross_pct": -1.944894651539708,
+          "max30_trade_rise_from_cross_pct": 3.8087520259319385,
+          "no_broker_fill_certification": true
+        }
+      },
+      "opening_30_min_traded_flat": true,
       "same_day_last_return_from_0930_pct": 7.632263660017347
     },
     {
@@ -922,10 +1226,46 @@
       "m60_classified_buy_volume_frac": 0.1838351822503962,
       "m60_unclassified_volume_frac": 0,
       "m60_cumulative_volume": 1262,
-      "opening_30min_reclaims_first15_high": true,
+      "opening_30min_reclaims_first15_high": false,
       "opening_30min_above_first15_vwap": true,
       "next_available_trade_at_or_after_0930": 2665,
       "next_available_trade_time_at_or_after_0930": "09:30:30.134460",
+      "precommitted_open_reclaim_triggers": {
+        "open_plus_3_pct": {
+          "touched": true,
+          "first_cross_time": "09:52:09.744984",
+          "first_cross_trade_price": 2745,
+          "open_price": 2665,
+          "observed_trade_return_to_day_last_pct": 3.0965391621129434,
+          "min_trade_in_30min_after_cross": 2725,
+          "min30_trade_drawdown_from_cross_pct": -0.7285974499089298,
+          "max30_trade_rise_from_cross_pct": 2.914389799635697,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_5_pct": {
+          "touched": true,
+          "first_cross_time": "10:19:25.552962",
+          "first_cross_trade_price": 2800,
+          "open_price": 2665,
+          "observed_trade_return_to_day_last_pct": 1.0714285714285676,
+          "min_trade_in_30min_after_cross": 2790,
+          "min30_trade_drawdown_from_cross_pct": -0.3571428571428559,
+          "max30_trade_rise_from_cross_pct": 2.1428571428571352,
+          "no_broker_fill_certification": true
+        },
+        "open_plus_7_pct": {
+          "touched": true,
+          "first_cross_time": "10:37:49.390262",
+          "first_cross_trade_price": 2855,
+          "open_price": 2665,
+          "observed_trade_return_to_day_last_pct": -0.8756567425569184,
+          "min_trade_in_30min_after_cross": 2805,
+          "min30_trade_drawdown_from_cross_pct": -1.7513134851138368,
+          "max30_trade_rise_from_cross_pct": 0.17513134851139256,
+          "no_broker_fill_certification": true
+        }
+      },
+      "opening_30_min_traded_flat": true,
       "same_day_last_return_from_0930_pct": 6.191369606003749
     }
   ],
