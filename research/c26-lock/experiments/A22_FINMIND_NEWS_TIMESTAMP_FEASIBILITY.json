@@ -1,0 +1,637 @@
+{
+  "research_only": true,
+  "dataset": "FinMind TaiwanStockNews",
+  "requests": 16,
+  "created_for": "A22 news chronology feasibility, no returns labels used for dataset fetch",
+  "decision": "IF NEWS DATE IS DAY_ONLY it CANNOT be used for same-session trading without the original publisher timestamp; restrict to next-session signals or discard",
+  "limits": "This is purposive sample of known cases, not population or a tested news-based trading strategy",
+  "metadata_only": true,
+  "raw_titles_saved": false,
+  "reports": [
+    {
+      "date": "2021-05-17",
+      "stock_id": "2615",
+      "kind": "major_crash_leader",
+      "record_count": 7,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 7
+        }
+      },
+      "sources_count": {
+        "經濟日報": 5,
+        "UDN 聯合新聞網": 2
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 0,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 2
+      },
+      "with_title": 7,
+      "with_summary": 0,
+      "with_source": 7,
+      "with_url": 7
+    },
+    {
+      "date": "2021-05-17",
+      "stock_id": "1101",
+      "kind": "same_event_control",
+      "record_count": 15,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 15
+        }
+      },
+      "sources_count": {
+        "自由財經": 2,
+        "中時新聞網 Chinatimes.com": 2,
+        "鉅亨網": 6,
+        "MoneyDJ理財網": 1,
+        "Anue鉅亨": 2,
+        "鉅亨新聞": 1,
+        "經濟日報": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 8,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 0
+      },
+      "with_title": 15,
+      "with_summary": 0,
+      "with_source": 15,
+      "with_url": 15
+    },
+    {
+      "date": "2024-08-05",
+      "stock_id": "3019",
+      "kind": "major_crash_leader_prior_day",
+      "record_count": 10,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 10
+        }
+      },
+      "sources_count": {
+        "Anue鉅亨": 3,
+        "富聯網": 4,
+        "Yahoo奇摩股市": 1,
+        "TechNews 科技新報": 1,
+        "TechNews 科技新報 ": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 6,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 4
+      },
+      "with_title": 10,
+      "with_summary": 0,
+      "with_source": 10,
+      "with_url": 10
+    },
+    {
+      "date": "2024-08-06",
+      "stock_id": "3019",
+      "kind": "major_crash_leader",
+      "record_count": 7,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 7
+        }
+      },
+      "sources_count": {
+        "MoneyDJ理財網": 1,
+        "富聯網": 1,
+        "台視全球資訊網": 1,
+        "EBC東森財經新聞": 1,
+        "MSN": 2,
+        "中時新聞網": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 5,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 3,
+        "price_reactive": 2
+      },
+      "with_title": 7,
+      "with_summary": 0,
+      "with_source": 7,
+      "with_url": 7
+    },
+    {
+      "date": "2025-04-22",
+      "stock_id": "1560",
+      "kind": "major_crash_leader",
+      "record_count": 1,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 1
+        }
+      },
+      "sources_count": {
+        "moneylink.com.tw": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 0,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 0
+      },
+      "with_title": 1,
+      "with_summary": 0,
+      "with_source": 1,
+      "with_url": 1
+    },
+    {
+      "date": "2026-03-09",
+      "stock_id": "3037",
+      "kind": "major_crash_leader",
+      "record_count": 10,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 10
+        }
+      },
+      "sources_count": {
+        "facebook.com": 1,
+        "Facebook": 1,
+        "經濟日報": 1,
+        "富聯網": 1,
+        "PChome Online 新聞": 1,
+        "自由財經": 1,
+        "stock.ltn.com.tw": 1,
+        "sinotrade.com.tw": 1,
+        "cmoney.tw": 1,
+        "聯合新聞網": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 2,
+        "semis": 0,
+        "ai": 2,
+        "capex": 0,
+        "regulatory": 2,
+        "price_reactive": 6
+      },
+      "with_title": 10,
+      "with_summary": 0,
+      "with_source": 10,
+      "with_url": 10
+    },
+    {
+      "date": "2026-07-30",
+      "stock_id": "2059",
+      "kind": "major_crash_leader",
+      "record_count": 6,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 6
+        }
+      },
+      "sources_count": {
+        "LINE TODAY": 1,
+        "today.line.me": 1,
+        "經濟日報": 1,
+        "CMoney": 1,
+        "UDN": 1,
+        "udn.com": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 0,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 2
+      },
+      "with_title": 6,
+      "with_summary": 0,
+      "with_source": 6,
+      "with_url": 6
+    },
+    {
+      "date": "2026-07-30",
+      "stock_id": "2330",
+      "kind": "index_control",
+      "record_count": 64,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 64
+        }
+      },
+      "sources_count": {
+        "ETtoday財經雲": 2,
+        "finance.ettoday.net": 2,
+        "Yahoo股市": 5,
+        "CMoney": 25,
+        "cmoney.tw": 19,
+        "sinotrade.com.tw": 1,
+        "FTNN 新聞": 1,
+        "FTNN 新聞網": 2,
+        "Yahoo新聞": 2,
+        "tw.news.yahoo.com": 1,
+        "UDN": 1,
+        "udn.com": 1,
+        "CMoney投資網誌": 1,
+        "cmnews.com.tw": 1
+      },
+      "categories_count": {
+        "orders": 3,
+        "guidance": 8,
+        "semis": 5,
+        "ai": 6,
+        "capex": 0,
+        "regulatory": 3,
+        "price_reactive": 17
+      },
+      "with_title": 64,
+      "with_summary": 0,
+      "with_source": 64,
+      "with_url": 64
+    },
+    {
+      "date": "2026-11-05",
+      "stock_id": "3443",
+      "kind": "known_1106_case_prior",
+      "record_count": 15,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 15
+        }
+      },
+      "sources_count": {
+        "富聯網": 3,
+        "旺得富理財網": 1,
+        "Yahoo股市": 2,
+        "TechNews 科技新報": 2,
+        "自由時報": 2,
+        "自由財經": 1,
+        "聚財網": 2,
+        "工商時報": 1,
+        "中時新聞網": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 11,
+        "semis": 3,
+        "ai": 3,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 4
+      },
+      "with_title": 15,
+      "with_summary": 0,
+      "with_source": 15,
+      "with_url": 15
+    },
+    {
+      "date": "2026-11-05",
+      "stock_id": "3661",
+      "kind": "known_1106_case_prior",
+      "record_count": 1,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 1
+        }
+      },
+      "sources_count": {
+        "CMoney": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 0,
+        "semis": 0,
+        "ai": 0,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 0
+      },
+      "with_title": 1,
+      "with_summary": 0,
+      "with_source": 1,
+      "with_url": 1
+    },
+    {
+      "date": "2026-11-06",
+      "stock_id": "3443",
+      "kind": "known_1106_case_day",
+      "record_count": 2,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 2
+        }
+      },
+      "sources_count": {
+        "富聯網": 1,
+        "旺得富理財網": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 0,
+        "semis": 2,
+        "ai": 1,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 0
+      },
+      "with_title": 2,
+      "with_summary": 0,
+      "with_source": 2,
+      "with_url": 2
+    },
+    {
+      "date": "2026-11-06",
+      "stock_id": "3661",
+      "kind": "known_1106_case_day",
+      "record_count": 31,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 31
+        }
+      },
+      "sources_count": {
+        "富聯網": 2,
+        "CMoney": 4,
+        "理財周刊": 1,
+        "台灣好新聞": 1,
+        "優分析UAnalyze": 6,
+        "LINE TODAY": 5,
+        "鉅亨網": 11,
+        "CMoney投資網誌": 1
+      },
+      "categories_count": {
+        "orders": 2,
+        "guidance": 11,
+        "semis": 5,
+        "ai": 3,
+        "capex": 4,
+        "regulatory": 5,
+        "price_reactive": 0
+      },
+      "with_title": 31,
+      "with_summary": 0,
+      "with_source": 31,
+      "with_url": 31
+    },
+    {
+      "date": "2026-11-09",
+      "stock_id": "3443",
+      "kind": "known_1109_case_day",
+      "record_count": 9,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 9
+        }
+      },
+      "sources_count": {
+        "旺得富理財網": 2,
+        "CMoney投資網誌": 1,
+        "永豐金證券": 4,
+        "工商時報": 1,
+        "中時新聞網": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 2,
+        "semis": 3,
+        "ai": 1,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 1
+      },
+      "with_title": 9,
+      "with_summary": 0,
+      "with_source": 9,
+      "with_url": 9
+    },
+    {
+      "date": "2026-11-09",
+      "stock_id": "3661",
+      "kind": "known_1109_case_day",
+      "record_count": 19,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 19
+        }
+      },
+      "sources_count": {
+        "CMoney": 6,
+        "MoneyDJ": 2,
+        "LINE TODAY": 2,
+        "Yahoo股市": 3,
+        "富聯網": 1,
+        "口袋證券": 1,
+        "台視全球資訊網": 1,
+        "CMoney投資網誌": 3
+      },
+      "categories_count": {
+        "orders": 1,
+        "guidance": 10,
+        "semis": 1,
+        "ai": 5,
+        "capex": 0,
+        "regulatory": 2,
+        "price_reactive": 3
+      },
+      "with_title": 19,
+      "with_summary": 0,
+      "with_source": 19,
+      "with_url": 19
+    },
+    {
+      "date": "2026-11-10",
+      "stock_id": "3443",
+      "kind": "known_1110_case_day",
+      "record_count": 8,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 8
+        }
+      },
+      "sources_count": {
+        "CMoney投資網誌": 1,
+        "富聯網": 1,
+        "永豐金證券": 2,
+        "旺得富理財網": 1,
+        "LINE TODAY": 3
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 5,
+        "semis": 1,
+        "ai": 2,
+        "capex": 0,
+        "regulatory": 0,
+        "price_reactive": 1
+      },
+      "with_title": 8,
+      "with_summary": 0,
+      "with_source": 8,
+      "with_url": 8
+    },
+    {
+      "date": "2026-11-10",
+      "stock_id": "3661",
+      "kind": "known_1110_case_day",
+      "record_count": 20,
+      "field_names": [
+        "date",
+        "link",
+        "source",
+        "stock_id",
+        "title"
+      ],
+      "datetime_field_types": {
+        "date": {
+          "datetime_text": 20
+        }
+      },
+      "sources_count": {
+        "YouTube": 1,
+        "CMoney投資網誌": 5,
+        "TVBS新聞網": 1,
+        "TVBS": 1,
+        "TechNews 科技新報": 1,
+        "CMoney": 7,
+        "永豐金證券": 3,
+        "非凡新聞台": 1
+      },
+      "categories_count": {
+        "orders": 0,
+        "guidance": 6,
+        "semis": 0,
+        "ai": 3,
+        "capex": 0,
+        "regulatory": 1,
+        "price_reactive": 6
+      },
+      "with_title": 20,
+      "with_summary": 0,
+      "with_source": 20,
+      "with_url": 20
+    }
+  ]
+}
