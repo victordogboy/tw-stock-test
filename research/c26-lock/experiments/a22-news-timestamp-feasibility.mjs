@@ -48,6 +48,19 @@ for (const [date,stock_id,kind] of samples) {
    report.datetime_field_types[k]={};
    for(const v of vals){const key=type(v);report.datetime_field_types[k][key]=(report.datetime_field_types[k][key]||0)+1}
   }
+  report.raw_reported_hour_histogram={};
+  report.parseable_datetime_count=0;
+  report.timestamp_midnight_count=0;
+  for(const z of a){
+    const v=String(z.date??'');
+    const m=v.match(/\b(\d{2}):(\d{2})(?::(\d{2}))?\b/);
+    if(m){
+      report.parseable_datetime_count++;
+      const h=m[1];report.raw_reported_hour_histogram[h]=(report.raw_reported_hour_histogram[h]||0)+1;
+      if(m[1]==='00'&&m[2]==='00'&&(m[3]??'00')==='00')report.timestamp_midnight_count++;
+    }
+  }
+  // No timezone inference. A source-timezone audit is required before look-ahead safe trading tests.
   report.sources_count={};
   report.categories_count={};
   report.with_title=0;report.with_summary=0;report.with_source=0;report.with_url=0;
