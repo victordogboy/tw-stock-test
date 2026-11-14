@@ -1,0 +1,59 @@
+name: C26 A22 protected historical news timestamp feasibility
+on:
+  push:
+    branches: [main]
+    paths:
+      - research/c26-lock/experiments/a22-news-timestamp-feasibility.mjs
+      - .github/workflows/c26-a22-news-feasibility.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: c26-a22-news-feasibility
+  cancel-in-progress: false
+jobs:
+  news:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Syntax and no-secret-in-code check
+        run: node --check research/c26-lock/experiments/a22-news-timestamp-feasibility.mjs
+      - name: Use GitHub Actions protected FINMIND_TOKEN
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/experiments/a22-news-timestamp-feasibility.mjs
+      - name: Check publishable metadata
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          import assert from 'node:assert/strict';
+          const f='research/c26-lock/experiments/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json';
+          const v=JSON.parse(fs.readFileSync(f));
+          assert.equal(v.metadata_only,true);
+          assert.equal(v.raw_titles_saved,false);
+          assert.equal(v.requests,16);
+          for(const z of v.reports) {
+            assert.ok(!Object.hasOwn(z,'title')&&!Object.hasOwn(z,'description')&&!Object.hasOwn(z,'raw'));
+          }
+          console.log('A22_META_OK',JSON.stringify({records:v.reports.reduce((a,x)=>a+(x.record_count||0),0)}));
+          JS
+      - name: Commit derived metadata only
+        run: |
+          set -euo pipefail
+          cp research/c26-lock/experiments/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json /tmp/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            git fetch origin main
+            git reset --hard origin/main
+            cp /tmp/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json research/c26-lock/experiments/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json
+            git add research/c26-lock/experiments/A22_FINMIND_NEWS_TIMESTAMP_FEASIBILITY.json
+            if git diff --cached --quiet; then exit 0; fi
+            git commit -m 'Store A22 16 historic news-date metadata and timestamp availability only'
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 3
+          done
+          exit 1
