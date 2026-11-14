@@ -65,12 +65,40 @@ for(let i=0;i<targets.length;i++){
   // At 09:30 this test uses ONLY first 30-min ticks. No future day-high or close.
   if(early30.length>=3&&early15.length>=3){
    const x30=early30.at(-1).price;
-   rec.opening_30min_reclaims_first15_high=x30>=Math.max(...early15.map(x=>x.price));
+   rec.opening_30min_reclaims_first15_high=x30>Math.max(...early15.map(x=>x.price)) && rec.m30_range_pct>0.001;
    rec.opening_30min_above_first15_vwap=x30>=rec.m15_vwap;
   }
   const firstAfter=day.find(z=>z.sec>=ts('09:30:00'));
   rec.next_available_trade_at_or_after_0930=firstAfter?.price??null;
   rec.next_available_trade_time_at_or_after_0930=firstAfter?.t??null;
+  // Event-driven triggers fixed as a percent of the known FIRST trade price.
+  // The trade at trigger is only an observed print; never a verified order fill.
+  rec.precommitted_open_reclaim_triggers={};
+  for(const percent of [3,5,7]){
+    const threshold=first.price*(1+percent/100);
+    const index=day.findIndex((z,i)=>i>0&&z.price>=threshold);
+    const key='open_plus_'+percent+'_pct';
+    if(index<0){
+      rec.precommitted_open_reclaim_triggers[key]={touched:false};
+      continue;
+    }
+    const crossing=day[index];
+    const after30=day.filter(z=>z.sec>=crossing.sec&&z.sec<=crossing.sec+1800);
+    const min30=after30.length?Math.min(...after30.map(z=>z.price)):null;
+    const max30=after30.length?Math.max(...after30.map(z=>z.price)):null;
+    rec.precommitted_open_reclaim_triggers[key]={
+      touched:true,
+      first_cross_time:crossing.t,
+      first_cross_trade_price:crossing.price,
+      open_price: first.price,
+      observed_trade_return_to_day_last_pct:100*(last.price/crossing.price-1),
+      min_trade_in_30min_after_cross:min30,
+      min30_trade_drawdown_from_cross_pct:min30?100*(min30/crossing.price-1):null,
+      max30_trade_rise_from_cross_pct:max30?100*(max30/crossing.price-1):null,
+      no_broker_fill_certification:true
+    };
+  }
+  rec.opening_30_min_traded_flat=early30.length>2 && rec.m30_range_pct<.001;
   // descriptive outcome only, never used in detection conditions
   rec.same_day_last_return_from_0930_pct=firstAfter?100*(last.price/firstAfter.price-1):null;
   console.log('A19_TICK_FEATURE_ONLY',JSON.stringify({date,code,kind,first30:rec.m30_return_pct,near:rec.m30_close_location_0_1,ticks:rec.valid_ticks_day}));
