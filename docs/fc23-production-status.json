@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-11-12T19:52:24.800Z",
-  "commit": "cf44351dcdcd70806da021653897e85f3f160540",
+  "checked_at": "2026-11-15T06:36:11.467Z",
+  "commit": "fafa13411760eb2ed6d72635cb80ab2d333dc201",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
   "rules_http": 200,
@@ -8,37 +8,37 @@
   "paper_status_label_deployed": true,
   "dynamic_risk_breakdown_deployed": true,
   "snapshot_http": 200,
-  "before_date": "2026-11-12",
-  "market_date": "2026-11-12",
-  "checked_through": "2026-11-12",
+  "before_date": "2026-11-13",
+  "market_date": "2026-11-13",
+  "checked_through": "2026-11-14",
   "sync_status": "current",
   "update_progress": "FC23 已更新至最新完整交易日",
   "update_error": null,
-  "latest_snapshot_date": "2026-11-12",
-  "new_snapshots": 12,
+  "latest_snapshot_date": "2026-11-13",
+  "new_snapshots": 13,
   "new_orders": 5,
-  "plan_signal_date": "2026-11-12",
-  "plan_trade_date": "2026-11-13",
+  "plan_signal_date": "2026-11-13",
+  "plan_trade_date": "2026-11-16",
   "plan_readiness": "ready",
-  "plan_actions": 1,
+  "plan_actions": 9,
   "plan_decision": {
-    "rebalance": false,
+    "rebalance": true,
     "riskRelease": false,
     "reentryCandidates": 0,
     "portRisk": false,
     "ddGate": false,
     "marketCold": false,
-    "breadth": 0.3308411240577698,
-    "breadthDelta": -0.25399643182754517,
-    "market20": -0.17550740727796565,
-    "target": 0.06945749999999999
+    "breadth": 0.3631284832954407,
+    "breadthDelta": -0.10724854469299316,
+    "market20": -0.16454492454426228,
+    "target": 0.15434999999999996
   },
   "plan_snapshot": {
-    "target": 0.06945749999999999,
+    "target": 0.15434999999999996,
     "basket": false,
     "bear": true,
     "overlay": true,
-    "gate": 0.81
+    "gate": 0.9
   },
   "plan_action_details": [
     {
@@ -46,15 +46,63 @@
       "side": "REBALANCE",
       "reason": "依FC23原引擎調整曝險與16%單股配置；補倉門檻1.6%淨值",
       "level": null
+    },
+    {
+      "code": "2355",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 66.3
+    },
+    {
+      "code": "1802",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 85.7
+    },
+    {
+      "code": "1476",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 388
+    },
+    {
+      "code": "2880",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 52.1
+    },
+    {
+      "code": "3691",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 137
+    },
+    {
+      "code": "2892",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 43.55
+    },
+    {
+      "code": "3374",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 523
+    },
+    {
+      "code": "2884",
+      "side": "BUY",
+      "reason": "candidate",
+      "level": 48.45
     }
   ],
   "latest_holdings": 0,
   "refresh_http": 202,
   "refresh_state": "queued",
   "after_http": 200,
-  "after_date": "2026-11-12",
-  "after_market_date": "2026-11-12",
-  "after_checked_through": "2026-11-12",
+  "after_date": "2026-11-13",
+  "after_market_date": "2026-11-13",
+  "after_checked_through": "2026-11-14",
   "after_sync_status": "current",
   "after_progress": "FC23 已更新至最新完整交易日",
   "after_error": null
