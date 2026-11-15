@@ -1,0 +1,87 @@
+BOOT_BEGIN
+BOOT
+BOOT
+BOOT_START
+INITIALIZING
+BOOT_START
+BOOT
+BOOT
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+ENGINE READY 2143 233 time 2.9
+LOADED (328103, 58) 2021-01-04 00:00:00 2026-10-27 00:00:00 MISSING2026 0
+CLOSE AGREEMENT 0 of 328103 max 3.051757815342171e-06
+FACTOR coverage 2025        feature  coverage_pct
+ dealer_self_5        99.942
+dealer_hedge_5        99.942
+dealer_total_5        99.942
+     foreign_5        99.942
+       trust_5        99.942
+    foreign_20        99.942
+      trust_20        99.942
+      margin_5        99.942
+       short_5        99.942
+ holding_diff5        99.942
+FACTOR LOADED 5.697540283203125
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+LOAD VOLUME 9.1
+VOLUME_DONE 499319 9.7
+BOOT_DONE 9.7 s
+BOOT_OK 1407 SECONDS 9.7
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+READY 1407 10.5
+BOOT_DONE 1407 10.5
+FEATURES {'break10': 27465, 'bigbear': 63788, 'stockdrop': 3916, 'sysdays': 19}
+BOOTED 1407 elapsed 10.5
+BASELINE 2235.443188756393 -21.056013926333918
+BOOT_DONE 11.06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+FEATURE breadth55 470 2021 92 2026 133
+FEATURE breadth70 320 2021 42 2026 104
+FEATURE group_mom8 690 2021 129 2026 207
+FEATURE group_rise 877 2021 157 2026 221
+FEATURE rank_rise 9012 2021 1561 2026 1563
+FEATURE rank_rise_breadth 1389 2021 270 2026 245
+FEATURE leader_break 670 2021 144 2026 140
+FEATURE volume_confirm 581 2021 131 2026 95
+FEATURE conviction 348 2021 68 2026 104
+FEATURE early_sector 1096 2021 157 2026 215
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+<FC15_MICRO_BOOT>:57: RuntimeWarning: All-NaN slice encountered
+FEATURE_STUDY                 feature   n  future20_mean_pct  future60_hit50_pct  future20_mae_mean_pct
+             early_high 355               1.85                6.20                  -6.28
+          trend_persist 305               2.37                6.89                  -6.50
+         volume_quality 165               2.35                7.27                  -6.77
+             lead_break 249               2.52                5.62                  -7.28
+           leader_surge  89               4.07                7.87                 -10.56
+     fresh_acceleration 244               2.18                5.74                  -7.63
+          slow_compound 261               3.34                8.05                  -6.66
+           sector_first  14              -5.45                0.00                 -10.75
+        sector_rotation  25              -4.02                0.00                  -9.94
+            early_cheap 283               2.47                5.30                  -6.04
+           low_dd_break 352               2.03                5.97                  -6.73
+       exhausted_strong  20              15.88               20.00                 -11.87
+       avoid_below_high  13               8.77               23.08                  -5.59
+avoid_heavy_volume_drop   3              -3.21                0.00                  -6.87
+     avoid_weak_breadth 370               3.29                8.38                  -6.48
+       avoid_weak_trend  72              -0.95                4.17                  -9.54
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+OHLC good 327580 bad 59 close diff 3.051757815342171e-06
+AUDIT {'qualified': 2418, 'missing': 3}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2021-05-17', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 4, 'passed': True, 'max_nav_absolute_error': 0.0}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2025-04-09', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 3, 'passed': True, 'max_nav_absolute_error': 0.0}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2026-11-05', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 3, 'passed': True, 'max_nav_absolute_error': 0.0}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2026-11-06', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 3, 'passed': True, 'max_nav_absolute_error': 0.0}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2026-11-11', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 3, 'passed': True, 'max_nav_absolute_error': 0.0}
+0.06/0.10|off|255|rec0.02|cap0.0|loc0.5|A0.03|alloc0.4|open|excludeNone 2070.779 -17.407 tail 0 missing 0
+A56_RESUME_PARITY {'date': '2026-11-12', 'nav_days': 1419, 'side_orders': 38, 'side_trades': 19, 'side_positions': 0, 'passed': True, 'max_nav_absolute_error': 0.0}
+A56_CHECKPOINT_VERIFIED 6 resumes 6 rejections

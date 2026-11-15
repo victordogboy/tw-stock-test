@@ -97,7 +97,7 @@ export class VerifiedMinuteFeed{
   for(const c of this.blocked)if(!blocked.includes(c))throw Error('blocked candidates cannot re-enter the same session');
   const required=[...this.monitors.keys()].filter(c=>!blocked.includes(c));
   if(!Array.isArray(bars)||bars.length!==required.length||new Set(bars.map(b=>b.code)).size!==bars.length||bars.some(b=>!required.includes(b.code)))throw Error('one verified bar per candidate required');
-  if(nowMs<end||nowMs-end>this.delay)throw Error('incomplete or stale minute');
+  if(nowMs<end||nowMs-end>this.delay||nowMs>=end+60000)throw Error('incomplete or stale minute');
   const checked=bars.map(b=>{
    if(timestamp(b.start)!==start||timestamp(b.end)!==end)throw Error('duplicate, missing or out-of-order minute');
    if(b.volume_unit!=='shares')throw Error('volume must be shares');

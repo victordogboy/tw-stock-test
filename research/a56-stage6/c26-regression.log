@@ -1,0 +1,21 @@
+PASS C26 isolated third-strategy historical archive; fail-closed live trading, strict replay, no changes to existing calculations
+✔ tests/c26-integration.test.mjs (145.865237ms)
+✔ C26 T+1 plan rejected without true 12-day portfolio and factor parity (1.848529ms)
+✔ C26 frozen verified plan is a paper plan, never an automated broker order (0.308326ms)
+✔ Missing or unverified upstream market data blocks any C26 plan (0.157268ms)
+✔ Missing numerical historical evidence cannot pass via NaN comparisons (0.186687ms)
+✔ Every forward replay date must match the source trading calendar (0.360234ms)
+✔ Duplicate holdings cannot inflate portfolio capacity checks (0.41648ms)
+✔ C26 source report cannot leak FC23 trade, position, or pretend to be ready (9.424559ms)
+✔ C26 refresh only schedules shared raw source refresh, never publishes C26 plan (1.294798ms)
+✔ wrong HTTP method cannot trigger refresh or trade (0.737644ms)
+✔ C26 status exposes sanitized EOD coverage only, never raw licensed FinMind records or trades (2.487352ms)
+✔ C26 paper plan expires at Taipei regular session close, no stale orders (0.348446ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 276.448413

@@ -25,6 +25,12 @@ test('unfinished, stale, missing, wrong-unit and malformed batches never advance
  const obs=g.accept([bar()],'2026-11-16T09:01:00+08:00');assert.equal(g.last,0);assert.equal(obs[0].status,'PAPER_CONDITIONAL_INTENT');assert.equal(obs[0].minute,1);
  assert.throws(()=>g.accept([bar()],'2026-11-16T09:01:00+08:00'));assert.equal(g.last,0);
 });
+test('a conditional intent expires when its next execution minute ends, even inside source delay allowance',()=>{
+ const g=new VerifiedMinuteFeed(config);
+ assert.throws(()=>g.accept([bar()],'2026-11-16T09:02:00+08:00'));
+ assert.equal(g.last,-1);
+ assert.equal(g.accept([bar()],'2026-11-16T09:01:59+08:00')[0].minute,1);
+});
 test('confirmed no trade differs from unknown; blocked symbols cannot re-enter',()=>{
  const g=new VerifiedMinuteFeed(config);assert.throws(()=>g.accept([bar(0,{status:'UNKNOWN'})],'2026-11-16T09:01:00+08:00'));
  assert.deepEqual(g.accept([bar(0,{status:'CONFIRMED_NO_TRADE',high:null,low:null,volume_shares:0})],'2026-11-16T09:01:00+08:00'),[]);

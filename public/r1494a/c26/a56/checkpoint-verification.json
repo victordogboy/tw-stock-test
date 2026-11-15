@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "version": "A56-LOCK-20261116",
+  "status": "historical_checkpoint_verified",
+  "as_of": "2026-11-12",
+  "source_sha256": "61a55f45f81e2e94e3833cbca65314d4407d1793d6f749ef55ccf4d9a7630a3f",
+  "checkpoint_sha256": "8448408399afdfa2ff39ad76fa49b25c048da21ac0f461035a41d3d04f05bbc6",
+  "rule": {
+    "single": 0.06,
+    "cumulative": 0.1,
+    "hold_days": 5,
+    "exit": "open",
+    "open_cap": 0.03,
+    "allocation": 0.4,
+    "tail": "off",
+    "round_trip_cost": 0.005855
+  },
+  "full_replay": {
+    "nav_days": 1419,
+    "side_orders": 38,
+    "side_trades": 19
+  },
+  "resume_checks": [
+    {
+      "date": "2021-05-17",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 4,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    },
+    {
+      "date": "2025-04-09",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 3,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    },
+    {
+      "date": "2026-11-05",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 3,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    },
+    {
+      "date": "2026-11-06",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 3,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    },
+    {
+      "date": "2026-11-11",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 3,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    },
+    {
+      "date": "2026-11-12",
+      "nav_days": 1419,
+      "side_orders": 38,
+      "side_trades": 19,
+      "side_positions": 0,
+      "passed": true,
+      "max_nav_absolute_error": 0.0
+    }
+  ],
+  "rejected_checkpoints": [
+    "wrong_lock",
+    "missing_side_state",
+    "wrong_code_order",
+    "wrong_calendar",
+    "wrong_allocation",
+    "missing_global_orders"
+  ],
+  "paper_account": {
+    "cash_twd": 60152465.6191275,
+    "equity_twd": 65123372.94194738,
+    "holdings": [
+      {
+        "code": "2801",
+        "core_shares": 175031.9503376503,
+        "side_shares": 0.0,
+        "mark": 28.399999618530273
+      }
+    ],
+    "side_first": -1,
+    "side_used": true,
+    "side_episode": 7,
+    "side_pending": false
+  },
+  "current_plan_ready": false,
+  "actions": [],
+  "broker_orders_submitted": false,
+  "limitation": "Checkpoint resumes verified history only; latest complete feeds and post-anchor A56 replay are still required."
+}

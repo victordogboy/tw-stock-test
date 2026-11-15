@@ -1,0 +1,26 @@
+✔ real combined account checkpoint is resumable but source coverage never publishes an A56 plan (3.770233ms)
+✔ wrong lock, incomplete resume checks, missing side accounting and corrupted balances block checkpoint (1.832676ms)
+✔ missing, misordered and incomplete source data do not erase verified historical account (0.850966ms)
+✔ GET route reads only sanitized assets and POST never triggers a refresh (10.180724ms)
+✔ missing assets fail closed with no invented balances (1.679721ms)
+✔ all historical data validate and default is preopen only (0.85234ms)
+✔ intraday state consumes only bars completed at the selected time (6.279131ms)
+✔ close shows completed trades while returning to preopen removes them (3.975718ms)
+✔ missing per-symbol minute history cannot be displayed as a confirmed signal (0.366661ms)
+✔ expiry day explains why new entries are blocked (1.888305ms)
+PARITY {"opening":1419,"cases":116,"completed_minutes":24360}
+✔ legal ticks and frozen completed-day conditions (2.154507ms)
+✔ C recovery requires a later completed minute and C precedes B (0.533154ms)
+✔ unfinished, stale, missing, wrong-unit and malformed batches never advance (2.251478ms)
+✔ a conditional intent expires when its next execution minute ends, even inside source delay allowance (0.456787ms)
+✔ confirmed no trade differs from unknown; blocked symbols cannot re-enter (0.554275ms)
+✔ invalid second symbol rolls back first symbol too (0.338554ms)
+✔ Python frozen histories match every browser opening order and minute intent (159.573965ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 385.588862
