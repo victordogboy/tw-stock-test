@@ -1,8 +1,8 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-14T07:52:35.958Z",
-  "requested_through": "2026-11-13",
+  "checked_at": "2026-11-15T06:26:20.876Z",
+  "requested_through": "2026-11-14",
   "next_exchange_trade_date": "2026-11-16",
   "full_market_last_verified": "2026-11-13",
   "staged_trade_dates": 13,
@@ -94,12 +94,9 @@
     },
     {
       "date": "2026-11-09",
-      "state": "available",
+      "state": "cached",
       "price_valid": 232,
-      "missing_count": 1,
-      "invalid_count": 0,
-      "institutional_codes": 232,
-      "source_errors": []
+      "missing_count": 1
     },
     {
       "date": "2026-11-10",
@@ -139,8 +136,8 @@
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "be58d0962b711347d60f120f044bc883ff0dd5f5ddf7b1610f83c81bd9330675",
-  "bytes_gzip": 598764,
+  "sha256_gzip": "e511523ed541beea49ca72978771f7a83837bde641f67ed280d9ae0ff8ec9dc4",
+  "bytes_gzip": 598453,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
   "public_raw_data": false,
@@ -152,9 +149,7 @@
     "total": 5,
     "failed_codes": []
   },
-  "latest_missing_codes": [
-    "3714"
-  ],
+  "latest_missing_codes": [],
   "state": "source_staged",
   "exact_c26_feature_parity": "NOT_VERIFIED",
   "frozen_c26_portfolio_replay": "NOT_IMPLEMENTED",
