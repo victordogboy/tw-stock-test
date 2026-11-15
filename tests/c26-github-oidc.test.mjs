@@ -66,7 +66,7 @@ test('C26 private feed accepts verified GitHub OIDC without Cloudflare FINMIND_T
   })));
   const bearer=jwt();
   const request=(method='GET',data)=>new Request(url,{method,headers:{authorization:'Bearer '+bearer},body:data});
-  assert.equal((await c26PrivateFeedRoute(new Request(url,{method:'POST',body}),env)).status,503);
+  assert.equal((await c26PrivateFeedRoute(new Request(url,{method:'POST',body}),env)).status,401);
   const saved=await c26PrivateFeedRoute(request('POST',body),env);
   assert.equal(saved.status,201);
   const out=await saved.json();

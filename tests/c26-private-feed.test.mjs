@@ -37,9 +37,9 @@ test('reject malformed gzip and wrong pool; preserve previous model snapshot',as
  const old=body(['2026-10-27','2026-10-28']);assert.equal((await c26PrivateFeedRoute(auth('POST',old),env)).status,201);
  const restored=await c26PrivateFeedRoute(auth(),env);assert.deepEqual(new Uint8Array(await restored.arrayBuffer()),old);
 });
-test('C26 private endpoint with secret missing fails closed',async()=>{
+test('C26 private endpoint with secret missing still rejects unauthorized callers',async()=>{
  const {env}=fake();env.FINMIND_TOKEN=undefined;
- const r=await c26PrivateFeedRoute(auth('GET'),env);assert.equal(r.status,503);
+ const r=await c26PrivateFeedRoute(auth('GET'),env);assert.equal(r.status,401);
 });
 test('Portable runtime is private, separated from raw EOD cache, and bound to published SHA',async()=>{
  const objects=new Map();

@@ -56,8 +56,7 @@ export async function c26PrivateFeedRoute(request,env){
  const secretValid=secretReady&&secureEqual(bearer,key);
  const deviceValid=bearer.length>=30&&secureEqual(await sha256(new TextEncoder().encode(bearer)),OWNER_TOKEN_SHA256);
  const oidcValid=!secretValid&&!deviceValid&&bearer.split('.').length===3?await verifyC26GitHubOIDC(bearer):false;
- if(!secretValid&&!deviceValid&&!oidcValid)return json({error:!secretReady&&bearer.split('.').length!==3?
-   'C26 private authentication unavailable':'Not authorized'},!secretReady&&bearer.split('.').length!==3?503:401);
+ if(!secretValid&&!deviceValid&&!oidcValid)return json({error:'Not authorized'},401);
  if(m[1]==='finmind'){
   // OIDC credentials authorize storage only and must never be sent to FinMind.
   if(!deviceValid&&!secretValid)return json({error:'FinMind user credential required'},403);
