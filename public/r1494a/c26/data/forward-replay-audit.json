@@ -3,7 +3,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.4958443968383,
+    "net_return_pct": 1720.495844396837,
     "max_drawdown_pct": -17.989769234703846
   },
   "forward_dates": [
@@ -83,11 +83,11 @@
     "max_open_positions": 8,
     "max_abs_reconstructed_nav_difference": 7.105427357601002e-15,
     "max_reconstructed_stock_weight_pct": 17.717726707165728,
-    "max_reconstructed_exposure_pct": 100.00000000000007,
-    "ending_cash_unit": 16.988810418293248,
-    "ending_cash_ntd": 50966431.25487974,
+    "max_reconstructed_exposure_pct": 100.00000000000004,
+    "ending_cash_unit": 16.988810418293237,
+    "ending_cash_ntd": 50966431.25487971,
     "ending_positions": {
-      "2801": 0.000629430372637696
+      "2801": 0.0006294303726376955
     }
   },
   "forward_order_rows": 18,
