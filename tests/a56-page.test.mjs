@@ -24,3 +24,7 @@ test('missing per-symbol minute history cannot be displayed as a confirmed signa
  assert.equal(summary.status,'historical_replay_only');
  const html=fs.readFileSync(new URL('index.html',base),'utf8');assert.ok(html.includes('即時訊號：暫停發布'));
 });
+
+test('expiry day explains why new entries are blocked',()=>{
+ $('date').value=days.findIndex(x=>x.date==='2026-11-12');$('phase').value='pre';$('phase').onchange();assert.ok($('day').innerHTML.includes('今天安排反轉部位出場，不開新單'));
+});
