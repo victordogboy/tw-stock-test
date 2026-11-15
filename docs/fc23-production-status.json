@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-11-15T06:36:11.467Z",
-  "commit": "fafa13411760eb2ed6d72635cb80ab2d333dc201",
+  "checked_at": "2026-11-15T19:24:38.012Z",
+  "commit": "249a02f24c20966969db53aef62918d0cc173f37",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
   "rules_http": 200,
@@ -10,7 +10,7 @@
   "snapshot_http": 200,
   "before_date": "2026-11-13",
   "market_date": "2026-11-13",
-  "checked_through": "2026-11-14",
+  "checked_through": "2026-11-15",
   "sync_status": "current",
   "update_progress": "FC23 已更新至最新完整交易日",
   "update_error": null,
@@ -102,7 +102,7 @@
   "after_http": 200,
   "after_date": "2026-11-13",
   "after_market_date": "2026-11-13",
-  "after_checked_through": "2026-11-14",
+  "after_checked_through": "2026-11-15",
   "after_sync_status": "current",
   "after_progress": "FC23 已更新至最新完整交易日",
   "after_error": null
