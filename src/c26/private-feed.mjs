@@ -7,6 +7,7 @@ import {verifyC26GitHubOIDC} from './github-oidc.mjs';
 const LOCK='C26-EVENT-CORR-LOCK-20261112';
 const POOL='2bbeada91a53d219a1f6815f84ac567db8182affca586537c199290d73c8c7fe';
 const MAX_BYTES=12*1024*1024; // max gzip request bytes
+const RUNTIME_MAX_BYTES=32*1024*1024;
 // Owner credential fingerprint only. The token itself is supplied per request
 // from this owner's browser and is never saved to Worker storage or source.
 const OWNER_TOKEN_SHA256='f023cdf875ffd734ef213d2061ca11b03b78aa959d703444865a57f9759e61c7';
@@ -39,9 +40,10 @@ async function validateGzip(body){
 }
 export async function c26PrivateFeedRoute(request,env){
  const path=new URL(request.url).pathname;
- const m=/^\/api\/c26\/private-feed(?:\/(status|finmind))?$/.exec(path);
+ const m=/^\/api\/c26\/private-feed(?:\/(status|finmind|runtime))?$/.exec(path);
  if(!m)return json({error:'Not found'},404);
- const allowed=new Set(m[1]==='finmind'?['POST']:m[1]?['GET']:['GET','POST']);
+ const runtime=m[1]==='runtime';
+ const allowed=new Set(m[1]==='finmind'?['POST']:runtime?['GET','POST']:m[1]?['GET']:['GET','POST']);
  if(!allowed.has(request.method))return json({error:'Method not allowed'},405);
  // GitHub Actions OIDC is scoped to ONE workflow and branch and verified
  // against GitHub JWKS. This avoids copying a licensed FinMind token into
@@ -76,17 +78,23 @@ export async function c26PrivateFeedRoute(request,env){
   return json({status:200,data:data.data});
  }
  if(!env.SCAN_JOBS)return json({error:'C26 private DO unavailable'},503);
- const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c26:licensed-eod:v1'));
+ const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName(runtime?'system:c26:frozen-runtime:v1':'system:c26:licensed-eod:v1'));
  if(request.method==='GET'){
   const status=m[1]==='status';
   const r=await stub.fetch(new Request('https://c26-private.local/c26-internal/'+(status?'status':'download')));
   return new Response(r.body,{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/octet-stream','cache-control':'no-store','x-c26-live-trading':'blocked'}});
  }
  const incoming=Number(request.headers.get('content-length')||0);
- if(incoming>MAX_BYTES)return json({error:'C26 private payload too large'},413);
+ if(incoming>(runtime?RUNTIME_MAX_BYTES:MAX_BYTES))return json({error:'C26 private payload too large'},413);
  const bytes=new Uint8Array(await request.arrayBuffer());
  let meta;
- try{meta=await validateGzip(bytes)}catch(e){return json({error:String(e.message||e)},422)}
+ if(runtime){
+  let manifest;
+  try{const r=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/c26/data/portable-runtime-manifest.json'));if(!r.ok)throw Error();manifest=await r.json()}catch{return json({error:'C26 runtime manifest unavailable'},503)}
+  const digest=await sha256(bytes);
+  if(bytes.length>RUNTIME_MAX_BYTES||bytes[0]!==80||bytes[1]!==75||manifest.lock_id!==LOCK||manifest.simulator_sha256!=='741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5'||manifest.sha256!==digest||manifest.bytes!==bytes.length)return json({error:'C26 runtime bundle differs from verified manifest'},422);
+  meta={kind:'frozen_runtime',lock_id:LOCK,pool_sha256:POOL,source_as_of:'2026-10-27',size_bytes:bytes.length,sha256:digest,available_days:0,model_ready:false};
+ }else try{meta=await validateGzip(bytes)}catch(e){return json({error:String(e.message||e)},422)}
  const r=await stub.fetch(new Request('https://c26-private.local/c26-internal/upload',{method:'POST',headers:{'content-type':'application/gzip','x-c26-source-metadata':JSON.stringify(meta)},body:bytes}));
  if(!r.ok)return json({error:'C26 private persistence rejected',status:r.status},r.status);
  return json({...meta,stored:true,raw_public:false,trading_plan:'BLOCKED'},201);
@@ -101,7 +109,7 @@ export class C26PrivateStore {
    let meta;try{meta=JSON.parse(request.headers.get('x-c26-source-metadata')||'null')}catch{return json({error:'Invalid metadata'},422)}
    if(meta?.lock_id!==LOCK||meta.pool_sha256!==POOL||!/^2026-\d\d-\d\d$/.test(meta.source_as_of))return json({error:'Mismatched C26 source metadata'},422);
    const body=new Uint8Array(await request.arrayBuffer());
-   if(body.length!==meta.size_bytes||body.length>MAX_BYTES||hex(new Uint8Array(await crypto.subtle.digest('SHA-256',body)))!==meta.sha256)return json({error:'C26 source integrity failure'},422);
+   if(body.length!==meta.size_bytes||body.length>(meta.kind==='frozen_runtime'?RUNTIME_MAX_BYTES:MAX_BYTES)||hex(new Uint8Array(await crypto.subtle.digest('SHA-256',body)))!==meta.sha256)return json({error:'C26 source integrity failure'},422);
    const old=await this.ctx.storage.get('c26:private:latest_meta');
    if(old?.source_as_of>meta.source_as_of)return json({error:'Refusing C26 source timestamp rollback'},409);
    const id=crypto.randomUUID(),chunks=[];const size=90000;

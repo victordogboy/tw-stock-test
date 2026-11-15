@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "simulator_sha256": "741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5",
+  "input_as_of": "2026-10-27",
+  "sha256": "a0ff25c4a392d3ec17cd2f94c2c86a058d7cd718085485f5ae145327d89c536d",
+  "bytes": 17576247,
+  "data_only_no_pickle": true
+}

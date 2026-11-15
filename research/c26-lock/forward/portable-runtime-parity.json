@@ -1,0 +1,13 @@
+{
+  "lock_id": "C26-EVENT-CORR-LOCK-20261112",
+  "passed": true,
+  "portable_bundle_sha256": "a0ff25c4a392d3ec17cd2f94c2c86a058d7cd718085485f5ae145327d89c536d",
+  "portable_bytes": 17576247,
+  "historical_days": 1407,
+  "historical_orders": 1758,
+  "nav_bit_exact": true,
+  "orders_bit_exact": true,
+  "cash_risk_target_bit_exact": true,
+  "numpy": "2.3.5",
+  "data_only_no_pickle": true
+}
