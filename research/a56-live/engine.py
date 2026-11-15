@@ -105,7 +105,7 @@ class A56Engine:
         pre={}
         def trace(frame,event,arg):
             if event=='line' and frame.f_code.co_filename=='<A56_CHECKPOINT_RUNTIME>' and frame.f_code.co_name=='simulate' and frame.f_lineno==line:
-                for k in ['current','entrants','to_sell','reason','target','port_risk','dd_gate','state','basket_risk','overlay_risk','qty','cash','held','peak','basis','prev_nav','cfg','sig','t','side_first','side_used','side_pending','pending_buy']:
+                for k in ['current','entrants','to_sell','reason','target','port_risk','dd_gate','state','basket_risk','overlay_risk','qty','cash','held','peak','basis','prev_nav','cfg','sig','t','side_first','side_used','side_pending','pending_buy','prevstate','prev_basket_risk','prev_overlay','prev_port_risk','prev_dd_gate','prev_dd_level','dd_level','prev_recover_level','recover_level','EV_STOCKCAP_NOW','EV_STOCKCAP_CHANGE']:
                     pre[k]=copy.deepcopy(frame.f_locals[k])
                 raise Captured()
             return trace
@@ -129,6 +129,21 @@ class A56Engine:
                 level=sc['tick_up'](p*(1+pre['cfg'].get('break_atr',.1)*ap))
                 actions.append(dict(code=self.codes[j],sleeve='C26',side='BUY',referencePrice=p,level=level,
                   budgetCap=min(pre['cash'],pre['prev_nav']/8),orderType='BUY_STOP_BREAKOUT',reason='new_position',noFillPolicy='NO_FILL_NO_BUY'))
+            # Preserve the original opening allocation phase as a precommitted
+            # conditional operation. Shares and amounts cannot be fixed until
+            # actual open prices, locked orders and available cash are known.
+            rebalance=any(pre[old]!=pre[new] for old,new in [('prevstate','state'),('prev_basket_risk','basket_risk'),('prev_overlay','overlay_risk'),('prev_port_risk','port_risk'),('prev_dd_gate','dd_gate')])
+            rebalance=rebalance or bool(sc['MARKET_COLD'][sig]!=sc['MARKET_COLD'][max(sig-1,0)]) or abs(pre['prev_dd_level']-pre['dd_level'])>1e-8 or abs(pre['prev_recover_level']-pre['recover_level'])>1e-8
+            gate=pre['cfg'].get('risk_gate','none')
+            rebalance=rebalance or bool(gate!='none' and N>=1 and abs(sc['RISK_GATES'][gate][sig]-sc['RISK_GATES'][gate][sig-1])>1e-8)
+            rebalance=rebalance or bool(sc['EV_STOCKCAP_ON'] and pre['EV_STOCKCAP_CHANGE'])
+            oldvalue=float(np.dot(st['qty'],np.where(np.isfinite(sc['P'][sig]),sc['P'][sig],0.)))
+            if sc['EV_CAP_REBAL'] and oldvalue>1e-10 and (oldvalue>pre['target']*max(pre['prev_nav'],1e-10)+1e-10 or np.any(st['qty']*sc['P'][sig]/max(pre['prev_nav'],1e-10)>pre['EV_STOCKCAP_NOW']+sc['CAP_BAND']+.002)):rebalance=True
+            if rebalance and len(pre['current']):
+                actions.append(dict(code=None,sleeve='C26',side='REBALANCE',orderType='OPEN_RISK_REBALANCE',target=pre['target'],
+                    stockCap=pre['EV_STOCKCAP_NOW'],allowTopup=bool(sc['FC09_TOPUP']),minimumTopupNav=float(sc['MIN_TOPUP_NAV']),
+                    reason='opening_risk_rebalance',noFillPolicy='KEEP_UNFILLED_POSITION_AND_CASH',
+                    details='原核心開盤風控配置：依實際開盤權益、現金、鎖單與單股上限，先減碼；允許補足時才加碼。不是新增選股單。'))
             exit=live.exit_reason(warning,pre['target'],core_new,pre['side_first'],N,pre['side_pending'])
             for j in np.flatnonzero(st['side']>1e-13):
                 actions.append(dict(code=self.codes[j],sleeve='REVERSAL',side='SELL' if exit else 'HOLD',quantity=float(st['side'][j]),
@@ -144,6 +159,8 @@ class A56Engine:
               readiness='ready_for_manual_review',actions=actions,target=pre['target'],warning=warning,episode=ep,
               candidates=[c.public() for c in cs],opening_slots=slots,opening_budget=budget*pre['prev_nav'],exit_reason=exit,
               side_used=pre['side_used'],side_first=pre['side_first'],no_future_execution_prices=True,
+              opening_rebalance=bool(rebalance),core_entry_min_target=float(sc['EV_MIN_TARGET']),
+              core_entry_explanation='已有通過原條件的新股候選' if core_new else f'本盤未產生通過原條件的新股候選；一般新股目標曝險門檻 {sc["EV_MIN_TARGET"]:.0%}，本盤目標 {pre["target"]:.4%}。既有持股配置與強勢重進場另依原規則。',
               conditions='B/C 只列盤前條件價；開盤後須核對核心成交、剩餘現金、名額及已完成分K，才可確認條件委託。',
               risk={k:bool(pre[k]) for k in ['port_risk','dd_gate','state','basket_risk','overlay_risk']}))
         finally:

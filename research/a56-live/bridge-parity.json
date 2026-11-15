@@ -28,6 +28,19 @@
         "stop": 28.15,
         "stopActive": false,
         "noFillPolicy": "CONTINUE_HOLDING"
+      },
+      {
+        "code": null,
+        "sleeve": "C26",
+        "side": "REBALANCE",
+        "orderType": "OPEN_RISK_REBALANCE",
+        "target": 0.06945749999999999,
+        "stockCap": 0.16,
+        "allowTopup": true,
+        "minimumTopupNav": 0.016,
+        "reason": "opening_risk_rebalance",
+        "noFillPolicy": "KEEP_UNFILLED_POSITION_AND_CASH",
+        "details": "原核心開盤風控配置：依實際開盤權益、現金、鎖單與單股上限，先減碼；允許補足時才加碼。不是新增選股單。"
       }
     ],
     "target": 0.06945749999999999,
@@ -40,6 +53,9 @@
     "side_used": false,
     "side_first": -1,
     "no_future_execution_prices": true,
+    "opening_rebalance": true,
+    "core_entry_min_target": 0.8,
+    "core_entry_explanation": "本盤未產生通過原條件的新股候選；一般新股目標曝險門檻 80%，本盤目標 6.9457%。既有持股配置與強勢重進場另依原規則。",
     "conditions": "B/C 只列盤前條件價；開盤後須核對核心成交、剩餘現金、名額及已完成分K，才可確認條件委託。",
     "risk": {
       "port_risk": false,

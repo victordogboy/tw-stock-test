@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import {a56Readiness,a56StatusRoute} from '../src/c26/a56-status.mjs';
+import {a56Readiness,a56StatusRoute,validateA56Delta} from '../src/c26/a56-status.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL('../'+p,import.meta.url)));
 const cp=read('public/r1494a/c26/a56/checkpoint-verification.json');
 const coverage=read('public/r1494a/c26/data/forward-status.json');
@@ -38,4 +38,10 @@ test('GET route reads only sanitized assets and POST never triggers a refresh',a
 test('missing assets fail closed with no invented balances',async()=>{
  const r=await a56StatusRoute(new Request('https://test/api/c26/a56/status'),{}),s=await r.json();
  assert.equal(s.checkpoint,null);assert.equal(s.plan.readiness,'blocked');assert.deepEqual(s.plan.actions,[]);
+});
+test('a verified plan can precommit an opening allocation without inventing fixed shares or tomorrow prices',()=>{
+ const d=read('public/r1494a/c26/a56/forward.json'),m=read('public/r1494a/c26/a56/latest-manifest.json');
+ d.plan.actions.push({side:'REBALANCE',code:null,target:d.plan.target,orderType:'OPEN_RISK_REBALANCE'});
+ assert.equal(validateA56Delta(d,m,cp,coverage),true);
+ d.plan.actions.at(-1).target=Infinity;assert.equal(validateA56Delta(d,m,cp,coverage),false);
 });

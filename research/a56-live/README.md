@@ -40,6 +40,12 @@ reversal buy, no active protective stop. Market-warning false does not mean
 the existing core position should be liquidated. This remains a stock-based
 fractional-share paper model, not an executed stock-futures account.
 
+Premarket plans also explicitly capture the original core opening allocation
+phase. `REBALANCE` is a conditional opening operation with target exposure,
+single-stock cap, top-up permission and minimum top-up threshold. It is shown
+alongside HOLD/BUY/SELL rather than silently omitting potential top-ups or
+trims. It never invents fixed shares or prices before the opening print.
+
 `forward.json` includes only derived positions, plans, orders, NAV and audit
 results; full licensed daily data, ticks and credentials stay private.
 `latest-manifest.json` binds its SHA-256 to the frozen integrated source and

@@ -100,7 +100,8 @@ export function validateA56Delta(d,m,c,source){
  }
  if((dates.at(-1)||c.as_of)!==d.as_of||d.orders.some(o=>!dates.includes(o.date)||o.signal>=o.date||!['BUY','SELL'].includes(o.side)||typeof o.filled!=='boolean'||
     o.filled&&(!Number.isFinite(o.quantity)||o.quantity<=0||!Number.isFinite(o.price)||o.price<=0)))return false;
- if(!Array.isArray(p.actions)||p.actions.some(a=>!['BUY','SELL','HOLD'].includes(a.side)||!/^\d{4,6}$/.test(a.code)||
+ if(!Array.isArray(p.actions)||p.actions.some(a=>!['BUY','SELL','HOLD','REBALANCE'].includes(a.side)||a.side!=='REBALANCE'&&!/^\d{4,6}$/.test(a.code)||
+   a.side==='REBALANCE'&&(!Number.isFinite(a.target)||a.target<0||a.target>1.000001||a.orderType!=='OPEN_RISK_REBALANCE')||
    a.side==='BUY'&&(!Number.isFinite(a.level)||a.level<=0)||a.side==='SELL'&&(!Number.isFinite(a.quantity)||a.quantity<=0)))return false;
  return Number.isFinite(p.target)&&p.target>=0&&p.target<=1.000001;
 }

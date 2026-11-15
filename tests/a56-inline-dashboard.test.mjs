@@ -43,6 +43,13 @@ test('historical next-session plan includes precommitted A order and B/C levels 
  assert.ok(!node('#planActions').innerHTML.includes('6,087,900'));
  renderA56Monitor(D,D.dates.length-1);
 });
+test('precommitted core opening adjustments appear alongside holding instructions',()=>{
+ const i=D.dates.indexOf('2026-11-12');renderA56Monitor(D,i);
+ assert.ok(node('#planActions').innerHTML.includes('核心組合開盤配置'));
+ assert.ok(node('#planActions').innerHTML.includes('目標曝險'));
+ assert.ok(node('#planActions').innerHTML.includes('最終股數與金額待開盤核對'));
+ renderA56Monitor(D,D.dates.length-1);
+});
 test('tampered forward asset preserves verified baseline and never displays its unverified current plan',async()=>{
  corrupt=true;try{const d=await loadA56MonitorSnapshot(shared);assert.equal(d.snapshots.length,1419);assert.equal(d.a56.ready,false);assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);}finally{corrupt=false}
 });
