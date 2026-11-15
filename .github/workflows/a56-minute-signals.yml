@@ -8,6 +8,9 @@ on:
       - 'research/a56-stage5/**'
       - 'research/a56-stage6/**'
       - 'src/c26/a56-status.mjs'
+      - 'src/c26/a56-refresh.mjs'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
       - '.github/workflows/a56-minute-signals.yml'
   pull_request:
     paths:
@@ -16,6 +19,9 @@ on:
       - 'research/a56-stage5/**'
       - 'research/a56-stage6/**'
       - 'src/c26/a56-status.mjs'
+      - 'src/c26/a56-refresh.mjs'
+      - 'public/r1494a/index.html'
+      - 'public/r1494a/strategy-switch.js'
       - '.github/workflows/a56-minute-signals.yml'
 permissions: {contents: read}
 jobs:
@@ -26,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: {node-version: 24}
-      - run: node --test tests/a56-signals.test.mjs tests/a56-page.test.mjs tests/a56-continuation.test.mjs
+      - run: node --test tests/a56-*.test.mjs
       - run: python -m py_compile research/a56-stage6/checkpoint_a56.py research/a56-stage6/verify_checkpoint.py
       - name: Check deployed A56 assets match this commit
         if: github.event_name == 'push'
@@ -34,7 +40,7 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';import {createHash} from 'node:crypto';
           const hash=b=>createHash('sha256').update(b).digest('hex');
-          const paths=['index.html','app.mjs','signals.mjs','minutes.json.gz.b64','continuation.mjs','checkpoint-verification.json'];
+          const paths=['index.html','app.mjs','signals.mjs','minutes.json.gz.b64','continuation.mjs','checkpoint-verification.json','inline-adapter.mjs','dashboard-history-index.json','dashboard-history.b64'];
           const root='https://tw-stock-api.victordogboy.workers.dev/r1494a/c26/a56/';
           let last='';
           for(let attempt=0;attempt<40;attempt++){

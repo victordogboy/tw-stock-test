@@ -22,7 +22,7 @@ test('close shows completed trades while returning to preopen removes them',()=>
 });
 test('missing per-symbol minute history cannot be displayed as a confirmed signal',()=>{
  assert.equal(summary.status,'historical_replay_only');
- const html=fs.readFileSync(new URL('index.html',base),'utf8');assert.ok(html.includes('即時訊號：暫停發布'));
+ const html=fs.readFileSync(new URL('index.html',base),'utf8');assert.ok(html.includes('本頁為歷史紙上重播'));assert.ok(html.includes('不是今天的買賣計畫'));
 });
 
 test('expiry day explains why new entries are blocked',()=>{

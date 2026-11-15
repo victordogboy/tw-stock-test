@@ -67,14 +67,16 @@ function renderFc23Plan(){
 }
 let originalDashboardCopy;
 function decorateStrategy(){
- const isFc=D.model_version==='FC23',isC26=D.model_version==='C26';
+ const isFc=D.model_version==='FC23',isC26=D.model_version==='C26',isA56=D.model_version==='A56';
  const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote'];
  if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(nodes.map(id=>[id,$(id).innerHTML]));
  for(const id of nodes)$(id).innerHTML=originalDashboardCopy[id];
  $('.brand b').textContent=D.model_version;document.title=D.model_version+'｜策略監控台';
- $('#strategy').value=isC26?'C26':isFc?'FC23':'R1494-A';
+ $('#strategy').value=isA56?'A56':isC26?'C26':isFc?'FC23':'R1494-A';
+ const tokenUpdate=document.querySelector('#c26-token-update');if(tokenUpdate)tokenUpdate.textContent=isA56?'使用 Token 更新 A56 資料':'使用 Token 更新 C26 資料';
  document.querySelectorAll('[data-strategy-title]').forEach(el=>el.textContent=D.model_version+' 報酬');
  $('#strategySummary').textContent=D.model_version+' 累積 '+pct(D.curves.strategy.at(-1)-1)+' · 最大回撤 '+pct(drawdown(D.curves.strategy))+' · '+D.dates[0]+'～'+D.dates.at(-1);
+ if(isA56){window.__a56Monitor.decorateA56Monitor(D);return;}
  if(isC26&&D.dates.at(-1)>'2026-10-27'){
   window.__c26Monitor.decorateC26Monitor(D);
   $('#ledgerLabel').textContent='C26 原Python接續模型 · 券商成交未確認';

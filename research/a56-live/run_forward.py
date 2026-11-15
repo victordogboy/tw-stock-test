@@ -42,9 +42,14 @@ plan['anchor_checkpoint_sha256']=engine.anchor['checkpoint_sha256']
 plan['historical_parity']=dict(nav_days=1419,side_orders=38,side_trades=19,passed=True)
 plan['forward_audit']=dict(**check,anchor_inputs_match=True,causal_factors_passed=env['report']['independent_forward_factors']['passed'])
 plan['verified_dates']=[s['date'] for s in recorder.snapshots]
+past={}
+if (out/'forward.json').exists():
+    older=json.loads((out/'forward.json').read_text());past.update(older.get('plan_history',{}))
+    if older.get('plan',{}).get('signal_as_of',as_of)<=as_of:past[older['plan']['signal_as_of']]=older['plan']
+past[plan['signal_as_of']]=plan
 delta=clean(dict(model_version='A56',lock_id=VERSION,source_sha256=engine.sha,anchor_as_of=history['as_of'],
   as_of=as_of,audited=True,audit=check,plan=plan,snapshots=recorder.snapshots,orders=recorder.orders,
-  core_order_rows=recorder.core_cursor,side_order_rows=recorder.side_cursor))
+  core_order_rows=recorder.core_cursor,side_order_rows=recorder.side_cursor,plan_history=past))
 bytes=json.dumps(delta,ensure_ascii=False,allow_nan=False,separators=(',',':')).encode()
 (out/'forward.json').write_bytes(bytes)
 manifest=dict(version=VERSION,as_of=as_of,trade_date=plan['trade_date'],forward_sha256=hashlib.sha256(bytes).hexdigest(),

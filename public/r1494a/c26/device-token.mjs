@@ -82,7 +82,11 @@ export function mountTokenPanel(doc=document){
   try{
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
    const status=await updateDeviceSource(token,say);
-   say('資料已保存並核對至 '+status.source_as_of+'；'+status.available_days+' 個接續交易日。C26 交易計畫仍須通過原引擎逐日重播。');
+   if(doc.getElementById('strategy')?.value==='A56'){
+    const queued=await fetch('/api/c26/a56/refresh',{method:'POST',cache:'no-store'});if(!queued.ok)throw Error('A56原引擎更新排程未成功');
+    say('資料已保存並核對至 '+status.source_as_of+'；已請求 A56 合併帳本與盤前計畫更新，完成後主頁同步重載。');
+    if(typeof globalThis.poll==='function')globalThis.poll();
+   }else say('資料已保存並核對至 '+status.source_as_of+'；'+status.available_days+' 個接續交易日。C26 交易計畫仍須通過原引擎逐日重播。');
   }catch(e){say('更新未完成：'+e.message)}finally{for(const b of buttons)b.disabled=false}
  };
 }
