@@ -1,0 +1,3 @@
+# A56-LOCK-20261116 historical replay
+
+Frozen research, not a live signal service. A56 replay rerun: 1,419 NAV days at absolute tolerance 1e-10, 38 side orders, 19 matched trades. No original strategy engine changes. Daily UI states separate prior-close, intraday observed simulated order time, and completed day. Full original archived data remains in research package, not public raw market data. Latest archived market date 2026-11-12. Live A56 requires independent account continuation, verified prior-day complete market/factors, live completed minute bars, real execution-state reconciliation and legal tick/limit validation. Until verified, no live order publication.
