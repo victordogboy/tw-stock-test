@@ -1,0 +1,34 @@
+name: C26 A26 research-only revenue factor collection
+on:
+  push:
+    branches: [research/a26-revenue-20261115]
+    paths:
+      - '.github/workflows/c26-a26-revenue.yml'
+      - 'research/c26-lock/experiments/a26-revenue-point-in-time.mjs'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: c26-a26-revenue-research
+  cancel-in-progress: false
+jobs:
+  revenue:
+    if: github.ref == 'refs/heads/research/a26-revenue-20261115'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - name: Fetch derived monthly revenue features
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: node research/c26-lock/experiments/a26-revenue-point-in-time.mjs
+      - name: Persist research branch only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add research/c26-lock/experiments/A26_REVENUE_FEATURES_*.json
+          git diff --cached --quiet || git commit -m 'A26 derived revenue ratios, no raw values or credentials'
+          git push origin HEAD:research/a26-revenue-20261115
