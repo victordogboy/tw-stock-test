@@ -1,9 +1,9 @@
-name: C26 FinMind forward data coverage and immutable-overlap gate
+name: C26 automatic original-engine replay and next-session plan
 on:
   workflow_dispatch:
   schedule:
     - cron: '50 13 * * 1-5'
-    - cron: '30 1 * * 2-6'
+    - cron: '30 23 * * 0-4'
   push:
     branches: [main]
     paths:
@@ -22,7 +22,7 @@ concurrency:
 jobs:
   stage:
     runs-on: ubuntu-24.04
-    timeout-minutes: 21
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,31 +53,50 @@ jobs:
         if: steps.ingest.outcome == 'success'
         continue-on-error: true
         run: node research/c26-lock/forward/diagnose-rotation.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned numeric runtime
+        run: python -m pip install numpy==2.3.5 pandas==2.2.3
+      - name: Replay SHA-locked original C26 and audit cash, inventory and T+1 decisions
+        id: model
+        continue-on-error: true
+        env:
+          FINMIND_TOKEN: ${{ secrets.FINMIND_TOKEN }}
+        run: |
+          set -euo pipefail
+          node research/c26-lock/forward/restore-runtime.mjs
+          python research/c26-lock/forward/fetch-market.py
+          node research/c26-lock/forward/build-contexts.mjs
+          python research/c26-lock/forward/replay-forward.py
+          node --test tests/c26-verified-forward.test.mjs tests/c26-next-session-plan-gate.test.mjs
       - name: Persist and verify private source cache
         id: persist
         continue-on-error: true
         run: |
           node research/c26-lock/forward/sync-private-store.mjs publish
           node research/c26-lock/forward/sync-private-store.mjs status
-      - name: Publish coverage summary ONLY (FinMind raw data stays private)
+      - name: Publish audited model atomically; retain previous model on replay failure
+        env:
+          MODEL_OUTCOME: ${{ steps.model.outcome }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           tmpdir=$(mktemp -d)
-          cp public/r1494a/c26/data/forward-status.json "$tmpdir/forward-status.json"
-          cp public/r1494a/c26/data/forward-chip-parity.json "$tmpdir/forward-chip-parity.json"
-          if [ -f public/r1494a/c26/data/rotation-diagnostic.json ]; then cp public/r1494a/c26/data/rotation-diagnostic.json "$tmpdir/rotation-diagnostic.json"; fi
+          files=(forward-status.json forward-chip-parity.json)
+          if [ -f public/r1494a/c26/data/rotation-diagnostic.json ]; then files+=(rotation-diagnostic.json); fi
+          if [ "$MODEL_OUTCOME" = success ]; then files+=(forward-replay.json verified-next-day-plan.json forward-replay-audit.json); fi
+          for file in "${files[@]}"; do cp "public/r1494a/c26/data/$file" "$tmpdir/$file"; done
           for attempt in 1 2 3 4 5; do
             git fetch origin main
             git reset --hard origin/main
-            cp "$tmpdir/forward-status.json" public/r1494a/c26/data/forward-status.json
-            cp "$tmpdir/forward-chip-parity.json" public/r1494a/c26/data/forward-chip-parity.json
-            if [ -f "$tmpdir/rotation-diagnostic.json" ]; then cp "$tmpdir/rotation-diagnostic.json" public/r1494a/c26/data/rotation-diagnostic.json; fi
-            git add public/r1494a/c26/data/forward-status.json public/r1494a/c26/data/forward-chip-parity.json
-            if [ -f public/r1494a/c26/data/rotation-diagnostic.json ]; then git add public/r1494a/c26/data/rotation-diagnostic.json; fi
+            for file in "${files[@]}"; do
+              cp "$tmpdir/$file" "public/r1494a/c26/data/$file"
+              git add "public/r1494a/c26/data/$file"
+            done
             if git diff --cached --quiet; then exit 0; fi
-            git commit -m 'Stage FinMind forward C26 source data (trading plan remains blocked)'
+            git commit -m "Update C26 source and audited model (replay: $MODEL_OUTCOME)"
             if git push origin HEAD:main; then exit 0; fi
             sleep 2
           done
@@ -87,4 +106,9 @@ jobs:
         if: steps.persist.outcome == 'failure'
         run: |
           echo '::error::Source coverage updated, but private persistence failed. Check GitHub OIDC trust and Worker SCAN_JOBS; current C26 trading remains blocked.'
+          exit 1
+      - name: Report replay failure with last verified inventory retained
+        if: steps.model.outcome == 'failure'
+        run: |
+          echo '::error::C26 replay failed. Source diagnostics and previous verified model retained; no new trade plan published.'
           exit 1

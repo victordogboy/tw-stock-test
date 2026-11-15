@@ -79,10 +79,10 @@ function decorateStrategy(){
   window.__c26Monitor.decorateC26Monitor(D);
   $('#ledgerLabel').textContent='C26 原Python接續模型 · 券商成交未確認';
   $('#performanceLegend').textContent='C26 原引擎資金曲線（含接續至 '+D.dates.at(-1)+'）';
-  $('#ordersNote').textContent='原始封存1,758筆＋接續18筆，共1,776筆；金額以初始300萬元模型換算。';
+  $('#ordersNote').textContent='原始封存1,758筆＋接續'+(D.orders.length-1758)+'筆，共'+D.orders.length+'筆；金額以初始300萬元模型換算。';
   $('#strategyFooter').textContent='C26-EVENT-CORR-LOCK-20261112｜往返成本0.5855%｜資料至 '+D.dates.at(-1)+'｜'+(D.plan.readiness==='ready_for_manual_review'?'盤前模型已核對':'計畫待更新');
   $('#execution-study-v29').innerHTML='<details><summary><strong>C26 原引擎成交規則</strong></summary><p>事件換股、26日虧損冷卻、40日相關性限制；最多8檔，單檔16%目標，新建倉至少1萬元。突破價按前收、ATR與原買點係數凍結；開盤超過觸發價採開盤模擬成交，沒有另加5%追價限制。賣出與啟用中的保護停損依原引擎；券商成交需人工核對。</p></details>';
-  $('#rulesMain').innerHTML='<h2>C26 凍結事件驅動策略</h2><p>已取消固定20日與5日換股。完整離場與原風控事件觸發候選補位；保留原評分、盤後法人、同儕、現金與部位限制。虧損風控退出後冷卻26交易日；40日相關性達0.60且既有同群曝險達30%時限制新建倉。</p><p>本次以凍結Python原始模擬器接續10/28～11/12；現金、股數、每日淨值獨立對帳，並於讀取11/13執行價格前凍結盤前計畫。</p>';
+  $('#rulesMain').innerHTML='<h2>C26 凍結事件驅動策略</h2><p>已取消固定20日與5日換股。完整離場與原風控事件觸發候選補位；保留原評分、盤後法人、同儕、現金與部位限制。虧損風控退出後冷卻26交易日；40日相關性達0.60且既有同群曝險達30%時限制新建倉。</p><p>以凍結Python原始模擬器逐日接續至 '+esc(D.dates.at(-1))+'；現金、股數與每日淨值獨立對帳，於讀取下一盤價格前凍結計畫。排程於交易日21:50與07:30（台北時間）執行，GitHub啟動時間可能延後。</p>';
   return;
  }
  if(isC26){

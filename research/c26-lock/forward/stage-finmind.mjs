@@ -79,7 +79,7 @@ if(fs.existsSync(outPath)){
  }catch{}
 }
 const payload={lock_id:refs.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:refs.pool_sha256,
- generated_at:now.toISOString(),through_requested:endAt,days:earlier?.days||{}};
+ generated_at:now.toISOString(),through_requested:endAt,days:earlier?.days||{},market_days:earlier?.market_days||{}};
 const statuses=[];const tradeDates=await tradingDays();
 const nextTradeDate=[...tradeDates].filter(d=>d>endAt).sort()[0]||null;
 let goodDays=0,errors=0;

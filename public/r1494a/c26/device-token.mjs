@@ -30,9 +30,9 @@ export async function updateDeviceSource(token,progress=()=>{}){
  const clock=new Date(Date.now()+8*3600000).toISOString();
  const through=clock.slice(11,16)>='20:00'?clock.slice(0,10):addDate(clock.slice(0,10),-1);
  const dates=calendar.filter(x=>x>='2026-10-16'&&x<=through);
- let days={};
+ let days={},marketDays={};
  const restored=await fetch(API,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
- if(restored.ok){const previous=await unzip(await restored.arrayBuffer());if(previous.lock_id!==config.lock_id||previous.pool_sha256!==config.pool_sha256)throw Error('既存 C26 資料版本不符');days=previous.days||{}}
+ if(restored.ok){const previous=await unzip(await restored.arrayBuffer());if(previous.lock_id!==config.lock_id||previous.pool_sha256!==config.pool_sha256)throw Error('既存 C26 資料版本不符');days=previous.days||{};marketDays=previous.market_days||{}}
  else if(restored.status!==404)throw Error('無法讀取原有資料 HTTP '+restored.status);
  for(let i=0;i<dates.length;i++){
   const date=dates[i];
@@ -54,7 +54,7 @@ export async function updateDeviceSource(token,progress=()=>{}){
  }
  const boundary=new Map((days['2026-10-27']?.price||[]).map(x=>[x.stock_id,x.close]));
  if(!Object.entries(config.boundary).every(([code,mark])=>Number.isFinite(boundary.get(code))&&Math.abs(boundary.get(code)-mark)<=Math.max(.0005,Math.abs(mark)*1e-6)))throw Error('10/27 持股價格邊界不符，未覆寫雲端資料');
- const payload={lock_id:config.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:config.pool_sha256,generated_at:new Date().toISOString(),through_requested:through,days};
+ const payload={lock_id:config.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:config.pool_sha256,generated_at:new Date().toISOString(),through_requested:through,days,market_days:marketDays};
  progress('正在保存及核對雲端資料…');
  const ack=await request(token,'',{method:'POST',headers:{'content-type':'application/gzip'},body:await zip(payload)}).then(r=>r.json());
  const stored=await request(token,'/status').then(r=>r.json());

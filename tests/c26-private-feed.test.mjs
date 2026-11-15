@@ -41,3 +41,25 @@ test('C26 private endpoint with secret missing fails closed',async()=>{
  const {env}=fake();env.FINMIND_TOKEN=undefined;
  const r=await c26PrivateFeedRoute(auth('GET'),env);assert.equal(r.status,503);
 });
+test('Portable runtime is private, separated from raw EOD cache, and bound to published SHA',async()=>{
+ const objects=new Map();
+ const env={FINMIND_TOKEN:key,SCAN_JOBS:{idFromName:x=>x,get:id=>{
+  if(!objects.has(id))objects.set(id,fake().obj);return objects.get(id);
+ }}};
+ const bytes=new Uint8Array([80,75,3,4,10,20,30,40]);
+ const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),b=>b.toString(16).padStart(2,'0')).join('');
+ env.ASSETS={fetch:async()=>Response.json({lock_id:LOCK,simulator_sha256:'741862f102438f8f10fcf40cf2f9b47edb8fece004e0175ae3f1be7e94bd4ad5',sha256:hash,bytes:bytes.length})};
+ const request=(method,body)=>new Request(url+'/runtime',{method,body,headers:{authorization:'Bearer '+key}});
+ assert.equal((await c26PrivateFeedRoute(new Request(url+'/runtime'),env)).status,401);
+ assert.equal(objects.size,0);
+ assert.equal((await c26PrivateFeedRoute(auth('POST',body()),env)).status,201);
+ assert.equal((await c26PrivateFeedRoute(request('POST',bytes),env)).status,201);
+ const downloaded=await c26PrivateFeedRoute(request('GET'),env);
+ assert.equal(downloaded.headers.get('content-type'),'application/octet-stream');
+ assert.deepEqual(new Uint8Array(await downloaded.arrayBuffer()),bytes);
+ const changed=bytes.slice();changed[4]++;
+ assert.equal((await c26PrivateFeedRoute(request('POST',changed),env)).status,422);
+ const source=await c26PrivateFeedRoute(auth('GET'),env);
+ assert.deepEqual(new Uint8Array(await source.arrayBuffer()),body());
+ assert.equal(objects.size,2);
+});

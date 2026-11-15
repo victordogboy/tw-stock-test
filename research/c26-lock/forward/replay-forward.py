@@ -7,8 +7,12 @@ import sys,json,importlib.util,hashlib,copy,ast
 import numpy as np,pandas as pd
 from checkpoint_runtime import install,dumps,loads,ENGINE_SHA
 ROOT=Path(__file__).resolve().parents[1];PRIVATE=Path('.c26-private');OUT=PRIVATE/'replay';OUT.mkdir(parents=True,exist_ok=True)
-sys.path.insert(0,'/mnt/data')
-sp=importlib.util.spec_from_file_location('c26_frozen_forward',ROOT/'source/C26_FROZEN_ENGINE.py');e=importlib.util.module_from_spec(sp);sp.loader.exec_module(e)
+if (PRIVATE/'c26-runtime.npz').exists():
+ from portable_runtime import load_inputs
+ e=load_inputs(PRIVATE/'c26-runtime.npz',ROOT)
+else:
+ sys.path.insert(0,'/mnt/data')
+ sp=importlib.util.spec_from_file_location('c26_frozen_forward',ROOT/'source/C26_FROZEN_ENGINE.py');e=importlib.util.module_from_spec(sp);sp.loader.exec_module(e)
 r,nav,det=e.replay_c26('C26_FROZEN',detail=True)
 assert len(nav)==1407 and len(det['orders'])==1758
 assert abs(r['return_pct']-1720.495844396837)<1e-9 and abs(r['mdd_pct']+17.989769234703846)<1e-9
@@ -200,4 +204,5 @@ for day_index in range(n0,final_n):
 public={'lock_id':plan['lock_id'],'simulator_sha256':ENGINE_SHA,'first_date':dates[0],'last_date':dates[-1],'verified_dates':dates,'snapshots':snapshots,'orders':public_orders,'audited':True,'source_sha256':hashlib.sha256((PRIVATE/'forward-eod.json.gz').read_bytes()).hexdigest()}
 public_dir=Path('public/r1494a/c26/data');(public_dir/'forward-replay.json').write_text(json.dumps(public,ensure_ascii=False,allow_nan=False,separators=(',',':')))
 plan['forward_asset_sha256']=hashlib.sha256((public_dir/'forward-replay.json').read_bytes()).hexdigest();(public_dir/'verified-next-day-plan.json').write_text(json.dumps(plan,ensure_ascii=False,allow_nan=False,indent=2))
+(public_dir/'forward-replay-audit.json').write_text(json.dumps(report,indent=2))
 (OUT/'audit.json').write_text(json.dumps(report,indent=2));print('C26_NEXT_SESSION_PLAN',json.dumps(plan,ensure_ascii=False),flush=True)

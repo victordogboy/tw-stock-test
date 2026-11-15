@@ -107,7 +107,7 @@ export class C26PrivateStore {
   const path=new URL(request.url).pathname;
   if(path==='/c26-internal/upload'&&request.method==='POST'){
    let meta;try{meta=JSON.parse(request.headers.get('x-c26-source-metadata')||'null')}catch{return json({error:'Invalid metadata'},422)}
-   if(meta?.lock_id!==LOCK||meta.pool_sha256!==POOL||!/^2026-\d\d-\d\d$/.test(meta.source_as_of))return json({error:'Mismatched C26 source metadata'},422);
+   if(meta?.lock_id!==LOCK||meta.pool_sha256!==POOL||!/^20\d\d-\d\d-\d\d$/.test(meta.source_as_of))return json({error:'Mismatched C26 source metadata'},422);
    const body=new Uint8Array(await request.arrayBuffer());
    if(body.length!==meta.size_bytes||body.length>(meta.kind==='frozen_runtime'?RUNTIME_MAX_BYTES:MAX_BYTES)||hex(new Uint8Array(await crypto.subtle.digest('SHA-256',body)))!==meta.sha256)return json({error:'C26 source integrity failure'},422);
    const old=await this.ctx.storage.get('c26:private:latest_meta');
@@ -137,7 +137,7 @@ export class C26PrivateStore {
     body.set(v,offset);offset+=v.length;
    }
    if(offset!==meta.size_bytes||await sha256(body)!==meta.sha256)return json({error:'C26 private checksum mismatch'},503);
-   return new Response(body,{headers:{'content-type':'application/gzip','cache-control':'no-store','x-c26-live-trading':'blocked'}});
+   return new Response(body,{headers:{'content-type':meta.kind==='frozen_runtime'?'application/octet-stream':'application/gzip','cache-control':'no-store','x-c26-live-trading':'blocked'}});
   }
   return json({error:'C26 internal route missing'},404);
  }

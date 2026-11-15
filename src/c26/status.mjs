@@ -48,24 +48,45 @@ export async function c26StatusRoute(request,env){
  if(path.endsWith('/status')&&request.method!=='GET')return json({error:'GET required'},405);
  let upstream=null,err=null;
  const forward=await publicForwardCoverage(env);
- let publishedPlan=null,planGate='No fully validated frozen C26 forward plan published';
- if(forward?.next_exchange_trade_date&&env?.ASSETS?.fetch){
+ let publishedPlan=null,modelArchive=null,planGate='No fully validated frozen C26 forward plan published';
+ if(env?.ASSETS?.fetch){
   try{
    const resp=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/c26/data/verified-next-day-plan.json'));
    if(resp.ok){
-    const checked=validateC26NextDayPlan(await resp.json(),{
-     state:forward.state,checkpoint_ohlc_parity:forward.checkpoint_ohlc_parity,
-     full_market_last_verified:forward.source_as_of,
-     days:forward.days,
-     next_exchange_trade_date:forward.next_exchange_trade_date
+    const saved=await resp.json();
+    // Check the previously published model independently of today's source date.
+    // An expired plan must never erase an intact, already verified inventory.
+    const archiveCheck=validateC26NextDayPlan(saved,{
+     state:'source_staged',checkpoint_ohlc_parity:{pass:true},
+     full_market_last_verified:saved.signal_as_of,next_exchange_trade_date:saved.trade_date,
+     days:(saved.forward_replay?.verified_dates||[]).map(date=>({date,state:'available'}))
     });
-    if(checked.ok&&isCurrentC26PaperPlan(checked.plan.trade_date,new Date(Date.now()+8*3600000).toISOString()))publishedPlan=checked.plan;
-    else if(checked.ok)planGate='Published C26 paper plan has expired (Taiwan trading session ended or date passed)';
+    if(archiveCheck.ok&&/^[a-f0-9]{64}$/.test(saved.forward_asset_sha256||'')){
+     const ledgerRsp=await env.ASSETS.fetch(new Request('https://assets.internal/r1494a/c26/data/forward-replay.json'));
+     if(!ledgerRsp.ok)throw Error('Verified C26 ledger asset unavailable');
+     const bytes=await ledgerRsp.arrayBuffer();
+     const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+     const ledger=JSON.parse(new TextDecoder().decode(bytes));
+     if(hash!==saved.forward_asset_sha256||ledger.lock_id!==saved.lock_id||ledger.audited!==true||ledger.last_date!==saved.signal_as_of||JSON.stringify(ledger.verified_dates)!==JSON.stringify(saved.forward_replay.verified_dates)||ledger.snapshots?.length!==saved.forward_replay.trading_days||Math.abs(ledger.snapshots.at(-1).nav*3000000-saved.positions.equity_ntd)>.01)throw Error('Verified C26 ledger integrity mismatch');
+     modelArchive={as_of:saved.signal_as_of,asset_sha256:hash,verified_dates:ledger.verified_dates,
+      trading_days:ledger.snapshots.length,additional_order_rows:ledger.orders.length,equity_ntd:saved.positions.equity_ntd,
+      model_not_broker_account:true};
+    }
+    const checked=validateC26NextDayPlan(saved,forward?{
+     state:forward.state,checkpoint_ohlc_parity:forward.checkpoint_ohlc_parity,
+     full_market_last_verified:forward.source_as_of,days:forward.days,
+     next_exchange_trade_date:forward.next_exchange_trade_date
+    }:null);
+    if(checked.ok&&modelArchive&&isCurrentC26PaperPlan(checked.plan.trade_date,new Date(Date.now()+8*3600000).toISOString()))publishedPlan=checked.plan;
+    else if(checked.ok)planGate=modelArchive?'Published C26 paper plan has expired (Taiwan trading session ended or date passed)':'Verified C26 model ledger unavailable';
     else planGate=checked.reason;
    }
-  }catch{planGate='Failed to validate frozen C26 live-plan asset'}
+  }catch{planGate='Failed to validate frozen C26 model/plan asset'}
  }
- if(publishedPlan&&forward){forward.feature_parity='VERIFIED_C26_BOUNDARY_AND_FORWARD';forward.portfolio_replay='VERIFIED_THROUGH_'+publishedPlan.signal_as_of;}
+ if(modelArchive&&forward){
+  forward.portfolio_replay='VERIFIED_THROUGH_'+modelArchive.as_of;
+  if(modelArchive.as_of===forward.source_as_of)forward.feature_parity='VERIFIED_C26_BOUNDARY_AND_FORWARD';
+ }
  try{
   const endpoint=path.endsWith('/refresh')?'refresh':'snapshot';
   const method=endpoint==='refresh'?'POST':'GET';
@@ -79,10 +100,10 @@ export async function c26StatusRoute(request,env){
   model_version:'C26',lock_id:'C26-EVENT-CORR-LOCK-20261112',
   historical_as_of:HIST,source_status:err?'unavailable':source.state||upstream?.sync_status||'unknown',
   latest_market_data_as_of:latestMarket,source_error:sourceError||null,
-  forward_coverage:forward,
+  forward_coverage:forward,model_archive:modelArchive,
   refresh_market_only:path.endsWith('/refresh'),
   execution_pipeline:{
-   summary:publishedPlan?'verified_paper_plan':'source_ready_model_not_replayed',
+   summary:publishedPlan?'verified_paper_plan':modelArchive?'verified_model_plan_pending':'source_ready_model_not_replayed',
    latest_completed_eod:forward?.source_as_of||null,
    frozen_historical_as_of:HIST,
    eod_source:{state:forward?.state==='source_staged'?'verified_source_only':'needs_source_review',
@@ -92,10 +113,12 @@ export async function c26StatusRoute(request,env){
    private_source_persistence:forward?.private_storage_verified===true?'verified':'not_verified',
    frozen_python_historical_replay:'historical_verified_through_2026_10_27',
    python_forward_factor_rebuild:publishedPlan?'verified':'not_published',
-   python_forward_portfolio_replay:publishedPlan?'verified':'not_published',
+   python_forward_portfolio_replay:modelArchive?'verified_through_'+modelArchive.as_of:'not_published',
    next_day_plan:publishedPlan?'ready_for_manual_review':'blocked',
    source_refresh_does_not_execute_c26:true,
-   next_required_action:publishedPlan?null:'在受控 Python 執行環境重建全部 C26 原始因子，接續2026-10-27持倉、現金及委託；通過逐日一致性後才發布隔日計畫',
+   automatic_original_engine_replay:true,
+   automatic_replay_taipei:['交易日21:50','交易日07:30'],
+   next_required_action:publishedPlan?null:'等待自動排程完成原C26重播與對帳；保留最後已驗證持倉，不沿用過期委託',
   },
   data_requirements:{
    frozen_python_engine:publishedPlan?'verified_frozen_python_replay':'archived_not_runnable_on_worker',
@@ -106,7 +129,7 @@ export async function c26StatusRoute(request,env){
    next_day_plan_engine_parity:publishedPlan?'verified':'not_verified'
   },
   plan:publishedPlan||{readiness:'blocked',actions:[],signal_as_of:null,trade_date:forward?.next_exchange_trade_date||null,
-   reason:'C26尚未以凍結原始引擎重算2026-10-28以後的盤後資料與持倉；禁止沿用FC23/R1494-A訊號。',plan_gate_error:planGate},
-  no_live_positions:!publishedPlan,no_broker_orders:true,updated_at:new Date().toISOString()
+   reason:modelArchive?'模型持倉已核對至 '+modelArchive.as_of+'；最新盤前計畫待自動重播，不沿用過期委託。':'C26原引擎資料尚未完成驗證；暫不發布新委託。',plan_gate_error:planGate},
+  no_live_positions:!modelArchive,no_broker_orders:true,updated_at:new Date().toISOString()
  });
 }
