@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "nav_days": 1419,
+  "side_orders": 38,
+  "side_trades": 19,
+  "nav_max_absolute_error": 7.105427357601002e-15,
+  "minute_cases": 116,
+  "completed_minutes": 24360,
+  "opening_cases": 1419,
+  "fixture_sha256": "1e5da05b8be360d5a3a9a2f4e945aa620dd70719d2bac9b7ecd03eb731e21d51"
+}

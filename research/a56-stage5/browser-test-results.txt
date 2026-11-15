@@ -1,0 +1,19 @@
+✔ all historical data validate and default is preopen only (0.743432ms)
+✔ intraday state consumes only bars completed at the selected time (7.377607ms)
+✔ close shows completed trades while returning to preopen removes them (3.592136ms)
+✔ missing per-symbol minute history cannot be displayed as a confirmed signal (0.367098ms)
+PARITY {"opening":1419,"cases":116,"completed_minutes":24360}
+✔ legal ticks and frozen completed-day conditions (2.907537ms)
+✔ C recovery requires a later completed minute and C precedes B (0.988043ms)
+✔ unfinished, stale, missing, wrong-unit and malformed batches never advance (2.701016ms)
+✔ confirmed no trade differs from unknown; blocked symbols cannot re-enter (0.760187ms)
+✔ invalid second symbol rolls back first symbol too (0.38601ms)
+✔ Python frozen histories match every browser opening order and minute intent (182.685826ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 431.81118

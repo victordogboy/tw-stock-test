@@ -1,0 +1,46 @@
+name: A56 frozen minute signals and production assets
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'public/r1494a/c26/a56/**'
+      - 'tests/a56-*.test.mjs'
+      - 'research/a56-stage5/**'
+      - '.github/workflows/a56-minute-signals.yml'
+  pull_request:
+    paths:
+      - 'public/r1494a/c26/a56/**'
+      - 'tests/a56-*.test.mjs'
+      - 'research/a56-stage5/**'
+      - '.github/workflows/a56-minute-signals.yml'
+permissions: {contents: read}
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
+      - run: node --test tests/a56-signals.test.mjs tests/a56-page.test.mjs
+      - name: Check deployed A56 assets match this commit
+        if: github.event_name == 'push'
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';import {createHash} from 'node:crypto';
+          const hash=b=>createHash('sha256').update(b).digest('hex');
+          const paths=['index.html','app.mjs','signals.mjs','minutes.json.gz.b64'];
+          const root='https://tw-stock-api.victordogboy.workers.dev/r1494a/c26/a56/';
+          let last='';
+          for(let attempt=0;attempt<40;attempt++){
+           try{
+            for(const p of paths){
+             const r=await fetch(root+p+'?verify='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(15000)});
+             if(!r.ok)throw Error(p+' HTTP '+r.status);
+             if(hash(Buffer.from(await r.arrayBuffer()))!==hash(fs.readFileSync('public/r1494a/c26/a56/'+p)))throw Error(p+' hash mismatch');
+            }
+            console.log('A56_PRODUCTION_ASSETS_VERIFIED',JSON.stringify({attempt:attempt+1,paths,liveSignals:'blocked',brokerOrders:false}));process.exit(0);
+           }catch(e){last=e.message;await new Promise(r=>setTimeout(r,6500));}
+          }
+          throw Error(last);
+          JS
