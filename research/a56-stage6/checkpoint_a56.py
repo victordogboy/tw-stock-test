@@ -25,7 +25,7 @@ STATE_KEYS = STOCK_ARRAYS + DAY_ARRAYS + OTHER
 GLOBAL_KEYS = ['A32_ORDERS', 'A32_TRACE', 'A38_LOG']
 
 
-def install(runtime, source, *, expected_source_sha256, resume=None, capture_days=(), routes=None):
+def install(runtime, source, *, expected_source_sha256, resume=None, capture_days=(), routes=None, observer=None):
     """Return simulator and checkpoints; preserve original date/stock indices.
 
     The source is the fully integrated A56 simulator, rather than the original
@@ -62,6 +62,8 @@ def install(runtime, source, *, expected_source_sha256, resume=None, capture_day
             raise ValueError('Invalid side exit state')
 
     def capture(t, scope):
+        if observer is not None:
+            observer(t, scope)
         if t not in capture_days:
             return
         state = {key: copy.deepcopy(scope[key]) for key in STATE_KEYS}

@@ -28,12 +28,12 @@ test('missing, misordered and incomplete source data do not erase verified histo
  assert.equal(a56Readiness(cp,source).source,null);
 });
 test('GET route reads only sanitized assets and POST never triggers a refresh',async()=>{
- const paths=[];const env={ASSETS:{async fetch(r){paths.push(new URL(r.url).pathname);return Response.json(r.url.endsWith('checkpoint-verification.json')?cp:coverage)}}};
+ const paths=[];const env={ASSETS:{async fetch(r){paths.push(new URL(r.url).pathname);if(r.url.endsWith('latest-manifest.json'))return new Response('',{status:404});return Response.json(r.url.endsWith('checkpoint-verification.json')?cp:coverage)}}};
  const r=await a56StatusRoute(new Request('https://test/api/c26/a56/status'),env);
  assert.equal(r.status,200);assert.equal(r.headers.get('cache-control'),'no-store');
- assert.deepEqual((await r.json()).plan.actions,[]);assert.equal(paths.length,2);
+ assert.deepEqual((await r.json()).plan.actions,[]);assert.equal(paths.length,3);
  const post=await a56StatusRoute(new Request('https://test/api/c26/a56/status',{method:'POST'}),env);
- assert.equal(post.status,405);assert.equal(paths.length,2);
+ assert.equal(post.status,405);assert.equal(paths.length,3);
 });
 test('missing assets fail closed with no invented balances',async()=>{
  const r=await a56StatusRoute(new Request('https://test/api/c26/a56/status'),{}),s=await r.json();
