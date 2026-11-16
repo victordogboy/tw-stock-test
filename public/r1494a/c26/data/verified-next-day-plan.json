@@ -10,15 +10,15 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
-  "signal_as_of": "2026-11-13",
-  "trade_date": "2026-11-16",
+  "signal_as_of": "2026-11-16",
+  "trade_date": "2026-11-17",
   "forward_replay": {
     "first_date": "2026-10-28",
-    "last_date": "2026-11-13",
-    "trading_days": 13,
+    "last_date": "2026-11-16",
+    "trading_days": 14,
     "verified_dates": [
       "2026-10-28",
       "2026-10-29",
@@ -32,7 +32,8 @@
       "2026-11-10",
       "2026-11-11",
       "2026-11-12",
-      "2026-11-13"
+      "2026-11-13",
+      "2026-11-16"
     ],
     "complete": true
   },
@@ -100,7 +101,7 @@
     "independent_forward_factors": {
       "peer_max_abs_error": 0.0,
       "F5_T5_max_abs_error": 1.4880501553182768e-08,
-      "days": 13,
+      "days": 14,
       "stocks": 233,
       "passed": true
     }
@@ -111,15 +112,15 @@
     "holdings": [
       {
         "stock_id": "2801",
-        "quantity": 1888.2911179130865,
-        "price": 29.0,
-        "basis": 29.279387795194122,
-        "market_value_ntd": 54760.44241947951,
-        "unrealized_pct": -0.009542132408928983
+        "quantity": 1888.291117913088,
+        "price": 28.399999618530273,
+        "basis": 29.279387795194125,
+        "market_value_ntd": 53627.46702840581,
+        "unrealized_pct": -0.030034377180802707
       }
     ],
-    "cash_ntd": 50966431.2548797,
-    "equity_ntd": 51021191.69729918
+    "cash_ntd": 50966431.25487974,
+    "equity_ntd": 51020058.72190815
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
@@ -127,18 +128,18 @@
     {
       "action": "HOLD",
       "stock_id": "2801",
-      "signal_date": "2026-11-13",
-      "execute_date": "2026-11-16",
+      "signal_date": "2026-11-16",
+      "execute_date": "2026-11-17",
       "order_type": "HOLD",
-      "quantity": 1888.2911179130865,
+      "quantity": 1888.291117913088,
       "limit_or_stop_ntd": null,
-      "reference_price": 29.0,
+      "reference_price": 28.399999618530273,
       "reason": "持續持有",
       "stop_active": false,
-      "protective_stop": 28.1
+      "protective_stop": 28.0
     }
   ],
-  "target_exposure": 0.015434999999999996,
+  "target_exposure": 0.0010418625,
   "risk": {
     "port_risk": false,
     "dd_gate": true,
@@ -147,7 +148,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-16T03:00:04.810782+00:00",
+  "created_at": "2026-11-16T17:11:41.518579+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "55b7e15e67e4aa29bb3ce70d6ed82ea7b7ec063c99c2dcb9a7dca7e10fef21cd"
+  "forward_asset_sha256": "509343bca9803ae218761ae5f6a5f42572084848ba4f748e6475f766d235dbe2"
 }
