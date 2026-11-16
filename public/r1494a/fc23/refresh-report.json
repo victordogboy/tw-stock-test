@@ -1,11 +1,15 @@
 {
-  "generated_at": "2026-11-16T02:15:11.255Z",
-  "verified": true,
+  "generated_at": "2026-11-16T21:13:01.140Z",
+  "verified": false,
   "fc23_date": "2026-11-13",
   "market_date": "2026-11-13",
   "checked_through": "2026-11-15",
-  "sync_status": "current",
-  "last_error": null,
+  "sync_status": "blocked",
+  "last_error": {
+    "date": "2026-11-16",
+    "message": "公司行動或異常跳價待核實：3714",
+    "at": "2026-11-16T21:13:00.827Z"
+  },
   "snapshot_count": 13,
   "order_count": 5
 }
