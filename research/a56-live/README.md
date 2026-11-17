@@ -114,3 +114,13 @@ is requested for that symbol/day. This matches the archived retrospective
 coverage policy; it does not infer minute order or create an entry from daily
 high/low. Every potentially executable path still requires unchanged tick
 volume and OHLC reconciliation and sequential completed-minute simulation.
+
+Full-day Tick completeness now includes the 14:30 fixed-price session when
+reconciling to FinMind's full-day daily volume. Only original regular-session
+rows enter the minute array and its execution capacity. The original 95%–101%
+volume gate and 0.5% OHLC gate remain unchanged. Reproduced failure: 3324 on
+2026-11-17 has 4,056,000 regular-session shares plus 79,000 after-hours shares;
+excluding the latter before checking a 4,301,641-share daily total incorrectly
+failed the 95% source gate. The corrected total passes, while the minute array
+still contains exactly 4,056,000 shares. Missing volume, duplicated volume,
+wrong dates and inconsistent OHLC remain blocked by regression tests.

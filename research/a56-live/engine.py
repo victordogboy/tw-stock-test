@@ -187,24 +187,36 @@ def tick_minutes(sc,raw,date,code,t,j):
         with urllib.request.urlopen(req,timeout=100) as r:data=json.load(r)
         if data.get('status')!=200 or not isinstance(data.get('data'),list):raise ValueError('Verified FinMind tick response missing')
         file.write_bytes(gzip.compress(json.dumps(data).encode()))
-    rows=[]
-    for x in data['data']:
+    d=next(x for x in raw['days'][date]['price'] if str(x['stock_id'])==code)
+    return aggregate_ticks(data['data'],d,date,code)
+
+
+def aggregate_ticks(ticks,d,date,code):
+    """Reconcile full-day volume, but simulate only the original session bars.
+
+    FinMind daily volume includes the 14:30 fixed-price session. It must count
+    toward source completeness, never toward 09:00-12:30 execution capacity.
+    The frozen 95%-101% volume gate and 0.5% OHLC gate are unchanged.
+    """
+    rows=[];full_day_volume=0.
+    for x in ticks:
         if str(x.get('stock_id',code))!=code or x.get('date',date)!=date:raise ValueError('Wrong tick stock/date')
         clock=str(x.get('Time',x.get('time','')));parts=clock.split(':')
         if len(parts)<3:raise ValueError('Tick timestamp missing')
         k=(int(parts[0])-9)*60+int(parts[1]);p=float(x['deal_price']);v=float(x['volume'])
-        if 0<=k<=275 and p>0 and v>0:rows.append((clock,k,p,v))
-    rows.sort();assert rows,'Missing tick trades'
-    d=next(x for x in raw['days'][date]['price'] if str(x['stock_id'])==code)
-    total=sum(x[3] for x in rows)
-    factors=[v for v in [1.,1000.] if .95<=total*v/d['volume']<=1.01]
-    if len(factors)!=1:raise ValueError(f'Tick/daily volume not reconciled: date={date} code={code} tick_volume={total} daily_volume={d["volume"]} rows={len(rows)} ratio={total/d["volume"]}')
+        if not(np.isfinite(p) and np.isfinite(v) and p>0 and v>0):raise ValueError('Invalid tick price/volume')
+        full_day_volume+=v
+        if 0<=k<=275:rows.append((clock,k,p,v))
+    rows.sort()
+    if not rows:raise ValueError('Missing regular-session tick trades')
+    if not(np.isfinite(d['volume']) and d['volume']>0):raise ValueError('Daily volume missing')
+    factors=[v for v in [1.,1000.] if .95<=full_day_volume*v/d['volume']<=1.01]
+    if len(factors)!=1:raise ValueError(f'Tick/daily volume not reconciled: date={date} code={code} full_day_tick_volume={full_day_volume} daily_volume={d["volume"]} rows={len(rows)}')
     factor=factors[0];z=np.full((276,5),np.nan)
     for clock,k,p,v in rows:
         if np.isnan(z[k,0]):z[k]=[p,p,p,p,0]
         z[k,1]=max(z[k,1],p);z[k,2]=min(z[k,2],p);z[k,3]=p;z[k,4]+=v*factor
-    good=np.isfinite(z[:,0]);obs=z[good]
+    obs=z[np.isfinite(z[:,0])]
     values=[obs[0,0],obs[:,1].max(),obs[:,2].min(),obs[-1,3]]
     if any(abs(x/y-1)>.005 for x,y in zip(values,[d['open'],d['high'],d['low'],d['close']])):raise ValueError('Tick/daily OHLC not reconciled')
     return z
-
