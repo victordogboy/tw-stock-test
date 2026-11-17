@@ -8,8 +8,8 @@ const coverage=read('public/r1494a/c26/data/forward-status.json');
 test('real combined account checkpoint is resumable but source coverage never publishes an A56 plan',()=>{
  const s=a56Readiness(cp,coverage);
  assert.equal(s.checkpoint.as_of,'2026-11-12');assert.equal(s.checkpoint.resume_checks,6);
- assert.equal(s.source.as_of,'2026-11-13');
- assert.deepEqual(s.required_replay_dates,[{date:'2026-11-13',source_state:'available'}]);
+ assert.equal(s.source.as_of,coverage.full_market_last_verified);
+ assert.deepEqual(s.required_replay_dates,coverage.days.filter(d=>d.date>cp.as_of&&d.date<=coverage.full_market_last_verified).map(d=>({date:d.date,source_state:d.state})));
  assert.equal(s.plan.readiness,'blocked');assert.deepEqual(s.plan.actions,[]);
  assert.equal(s.blockers.length,1);assert.equal(s.blockers[0].code,'A56_FORWARD_REPLAY_REQUIRED');
 });
@@ -24,7 +24,7 @@ test('missing, misordered and incomplete source data do not erase verified histo
  for(const source of [null,{...coverage,days:[...coverage.days].reverse()},{...coverage,state:'running'}]){
   const s=a56Readiness(cp,source);assert.equal(s.checkpoint.as_of,cp.as_of);assert.equal(s.source,null);assert.deepEqual(s.plan.actions,[]);
  }
- const source=structuredClone(coverage);source.days.find(x=>x.date==='2026-11-13').state='missing';
+ const source=structuredClone(coverage);source.days.find(x=>x.date===source.full_market_last_verified).state='missing';
  assert.equal(a56Readiness(cp,source).source,null);
 });
 test('GET route reads only sanitized assets and POST never triggers a refresh',async()=>{
@@ -45,3 +45,4 @@ test('a verified plan can precommit an opening allocation without inventing fixe
  assert.equal(validateA56Delta(d,m,cp,coverage),true);
  d.plan.actions.at(-1).target=Infinity;assert.equal(validateA56Delta(d,m,cp,coverage),false);
 });
+

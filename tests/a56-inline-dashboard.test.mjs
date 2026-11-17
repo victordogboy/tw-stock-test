@@ -29,7 +29,7 @@ test('all four original dashboard tabs receive A56 holdings, plans, yearly/month
  assert.ok(node('#annual').innerHTML.includes('2026'));assert.ok(node('#monthly').innerHTML.includes('2026-11'));
  assert.ok(node('#orderRows').innerHTML.includes('未成交'));assert.ok(node('#orderRows').innerHTML.includes('反轉'));
  assert.ok(node('#rulesMain').innerHTML.includes('B跨日收復'));assert.ok(node('#dataFacts').innerHTML.includes(delta.as_of));
- assert.ok(node('#dailyWhy').textContent.includes('未達大盤急跌警戒'));
+ assert.ok(node('#dailyWhy').textContent.includes(delta.plan.warning?'大盤急跌警戒啟動':'未達大盤急跌警戒'));
  assert.ok(node('#chart').innerHTML.includes('polyline'));assert.ok(node('header .brand').innerHTML.includes('A56'));
 });
 test('polling reads current data without requeuing; pressing refresh enqueues again',async()=>{
@@ -61,3 +61,4 @@ test('main page wires A56 into every original view and remembered strategy selec
  for(const text of ['value="A56"','loadA56MonitorSnapshot','renderA56Monitor','renderA56Performance','renderA56Monthly','renderA56Orders','exportA56Orders'])assert.ok(html.includes(text),text);
  assert.ok(decorator.includes('decorateA56Monitor'));assert.ok(html.includes("['R1494-A','FC23','C26','A56'].includes"));
 });
+

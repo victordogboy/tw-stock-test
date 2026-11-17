@@ -5,9 +5,16 @@ test('expired verified plan reports expiry, preserves latest inventory, and publ
  const RealDate=Date,now=RealDate.parse('2099-01-01T00:00:00Z');
  globalThis.Date=class extends RealDate{constructor(...a){super(...(a.length?a:[now]))}static now(){return now}};
  try{
-  const env={ASSETS:{fetch:async r=>new Response(read(new URL(r.url).pathname.split('/c26/')[1]))}};
-  const r=await a56StatusRoute(new Request('https://test/api/c26/a56/status'),env),s=await r.json();
   const manifest=JSON.parse(read('a56/latest-manifest.json'));
+  const coverage=JSON.parse(read('data/forward-status.json'));
+  coverage.full_market_last_verified=manifest.as_of;
+  coverage.next_exchange_trade_date=manifest.trade_date;
+  coverage.days=coverage.days.filter(d=>d.date<=manifest.as_of);
+  const env={ASSETS:{fetch:async r=>{
+   const path=new URL(r.url).pathname.split('/c26/')[1];
+   return path==='data/forward-status.json'?Response.json(coverage):new Response(read(path));
+  }}};
+  const r=await a56StatusRoute(new Request('https://test/api/c26/a56/status'),env),s=await r.json();
   assert.equal(s.model_archive.as_of,manifest.as_of);assert.deepEqual(s.plan.actions,[]);
   assert.equal(s.plan.readiness,'blocked');assert.equal(s.blockers[0].code,'PLAN_EXPIRED');assert.ok(s.plan.reason.includes('已過期'));
   assert.ok(!s.plan.reason.includes('需由 A56 原合併帳本逐日重播'));

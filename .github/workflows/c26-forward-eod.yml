@@ -60,7 +60,7 @@ jobs:
           node-version: 24
       - name: Validate script and archive fingerprint
         run: |
-          node --test tests/a56-refresh-needed.test.mjs tests/a56-refresh.test.mjs tests/a56-status-expiry.test.mjs
+          node --test tests/a56-refresh-needed.test.mjs tests/a56-refresh.test.mjs tests/a56-status-expiry.test.mjs tests/a56-continuation.test.mjs
           node --check research/c26-lock/forward/stage-finmind.mjs
           node --check research/c26-lock/forward/diagnose-rotation.mjs
           node --check research/c26-lock/forward/sync-private-store.mjs
