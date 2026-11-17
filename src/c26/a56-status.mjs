@@ -72,6 +72,7 @@ export async function a56StatusRoute(request,env){
    }
   }catch{status.blockers.push({code:'A56_FORWARD_INVALID',message:'A56 接續資料完整性驗證未通過，保留最後已驗證封存。'});}
  }
+ if(status.plan.readiness==='blocked')status.plan.reason=status.blockers.map(x=>x.message).join(' ');
  return new Response(JSON.stringify({...status,updated_at:new Date().toISOString()}),{headers});
 }
 
@@ -105,3 +106,4 @@ export function validateA56Delta(d,m,c,source){
    a.side==='BUY'&&(!Number.isFinite(a.level)||a.level<=0)||a.side==='SELL'&&(!Number.isFinite(a.quantity)||a.quantity<=0)))return false;
  return Number.isFinite(p.target)&&p.target>=0&&p.target<=1.000001;
 }
+

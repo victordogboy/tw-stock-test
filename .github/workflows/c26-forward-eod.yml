@@ -2,7 +2,7 @@ name: C26 automatic original-engine replay and next-session plan
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '7,22,37,52 * * * *'
     - cron: '50 13 * * 1-5'
     - cron: '30 23 * * 0-4'
   push:
@@ -11,6 +11,8 @@ on:
       - 'research/c26-lock/forward/**'
       - 'research/a56-live/**'
       - 'tests/c26-forward-stage.test.mjs'
+      - 'tests/a56-refresh*.test.mjs'
+      - 'src/c26/a56-refresh.mjs'
       - 'tests/c26-github-oidc.test.mjs'
       - 'src/c26/github-oidc.mjs'
       - 'src/c26/private-feed.mjs'
@@ -27,6 +29,9 @@ jobs:
     outputs:
       proceed: ${{ steps.gate.outputs.proceed }}
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 24}
       - id: gate
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -34,12 +39,14 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import fs from 'node:fs';
-          let proceed=process.env.EVENT_NAME!=='schedule'||process.env.CRON!=='*/5 * * * *';
-          if(!proceed){
-            const r=await fetch('https://tw-stock-api.victordogboy.workers.dev/api/c26/a56/refresh-status',{signal:AbortSignal.timeout(20000)});
-            if(r.ok)proceed=['queued','running'].includes((await r.json()).state);
-          }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT,'proceed='+proceed+'\n');
+          import {refreshDecision} from './research/a56-live/refresh-needed.mjs';
+          const read=async path=>{
+            try{const r=await fetch('https://tw-stock-api.victordogboy.workers.dev'+path,{cache:'no-store',signal:AbortSignal.timeout(20000)});return r.ok?await r.json():null}catch{return null}
+          };
+          const [queue,status]=await Promise.all([read('/api/c26/a56/refresh-status'),read('/api/c26/a56/status')]);
+          const decision=refreshDecision({event:process.env.EVENT_NAME,cron:process.env.CRON,queue,status});
+          console.log('A56_REFRESH_DECISION',JSON.stringify(decision));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,'proceed='+decision.proceed+'\n');
           JS
   stage:
     needs: requested
@@ -53,6 +60,7 @@ jobs:
           node-version: 24
       - name: Validate script and archive fingerprint
         run: |
+          node --test tests/a56-refresh-needed.test.mjs
           node --check research/c26-lock/forward/stage-finmind.mjs
           node --check research/c26-lock/forward/diagnose-rotation.mjs
           node --check research/c26-lock/forward/sync-private-store.mjs
@@ -110,6 +118,7 @@ jobs:
           node research/c26-lock/forward/sync-private-store.mjs publish
           node research/c26-lock/forward/sync-private-store.mjs status
       - name: Publish audited model atomically; retain previous model on replay failure
+        id: publication
         env:
           MODEL_OUTCOME: ${{ steps.model.outcome }}
           A56_OUTCOME: ${{ steps.a56model.outcome }}
@@ -150,6 +159,7 @@ jobs:
         continue-on-error: true
         env:
           A56_OUTCOME: ${{ steps.a56model.outcome }}
+          PUBLICATION_OUTCOME: ${{ steps.publication.outcome }}
         run: node research/a56-live/workflow-queue.mjs finish
       - name: Report A56 replay failure without publishing an unverified plan
         if: steps.a56model.outcome == 'failure'
@@ -166,3 +176,4 @@ jobs:
         run: |
           echo '::error::C26 replay failed. Source diagnostics and previous verified model retained; no new trade plan published.'
           exit 1
+
