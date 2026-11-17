@@ -68,6 +68,13 @@ class A56Engine:
         for c in self.candidates_at(t)[:hold]:
             j=self.codes.index(c.code)
             if c.code in blocked or not self.executable(t,j):continue
+            # Retrospective coverage guard only: a day whose verified extremes
+            # cannot reach either path needs no tick execution input. This does
+            # not choose an entry or infer the order of intraday high and low.
+            day_high=float(self.sc['H'][t,j]);day_low=float(self.sc['L'][t,j])
+            possible_c=day_low<=c.c_arm and day_high>=c.c_floor
+            possible_b=c.b_floor is not None and day_high>=c.b_floor and day_low<=c.b_cap
+            if not (possible_c or possible_b):continue
             if self.minute_loader is None:raise ValueError('Verified minute source is required for active A56 entry')
             z=self.minute_loader(d['date'],c.code,t,j)
             monitor=live.MinuteMonitor(c,budget,hold,nav_twd)
@@ -191,7 +198,7 @@ def tick_minutes(sc,raw,date,code,t,j):
     d=next(x for x in raw['days'][date]['price'] if str(x['stock_id'])==code)
     total=sum(x[3] for x in rows)
     factors=[v for v in [1.,1000.] if .95<=total*v/d['volume']<=1.01]
-    if len(factors)!=1:raise ValueError('Tick/daily volume units or completeness not reconciled')
+    if len(factors)!=1:raise ValueError(f'Tick/daily volume not reconciled: date={date} code={code} tick_volume={total} daily_volume={d["volume"]} rows={len(rows)} ratio={total/d["volume"]}')
     factor=factors[0];z=np.full((276,5),np.nan)
     for clock,k,p,v in rows:
         if np.isnan(z[k,0]):z[k]=[p,p,p,p,0]
@@ -200,3 +207,4 @@ def tick_minutes(sc,raw,date,code,t,j):
     values=[obs[0,0],obs[:,1].max(),obs[:,2].min(),obs[-1,3]]
     if any(abs(x/y-1)>.005 for x,y in zip(values,[d['open'],d['high'],d['low'],d['close']])):raise ValueError('Tick/daily OHLC not reconciled')
     return z
+

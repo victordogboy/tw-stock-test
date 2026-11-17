@@ -58,7 +58,7 @@ current instructions. A stale plan does not erase verified inventory.
 Opening A56 in a page session or pressing the existing refresh button POSTs
 `/api/c26/a56/refresh`. An isolated object in the existing `SCAN_JOBS` namespace
 deduplicates requests and stores progress. No new namespace is created.
-The existing protected workflow checks the queue every five minutes and also
+The existing protected workflow checks at minutes 07/22/37/52 each hour and also
 retains its 07:30/21:50 Taipei scheduled updates. GitHub scheduling can be
 delayed; the UI displays queued/running/completed/failed and the actual data
 date instead of promising an immediate calculation.
@@ -92,3 +92,25 @@ Snapshot assets are immutable history; new `plan_history` entries preserve
 previously published post-anchor premarket plans without importing tomorrow's
 execution prices. R1494-A and FC23 calculations are unchanged. Baseline
 survivorship/universe selection and historical fill-proxy limitations remain.
+
+
+
+## Refresh recovery (2026-11-18)
+
+Periodic checks compare the latest verified source date, the independent A56
+account date, and the exchange calendar's next trade date. An old completed
+request cannot suppress ingestion of a newly completed session. A failed or
+unavailable status read requests an original-engine check instead of silently
+skipping it. Offsets avoid the start-of-hour scheduler peak; GitHub schedules
+can still be delayed and this is not an immediate intraday service. Queue
+responses disclose elapsed wait and delayed status while preserving request
+identity. A finished job is marked complete only when A56 replay AND the
+atomic asset publication succeed. Expired plans explain expiry and retain
+verified inventory without publishing stale instructions.
+
+Historical tick requirements use an impossibility guard: when complete,
+verified daily extremes cannot reach B or C levels, no execution tick input
+is requested for that symbol/day. This matches the archived retrospective
+coverage policy; it does not infer minute order or create an entry from daily
+high/low. Every potentially executable path still requires unchanged tick
+volume and OHLC reconciliation and sequential completed-minute simulation.
