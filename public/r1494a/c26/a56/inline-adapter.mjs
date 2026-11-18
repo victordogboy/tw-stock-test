@@ -1,4 +1,4 @@
-import {syncA56Quotes} from './quotes.mjs?v=20261118-explain1';
+import {syncA56Quotes} from './quotes.mjs?v=20261118-close1';
 /* A56 combined account inside the original four-tab monitoring dashboard. */
 const ROOT='/r1494a/c26/a56/',LOCK='A56-LOCK-20261116';
 const $=id=>document.querySelector('#'+id),esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -83,7 +83,7 @@ export async function loadA56MonitorSnapshot(shared,{refresh=false}={}){
  return {model_version:'A56',ledger:LOCK,names:shared.names||{},dates,snapshots,orders,byDate,curves,plan,
   planHistory:{},benchmarkCarry:{},status:{data_as_of:dates.at(-1),checkedThrough:server.source?.as_of||base.as_of,
     sync_status:pending?'running':ready?'current':'model_pending',price_updated_at:server.updated_at,
-    lastError:error?{message:error}:null},a56:{base,server,queue,ready,historyPlans:base.core_plans||[],legacy,planHistory:delta?.plan_history||{}}};
+    lastError:error?{message:error}:null},a56:{base,server,queue,ready,historyPlans:base.core_plans||[],legacy,planHistory:delta?.plan_history||{},reviewPlans:delta?[...Object.values(delta.plan_history||{}),delta.plan]:[]}};
 }
 const factor=(D,I)=>(Number($('capital')?.value)||0)/D.snapshots[I].nav;
 function activePlan(D,I){

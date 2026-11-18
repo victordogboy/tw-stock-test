@@ -6,13 +6,13 @@ const delta=JSON.parse(read('r1494a/c26/a56/forward.json'));
 const manifest=JSON.parse(read('r1494a/c26/a56/latest-manifest.json'));
 const shared=JSON.parse(gunzipSync(read('r1494a/snapshot.bin')));
 const elements=new Map();const node=id=>{if(!elements.has(id))elements.set(id,{value:id==='#capital'?'1000000':id==='#monthYear'?'2026':'',innerHTML:'',textContent:'',disabled:false});return elements.get(id)};
-globalThis.document={querySelector:node};let requests=0,corrupt=false;
+globalThis.document={querySelector:node};let requests=0,corrupt=false,expired=false;
 globalThis.fetch=async url=>{
  if(url==='/api/c26/a56/refresh'){requests++;return Response.json({state:'queued',phase:'測試更新佇列'})}
  if(url==='/api/c26/a56/refresh-status')return Response.json({state:'queued',phase:'測試更新佇列'});
  if(url==='/api/c26/a56/status')return Response.json({model_version:'A56',lock_id:base.lock_id,
   model_archive:{as_of:delta.as_of,asset_sha256:corrupt?'0'.repeat(64):manifest.forward_sha256,verified_dates:delta.plan.verified_dates},
-  source:{as_of:delta.as_of,next_trade_date:delta.plan.trade_date},plan:delta.plan});
+  source:{as_of:delta.as_of,next_trade_date:delta.plan.trade_date},plan:expired?{readiness:'blocked',actions:[],reason:'盤前計畫已過期'}:delta.plan});
  return new Response(read(url.replace(/^\//,'')));
 };
 let D;
@@ -62,3 +62,7 @@ test('main page wires A56 into every original view and remembered strategy selec
  assert.ok(decorator.includes('decorateA56Monitor'));assert.ok(html.includes("['R1494-A','FC23','C26','A56'].includes"));
 });
 
+
+test('closed-session expiry blocks new instructions but retains SHA-verified plan for review',async()=>{
+ expired=true;try{const d=await loadA56MonitorSnapshot(shared);assert.equal(d.a56.ready,false);assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);assert.ok(d.a56.reviewPlans.some(p=>p.trade_date===delta.plan.trade_date&&p.actions.length===delta.plan.actions.length));}finally{expired=false}
+});
