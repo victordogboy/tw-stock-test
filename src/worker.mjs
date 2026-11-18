@@ -1,7 +1,6 @@
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
 import {c26StatusRoute} from './c26/status.mjs';
 import {a56QuotesRoute} from './c26/a56-quotes.mjs';
-import {a56QuotesRoute} from './c26/a56-quotes.mjs';
 import {a56StatusRoute} from './c26/a56-status.mjs';
 import {A56RefreshState,a56RefreshRoute} from './c26/a56-refresh.mjs';
 import {C26PrivateStore,c26PrivateFeedRoute} from './c26/private-feed.mjs';
@@ -52,7 +51,6 @@ export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
  fetch(request,env,ctx){
   if(['/api/c26/a56/refresh','/api/c26/a56/refresh-status','/api/c26/a56/begin','/api/c26/a56/finish'].includes(new URL(request.url).pathname))return a56RefreshRoute(request,env);
-  if(new URL(request.url).pathname==='/api/c26/a56/quotes')return a56QuotesRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/quotes')return a56QuotesRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/status')return a56StatusRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c26/private-feed'))return c26PrivateFeedRoute(request,env);
