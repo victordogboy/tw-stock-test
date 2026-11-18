@@ -1,3 +1,4 @@
+import {syncA56Quotes} from './quotes.mjs?v=20261118-1';
 /* A56 combined account inside the original four-tab monitoring dashboard. */
 const ROOT='/r1494a/c26/a56/',LOCK='A56-LOCK-20261116';
 const $=id=>document.querySelector('#'+id),esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -102,6 +103,7 @@ function activePlan(D,I){
 }
 export function renderA56Monitor(D,I){
  const s=D.snapshots[I],p=activePlan(D,I),latest=I===D.dates.length-1,ready=latest&&D.a56.ready,scale=factor(D,I);
+ syncA56Quotes(D,I,p);
  const name=c=>c?(D.names[c]||c)+' '+c:'核心組合配置';
  $('date').value=I;text('count',s.holdings.length+' / 8');text('exposure',pct(s.exposure));text('target',pct(s.target));
  const pnl=s.holdings.reduce((v,h)=>v+h.unrealizedNotional,0)*scale;text('pnl',(pnl>=0?'+':'')+num(pnl,0)+' 元');
@@ -162,3 +164,4 @@ export function decorateA56Monitor(D){
  html('execution-study-v29','<details><summary><strong>A56 三路徑成交與未成交處理</strong></summary><p>A盤前只預選一檔，開盤超過昨收103%就放棄。B/C使用已完成分鐘確認收復，下一分鐘價格必須在區間內；沒有有效成交價、資料不足或超出容量均不得假設成交。最晚12:30；持倉不能以未成交賣單提早釋放資金。</p></details>');
  html('rulesMain','<h2>A56 完整策略與資料</h2><ol><li><b>原C26核心不變：</b>事件換股；原趨勢、RS、EMA、ATR、法人與動態同儕評分；虧損完整離場冷卻26交易日，40日Pearson相關性≥0.60且相似群組曝險≥30%限制新建倉。最多8檔、核心單股16%目標、新核心建倉至少1萬元。保護停損依原啟用條件，非固定每日掛單。</li><li><b>大盤警戒：</b>前五個完成交易日，最差單日跌幅至少6%或累計跌幅至少10%。個股五日跌幅至少3%，依急跌前60日強度取前四；不使用當天尚未完成日K選股。</li><li><b>A隔日開盤：</b>昨低≤前收92.5%，昨收較昨低反彈≥1%；盤前最多預選一檔，買價最高昨收103%，股數不超過昨量0.1%。開盤不符則放棄，不換下一檔。</li><li><b>B跨日收復：</b>前1～2日曾跌至原參考價92.5%，尚未收復94%；已完成分K收復94%後，下一分鐘價格須在94%～96.5%，數量上限最近三根完成分K量中位數2.5%。</li><li><b>C盤中反轉：</b>今日先跌至昨收92.5%，後續另一根完成分K收復94%，下一分鐘價格在94%～96.5%；容量中位數5%。B/C同時成立先C，同分鐘跨股票依代號順序；最晚12:30。</li><li><b>資金：</b>核心目標曝險≥40%或有新核心進場時不開反轉新單。首批最多4檔，首次成交次日最多3檔，每批名義配置前日淨值40%；扣除核心預留，並受現金、容量和全帳戶8檔限制。連續一段警戒只開一輪。</li><li><b>反轉出場：</b>首次成交後第5交易日開盤，或警戒解除、核心恢復提前開盤賣出。鎖跌停或無有效開盤價則遞延；未另設固定停損停利。</li><li><b>資料與驗收：</b>FinMind日K與法人、原普通股市場代理；反轉執行需要時抓取Tick並與完整日K和成交量核對，再聚合分K。歷史委託、持股、現金與每日淨值獨立對帳；最新計畫在讀取下一盤成交資料前擷取。成本買0.14275%＋賣0.44275%，總0.5855%。</li></ol><p><a href="./c26/a56/">A56逐分鐘歷史核對頁</a> · <a href="https://github.com/victordogboy/tw-stock-test/tree/main/research/a56-live">原引擎與驗收程式</a></p>');
 }
+
