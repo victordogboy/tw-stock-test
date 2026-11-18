@@ -62,6 +62,8 @@ function mount(){
  setInterval(()=>refresh(),15000);
 }
 export function syncA56Quotes(D,I,plan){
+ // Snapshot-only renderers have no live DOM; quotes are a browser enhancement.
+ if(typeof document==='undefined'||typeof document.createElement!=='function')return;
  mount();active=I===D.dates.length-1;
  const rows=active?collectQuoteCodes(D.snapshots[I],plan):[],key=rows.map(r=>r.code+':'+r.roles.join(',')).join('|');
  names=D.names||{};
