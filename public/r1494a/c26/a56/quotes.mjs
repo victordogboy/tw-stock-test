@@ -1,3 +1,4 @@
+import {assessExecution,executionLabels,routeLabels} from './execution.mjs?v=20261118-1';
 /* Live market view is deliberately separate from the frozen A56 ledger. */
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
@@ -11,7 +12,7 @@ export function collectQuoteCodes(snapshot,plan){
  return [...rows.values()];
 }
 let panel,active=false,universe=[],names={},signature='',lastAttempt=0,busy=false,generation=0;
-let lastData=null,lastError='';
+let lastData=null,lastError='',executionContext=null;
 const visible=()=>active&&document.querySelector('#strategy')?.value==='A56'&&!document.hidden&&document.querySelector('#overview')?.classList.contains('active');
 function paint(){
  if(!panel)return;
@@ -31,15 +32,19 @@ function paint(){
    '<p class="sub" style="color:'+(stale||delay||!ok?'#92651b':'#4c6c60')+'">'+state+' · '+(ok?esc(time(q.source_time)):'請稍後重試')+'</p>'+
    (ok?'<a class="sub" target="_blank" rel="noopener noreferrer" href="'+esc(q.source_url)+'">Yahoo '+esc(q.symbol)+'</a>':'')+'</article>';
  }).join('')||'<p>目前沒有持股或計畫標的。</p>';
+ const executions=executionContext?assessExecution({...executionContext,quotes:lastData?.quotes||[]}):[];
+ panel.querySelector('[data-executions]').innerHTML=executions.map(r=>'<article class="a56-quote"><div class="row"><b>'+esc(names[r.code]||r.code)+' '+esc(r.code)+' · '+esc(routeLabels[r.route]||r.route)+'</b><strong style="color:'+(r.state==='model_filled'?'#226449':r.state==='price_match'?'#92651b':'#52635c')+'">'+esc(executionLabels[r.state])+'</strong></div>'+
+  (r.time?'<p><b>'+esc(time(r.time)==='—'?r.time:time(r.time))+'</b> · '+(r.state==='model_filled'?'模型成交價 ':'觀察參考價 ')+num(r.price)+'</p>':'')+
+  '<p>'+esc(r.reason)+'</p><p class="sub">券商實際成交：未確認'+(r.source_time?' · 行情截至 '+esc(time(r.source_time)):'')+'</p></article>').join('')||'<p class="sub">本盤沒有新委託，依原計畫管理持股。</p>';
  panel.querySelector('button').disabled=busy;
 }
 async function refresh(force=false){
  if(!visible()||busy||!universe.length||(!force&&Date.now()-lastAttempt<14500))return;
  busy=true;lastAttempt=Date.now();const epoch=generation,codes=universe.map(r=>r.code);paint();
  try{
-  const batches=[];for(let i=0;i<codes.length;i+=12)batches.push(codes.slice(i,i+12));
+  const batches=[];for(let i=0;i<codes.length;i+=6)batches.push(codes.slice(i,i+6));
   const results=await Promise.all(batches.map(async batch=>{
-   const r=await fetch('/api/c26/a56/quotes?codes='+batch.join(','),{cache:'no-store',signal:AbortSignal.timeout(18000)});
+   const r=await fetch('/api/c26/a56/quotes?codes='+batch.join(',')+'&minutes=1',{cache:'no-store',signal:AbortSignal.timeout(30000)});
    const d=await r.json();if(!Array.isArray(d.quotes))throw Error('報價服務 HTTP '+r.status);return d;
   }));
   if(epoch!==generation)return;
@@ -52,7 +57,7 @@ function mount(){
  if(panel)return;
  const style=document.createElement('style');style.textContent='.a56-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.a56-quote{border:1px solid #e0e7e2;border-radius:10px;padding:14px;min-width:0}.a56-quote-price{font-size:27px}.a56-ohl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:#607169}.a56-ohl b{display:block;font-size:18px;color:#233c32;margin-top:4px}.a56-quote p{margin:10px 0 5px}';document.head.append(style);
  panel=document.createElement('div');panel.className='panel';panel.id='a56IntradayQuotes';
- panel.innerHTML='<div class="row"><h3>盤中報價 · 當日 O／H／L</h3><button type="button">更新盤中報價</button></div><p class="sub" data-status></p><p class="sub">最新價及當日開盤／累計最高／累計最低；Yahoo 行情可能延遲，以各股報價時間為準。盤中行情不代表委託已成交。</p><div class="a56-quotes-grid" data-quotes></div>';
+ panel.innerHTML='<div class="row"><h3>盤中報價 · 當日 O／H／L</h3><button type="button">更新盤中報價</button></div><p class="sub" data-status></p><p class="sub">最新價及當日開盤／累計最高／累計最低；Yahoo 行情可能延遲，以各股報價時間為準。盤中行情不代表委託已成交。</p><div class="a56-quotes-grid" data-quotes></div><h3>今日委託成交追蹤</h3><p class="sub">A 僅判定開盤；B／C 使用完成分K判定路徑，再觀察下一分鐘開盤。價格符合仍須核對現金、名額及成交量；只有已驗證帳本才標示「模型已成交」。Yahoo 延遲期間的狀態仍未知，同檔不同路徑不重複計入成交。</p><div class="a56-quotes-grid" data-executions aria-live="polite"></div>';
  document.querySelector('#overview').prepend(panel);
  panel.querySelector('button').onclick=()=>refresh(true);
  document.querySelector('#refresh')?.addEventListener('click',()=>refresh(true));
@@ -65,8 +70,8 @@ export function syncA56Quotes(D,I,plan){
  // Snapshot-only renderers have no live DOM; quotes are a browser enhancement.
  if(typeof document==='undefined'||typeof document.createElement!=='function')return;
  mount();active=I===D.dates.length-1;
- const rows=active?collectQuoteCodes(D.snapshots[I],plan):[],key=rows.map(r=>r.code+':'+r.roles.join(',')).join('|');
- names=D.names||{};
+ const rows=active?collectQuoteCodes(D.snapshots[I],plan):[],key=JSON.stringify([plan,rows.map(r=>r.code+':'+r.roles.join(','))]);
+ names=D.names||{};executionContext={plan,snapshot:D.snapshots[I],orders:D.orders||[],ready:!!D.a56?.ready};
  if(key!==signature){signature=key;generation++;universe=rows;lastData=null;lastError='';lastAttempt=0}
  paint();refresh();
 }

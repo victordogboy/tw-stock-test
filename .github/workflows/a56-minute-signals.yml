@@ -42,7 +42,7 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs';import {createHash} from 'node:crypto';
           const hash=b=>createHash('sha256').update(b).digest('hex');
-          const paths=['index.html','app.mjs','signals.mjs','minutes.json.gz.b64','continuation.mjs','checkpoint-verification.json','inline-adapter.mjs','quotes.mjs','dashboard-history-index.json','dashboard-history.b64'];
+          const paths=['index.html','app.mjs','signals.mjs','minutes.json.gz.b64','continuation.mjs','checkpoint-verification.json','inline-adapter.mjs','quotes.mjs','execution.mjs','dashboard-history-index.json','dashboard-history.b64'];
           const root='https://tw-stock-api.victordogboy.workers.dev/r1494a/c26/a56/';
           let last='';
           for(let attempt=0;attempt<40;attempt++){

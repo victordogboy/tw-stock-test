@@ -1,4 +1,4 @@
-import {syncA56Quotes} from './quotes.mjs?v=20261118-1';
+import {syncA56Quotes} from './quotes.mjs?v=20261118-execution1';
 /* A56 combined account inside the original four-tab monitoring dashboard. */
 const ROOT='/r1494a/c26/a56/',LOCK='A56-LOCK-20261116';
 const $=id=>document.querySelector('#'+id),esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
