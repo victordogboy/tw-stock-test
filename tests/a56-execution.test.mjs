@@ -59,3 +59,9 @@ test('rendered cards show strategy, evidence and reason while escaping names',as
  for(const text of ['盤前策略價','實際行情／判定','836～857','849','為何符合','開盤價 ≤ 844','為何未買入'])assert.ok(html.includes(text),text);
  assert.ok(!html.includes('<script>'));assert.ok(html.includes('&lt;script&gt;'));assert.ok(html.includes('成交待核對'));
 });
+
+test('session extremes can rule out a trigger despite missing minutes',()=>{
+ const r=run([],{quotes:[{code:'3406',status:'available',trade_date:date,open:858,high:830,low:760,minutes:{status:'available',date,bars:[],missing_price_bars:2}}]});
+ assert.equal(r.find(x=>x.route==='B_reclaim').state,'waiting');assert.match(r.find(x=>x.route==='B_reclaim').reason,/830.*836/);
+ assert.equal(r.find(x=>x.route==='C_intraday').state,'waiting');assert.match(r.find(x=>x.route==='C_intraday').reason,/760.*758/);
+});

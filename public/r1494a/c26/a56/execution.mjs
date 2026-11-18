@@ -45,7 +45,11 @@ export function assessExecution({plan,snapshot,quotes=[],orders=[],ready=true}){
    evaluate(c.code,route,q=>{
     if(i>=slots||slots<=0||held.has(c.code))return {state:'blocked',reason:held.has(c.code)?'原帳本已持有同檔，不重複新增':i>=slots?'不在原引擎本盤前 '+slots+' 個候選名額內':'本盤無可用反轉名額'};
     if(q.minutes?.date!==plan.trade_date)return {state:'unknown',reason:'缺少該交易日的分鐘資料'};
-    return minuteEvidence(c,q.minutes,route);
+    const result=minuteEvidence(c,q.minutes,route);
+    // Session extremes can rule out a trigger even when individual minutes are missing.
+    if(result.state!=='price_match'&&route==='B_reclaim'&&positive(q.high)&&q.high<c.b_floor)return {...result,state:'waiting',reason:'當日最高 '+fmt(q.high)+' 尚未達收復價 '+fmt(c.b_floor)+'；截至行情時間未觸發 B 路徑'};
+    if(result.state!=='price_match'&&route==='C_intraday'&&!result.evidence?.arm&&positive(q.low)&&q.low>c.c_arm)return {...result,state:'waiting',reason:'當日最低 '+fmt(q.low)+' 仍高於急跌啟動價 '+fmt(c.c_arm)+'；截至行情時間未啟動 C 路徑'};
+    return result;
    });
   }
  });
