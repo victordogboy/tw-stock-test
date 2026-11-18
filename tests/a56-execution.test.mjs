@@ -36,3 +36,26 @@ test('Yahoo minute parsing excludes future/current unfinished signal bars and re
  raw.chart.result[0].timestamp.reverse();assert.equal(parseYahooMinutes(raw,'3406.TW',start+120000),null);
 });
 test('minute API bounds its provider request budget',async()=>{const r=await a56QuotesRoute(new Request('https://site/api?minutes=1&codes=1111,2222,3333,4444,5555,6666,7777'));assert.equal(r.status,400)});
+
+test('explanations retain chronological C evidence and show frozen thresholds beside execution price',()=>{
+ const rows=run([bar(0,760,760,745),bar(1,775,780,770),bar(2,780,780,775),bar(3,800,810,740)]);
+ const c=rows.find(r=>r.route==='C_intraday');
+ assert.equal(c.evidence.arm.low,745);assert.equal(c.evidence.reclaim.high,780);
+ assert.equal(c.comparisons[0].strategy,'先跌至 ≤ 758');assert.match(c.comparisons[0].observed,/09:00.*745/);
+ assert.match(c.comparisons[1].observed,/09:01.*780/);assert.match(c.comparisons[2].strategy,/771～791/);assert.match(c.comparisons[2].observed,/09:02.*780/);
+ assert.ok(c.comparisons.slice(0,3).every(x=>x.passed===true));
+});
+test('A explanation compares actual open to cap even though later price is inside the limit',()=>{
+ const a=run([bar(0,858,860,845),bar(1,844,846,836)])[0];assert.equal(a.comparisons[0].passed,false);assert.match(a.comparisons[0].strategy,/844/);assert.match(a.comparisons[0].observed,/858/);
+});
+test('later same-stock path is marked as an alternative, not an extra fill',()=>{
+ const rows=run([bar(0,858,860,845),bar(1,849,850,844),bar(2,760,760,745),bar(3,775,780,770),bar(4,780,780,775)]);
+ const c=rows.find(r=>r.route==='C_intraday');assert.equal(c.alternative_to.route,'B_reclaim');assert.equal(c.state,'price_match');assert.ok(!c.reason.includes('B_reclaim'));
+});
+test('rendered cards show strategy, evidence and reason while escaping names',async()=>{
+ const {renderExecutionCards}=await import('../public/r1494a/c26/a56/quotes.mjs');
+ const rows=run([bar(0,858,860,845),bar(1,849,850,844)]);
+ const html=renderExecutionCards(rows,{'3406':'<script>unsafe</script>'});
+ for(const text of ['盤前策略價','實際行情／判定','836～857','849','為何符合','開盤價 ≤ 844','為何未買入'])assert.ok(html.includes(text),text);
+ assert.ok(!html.includes('<script>'));assert.ok(html.includes('&lt;script&gt;'));assert.ok(html.includes('成交待核對'));
+});

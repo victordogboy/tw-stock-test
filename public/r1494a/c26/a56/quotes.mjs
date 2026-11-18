@@ -1,4 +1,4 @@
-import {assessExecution,executionLabels,routeLabels} from './execution.mjs?v=20261118-1';
+import {assessExecution,executionLabels,routeLabels} from './execution.mjs?v=20261118-explain1';
 /* Live market view is deliberately separate from the frozen A56 ledger. */
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const num=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
@@ -33,9 +33,7 @@ function paint(){
    (ok?'<a class="sub" target="_blank" rel="noopener noreferrer" href="'+esc(q.source_url)+'">Yahoo '+esc(q.symbol)+'</a>':'')+'</article>';
  }).join('')||'<p>目前沒有持股或計畫標的。</p>';
  const executions=executionContext?assessExecution({...executionContext,quotes:lastData?.quotes||[]}):[];
- panel.querySelector('[data-executions]').innerHTML=executions.map(r=>'<article class="a56-quote"><div class="row"><b>'+esc(names[r.code]||r.code)+' '+esc(r.code)+' · '+esc(routeLabels[r.route]||r.route)+'</b><strong style="color:'+(r.state==='model_filled'?'#226449':r.state==='price_match'?'#92651b':'#52635c')+'">'+esc(executionLabels[r.state])+'</strong></div>'+
-  (r.time?'<p><b>'+esc(time(r.time)==='—'?r.time:time(r.time))+'</b> · '+(r.state==='model_filled'?'模型成交價 ':'觀察參考價 ')+num(r.price)+'</p>':'')+
-  '<p>'+esc(r.reason)+'</p><p class="sub">券商實際成交：未確認'+(r.source_time?' · 行情截至 '+esc(time(r.source_time)):'')+'</p></article>').join('')||'<p class="sub">本盤沒有新委託，依原計畫管理持股。</p>';
+ panel.querySelector('[data-executions]').innerHTML=renderExecutionCards(executions,names);
  panel.querySelector('button').disabled=busy;
 }
 async function refresh(force=false){
@@ -55,9 +53,9 @@ async function refresh(force=false){
 }
 function mount(){
  if(panel)return;
- const style=document.createElement('style');style.textContent='.a56-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.a56-quote{border:1px solid #e0e7e2;border-radius:10px;padding:14px;min-width:0}.a56-quote-price{font-size:27px}.a56-ohl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:#607169}.a56-ohl b{display:block;font-size:18px;color:#233c32;margin-top:4px}.a56-quote p{margin:10px 0 5px}';document.head.append(style);
+ const style=document.createElement('style');style.textContent='.a56-quotes-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}.a56-quote{border:1px solid #e0e7e2;border-radius:10px;padding:14px;min-width:0}.a56-quote-price{font-size:27px}.a56-ohl{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;font-size:12px;color:#607169}.a56-ohl b{display:block;font-size:18px;color:#233c32;margin-top:4px}.a56-quote p{margin:10px 0 5px}.a56-executions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.a56-execution{font-size:14px;padding:18px}.a56-execution h4{font-size:17px;margin:0}.a56-execution .a56-result{padding:10px 12px;background:#f5f7f2;border-radius:8px;font-size:16px;margin:12px 0}.a56-execution table{width:100%;table-layout:fixed;margin:12px 0;font-size:13px}.a56-execution th,.a56-execution td{white-space:normal!important;padding:9px 6px!important;vertical-align:top;overflow-wrap:anywhere}.a56-execution th:first-child{width:24%}.a56-execution th:nth-child(2){width:33%}.a56-execution .a56-pass{color:#226449}.a56-execution .a56-fail{color:#a13e32}.a56-execution.is-alternative{border-style:dashed;background:#fafbf9}.a56-execution details{margin-top:10px}.a56-execution summary{cursor:pointer;color:#52635c}.a56-execution .sub{font-size:12px}@media(max-width:700px){.a56-executions{grid-template-columns:1fr}}';document.head.append(style);
  panel=document.createElement('div');panel.className='panel';panel.id='a56IntradayQuotes';
- panel.innerHTML='<div class="row"><h3>盤中報價 · 當日 O／H／L</h3><button type="button">更新盤中報價</button></div><p class="sub" data-status></p><p class="sub">最新價及當日開盤／累計最高／累計最低；Yahoo 行情可能延遲，以各股報價時間為準。盤中行情不代表委託已成交。</p><div class="a56-quotes-grid" data-quotes></div><h3>今日委託成交追蹤</h3><p class="sub">A 僅判定開盤；B／C 使用完成分K判定路徑，再觀察下一分鐘開盤。價格符合仍須核對現金、名額及成交量；只有已驗證帳本才標示「模型已成交」。Yahoo 延遲期間的狀態仍未知，同檔不同路徑不重複計入成交。</p><div class="a56-quotes-grid" data-executions aria-live="polite"></div>';
+ panel.innerHTML='<div class="row"><h3>盤中報價 · 當日 O／H／L</h3><button type="button">更新盤中報價</button></div><p class="sub" data-status></p><p class="sub">最新價及當日開盤／累計最高／累計最低；Yahoo 行情可能延遲，以各股報價時間為準。盤中行情不代表委託已成交。</p><div class="a56-quotes-grid" data-quotes></div><h3>今日委託成交追蹤</h3><p class="sub">A 僅判定開盤；B／C 使用完成分K判定路徑，再觀察下一分鐘開盤。下方逐條對照「盤前策略價」與「實際行情」。價格符合仍須核帳，才標示「模型已成交」。Yahoo 行情約延遲 20 分鐘；同檔較晚路徑不重複計入成交。</p><div class="a56-executions" data-executions aria-live="polite"></div>';
  document.querySelector('#overview').prepend(panel);
  panel.querySelector('button').onclick=()=>refresh(true);
  document.querySelector('#refresh')?.addEventListener('click',()=>refresh(true));
@@ -74,4 +72,21 @@ export function syncA56Quotes(D,I,plan){
  names=D.names||{};executionContext={plan,snapshot:D.snapshots[I],orders:D.orders||[],ready:!!D.a56?.ready};
  if(key!==signature){signature=key;generation++;universe=rows;lastData=null;lastError='';lastAttempt=0}
  paint();refresh();
+}
+
+export function renderExecutionCards(executions,names={}){
+ const order=r=>r.state==='model_filled'?0:r.state==='price_match'&&!r.alternative_to?1:r.state==='not_filled'?2:r.alternative_to?4:r.state==='blocked'?5:3;
+ return [...executions].sort((a,b)=>order(a)-order(b)).map(r=>{
+  const alternative=r.alternative_to,label=alternative?'同檔較晚符合・不重複計入':executionLabels[r.state];
+  const comparisons=r.comparisons||[];
+  const match=comparisons.filter(c=>c.passed===true),fail=comparisons.filter(c=>c.passed===false);
+  let why=r.state==='price_match'?match.map(c=>c.observed+'，符合「'+c.strategy+'」').join('；'):r.state==='not_filled'?fail.map(c=>c.observed+'，未符合「'+c.strategy+'」').join('；'):r.reason;
+  if(r.state==='price_match')why+='。因此此路徑的價格條件符合，成交仍待核帳。';
+  if(alternative)why='同檔較早在 '+time(alternative.time)+' 已由「'+(routeLabels[alternative.route]||alternative.route)+'」符合價格條件。本卡保留後續行情證據，不代表第二筆買入。';
+  return '<article class="a56-quote a56-execution'+(alternative?' is-alternative':'')+'"><div class="row"><h4>'+esc(names[r.code]||'')+' '+esc(r.code)+' · '+esc(routeLabels[r.route]||r.route)+'</h4><span class="pill">'+esc(label)+'</span></div>'+
+   '<div class="a56-result">'+(r.time?'<b>'+(r.state==='model_filled'?'模型成交價':alternative?'後續符合價':'策略觀察買入價')+' '+num(r.price)+'</b><span class="sub">'+esc(time(r.time)==='—'?r.time:time(r.time))+'</span>':'<b>'+esc(label)+'</b>')+'</div>'+
+   (comparisons.length?'<table><thead><tr><th>條件</th><th>盤前策略價</th><th>實際行情／判定</th></tr></thead><tbody>'+comparisons.map(c=>'<tr><td>'+esc(c.label)+'</td><td><b>'+esc(c.strategy)+'</b></td><td class="'+(c.passed===true?'a56-pass':c.passed===false?'a56-fail':'')+'">'+(c.passed===true?'✓ ':c.passed===false?'✕ ':'')+esc(c.observed)+'</td></tr>').join('')+'</tbody></table>':'')+
+   '<p><b>為何'+(r.state==='not_filled'?'未買入':r.state==='price_match'?'符合':'如此判定')+'：</b>'+esc(why||r.reason)+'</p>'+
+   '<details><summary>成交確認與資料時間</summary><p class="sub">'+esc(r.reason)+'</p><p class="sub">券商實際成交：未確認'+(r.source_time?' · 行情截至 '+esc(time(r.source_time)):'')+'</p></details></article>';
+ }).join('')||'<p class="sub">本盤沒有新委託，依原計畫管理持股。</p>';
 }
