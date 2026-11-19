@@ -3,7 +3,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
   "forward_dates": [
@@ -22,7 +22,8 @@
     "2026-11-13",
     "2026-11-16",
     "2026-11-17",
-    "2026-11-18"
+    "2026-11-18",
+    "2026-11-19"
   ],
   "boundary_feature_comparisons": {
     "P": {
@@ -86,21 +87,21 @@
     "max_open_positions": 8,
     "max_abs_reconstructed_nav_difference": 7.105427357601002e-15,
     "max_reconstructed_stock_weight_pct": 17.717726707165728,
-    "max_reconstructed_exposure_pct": 100.00000000000004,
-    "ending_cash_unit": 16.988873017652363,
-    "ending_cash_ntd": 50966619.05295709,
+    "max_reconstructed_exposure_pct": 100.00000000000007,
+    "ending_cash_unit": 16.988873017652374,
+    "ending_cash_ntd": 50966619.05295712,
     "ending_positions": {
-      "2801": 0.0006272046115628169
+      "2801": 0.0006272046115628176
     }
   },
   "forward_order_rows": 19,
-  "last_date": "2026-11-18",
+  "last_date": "2026-11-19",
   "source_after_boundary": true,
   "halted_stock_policy": "3714: no OHLC/no execution; last known mark for valuation only",
   "independent_forward_factors": {
     "peer_max_abs_error": 0.0,
     "F5_T5_max_abs_error": 1.4880501553182768e-08,
-    "days": 16,
+    "days": 17,
     "stocks": 233,
     "passed": true
   }

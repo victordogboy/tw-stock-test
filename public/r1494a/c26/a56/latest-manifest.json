@@ -1,9 +1,9 @@
 {
   "version": "A56-LOCK-20261116",
-  "as_of": "2026-11-18",
-  "trade_date": "2026-11-19",
-  "forward_sha256": "b76573e7ddb71bf7aeb30720a142bae5e61f2204313896a803ad5fb2d3b06507",
+  "as_of": "2026-11-19",
+  "trade_date": "2026-11-20",
+  "forward_sha256": "79466afa6a6dc847f2ce8bdb5679f543628545c81b4fbb935654261afbca1dee",
   "source_sha256": "61a55f45f81e2e94e3833cbca65314d4407d1793d6f749ef55ccf4d9a7630a3f",
   "anchor_checkpoint_sha256": "8448408399afdfa2ff39ad76fa49b25c048da21ac0f461035a41d3d04f05bbc6",
-  "source_sha256_gzip": "9cfff60afd5cf3a96c92edbd0ee3016f98629795b8f9a5dd0617650b36a30fc0"
+  "source_sha256_gzip": "377172e345ab390eb85e6c4440495657facf963318da432a53901cb6ac5757e8"
 }
