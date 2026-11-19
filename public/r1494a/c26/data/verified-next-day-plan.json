@@ -10,7 +10,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
   "signal_as_of": "2026-11-19",
@@ -115,15 +115,15 @@
     "holdings": [
       {
         "stock_id": "2801",
-        "quantity": 1881.6138346884507,
+        "quantity": 1881.6138346884527,
         "price": 26.899999618530273,
-        "basis": 29.279387795194122,
-        "market_value_ntd": 50615.411435340604,
-        "unrealized_pct": -0.08126495653896149
+        "basis": 29.279387795194125,
+        "market_value_ntd": 50615.41143534066,
+        "unrealized_pct": -0.0812649565389616
       }
     ],
-    "cash_ntd": 50966619.05295708,
-    "equity_ntd": 51017234.46439242
+    "cash_ntd": 50966619.05295712,
+    "equity_ntd": 51017234.46439247
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
@@ -134,7 +134,7 @@
       "signal_date": "2026-11-19",
       "execute_date": "2026-11-20",
       "order_type": "HOLD",
-      "quantity": 1881.6138346884507,
+      "quantity": 1881.6138346884527,
       "limit_or_stop_ntd": null,
       "reference_price": 26.899999618530273,
       "reason": "持續持有",
@@ -151,7 +151,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-19T19:29:05.885793+00:00",
+  "created_at": "2026-11-19T21:50:24.931177+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "dc05d14c9d60cc5299a6f13d8eaf782fb2c4c3f39744c40acf1a18a5a6b957ad"
+  "forward_asset_sha256": "80ed1ab4b5d709bcdde264ea67c0077337b2b52a7a7265372e1cbf0a173236ea"
 }
