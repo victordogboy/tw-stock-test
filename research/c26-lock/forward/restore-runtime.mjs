@@ -4,7 +4,16 @@ import crypto from 'node:crypto';
 const audience='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
 const url=new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL||'');
 url.searchParams.set('audience',audience);
-const issuance=await fetch(url,{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(20000)});
+let issuance;
+for(let attempt=0;attempt<5;attempt++){
+ try{
+  issuance=await fetch(url,{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(20000)});
+  if(issuance.status!==429&&issuance.status<500)break;
+  if(attempt===4)break;
+  await issuance.body?.cancel();
+ }catch(error){if(attempt===4)throw error}
+ await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+}
 if(!issuance.ok)throw Error('C26 runtime OIDC issuance failed HTTP '+issuance.status);
 const token=(await issuance.json()).value;
 if(typeof token!=='string')throw Error('C26 runtime OIDC credential missing');
