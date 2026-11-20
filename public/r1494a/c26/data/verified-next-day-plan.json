@@ -13,12 +13,12 @@
     "net_return_pct": 1720.495844396837,
     "max_drawdown_pct": -17.989769234703846
   },
-  "signal_as_of": "2026-11-19",
-  "trade_date": "2026-11-20",
+  "signal_as_of": "2026-11-20",
+  "trade_date": "2026-11-23",
   "forward_replay": {
     "first_date": "2026-10-28",
-    "last_date": "2026-11-19",
-    "trading_days": 17,
+    "last_date": "2026-11-20",
+    "trading_days": 18,
     "verified_dates": [
       "2026-10-28",
       "2026-10-29",
@@ -36,7 +36,8 @@
       "2026-11-16",
       "2026-11-17",
       "2026-11-18",
-      "2026-11-19"
+      "2026-11-19",
+      "2026-11-20"
     ],
     "complete": true
   },
@@ -104,7 +105,7 @@
     "independent_forward_factors": {
       "peer_max_abs_error": 0.0,
       "F5_T5_max_abs_error": 1.4880501553182768e-08,
-      "days": 17,
+      "days": 18,
       "stocks": 233,
       "passed": true
     }
@@ -116,28 +117,28 @@
       {
         "stock_id": "2801",
         "quantity": 1881.6138346884507,
-        "price": 26.899999618530273,
+        "price": 25.399999618530273,
         "basis": 29.279387795194122,
-        "market_value_ntd": 50615.411435340604,
-        "unrealized_pct": -0.08126495653896149
+        "market_value_ntd": 47792.99068330793,
+        "unrealized_pct": -0.13249553589712026
       }
     ],
     "cash_ntd": 50966619.05295708,
-    "equity_ntd": 51017234.46439242
+    "equity_ntd": 51014412.04364039
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
   "actions": [
     {
-      "action": "HOLD",
+      "action": "SELL",
       "stock_id": "2801",
-      "signal_date": "2026-11-19",
-      "execute_date": "2026-11-20",
-      "order_type": "HOLD",
+      "signal_date": "2026-11-20",
+      "execute_date": "2026-11-23",
+      "order_type": "MARKET_OPEN",
       "quantity": 1881.6138346884507,
       "limit_or_stop_ntd": null,
-      "reference_price": 26.899999618530273,
-      "reason": "持續持有",
+      "reference_price": 25.399999618530273,
+      "reason": "risk_exit",
       "stop_active": false,
       "protective_stop": 27.75
     }
@@ -151,7 +152,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-20T09:09:08.532861+00:00",
+  "created_at": "2026-11-20T17:50:14.861231+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "dc05d14c9d60cc5299a6f13d8eaf782fb2c4c3f39744c40acf1a18a5a6b957ad"
+  "forward_asset_sha256": "d62b5c04ef8ecc33041eed15c7a6305f699a1f687095782289f55779bdbe2569"
 }
