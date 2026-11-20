@@ -15,8 +15,16 @@ if(!oidcUrl||!oidcAccessToken)throw Error('GitHub Actions OIDC permission unavai
 const OIDC_AUDIENCE='https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed';
 async function requestOidc(){
  const url=new URL(oidcUrl);url.searchParams.set('audience',OIDC_AUDIENCE);
- const res=await fetch(url,{headers:{authorization:'Bearer '+oidcAccessToken},
-  signal:AbortSignal.timeout(15000),cache:'no-store'});
+ let res;
+ for(let attempt=0;attempt<5;attempt++){
+  try{
+   res=await fetch(url,{headers:{authorization:'Bearer '+oidcAccessToken},signal:AbortSignal.timeout(15000),cache:'no-store'});
+   if(res.status!==429&&res.status<500)break;
+   if(attempt===4)break;
+   await res.body?.cancel();
+  }catch(error){if(attempt===4)throw error}
+  await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+ }
  if(!res.ok)throw Error('GitHub OIDC issuance failed HTTP '+res.status);
  const payload=await res.json();
  if(typeof payload?.value!=='string'||payload.value.split('.').length!==3)
