@@ -29,7 +29,9 @@ export async function updateDeviceSource(token,progress=()=>{}){
  if(!calendar.includes('2026-10-27'))throw Error('FinMind 交易日資料不完整');
  const clock=new Date(Date.now()+8*3600000).toISOString();
  const through=clock.slice(11,16)>='20:00'?clock.slice(0,10):addDate(clock.slice(0,10),-1);
- const dates=calendar.filter(x=>x>='2026-10-16'&&x<=through);
+ // Sessions in the frozen overlap come from the archived feature reference.
+ const overlap=['2026-10-16','2026-10-19','2026-10-20','2026-10-21','2026-10-22','2026-10-27'];
+ const dates=[...overlap,...new Set(calendar.filter(x=>x>'2026-10-27'&&x<=through))];
  let days={},marketDays={};
  const restored=await fetch(API,{headers:{Authorization:'Bearer '+token},cache:'no-store'});
  if(restored.ok){const previous=await unzip(await restored.arrayBuffer());if(previous.lock_id!==config.lock_id||previous.pool_sha256!==config.pool_sha256)throw Error('既存 C26 資料版本不符');days=previous.days||{};marketDays=previous.market_days||{}}
@@ -41,7 +43,7 @@ export async function updateDeviceSource(token,progress=()=>{}){
   for(const [key,dataset] of Object.entries(datasets)){
    progress(`更新 ${date}（${i+1}/${dates.length}）・${{price:'日K',institutional:'法人',margin:'融資券',lending:'借券'}[key]}`);
    const all=(await pull(dataset,date)).filter(x=>x.date===date);
-   if((key==='price'||key==='institutional')&&!all.length)throw Error(date+' 缺少必要資料，原有雲端資料保留');
+   if((key==='price'||key==='institutional')&&!all.length)throw Error(date+' '+dataset+' 回傳 0 筆，保留已驗證資料');
    const rows=all.filter(x=>pool.has(String(x.stock_id)));
    day.datasets[key]={total_rows:all.length,pool_rows:rows.length,state:'received'};
    if(key==='price'){
