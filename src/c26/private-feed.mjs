@@ -128,12 +128,17 @@ export class C26PrivateStore {
   }
   if(path==='/c26-internal/download'&&request.method==='GET'){
    const meta=await this.ctx.storage.get('c26:private:latest_meta');if(!meta)return json({error:'No private C26 source data'},404);
-   const parts=await this.ctx.storage.get(Array.from({length:meta.chunks},(_,k)=>'c26:private:'+meta.id+':'+k));
    const body=new Uint8Array(meta.size_bytes);let offset=0;
-   for(let k=0;k<meta.chunks;k++){
-    const v=parts.get('c26:private:'+meta.id+':'+k);
-    if(!(v instanceof Uint8Array))return json({error:'C26 private chunk incomplete'},503);
-    body.set(v,offset);offset+=v.length;
+   // The frozen NPZ spans more than 128 storage keys. Read bounded batches.
+   for(let start=0;start<meta.chunks;start+=64){
+    const count=Math.min(64,meta.chunks-start);
+    const keys=Array.from({length:count},(_,i)=>'c26:private:'+meta.id+':'+(start+i));
+    const parts=await this.ctx.storage.get(keys);
+    for(const key of keys){
+     const value=parts.get(key);
+     if(!(value instanceof Uint8Array))return json({error:'C26 private chunk incomplete'},503);
+     body.set(value,offset);offset+=value.length;
+    }
    }
    if(offset!==meta.size_bytes||await sha256(body)!==meta.sha256)return json({error:'C26 private checksum mismatch'},503);
    return new Response(body,{headers:{'content-type':meta.kind==='frozen_runtime'?'application/octet-stream':'application/gzip','cache-control':'no-store','x-c26-live-trading':'blocked'}});
