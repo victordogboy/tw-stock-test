@@ -68,13 +68,13 @@ export async function c26PrivateFeedRoute(request,env){
    const clock=new Date(Date.now()+8*3600000).toISOString();
    const cutoff=clock.slice(11,16)>='20:00'?clock.slice(0,10):new Date(Date.parse(clock.slice(0,10)) - 86400000).toISOString().slice(0,10);
    if(!/^20\d\d-\d\d-\d\d$/.test(query.date||'')||query.date<'2026-10-16'||query.date>cutoff)return json({error:'Only completed source dates are allowed'},400);
-   q.set('start_date',query.date);q.set('end_date',query.date);
+   q.set('start_date',query.date);q.set('end_date',new Date(Date.parse(query.date+'T00:00:00Z')+86400000).toISOString().slice(0,10));
   }
   let upstream;try{upstream=await fetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+bearer},signal:AbortSignal.timeout(28000),cache:'no-store'})}catch{return json({error:'FinMind connection failed; retry later'},502)}
   if(!upstream.ok)return json({error:'FinMind HTTP '+upstream.status},502);
   let data;try{data=await upstream.json()}catch{return json({error:'Invalid FinMind response'},502)}
   if(data.status!==200||!Array.isArray(data.data))return json({error:'FinMind rejected request',upstream_status:data.status},502);
-  return json({status:200,data:data.data});
+  return json({status:200,data:query.dataset==='TaiwanStockTradingDate'?data.data:data.data.filter(row=>row.date===query.date)});
  }
  if(!env.SCAN_JOBS)return json({error:'C26 private DO unavailable'},503);
  const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName(runtime?'system:c26:frozen-runtime:v1':'system:c26:licensed-eod:v1'));
