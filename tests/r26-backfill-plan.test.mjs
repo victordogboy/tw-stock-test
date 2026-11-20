@@ -16,7 +16,7 @@ test('official ZIP naming uses trade date while real night ticks retain physical
  assert.deepEqual(jobs[1].finmind_dates,['2026-11-09','2026-11-10']);
 });
 test('verified official sessions do not trigger pointless re-download; intraday is not marked complete',()=>{
- const jobs=pendingR26OfficialDownloads(sessions,[{session_key:'night:2026-11-09',source:'TAIFEX official ticks'}]);
+ const jobs=pendingR26OfficialDownloads(sessions,[{session_key:'night:2026-11-09',contract_date:'202611',source:'TAIFEX official ticks'}]);
  assert.equal(jobs.length,2);
  assert.deepEqual(jobs[1].sessions,['day:2026-11-10']);
  assert.deepEqual(physicalFinMindDates('2026-11-11'),['2026-11-11','2026-11-12']);

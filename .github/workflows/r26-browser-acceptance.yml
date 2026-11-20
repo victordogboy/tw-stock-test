@@ -25,6 +25,11 @@ jobs:
           node <<'NODE'
           const {chromium}=require('playwright');
           (async()=>{
+            const fs=require('node:fs'),z=require('node:zlib');
+            const {physicalSessions}=await import('./public/r26-engine/live.mjs');
+            const {extendTaifexCalendar2026}=await import('./public/r26-engine/calendar-2026.mjs');
+            const seed=JSON.parse(z.gunzipSync(fs.readFileSync('public/r26-engine/data/recent.json.gz')));
+            const calendar=extendTaifexCalendar2026(seed.calendar);
             const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
             const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
             const errors=[];page.on('pageerror',e=>errors.push('JS '+e.message));page.on('console',m=>{if(m.type()==='error')errors.push('console '+m.text())});
@@ -37,23 +42,24 @@ jobs:
                 await page.waitForTimeout(5000);
                 state=await page.evaluate(()=>Object.fromEntries(
                   ['r26DataHealth','r26DataProgress','r26PositionState','r26MarketState','signalPosition','signalStopPrice',
-                   'signalAsOf','signalAudit','liveIndicator','quoteInstrumentLabel','liveSourceName']
+                   'signalAsOf','signalAudit','liveIndicator','quoteInstrumentLabel','liveSourceName','twoTxAsOf','twoTxDirection']
                     .map(id=>[id,(document.getElementById(id)?.textContent||'').slice(0,200)])));
                 if(i%3===0)console.log('R26_MOBILE_PHASE',i,JSON.stringify(state));
-                if(state.r26PositionState.includes('策略持倉已確認') &&
-                   state.signalAudit.includes('2428') &&
-                   state.r26MarketState.includes('夜盤') &&
-                   state.r26MarketState.includes('交易日 2026-11-12') &&
-                   state.r26DataProgress.includes('已封存 2026-11-11') &&
-                   state.signalAsOf.startsWith('2026-11-11 2') &&
-                   Date.now()-Date.parse(state.signalAsOf.replace(' ','T')+'+08:00')<5*60000 &&
-                   !state.signalStopPrice.includes('尚未確認')){
+                const now=Date.now(),latest=physicalSessions(calendar,'2026-10-22',now).at(-1);
+                const stamp=Date.parse(state.signalAsOf.replace(' ','T')+'+08:00');
+                const archived=state.r26DataProgress.match(/已封存 (\d{4}-\d{2}-\d{2})/)?.[1];
+                const local=new Date(now+8*3600000).toISOString(),today=local.slice(0,10);
+                const required=calendar.filter(d=>d<today||d===today&&Number(local.slice(11,13))>=14).at(-1);
+                const common=state.signalAudit.includes('2428')&&archived>=required&&state.signalAsOf.slice(0,10)>=required;
+                const live=state.r26PositionState.includes('策略持倉已確認')&&now-stamp<5*60000&&state.twoTxAsOf.includes(state.signalAsOf)&&!state.signalStopPrice.includes('尚未確認');
+                const closed=latest?.complete&&(state.r26PositionState.includes('策略持倉已確認')||state.r26PositionState.includes('無法確認'));
+                if(common&&(latest?.complete?closed:live)){
                   console.log('R26_MOBILE_SUCCESS',JSON.stringify(state));success=true;break;
                 }
               }
               await page.screenshot({path:'r26-mobile-production.png',fullPage:true});
               console.log('R26_MOBILE_FINAL',JSON.stringify({success,state,errors:errors.slice(-12)}));
-              if(!success)throw Error('R26 mobile UI cannot confirm current 11/11 night from cloud verified official archive');
+              if(!success)throw Error('R26 mobile UI cannot confirm current replay from latest verified official archive');
             }finally{await browser.close()}
           })().catch(e=>{console.error(e);process.exitCode=1});
           NODE

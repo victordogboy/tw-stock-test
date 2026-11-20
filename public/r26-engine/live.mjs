@@ -1,5 +1,6 @@
 import {run,audit,stop,simulate} from './engine.mjs';
-import {assessSessions,validReplayBar,positionPublication} from './session-status.mjs?v=20261112-tail-v2';
+import {assessSessions,validReplayBar,positionPublication} from './session-status.mjs?v=20261121-roll-v1';
+import {referenceTxMonth} from './contract-calendar.mjs';
 const offset=8*3600000,dayms=86400000;
 const tpe=ms=>new Date(ms+offset).toISOString().slice(0,19).replace('T',' ');
 const ms=s=>Date.parse(s.replace(' ','T')+'+08:00');
@@ -11,7 +12,7 @@ export function physicalSessions(calendar,after,now=Date.now()){
   for(const sid of [0,1]){
    const date=sid?d:calendar[i-1],start=date+(sid?' 08:45:00':' 15:00:00'),end=(sid?date:shift(date,1))+(sid?' 13:45:00':' 05:00:00');
    if(ms(start)>now)continue;
-   out.push({date:d,sid,key:(sid?'day:':'night:')+date,start,end,complete:now>=ms(end)});
+   out.push({date:d,sid,contract:referenceTxMonth(d),key:(sid?'day:':'night:')+date,start,end,complete:now>=ms(end)});
   }
  }
  return out;
@@ -19,9 +20,9 @@ export function physicalSessions(calendar,after,now=Date.now()){
 export function mergeRecords(old,added){
  const priority=x=>/TAIFEX/.test(x.source)?3:/FinMind/.test(x.source)?2:1;
  const map=new Map(old.map(x=>[x.contract_date+'|'+x.timestamp_tpe,x]));
- const officialGroups=new Set(added.filter(x=>priority(x)===3).map(x=>x.contract_date+'|'+x.session_key));
+ const officialGroups=new Set([...old,...added].filter(x=>priority(x)===3).map(x=>x.contract_date+'|'+x.session_key));
  for(const [k,v] of map)if(officialGroups.has(v.contract_date+'|'+v.session_key)&&priority(v)<3)map.delete(k);
- for(const r of added){const key=r.contract_date+'|'+r.timestamp_tpe,prev=map.get(key);if(!prev||priority(r)>=priority(prev))map.set(key,r)}
+ for(const r of added){if(priority(r)<3&&officialGroups.has(r.contract_date+'|'+r.session_key))continue;const key=r.contract_date+'|'+r.timestamp_tpe,prev=map.get(key);if(!prev||priority(r)>=priority(prev))map.set(key,r)}
  return [...map.values()].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
 }
 export function replayLive(meta,bars,records,calendar,now=Date.now(),{includeResearchInputs=false}={}){
@@ -31,7 +32,7 @@ export function replayLive(meta,bars,records,calendar,now=Date.now(),{includeRes
   const key=r.contract_date+'|'+r.session_key;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(r);
  }
  for(const target of expected){
-  const all=[...groups.entries()].filter(([k])=>k.endsWith('|'+target.key));
+  const all=[...groups.entries()].filter(([k])=>k===target.contract+'|'+target.key);
   const assessment=sessionStates.find(s=>s.key===target.key);
   if(!assessment.dataReady){issues.push(assessment.reason);break}
   const rr=all[0][1].sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe)),official=rr.every(x=>/TAIFEX/.test(x.source));

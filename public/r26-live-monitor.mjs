@@ -1,12 +1,13 @@
-import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261112-tail-v2';
-import {referenceTxMonth,taipeiParts} from './r26-data-sync.mjs';
+import {mergeRecords,physicalSessions} from './r26-engine/live.mjs?v=20261121-roll-v1';
+import {taipeiParts} from './r26-data-sync.mjs';
+import {activeTxMonth,officialCoverage} from './r26-engine/contract-calendar.mjs';
 import {extendTaifexCalendar2026,R26_CALENDAR_VERSION} from './r26-engine/calendar-2026.mjs';
 import {pendingR26OfficialDownloads} from './r26-engine/backfill-plan.mjs';
 import {validateCloudSnapshot} from './r26-engine/cloud-minute-cache.mjs';
 // r26-data-sync's DOM initializer is disabled on this replacement view.
 const $=id=>document.getElementById(id),fmt=x=>Number.isFinite(x)?x.toLocaleString('zh-TW',{maximumFractionDigits:2}):'—';
 const text=(id,x)=>{if($(id))$(id).textContent=x};
-const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261113-2tx-paper-v1',{type:'module'});
+const worker=new Worker('/r26-engine/monitor-worker.mjs?v=20261121-roll-v1',{type:'module'});
 let serial=0,rows=[],calendar=[],contract='',state=null,working=false,historyWorking=false,lastHistory=0,seedLoaded=false,fetchError='',historyFailures=[];
 const pending=new Map();
 worker.onmessage=({data:m})=>{const p=pending.get(m.id);if(!p)return;pending.delete(m.id);clearTimeout(p.timer);if(m.type==='error')p.reject(Error(m.error));else p.resolve(m)};
@@ -35,10 +36,9 @@ async function loadOfficialArchive(){
     throw Error('官方雲端快照格式不正確');
  let accepted=0;
  for(const x of data.sessions){
-  const n=data.rows.filter(r=>r.trade_date===x.date&&r.session==='night').length;
-  const d=data.rows.filter(r=>r.trade_date===x.date&&r.session==='day').length;
-  if(n!==x.night||d!==x.day||d!==300||n<750||n>840)throw Error('官方快照盤次數量不符：'+x.date);
-  accepted+=n+d;
+  const {night,day}=officialCoverage(x.date,x.contract,data.rows.filter(r=>r.trade_date===x.date),calendar);
+  if(night!==x.night||day!==x.day)throw Error('官方快照盤次數量不符：'+x.date);
+  accepted+=night+day;
  }
  if(accepted!==data.rows.length||data.rows.some(r=>r.source!=='TAIFEX official ticks'||r.contract_verified!==true))
   throw Error('官方快照來源與盤次數量不符');
@@ -207,6 +207,7 @@ async function check(){
  if(working||document.visibilityState==='hidden'||!seedLoaded)return;
  if(state?.positionConfirmed&&state.session?.partial&&Date.now()-Date.parse(state.as_of.replace(' ','T')+'+08:00')>4*60000)invalidatePosition('當盤分鐘資料已逾時，正在重新核對');
  working=true;
+ contract=activeTxMonth(Date.now(),calendar);$('r26DataContract').value=contract;
  try{const x=await json('/api/r26/intraday?contract='+contract);add(x.data);await save(x.data);fetchError=''}catch(e){fetchError=e.message}
  try{await replay()}catch(e){invalidatePosition('重播失敗：'+e.message)}finally{working=false}
 }
@@ -229,12 +230,10 @@ async function history(manual=false){
     const buffer=await rsp.arrayBuffer();
     const result=await ask('official',{buffer,date,contract:jobContract},[buffer]);
     const verified=result.rows.filter(x=>x.trade_date===date&&x.contract_date===jobContract);
-    const officialDay=verified.filter(x=>x.session==='day'&&x.session_key==='day:'+date);
     // Partial official HTTP 200 ZIP has been observed: 838 night bars but 0
     // daytime bars before final publication. Do not mistake it for the
     // complete session or poison the browser's IndexedDB cache.
-    if(officialDay.length!==300)throw Error('期交所 ZIP 尚未完整發布 '+date+' 日盤：'+officialDay.length+'/300 根；拒絕封存並繼續重試');
-    if(!verified.length)throw Error('官方 ZIP 未含指定交易日 TX 合約');
+    officialCoverage(date,jobContract,verified,calendar);
     add(verified);await save(verified);fetchError='';
    }catch(e){
     fetchError=date+' '+String(e?.message||e);
@@ -274,7 +273,7 @@ async function init(){
  try{
   text('r26DataProgress','載入官方歷史分K並在背景驗證原始 2,428 盤…');
   const sr=await fetch('/r26-engine/data/recent.json.gz');if(!sr.ok)throw Error('官方歷史下載失敗');const seed=await new Response(sr.body.pipeThrough(new DecompressionStream('gzip'))).json();calendar=extendTaifexCalendar2026(seed.calendar);
-  const now=taipeiParts();contract=referenceTxMonth(now.date);$('r26DataContract').value=contract;
+  contract=activeTxMonth(Date.now(),calendar);$('r26DataContract').value=contract;
   add(await cached());add(seed.rows);
   try{await loadOfficialArchive()}catch(e){fetchError='雲端歷史快照：'+String(e?.message||e)}
   try{await loadCloudMinuteCache()}catch(e){fetchError+='；指定月雲端快照：'+String(e?.message||e)}

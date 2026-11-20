@@ -3,17 +3,16 @@
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 import {mergeCloudSnapshot,validateCloudSnapshot} from '../public/r26-engine/cloud-minute-cache.mjs';
+import {activeTxMonth} from '../public/r26-engine/contract-calendar.mjs';
+import {extendTaifexCalendar2026} from '../public/r26-engine/calendar-2026.mjs';
 const target='public/r26-engine/data/verified-named-minute-cloud.json.gz';
 const now=Date.now(),stamp=new Date(now+8*3600000).toISOString();
 const date=stamp.slice(0,10),time=stamp.slice(11,16),weekday=new Date(Date.parse(date+'T00:00:00Z')).getUTCDay();
 const minute=Number(time.slice(0,2))*60+Number(time.slice(3));
 const active=((weekday>=1&&weekday<=5&&((minute>=525&&minute<825)||minute>=900))||
  (weekday>=2&&weekday<=6&&minute<300));
-const d=Number(date.slice(8,10)),m=Number(date.slice(5,7)),y=Number(date.slice(0,4));
-const first=new Date(Date.UTC(y,m-1,1)).getUTCDay();
-const thirdWed=1+(3-first+7)%7+14;
-let cm=m+(d>thirdWed?1:0),cy=y;if(cm>12){cm=1;cy++}
-const contract=String(cy)+String(cm).padStart(2,'0');
+const seed=JSON.parse(zlib.gunzipSync(fs.readFileSync('public/r26-engine/data/recent.json.gz')));
+const contract=activeTxMonth(now,extendTaifexCalendar2026(seed.calendar));
 if(!active){console.log('R26_CLOUD_PAUSED_OUTSIDE_MARKET',date,time);process.exit(0)}
 const prior=fs.existsSync(target)?validateCloudSnapshot(
  JSON.parse(zlib.gunzipSync(fs.readFileSync(target))),now):null;

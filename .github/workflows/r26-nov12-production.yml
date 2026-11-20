@@ -1,4 +1,4 @@
-name: R26 Nov12 official close production check
+name: R26 official close and rollover production check
 on:
   push:
     branches: [main]
@@ -39,9 +39,11 @@ jobs:
               let data={};
               if(zip.length){try{data=JSON.parse(gunzipSync(zip))}catch(e){data={error:e.message}}}
               const verified=page.ok&&app.ok&&session.ok&&asset.ok
-                &&html.includes('20261112-tail-v2')&&js.includes('historyFailures')
-                &&ss.includes('tailMissingMinutes')&&data.last_complete_trade_day>='2026-11-12'
-                &&data.sessions?.at(-1)?.day===300&&data.sessions?.at(-1)?.night===838;
+                &&html.includes('20261121-roll-v1')&&js.includes('officialCoverage')
+                &&ss.includes('tailMissingMinutes')&&data.last_complete_trade_day>='2026-11-20'
+                &&data.sessions?.find(x=>x.date==='2026-11-18')?.contract==='202612'
+                &&data.sessions?.find(x=>x.date==='2026-11-18')?.day===300
+                &&data.sessions?.at(-1)?.day===300;
               last={verified,page:page.status,app:app.status,session:session.status,asset:asset.status,
                 last_archive: data.last_complete_trade_day||null,day:data.sessions?.at(-1)?.day??null,
                 night:data.sessions?.at(-1)?.night??null,attempt:i+1};

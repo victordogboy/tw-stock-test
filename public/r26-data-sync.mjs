@@ -2,6 +2,8 @@
 // No trading signal or simulated fill is created here. FinMind API is historical, not live.
 export const TPE_OFFSET="+08:00";
 export const MINUTE_MS=60000;
+import {referenceTxMonth,activeTxMonth} from './r26-engine/contract-calendar.mjs';
+export {referenceTxMonth};
 export function taipeiParts(when=new Date()){
  const fields=new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(when);
  const x=Object.fromEntries(fields.map(p=>[p.type,p.value]));
@@ -15,15 +17,6 @@ export function nextRegularDay(date){
  let d=date;
  do{d=dayShift(d,1)}while(weekday(d)===0||weekday(d)===6);
  return d // Only weekday estimate. Exchange calendar may have holidays.
-}
-export function referenceTxMonth(date){
- const [year,month]=date.split("-").map(Number);
- const first=new Date(Date.UTC(year,month-1,1)).getUTCDay();
- const thirdWed=1+(3-first+7)%7+14;
- const actual=Number(date.slice(8));
- let y=year,m=month;
- if(actual>thirdWed){m++;if(m===13){y++;m=1}}
- return String(y)+String(m).padStart(2,"0");
 }
 export function buildPhysicalSessions(startDate,now=new Date()){
  const nowMs=now.getTime(),today=taipeiParts(now).date,out=[];
@@ -156,7 +149,7 @@ function init(){
     replay=await r.json();
     if(!replay.as_of||!replay.contract)throw Error("R26 封存資料缺少日期或合約資訊");
     contract=String(replay.contract).replace(/^TX/,"");
-    const inferred=referenceTxMonth(taipeiParts().date);
+    const inferred=activeTxMonth();
     if(inferred!==contract){
      message("封存合約 "+contract+" 與今日參考近月 "+inferred+" 不同，請核對換月後再補抓。");
      contract=inferred

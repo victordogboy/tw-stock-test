@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/r26-verified-official-cache.yml'
       - 'scripts/r26-verified-history-refresh.mjs'
+      - 'scripts/r26-current-archive-acceptance.mjs'
+      - 'public/r26-engine/contract-calendar.mjs'
+      - 'tests/r26-rollover.test.mjs'
   schedule:
     - cron: '15 6,8,10,12,14,16 * * 1-5'
   workflow_dispatch:
@@ -25,7 +28,9 @@ jobs:
         with:
           node-version: '22'
       - name: Build archive from official TX trade-date ZIP files with CRC checks
-        run: node scripts/r26-verified-history-refresh.mjs
+        run: |
+          node --test tests/r26-rollover.test.mjs tests/r26-live-engine.test.mjs
+          node scripts/r26-verified-history-refresh.mjs
       - name: Commit only public verified minute OHLC compressed history
         run: |
           git config user.name 'R26 Verified Data Bot'
@@ -40,6 +45,8 @@ jobs:
             sleep 3
           done
           echo 'R26_ARCHIVE_GIT_PUSH_FAILED';exit 1
+      - name: Require current complete official archive and both paper replays
+        run: node scripts/r26-current-archive-acceptance.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

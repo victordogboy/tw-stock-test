@@ -6,6 +6,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import {parseOfficialZip} from '../public/r26-engine/live.mjs';
 import {extendTaifexCalendar2026} from '../public/r26-engine/calendar-2026.mjs';
+import {referenceTxMonth,officialCoverage} from '../public/r26-engine/contract-calendar.mjs';
 const ROOT='public/r26-engine/data/';
 const DEST=ROOT+'verified-official-backfill.json.gz';
 const TMP=ROOT+'verified-official-backfill.tmp';
@@ -18,14 +19,14 @@ const hh=Number(localNow.toISOString().slice(11,13));
 const lastEligible=hh>=14?today:new Date(Date.parse(today+'T00:00:00Z')-86400000).toISOString().slice(0,10);
 const days=cal.filter(d=>d>'2026-10-22'&&d<=lastEligible);
 const prior=fs.existsSync(DEST)?JSON.parse(zlib.gunzipSync(fs.readFileSync(DEST))):null;
-const monthForDay=d=>{const [y,m,dd]=d.split('-').map(Number);const first=new Date(Date.UTC(y,m-1,1)).getUTCDay();const third=1+(3-first+7)%7+14;let mm=m+(dd>third?1:0),yy=y;if(mm===13){mm=1;yy++}return ''+yy+String(mm).padStart(2,'0')};
 const known=new Map();
 if(prior?.version==='R26_TAIFEX_BACKFILL_V1'&&Array.isArray(prior?.sessions)&&Array.isArray(prior?.rows)){
  const byDate=new Map();
  for(const row of prior.rows){if(!byDate.has(row.trade_date))byDate.set(row.trade_date,[]);byDate.get(row.trade_date).push(row)}
  for(const x of prior.sessions){
-  if(x.date&&x.day===300&&x.night>=750&&byDate.get(x.date)?.length===x.day+x.night)
-   known.set(x.date,{meta:x,rows:byDate.get(x.date)});
+  try{const saved=byDate.get(x.date)||[],coverage=officialCoverage(x.date,x.contract,saved,cal);
+   if(x.day===coverage.day&&x.night===coverage.night)known.set(x.date,{meta:x,rows:saved});
+  }catch(e){console.log('R26_INVALID_CACHED_DAY',x.date,e.message)}
  }
 }
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -45,9 +46,7 @@ async function attemptFetch(date,contract){
     const buf=new Uint8Array(bytes);
     if(buf.length<150||buf[0]!==0x50||buf[1]!==0x4b)throw Error('Invalid official ZIP signature');
     const rows=await parseOfficialZip(bytes,date,contract);
-    const night=rows.filter(x=>x.session==='night').length,day=rows.filter(x=>x.session==='day').length;
-    if(day!==300||night<750||night>840||rows.some(x=>x.trade_date!==date||x.contract_date!==contract))
-      throw Error('Invalid official session coverage night='+night+' day='+day);
+    const {night,day}=officialCoverage(date,contract,rows,cal);
     return {rows,meta:{date,contract,day,night,zip_bytes:bytes.byteLength,
       zip_sha256:crypto.createHash('sha256').update(buf).digest('hex')}};
    }catch(e){error=String(e?.message||e);console.log('R26_SOURCE_RETRY',date,round,u.includes('workers.dev')?'relay':'exchange',error)}
@@ -58,7 +57,7 @@ async function attemptFetch(date,contract){
 }
 const sessions=[],rows=[],failures=[];
 for(const date of days){
- const contract=monthForDay(date);
+ const contract=referenceTxMonth(date);
  let entry=known.get(date);
  if(entry&&entry.meta.contract!==contract)entry=null;
  if(!entry){

@@ -8,7 +8,8 @@ export function validReplayBar(r,now){
 // Exchange closing time is an exclusive bound. A day-session bar beginning
 // 13:44 ends at 13:45; the night-session equivalent is 04:59 -> 05:00.
 export function assessSession(target,records,now=Date.now()){
- const rr=records.filter(r=>r.session_key===target.key&&validReplayBar(r,now))
+ const candidates=records.filter(r=>r.session_key===target.key&&validReplayBar(r,now));
+ const rr=candidates.filter(r=>!target.contract||r.contract_date===target.contract)
   .sort((a,b)=>a.timestamp_tpe.localeCompare(b.timestamp_tpe));
  const contracts=[...new Set(rr.map(r=>r.contract_date))];
  const first=rr[0],last=rr.at(-1),closed=now>=sessionTime(target.end);
@@ -27,6 +28,7 @@ export function assessSession(target,records,now=Date.now()){
   lastBarEndsAt:last?new Date(sessionTime(last.timestamp_tpe)+MINUTE+OFFSET).toISOString().slice(0,19).replace('T',' '):null,
   ageMinutes:age,expectedFinalBar:closed?expectedFinal:null,tailMissingMinutes:closed?missingTail:0,tailMissingFrom:closed&&missingTail?nextMissing:null,historicalMissing:false,dataReady:false};
  const title=target.date+' '+(target.sid?'日盤':'夜盤');
+ if(!rr.length&&candidates.length)return {...base,dataState:'invalid',label:'合約月份未核對',reason:title+' 缺少原版換月規則指定的 TX'+target.contract+' 分鐘資料'};
  if(!rr.length)return {...base,dataState:closed?'missing':'pending',historicalMissing:closed,
   label:closed?'已收盤但資料缺失':'正在交易，等待當盤分鐘資料',
   reason:closed?title+' 已收盤但沒有可用分鐘資料':title+' 正在交易，當盤分鐘資料尚未取得'};

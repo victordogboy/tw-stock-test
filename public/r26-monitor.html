@@ -144,7 +144,7 @@ button:focus,select:focus{outline:2px solid #8ac0ff}
  <p class="info" id="r26DataProgress">載入瀏覽器快取、檢查指定合約中…</p>
  <p class="info">歷史雲端快照：頁面載入已發布的期交所官方歷史與指定月分鐘資料快照，開頁再抓最新 Yahoo 分鐘資料。此 Worker 的定時觸發目前未提供 R26 每小時持續封存，請以「最新快照時間」核對；手機背景時本頁也不會持續輪詢。FinMind 私人 Token 只在瀏覽器作缺口備援。分鐘資料未更新或歷史有缺口時，R26 應暫停確認訊號。</p>
  <div class="scroll"><table><thead><tr><th>實際開盤日／盤別</th><th>交易日</th><th>合約</th><th>已取得成交分鐘</th><th>最新分鐘</th><th>狀態</th></tr></thead><tbody id="r26DataTable"><tr><td colspan="6">尚未檢查</td></tr></tbody></table></div>
- <p class="info">時間判讀：日盤 13:45 收盤，最後一根分鐘 K 的正常起點為 13:44；夜盤最後一根為 04:59。未到收盤的當盤不列為歷史缺盤；週五夜盤跨週六仍依交易日曆歸屬下個交易日。</p>
+ <p class="info">時間判讀：依原版 R26 金標，結算日前一晚換至次月 TX，因此模型日盤正常至 13:45（最後分K 13:44）；到期舊月 13:30 收盤不混入模型。夜盤最後一根為 04:59；週五夜盤跨週六歸屬下一交易日。</p>
  <p class="info" id="r26DataGap">風控：即使取得歷史 1 分 K，沒有完成原凍結版引擎重播前，仍不能產生新的 R26 訊號。交易日標記需核對期交所日曆。</p>
  <p class="info"><strong>資料來源：</strong>歷史以期交所原始逐筆彙整；當盤使用 Yahoo 指定月份合約，與上方 WTX&amp; 報價分開。FinMind Token 可選填並保留。</p>
 </section>
@@ -307,7 +307,7 @@ async function fetchQuoteLane(mode){
   if(mode==='cmoney'&&(j.symbol!=='TXF1'||j.quote_type!=='snapshot'||j.contract_verified))throw Error('CMoney 近月來源未驗證');
   // Do not let an earlier/out-of-order response overwrite a newer snapshot.
   const prev=quoteLanes[mode];
-  if(!prev||Date.parse(j.source_time)>=Date.parse(prev.source_time))quoteLanes[mode]=j;
+  if(!prev||prev.requested_contract!==month||Date.parse(j.source_time)>=Date.parse(prev.source_time))quoteLanes[mode]=j;
   laneErrors[mode]='正常';quoteFailure=false;quoteLastPoll=performance.now();quotesSeen++;
   const selected=pickQuote();
   if(selected){
@@ -339,5 +339,5 @@ window.addEventListener('online',()=>{fetchQuote();fetchNamedQuote();fetchCmoney
 fetchQuote();fetchNamedQuote();fetchCmoneyQuote();
 
 </script>
-<script type="module" src="/r26-live-monitor.mjs?v=20261113-2tx-paper-v1"></script>
+<script type="module" src="/r26-live-monitor.mjs?v=20261121-roll-v1"></script>
 </body></html>
