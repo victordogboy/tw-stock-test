@@ -81,10 +81,11 @@ if(fs.existsSync(outPath)){
 const payload={lock_id:refs.lock_id,source:'FinMind private Actions secret',reference_end:'2026-10-27',pool_sha256:refs.pool_sha256,
  generated_at:now.toISOString(),through_requested:endAt,days:earlier?.days||{},market_days:earlier?.market_days||{}};
 const statuses=[];const tradeDates=await tradingDays();
+const frozenSessions=new Set(Object.keys(JSON.parse(fs.readFileSync('research/c26-lock/forward/archive-feature-reference.json','utf8')).days));
 const nextTradeDate=[...tradeDates].filter(d=>d>endAt).sort()[0]||null;
 let goodDays=0,errors=0;
 for(let d=inputSince;d<=endAt;d=addDate(d,1)){
- if(!tradeDates.has(d))continue;
+ if(!(d<=payload.reference_end?frozenSessions:tradeDates).has(d))continue;
  // Recheck last 2 trading dates daily for late correction; preserve older already validated rows.
  const canReuse=d<addDate(endAt,-4)&&payload.days[d]?.source_state==='available';
  if(canReuse){statuses.push({date:d,state:'cached',price_valid:payload.days[d].price_valid,missing_count:payload.days[d].missing.length});continue}
