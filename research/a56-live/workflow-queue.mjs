@@ -1,7 +1,16 @@
 import fs from 'node:fs';
 const base='https://tw-stock-api.victordogboy.workers.dev/api/c26/a56';
 const url=new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);url.searchParams.set('audience','https://tw-stock-api.victordogboy.workers.dev/api/c26/private-feed');
-const issuance=await fetch(url,{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(20000)});
+let issuance;
+for(let attempt=0;attempt<5;attempt++){
+ try{
+  issuance=await fetch(url,{headers:{authorization:'Bearer '+process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN},signal:AbortSignal.timeout(20000)});
+  if(issuance.status!==429&&issuance.status<500)break;
+  if(attempt===4)break;
+  await issuance.body?.cancel();
+ }catch(error){if(attempt===4)throw error}
+ await new Promise(resolve=>setTimeout(resolve,1000*2**attempt));
+}
 if(!issuance.ok)throw Error('Protected workflow identity unavailable');
 const token=(await issuance.json()).value,action=process.argv[2];
 let body;
