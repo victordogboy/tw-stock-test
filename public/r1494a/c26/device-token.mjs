@@ -73,6 +73,24 @@ export function mountTokenPanel(doc=document){
  const panel=doc.createElement('section');panel.id='c26-device-token-panel';
  panel.style.cssText='border:1px solid #b8ccbf;background:#f4faf6;border-radius:12px;padding:16px;margin:18px 0;color:#173b2d';
  panel.innerHTML='<h2 style="margin:0 0 8px;font-size:18px">FinMind Token · 僅記住此瀏覽器</h2><p style="margin:0 0 10px;font-size:13px">Token 只保存在此裝置的這個瀏覽器。更新時以 HTTPS 傳送，不寫入伺服器儲存。換裝置、換瀏覽器或清除網站資料後需重新輸入。</p><div style="display:flex;flex-wrap:wrap;gap:8px"><input id="c26-device-token" type="password" autocomplete="off" spellcheck="false" aria-label="FinMind Token" placeholder="貼上 FinMind Token" style="flex:1;min-width:180px;padding:10px;border:1px solid #aebfb3;border-radius:7px"><button id="c26-token-save" type="button">儲存到此瀏覽器</button><button id="c26-token-update" type="button">使用 Token 更新 C26 資料</button><button id="c26-token-clear" type="button">清除本機 Token</button></div><p id="c26-token-message" role="status" aria-live="polite" style="font-size:13px;margin:10px 0 0"></p>';
+ const download=doc.createElement('button');
+ download.type='button';
+ download.textContent='下載已存回測資料（ZIP）';
+ panel.querySelector('div').append(download);
+ const jobs=doc.createElement('a');
+ jobs.href='/stock-futures-download.html';jobs.textContent='股期下載器已存任務';
+ panel.querySelector('div').append(jobs);
+ download.onclick=async()=>{
+  download.disabled=true;
+  try{
+   const {buildArchive}=await import('./decision-download.mjs');
+   const {blob,date}=await buildArchive(readToken(),name=>say('正在打包 '+name));
+   const link=doc.createElement('a');
+   link.href=URL.createObjectURL(blob);link.download='策略回測資料_'+date+'.zip';
+   panel.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(link.href),60000);
+   say('已產生 ZIP，日頻來源核對至 '+date+'。各資料集的日期與筆數請見 manifest.json。');
+  }catch(error){say('下載未完成：'+error.message)}finally{download.disabled=false}
+ };
  host.prepend(panel);
  const input=doc.getElementById('c26-device-token'),message=doc.getElementById('c26-token-message');
  const say=x=>message.textContent=x;
