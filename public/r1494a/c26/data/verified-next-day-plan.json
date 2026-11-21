@@ -10,7 +10,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
   "signal_as_of": "2026-11-20",
@@ -116,15 +116,15 @@
     "holdings": [
       {
         "stock_id": "2801",
-        "quantity": 1881.6138346884507,
+        "quantity": 1881.6138346884527,
         "price": 25.399999618530273,
-        "basis": 29.279387795194122,
-        "market_value_ntd": 47792.99068330793,
-        "unrealized_pct": -0.13249553589712026
+        "basis": 29.279387795194125,
+        "market_value_ntd": 47792.99068330798,
+        "unrealized_pct": -0.13249553589712038
       }
     ],
-    "cash_ntd": 50966619.05295708,
-    "equity_ntd": 51014412.04364039
+    "cash_ntd": 50966619.05295712,
+    "equity_ntd": 51014412.04364043
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
@@ -135,7 +135,7 @@
       "signal_date": "2026-11-20",
       "execute_date": "2026-11-23",
       "order_type": "MARKET_OPEN",
-      "quantity": 1881.6138346884507,
+      "quantity": 1881.6138346884527,
       "limit_or_stop_ntd": null,
       "reference_price": 25.399999618530273,
       "reason": "risk_exit",
@@ -152,7 +152,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-20T21:35:00.542144+00:00",
+  "created_at": "2026-11-21T15:17:46.463590+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "5bc2eb26ac25da923bcb0f16ba1189b4333802f176393ed3b93a9e6480d75c89"
+  "forward_asset_sha256": "0bed968a08da5cae9bdcd9160fe8954acb73afadb32206e75e64db665bafe691"
 }
