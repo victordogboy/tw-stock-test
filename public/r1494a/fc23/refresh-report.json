@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22T18:38:13.348Z",
+  "generated_at": "2026-11-22T20:46:36.704Z",
   "verified": false,
   "fc23_date": "2026-11-13",
   "market_date": "2026-11-13",
@@ -8,7 +8,7 @@
   "last_error": {
     "date": "2026-11-16",
     "message": "公司行動或異常跳價待核實：3714",
-    "at": "2026-11-22T18:38:13.065Z"
+    "at": "2026-11-22T20:46:36.421Z"
   },
   "snapshot_count": 13,
   "order_count": 5
