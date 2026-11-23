@@ -108,9 +108,20 @@ export function renderA56Monitor(D,I){
  $('date').value=I;text('count',s.holdings.length+' / 8');text('exposure',pct(s.exposure));text('target',pct(s.target));
  const pnl=s.holdings.reduce((v,h)=>v+h.unrealizedNotional,0)*scale;text('pnl',(pnl>=0?'+':'')+num(pnl,0)+' 元');
  text('priceDate',s.date+' 收盤');text('holdingNote','A56 自己的 C26＋反轉合併帳本；依所選日期試算資產同比例換算，非券商實際庫存。');
- html('status','<strong>A56 合併帳本已核對至 '+esc(D.dates.at(-1))+'</strong>市場資料至 '+esc(D.status.checkedThrough)+'；'+
-  (ready?'盤前計畫已核對：'+esc(D.plan.trade_date):'盤前計畫待更新：'+esc(D.plan.reason||''))+
-  (D.a56.queue?'<br>更新進度：'+esc(D.a56.queue.phase||D.a56.queue.state):'')+'<br>開頁及重新讀取會提出更新請求；背景原引擎完成後四個分頁一併重載。');
+ const taipeiNow=new Date(Date.now()+8*3600000).toISOString(),today=taipeiNow.slice(0,10);
+ const nextDue=D.a56.server?.source?.next_trade_date;
+ const sourceLate=taipeiNow.slice(11,16)>='20:00'&&nextDue&&nextDue<=today&&D.status.checkedThrough<nextDue;
+ const ledgerLate=D.dates.at(-1)<D.status.checkedThrough;
+ const pending=sourceLate||ledgerLate;
+ const runner='https://github.com/victordogboy/tw-stock-test/actions/workflows/c26-forward-eod.yml';
+ html('status','<strong>'+(pending?'⚠ A56 資料尚未同步，暫停發布新交易指示':'A56 合併帳本已核對至 '+esc(D.dates.at(-1)))+'</strong>'+
+  '<br>已驗證帳本：'+esc(D.dates.at(-1))+'；已驗證市場資料：'+esc(D.status.checkedThrough)+
+  (sourceLate?'；待補交易日：'+esc(nextDue):'')+
+  '<br>'+(ready?'盤前計畫已核對：'+esc(D.plan.trade_date):'最新盤前計畫未驗證，僅供查閱舊帳本：'+esc(D.plan.reason||''))+
+  (D.a56.queue?'<br>更新佇列：'+esc(D.a56.queue.state||'unknown')+'；'+esc(D.a56.queue.phase||'狀態待核對'):'<br>更新佇列：無法取得')+
+  (D.a56.queue?.delayed?'<br><b>更新逾時：原始引擎尚未接手或尚未完成，反覆按重新整理不會產生新帳本。</b>':'')+
+  '<br><a href="'+runner+'" target="_blank" rel="noopener noreferrer">開啟 GitHub 原始引擎排程／手動 Run workflow</a>（需登入有權限的 GitHub 帳號）'+
+  '<br>開頁或按重新整理只會提出更新請求；必須等原引擎完成、驗證並發布，才可使用最新交易計畫。');
  const rows=s.holdings.map(h=>'<tr><td><b>'+esc(name(h.code))+'</b><span class="sub">'+(h.sideQuantity>0?'反轉部位':'C26 核心')+' · 首次 '+esc(h.entryDate)+' · 最近買入 '+esc(h.lastBuyDate)+'</span></td><td>'+num(h.avgEntryPrice)+'</td><td>'+num(h.price)+'</td><td>'+pct(h.unrealizedPct)+'</td><td>'+num(h.unrealizedNotional*scale,0)+' 元</td><td>'+num(h.costNotional*scale,0)+'／'+num(h.marketNotional*scale,0)+' 元<span class="sub">'+num(h.quantity*scale,3)+'股（比例試算）</span></td><td>'+pct(h.weight)+'</td></tr>');
  html('holdings',rows.join('')||'<tr><td colspan="7" class="empty">A56 模型空手</td></tr>');
  html('holdingCards',s.holdings.map(h=>'<article class="holding"><div class="row"><b>'+esc(name(h.code))+'</b><b>'+pct(h.unrealizedPct)+'</b></div><p>'+(h.sideQuantity>0?'反轉':'核心')+' · 均價 '+num(h.avgEntryPrice)+'／收盤 '+num(h.price)+'</p><div class="facts">'+[['剩餘成本',num(h.costNotional*scale,0)+' 元'],['市值',num(h.marketNotional*scale,0)+' 元'],['未實現損益',num(h.unrealizedNotional*scale,0)+' 元'],['權重',pct(h.weight)],['首次買入',h.entryDate],['最近買入',h.lastBuyDate]].map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join('')+'</div></article>').join('')||'<p class="empty">A56 模型空手</p>');
