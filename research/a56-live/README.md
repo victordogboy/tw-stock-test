@@ -124,3 +124,23 @@ excluding the latter before checking a 4,301,641-share daily total incorrectly
 failed the 95% source gate. The corrected total passes, while the minute array
 still contains exactly 4,056,000 shares. Missing volume, duplicated volume,
 wrong dates and inconsistent OHLC remain blocked by regression tests.
+
+## 2026-11-23 stale-session recovery and operator action
+
+Production monitoring observed that Yahoo quote OHLC for the 2026-11-23
+session could already be visible while the published FinMind source
+coverage and verified A56 combined portfolio still ended at 2026-11-20.
+The quote panel is *not* source coverage or an original-engine replay;
+nothing should promote a 2026-11-20 next-session plan after its session
+has expired.
+
+The canonical recovery runner is
+[`c26-forward-eod.yml`](../../.github/workflows/c26-forward-eod.yml):
+its original engine must stage the new exchange session, verify the
+source and account, and publish matching forward/manifest assets.
+The A56 dashboard now shows verified dates separately, flags overdue
+source or account replay after the Taipei EOD cutoff, and provides a
+direct link to the workflow. A queued request does not prove successful
+execution. Failure leaves the last audited account intact and blocks
+new trading instructions. The manual `workflow_dispatch` action
+also serves as a recovery path if scheduled GitHub Actions are delayed.
