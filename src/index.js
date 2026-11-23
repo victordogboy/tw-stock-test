@@ -2007,7 +2007,7 @@ export default {
     if (env.ASSETS) {
       const asset = await env.ASSETS.fetch(request);
       const path = new URL(request.url).pathname;
-      if (path.endsWith(".html") || path === "/" || path === "/scanner.html" || path === "/detail.html" || path === "/scanner" || path === "/detail") {
+      if (path === "/r1494a/" || path === "/r1494a" || path.endsWith(".html") || path === "/" || path === "/scanner.html" || path === "/detail.html" || path === "/scanner" || path === "/detail") {
         const headers = new Headers(asset.headers);
         headers.set("Cache-Control","no-store, no-cache, must-revalidate, max-age=0");
         headers.set("Pragma","no-cache");
