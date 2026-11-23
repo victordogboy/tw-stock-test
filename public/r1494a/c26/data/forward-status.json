@@ -1,12 +1,12 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-23T14:44:51.393Z",
+  "checked_at": "2026-11-23T22:45:40.515Z",
   "requested_through": "2026-11-23",
   "next_exchange_trade_date": "2026-11-24",
-  "full_market_last_verified": "2026-11-23",
+  "full_market_last_verified": "2026-11-18",
   "staged_trade_dates": 19,
-  "available_trade_dates": 19,
+  "available_trade_dates": 16,
   "days": [
     {
       "date": "2026-10-16",
@@ -142,30 +142,45 @@
     },
     {
       "date": "2026-11-19",
-      "state": "available",
-      "price_valid": 233,
+      "state": "partial",
+      "price_valid": 0,
       "missing_count": 0,
       "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "institutional_codes": 0,
+      "source_errors": [
+        "TaiwanStockPrice 2026-11-19 HTTP 400",
+        "TaiwanStockInstitutionalInvestorsBuySell 2026-11-19 HTTP 400",
+        "TaiwanStockMarginPurchaseShortSale 2026-11-19 HTTP 400",
+        "TaiwanStockSecuritiesLending 2026-11-19 HTTP 400"
+      ]
     },
     {
       "date": "2026-11-20",
-      "state": "available",
-      "price_valid": 233,
+      "state": "partial",
+      "price_valid": 0,
       "missing_count": 0,
       "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "institutional_codes": 0,
+      "source_errors": [
+        "TaiwanStockPrice 2026-11-20 HTTP 400",
+        "TaiwanStockInstitutionalInvestorsBuySell 2026-11-20 HTTP 400",
+        "TaiwanStockMarginPurchaseShortSale 2026-11-20 HTTP 400",
+        "TaiwanStockSecuritiesLending 2026-11-20 HTTP 400"
+      ]
     },
     {
       "date": "2026-11-23",
-      "state": "available",
-      "price_valid": 233,
+      "state": "partial",
+      "price_valid": 0,
       "missing_count": 0,
       "invalid_count": 0,
-      "institutional_codes": 233,
-      "source_errors": []
+      "institutional_codes": 0,
+      "source_errors": [
+        "TaiwanStockPrice 2026-11-23 HTTP 400",
+        "TaiwanStockInstitutionalInvestorsBuySell 2026-11-23 HTTP 400",
+        "TaiwanStockMarginPurchaseShortSale 2026-11-23 HTTP 400",
+        "TaiwanStockSecuritiesLending 2026-11-23 HTTP 400"
+      ]
     }
   ],
   "universe_count": 233,
@@ -183,7 +198,7 @@
     "failed_codes": []
   },
   "latest_missing_codes": [],
-  "state": "source_staged",
+  "state": "source_partial",
   "exact_c26_feature_parity": "NOT_VERIFIED",
   "frozen_c26_portfolio_replay": "NOT_IMPLEMENTED",
   "live_plan_readiness": "BLOCKED",
