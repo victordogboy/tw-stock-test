@@ -14,7 +14,7 @@ const explain=x=>reason[x]||x||'—';
 const table=(heads,rows)=>'<div class="scroll"><table><thead><tr>'+heads.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>';
 const hash=async bytes=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');
 async function get(path){const r=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(20000)});if(!r.ok)throw Error(path+' HTTP '+r.status);return r.json()}
-async function history(){
+async function readFrozenHistory(){
  const [index,r]=await Promise.all([get(ROOT+'dashboard-history-index.json'),fetch(ROOT+'dashboard-history.b64',{cache:'no-store'})]);
  if(!r.ok)throw Error('A56歷史帳本 HTTP '+r.status);
  const compressed=Uint8Array.from(atob((await r.text()).trim()),c=>c.charCodeAt(0));
@@ -23,6 +23,11 @@ async function history(){
  const d=JSON.parse(new TextDecoder().decode(bytes));verifyAccount(d.snapshots,d.orders);
  if(d.lock_id!==LOCK||d.source_sha256!==index.source_sha256||d.snapshots.length!==1419||d.orders.length!==1759||d.as_of!=='2026-11-12'||Math.abs(d.snapshots.at(-1).nav-21.707790980649124)>1e-8)throw Error('A56原始封存不符');
  return d;
+}
+let frozenHistoryPromise=null;
+async function history(){
+ if(!frozenHistoryPromise)frozenHistoryPromise=readFrozenHistory().catch(e=>{frozenHistoryPromise=null;throw e});
+ return frozenHistoryPromise;
 }
 export function verifyAccount(snapshots,orders){
  if(!Array.isArray(snapshots)||!snapshots.length||!Array.isArray(orders))throw Error('A56帳本空白');
