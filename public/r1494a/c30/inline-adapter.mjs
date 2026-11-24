@@ -83,7 +83,7 @@ export function renderC30Monitor(D,I,limit=120){
 export function renderC30Orders(D,I,limit=120){
  const date=D.dates[I],q=($('#search')?.value||'').trim(),filter=$('#fill')?.value||'';
  const arr=D.orders.filter(o=>o.date<=date&&(!q||o.code.includes(q)||String(D.names?.[o.code]||'').includes(q))&&(!filter||(filter==='filled'?o.filled:!o.filled))).reverse();
- const f=scale(D,D.snapshots[I]);
+ const f=3000000; // 原始300萬本金口徑，固定模型成交金額
  $('#orderRows').innerHTML=arr.slice(0,limit).map(o=>'<tr><td>'+esc(o.date)+'<span class="sub">訊號日 '+esc(o.signal)+'</span></td><td>'+esc(D.names?.[o.code]||o.code)+' <small>'+esc(o.code)+'</small></td><td>'+(o.side==='BUY'?'買入':'賣出')+'<span class="sub">'+(o.filled?'歷史模擬成交':'歷史未成交')+'</span></td><td>'+money(o.level,2)+'</td><td>'+money(o.price,2)+'</td><td>'+money(o.notional*f)+'</td><td>'+money(o.realized,2)+'</td><td>'+esc(reason[o.reason]||o.reason)+'</td></tr>').join('')||'<tr><td colspan="8">此範圍沒有符合條件的核心委託。</td></tr>';
  set('#orderCount','C30 原版核心委託：顯示 '+Math.min(limit,arr.length)+' / '+arr.length+' 筆（反轉部位逐筆帳本未隨此檔案封存）。');
 }
@@ -106,9 +106,10 @@ export function decorateC30Monitor(D){
  $('#finmind-device-panel').style.display='none';
  set('#heroDescription','C30 RISK23 原版 · 233 檔股期現股研究池 · 核心與反轉雙模組 · 最多 8 檔 · 0.5855% 往返成本');
  set('#ledgerLabel','C30 原版 · 凍結歷史紙上持倉（非目前實盤）');
- set('#ordersNote','原版核心 2,082 筆委託，含 163 筆未成交；反轉部位僅有逐日合計市值，未提供逐筆買賣明細。');
+ set('#ordersNote','原版核心 2,082 筆委託，含 163 筆未成交；表列金額依原始300萬元本金計，realized 欄保留原始值不擅自改單位；反轉部位只有每日總市值。');
  $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>原始核心交易、逐日部位與加權指數已對帳；反轉個股逐筆明細缺於本次封存，無法補造。</p></details>';
  $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>僅驗證截至2026/11/20的歷史策略，尚未上線每日原引擎重播。這不是現在的買賣指令，也不是券商實際績效。';
+ $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>日期／訊號日</th><th>股票</th><th>動作／歷史狀態</th><th>核心觸發價</th><th>原始成交價</th><th>300萬原始模型金額</th><th>原始 realized</th><th>原因</th></tr>';
  $('#annual').closest('table').querySelector('thead').innerHTML='<tr><th>年度</th><th>C30 累積報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
