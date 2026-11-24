@@ -128,9 +128,9 @@ function freeCoverageHtml(status){
  if(!days.length)return '<p class="sub">Free 雲端目前沒有 2026/11/23 後的資料；請先填入 Token 並執行增量更新。</p>';
  const rows=days.map(d=>{
   const cols=[d.price?.stock_count||0,...ds.map(k=>d.chips?.[k]?.saved_codes?.length||0),d.minute?.count||0];
-  return '<tr><td>'+esc(d.date)+'</td>'+cols.map((x,i)=>'<td class="'+(x===233?'positive':x<225?'negative':'')+'">'+x+'/233</td>').join('')+'<td>'+(cols.every(v=>v===233)?'<span class="pill">原始資料已覆蓋</span>':'<span class="pill amber">尚有缺漏／停牌</span>')+'</td></tr>'
+  return '<tr><td>'+esc(d.date)+'</td>'+cols.map((x,i)=>'<td class="'+(x===233?'positive':x<225?'negative':'')+'">'+x+'/233</td>').join('')+'<td>'+(d.market?.stored?d.market.rows+' 筆':'尚未封存')+'</td><td>'+(cols.every(v=>v===233)?'<span class="pill">原始資料已覆蓋</span>':'<span class="pill amber">尚有缺漏／停牌</span>')+'</td></tr>'
  }).join('');
- return '<div class="scroll"><table><thead><tr><th>日期</th><th>日K</th><th>法人</th><th>融資券</th><th>借券</th><th>現股1分K</th><th>資料完整性</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="sub">數字代表成功取得或查核過的股票數，法人等資料可能是空值已檢查，不等於每根分 K 都完整。原 Python C30 引擎尚未逐日接續，因此不發布最新買賣單。</p>';
+ return '<div class="scroll"><table><thead><tr><th>日期</th><th>日K（233）</th><th>法人</th><th>融資券</th><th>借券</th><th>現股1分K</th><th>全市場日K（原始筆數）</th><th>資料完整性</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="sub">數字代表成功取得或查核過的股票數，法人等資料可能是空值已檢查，不等於每根分 K 都完整。原 Python C30 引擎尚未逐日接續，因此不發布最新買賣單。</p>';
 }
 export function decorateC30Monitor(D){
  // C30 shares A56's existing FinMind Token panel; never hide it.
@@ -145,9 +145,9 @@ export function decorateC30Monitor(D){
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
  $('#rulesMain').innerHTML='<h2>C30 原版｜固定規則與封存資料</h2><ol><li><strong>原版凍結：</strong>buffer250_partial_2019，2021/01/06～2026/11/20，1,425 個交易日，累積淨報酬 +2,328.07%、最大回撤 −18.50%、勝大盤 46/71 月。</li><li>交易池採原研究的 233 檔股期現股，當年航運／金融仍包含於原研究，不能將排除產業的實驗版當正式原版。</li><li>初始300萬元、小數股複利模擬，最多8檔、單檔上限30%；原本的核心與反轉部位、動態選股排序、帳戶高水位、危機風控及現金銜接規則皆不變。</li><li>核心日線成交依原引擎觸價與開盤執行假設，買入費0.14275%、賣出費稅0.44275%（往返0.5855%）；實際下單不保證成交。</li><li>原版最後交易日2026/11/20；最新免費日K或分K僅代表行情更新，尚須完成原Python引擎的逐日狀態接續才能發布隔日委託。</li></ol><p><a href="/c30/minute/">免費233檔分K下載</a>　·　<a href="/c30/archive/">C30 雲端永久封存</a>　·　<a href="/c30/">獨立來源／診斷</a></p>';
  $('#rulesMain').insertAdjacentHTML('beforeend','<h3>Free 雲端逐日完整性（固定 233 檔）</h3>'+freeCoverageHtml(D.finmind));
- $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
+ $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
  set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。反轉個股明細及2026/11/23以後重播仍待補。');
- set('#rulesFoot','Free：TWSE/TPEx 官方日K；FinMind 免費逐檔 data_id 三大法人、融資融券及借券，按交易日＋股票＋資料集保存到 Cloudflare，與 A56 共用資料。已完成的資料不再重抓。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
+ set('#rulesFoot','交易池固定 233 檔；Sponsor 整日全市場收盤價另行完整保存，供日後核對市場廣度（含 ETF／興櫃原始資料，計算時須過濾）。三大法人、融資券、借券與分K只做 233 檔。原版 C30 市場廣度不可未經原引擎對帳就替換。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
  set('#strategyFooter','C30 RISK23 原版｜2021/01/06～2026/11/20｜原始凍結績效 +2328.07%／−18.50%｜未發布今日買賣');
 }
 export function exportC30Orders(D,I){
