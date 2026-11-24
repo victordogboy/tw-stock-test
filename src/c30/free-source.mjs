@@ -35,7 +35,7 @@ export async function c30FreeOfficialScheduled(env){
  return internal(v,'official','POST',{date:j.as_of,rows:price,expected:233,source:'Scheduled TWSE/TPEx official EOD'});
 }
 export async function c30FreeSourceRoute(req,env){
- const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','day','replay-input'];
+ const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','minute','day','replay-input'];
  if(!u.pathname.startsWith('/api/c30/free/')||!allow.includes(route))return response({ok:false,error:'unknown endpoint'},404);
  const method=['status','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
  if(!sameOrigin(req))return response({ok:false,error:'cross-origin request rejected'},403);
