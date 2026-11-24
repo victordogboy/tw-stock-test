@@ -73,6 +73,7 @@ export function mountTokenPanel(doc=document){
  const panel=doc.createElement('section');panel.id='c26-device-token-panel';
  panel.style.cssText='border:1px solid #b8ccbf;background:#f4faf6;border-radius:12px;padding:16px;margin:18px 0;color:#173b2d';
  panel.innerHTML='<h2 style="margin:0 0 8px;font-size:18px">FinMind Token · 僅記住此瀏覽器</h2><p style="margin:0 0 10px;font-size:13px">Token 只保存在此裝置的這個瀏覽器。更新時以 HTTPS 傳送，不寫入伺服器儲存。換裝置、換瀏覽器或清除網站資料後需重新輸入。</p><div style="display:flex;flex-wrap:wrap;gap:8px"><input id="c26-device-token" type="password" autocomplete="off" spellcheck="false" aria-label="FinMind Token" placeholder="貼上 FinMind Token" style="flex:1;min-width:180px;padding:10px;border:1px solid #aebfb3;border-radius:7px"><button id="c26-token-save" type="button">儲存到此瀏覽器</button><button id="c26-token-update" type="button">使用 Token 更新 C26 資料</button><button id="c26-token-clear" type="button">清除本機 Token</button></div><p id="c26-token-message" role="status" aria-live="polite" style="font-size:13px;margin:10px 0 0"></p>';
+ const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-free-v2');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
  download.type='button';
  download.textContent='下載已存回測資料（ZIP）';
@@ -106,11 +107,11 @@ export function mountTokenPanel(doc=document){
  doc.getElementById('c26-token-update').onclick=async()=>{
   const buttons=panel.querySelectorAll('button');
   try{
-   const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
+   const token=saveToken(input.value);for(const b of buttons)b.disabled=true;const isFree=['C30','A56'].includes(doc.getElementById('strategy')?.value);if(isFree){freeStop.hidden=false;freeStop.disabled=false;}
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
     const free=await import('../c30/free-sync.mjs?v=20261125-free-v2');
-    const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:100});
+    const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:1000});
     say(selected+' 免費增量：官方日K至 '+(state.latest_price_date||'尚未核對')+'，雲端 '+state.stored_days+' 個交易日；'+state.complete_days+' 個四類資料完整日；尚有 '+(state.pending||0)+' 組逐檔查詢待補'+(state.errors.length?'，失敗 '+state.errors.length+' 組':'')+'。關閉網頁後雲端已存內容保留；原策略需獨立引擎重播。');
     if(typeof globalThis.poll==='function')globalThis.poll(false);
     return;
@@ -121,7 +122,7 @@ export function mountTokenPanel(doc=document){
     say('資料已保存並核對至 '+status.source_as_of+'；已請求 A56 合併帳本與盤前計畫更新，完成後主頁同步重載。');
     if(typeof globalThis.poll==='function')globalThis.poll();
    }else say('資料已保存並核對至 '+status.source_as_of+'；'+status.available_days+' 個接續交易日。C26 交易計畫仍須通過原引擎逐日重播。');
-  }catch(e){say('更新未完成：'+e.message)}finally{for(const b of buttons)b.disabled=false}
+  }catch(e){say('更新未完成：'+e.message)}finally{for(const b of buttons)b.disabled=false;freeStop.hidden=true}
  };
 }
 if(typeof document!=='undefined')mountTokenPanel();
