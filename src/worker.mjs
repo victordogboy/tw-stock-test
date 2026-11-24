@@ -11,6 +11,7 @@ import {researchPackRoute} from './research-pack.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
 import {etfDividendRoute} from './etf-dividends-0050.mjs';
 import {c30DailyRoute,C30DailyStore} from './c30/daily-cache.mjs';
+import {c30FreeSourceRoute,C30FreeStore} from './c30/free-source.mjs';
 import {c30MinuteRoute} from './c30/free-minute.mjs';
 import {c30ArchiveRoute,C30Archive} from './c30/archive.mjs';
 import {c30FreeDailyRoute} from './c30/free-daily.mjs';
@@ -29,8 +30,9 @@ export {TxDownloadJob,StockFuturesBatch,StockFuturesData,C30Archive};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
- constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);}
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);this.c30free=new C30FreeStore(ctx);}
  fetch(request){
+  if(new URL(request.url).pathname.startsWith('/c30-free-internal/'))return this.c30free.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-daily-internal/'))return this.c30daily.fetch(request);
   if(new URL(request.url).pathname.startsWith('/a56-internal/'))return this.a56refresh.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c26-internal/'))return this.c26private.fetch(request);
@@ -91,6 +93,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-chip/'))return stockFuturesRoute(request,env,'daily-chip');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-research/'))return stockFuturesRoute(request,env,'daily-research');
   if(new URL(request.url).pathname.startsWith('/api/tx-download/'))return txDownloadRoute(request,env);
+  if(new URL(request.url).pathname.startsWith('/api/c30/free/'))return c30FreeSourceRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/daily/'))return c30DailyRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/archive/'))return c30ArchiveRoute(request,env);
   if(new URL(request.url).pathname==='/api/c30/minute')return c30MinuteRoute(request);
