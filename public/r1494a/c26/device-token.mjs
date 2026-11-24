@@ -84,7 +84,7 @@ export function mountTokenPanel(doc=document){
  const initialInterval=Number.isFinite(savedInterval)&&savedInterval>=6500&&savedInterval<=30000&&savedInterval%500===0?savedInterval:8000;
  pacingInput.value=String(initialInterval/1000);pacingCurrent.textContent=pacingText(initialInterval);
  pacingInput.onchange=async()=>{try{const m=await import('../c30/free-sync.mjs?v=20261125-adjustable-v1');const ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms);message.textContent='已儲存 Free 請求間隔 '+(ms/1000)+' 秒；不會刪除雲端資料。'}catch(e){message.textContent='間隔設定失敗：'+e.message;pacingInput.value=String(initialInterval/1000)}};
- const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-free-v2');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
+ const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-adjustable-v1');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
  download.type='button';download.id='c26-archive-download';
  download.textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'下載 Free 雲端增量資料（NDJSON.gz）':'下載已存回測資料（ZIP）';
@@ -96,7 +96,7 @@ export function mountTokenPanel(doc=document){
   download.disabled=true;
   try{
    if(['C30','A56'].includes(doc.getElementById('strategy')?.value)){
-    const {exportC30A56FreeInputs}=await import('../c30/export-incremental.mjs?v=20261125-free-v2');
+    const {exportC30A56FreeInputs}=await import('../c30/export-incremental.mjs?v=20261125-adjustable-v1');
     await exportC30A56FreeInputs(readToken(),say,false);
     return;
    }
@@ -121,7 +121,7 @@ export function mountTokenPanel(doc=document){
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;const isFree=['C30','A56'].includes(doc.getElementById('strategy')?.value);if(isFree){freeStop.hidden=false;freeStop.disabled=false;}
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
-    const free=await import('../c30/free-sync.mjs?v=20261125-free-v2');
+    const free=await import('../c30/free-sync.mjs?v=20261125-adjustable-v1');
     const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:1000});
     say(selected+' 免費增量：官方日K至 '+(state.latest_price_date||'尚未核對')+'，雲端 '+state.stored_days+' 個交易日；'+state.complete_days+' 個四類資料完整日；尚有 '+(state.pending||0)+' 組逐檔查詢待補'+(state.errors.length?'，失敗 '+state.errors.length+' 組':'')+'。關閉網頁後雲端已存內容保留；原策略需獨立引擎重播。');
     if(typeof globalThis.poll==='function')globalThis.poll(false);
