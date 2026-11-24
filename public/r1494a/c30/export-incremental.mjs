@@ -1,5 +1,5 @@
 /* Private incrementals for C30/A56 frozen Python engine handoff. NOT an order generator. */
-import {c30FreeToken,c30FreeStatus,c30FreeDownloadDay} from './free-sync.mjs?v=20261125-1s-sponsor-v3';
+import {c30FreeToken,c30FreeStatus,c30FreeDownloadDay} from './free-sync.mjs?v=20261125-100ms-sponsor-v4';
 export async function exportC30A56FreeInputs(token=c30FreeToken(),progress=()=>{},includeMinutes=false){
  if(!token)throw Error('請設定 FinMind Free Token');
  const status=await c30FreeStatus(token),days=(status.days||[]).filter(x=>x.date>'2026-11-20');
