@@ -84,12 +84,49 @@ export async function c30FreeSourceRoute(req,env){
   }
   if(route==='minute'){
    const q=await req.json().catch(()=>null),code=String(q?.code||''),market=q?.market,provider=q?.provider;
-   if(!/^\d{4}$/.test(code)||!['TWSE','TPEx'].includes(market)||!['Fugle Free API','Yahoo chart fallback'].includes(provider)||!Array.isArray(q?.bars)||q.bars.length>10000)return response({ok:false,error:'invalid minute input'},400);
+   if(!/^\d{4}$/.test(code)||!['TWSE','TPEx'].includes(market)||!['Fugle Free API','Yahoo chart fallback','FinMind Sponsor 1m'].includes(provider)||!Array.isArray(q?.bars)||q.bars.length>10000)return response({ok:false,error:'invalid minute input'},400);
    if((await pool(env)).get(code)!==market)return response({ok:false,error:'minute code/market outside frozen pool'},400);
    const groups=new Map();for(const b of q.bars){if(!validDate(b.date)||b.date<START||b.date>cutoff()||b.stock_id!==code||!/^\d{2}:\d{2}:00$/.test(b.minute||'')||b.minute<'09:00:00'||b.minute>'14:30:00'||![b.open,b.high,b.low,b.close,b.volume_shares].every(Number.isFinite)||b.open<=0||b.low<=0||b.low>Math.min(b.open,b.close)||b.high<Math.max(b.open,b.close))return response({ok:false,error:'minute OHLCV validation failed'},422);const v=groups.get(b.date)||[];v.push(b);groups.set(b.date,v)}
    if(groups.size>35||!groups.size)return response({ok:false,error:'minute day count exceeds 35'},400);
    const out=[];for(const [date,bars] of groups){out.push(await internal(v,'minute','POST',{date,code,provider,market,bars}))}
    return response({ok:true,stored:out.length,days:out,model_replayed:false});
+  }
+  if(route==='sponsor-batch'){
+   if(tier!=='sponsor')return response({ok:false,error:'請在介面選 Sponsor（S）模式；FinMind 會驗證實際會員權限'},403);
+   const q=await req.json().catch(()=>null),date=q?.date,ds=q?.dataset;
+   if(!validDate(date)||date<START||date>cutoff()||!ALL.includes(ds))return response({ok:false,error:'Sponsor dataset or date invalid'},400);
+   const batchInfo=await internal(v,'batch-state?date='+date+'&dataset='+ds);
+   if(batchInfo.done&&!q.force)return response({ok:true,cached:true,date,dataset:ds,selected_rows:batchInfo.rows||0,model_replayed:false});
+   const permit=await reserve(v,intervalMs,tier);
+   if(!permit.ok)return response({...permit,code:permit.code||'SPONSOR_QUOTA'},429);
+   const allRows=await finmind(token,ds,null,date,date),fixed=await pool(env);
+   const matched=allRows.filter(x=>x?.date===date&&fixed.has(String(x.stock_id||'')));
+   if(allRows.length===0)throw Error('Sponsor 整日回傳空資料，不會封存為完成');
+   if(allRows.length>100000||matched.length>22000)throw Error('FinMind 回傳筆數異常，不保存');
+   const saved=await internal(v,'batch','POST',{date,dataset:ds,rows:matched,source:'FinMind Sponsor whole-market by date'});
+   return response({...saved,cached:false,market_rows:allRows.length,selected_rows:matched.length,model_replayed:false});
+  }
+  if(route==='sponsor-minute'){
+   if(tier!=='sponsor')return response({ok:false,error:'僅 Sponsor（S）模式允許 FinMind TaiwanStockKBar'},403);
+   const q=await req.json().catch(()=>null),code=String(q?.code||''),date=q?.date;
+   if(!validDate(date)||date<START||date>cutoff()||!/^\d{4}$/.test(code))return response({ok:false,error:'Sponsor minute code/date invalid'},400);
+   const market=(await pool(env)).get(code);
+   if(!market)return response({ok:false,error:'非 C30 固定 233 檔'},400);
+   const current=await internal(v,'status'),day=current.days?.find(x=>x.date===date);
+   if(day?.minute?.saved_codes?.includes(code)&&!q.force)return response({ok:true,cached:true,code,date,model_replayed:false});
+   const permit=await reserve(v,intervalMs,tier);
+   if(!permit.ok)return response({...permit,code:permit.code||'SPONSOR_QUOTA'},429);
+   const rows=await finmind(token,'TaiwanStockKBar',code,date,date),bars=[];
+   for(const x of rows){
+     if(x?.date!==date||String(x.stock_id||'')!==code)continue;
+     const minute=String(x.minute||'').slice(-8);
+     const bar={date,minute,stock_id:code,open:Number(x.open),high:Number(x.high),low:Number(x.low),close:Number(x.close),volume_shares:Number(x.volume)};
+     if(!/^\d{2}:\d{2}:00$/.test(minute)||minute<'09:00:00'||minute>'14:30:00'||![bar.open,bar.high,bar.low,bar.close,bar.volume_shares].every(Number.isFinite)||bar.low<=0||bar.low>Math.min(bar.open,bar.close)||bar.high<Math.max(bar.open,bar.close)||bar.volume_shares<0)throw Error('Sponsor KBar validation failed');
+     bars.push(bar);
+   }
+   if(!bars.length||bars.length>340)throw Error('Sponsor 此日沒有有效 1 分 K；原雲端保留');
+   const done=await internal(v,'minute','POST',{date,code,market,provider:'FinMind Sponsor 1m',bars});
+   return response({...done,ok:true,cached:false,date,code,model_replayed:false});
   }
   if(route==='chip'){
    const q=await req.json().catch(()=>null);const ds=q?.dataset,code=String(q?.code||''),from=q?.from,to=q?.to;
@@ -137,6 +174,37 @@ export class C30FreeStore{
     const index=await this.s.get('index:'+date)||{chips:{}};index.price={state:ids.size>=225?'available':'partial',stock_count:ids.size,saved_codes:[...ids],source:b.source,updated_at:new Date().toISOString()};
     await this.s.put({['price:'+date]:b.rows,['index:'+date]:index});return response({ok:true,stored:true,as_of:date,stock_count:ids.size,missing:233-ids.size,state:index.price.state});
    }
+   if(route==='batch-state'&&method==='GET'){
+    const date=u.searchParams.get('date'),dataset=u.searchParams.get('dataset');
+    if(!validDate(date)||!ALL.includes(dataset))return response({ok:false,error:'invalid date/dataset'},400);
+    return response({ok:true,...await this.s.get('batch:'+date+':'+dataset)||{done:false}});
+   }
+   if(route==='batch'&&method==='POST'){
+    const q=await req.json(),ds=q.dataset,date=q.date,source=q.source;
+    if(!ALL.includes(ds)||!validDate(date)||date<START||!Array.isArray(q.rows)||q.rows.length>22000)return response({ok:false,error:'invalid Sponsor batch'},400);
+    const grouped=new Map();
+    for(const x of q.rows){
+     const code=String(x.stock_id||'');
+     if(x.date!==date||!/^\d{4}$/.test(code))return response({ok:false,error:'Sponsor row symbol/date invalid'},422);
+     const arr=grouped.get(code)||[];arr.push(x);grouped.set(code,arr)
+    }
+    let written=0,skipped=0;
+    const idx=await this.s.get('index:'+date)||{chips:{}};idx.chips??={};
+    idx.chips[ds]??={};const values={};
+    for(const [code,rows] of grouped){
+     const prior=idx.chips[ds][code];
+     if(prior?.state==='available'){skipped++;continue}
+     if(ds==='TaiwanStockPrice'&&rows.some(x=>[x.open,x.max,x.min,x.close,x.Trading_Volume].some(v=>!Number.isFinite(Number(v)))||Number(x.open)<=0||Number(x.max)<Number(x.min)))return response({ok:false,error:'Sponsor price invalid'},422);
+     idx.chips[ds][code]={state:'available',rows:rows.length,source,updated_at:new Date().toISOString()};
+     values['chip:'+date+':'+ds+':'+code]=rows;written++;
+     if(Object.keys(values).length>=25){await this.s.put(values);for(const key of Object.keys(values))delete values[key]}
+    }
+    if(Object.keys(values).length)await this.s.put(values);
+    await this.s.put('index:'+date,idx);
+    const meta={done:true,date,dataset:ds,rows:q.rows.length,stock_count:grouped.size,written,skipped,source,updated_at:new Date().toISOString()};
+    idx.batch??={};idx.batch[ds]={done:true,rows:q.rows.length,stock_count:grouped.size};await this.s.put('index:'+date,idx);await this.s.put('batch:'+date+':'+ds,meta);
+    return response({ok:true,stored:true,...meta});
+   }
    if(route==='chip'&&method==='POST'){
     const b=await req.json(),dates=b.dates||[],ds=b.dataset,code=b.code;
     if(!ALL.includes(ds)||!/^\d{4}$/.test(code)||!Array.isArray(dates)||!dates.length||dates.length>32||dates.some(x=>!validDate(x)||x<START)||!Array.isArray(b.rows)||b.rows.length>8000)return response({ok:false,error:'invalid chip input'},400);
@@ -152,9 +220,9 @@ export class C30FreeStore{
    }
    if(route==='minute'&&method==='POST'){
     const q=await req.json(),{code,date,market,provider}=q;
-    if(!validDate(date)||date<START||!/^\d{4}$/.test(code)||!['Fugle Free API','Yahoo chart fallback'].includes(provider)||!['TWSE','TPEx'].includes(market)||!Array.isArray(q.bars)||q.bars.length>340)return response({ok:false,error:'bad minute payload'},400);
+    if(!validDate(date)||date<START||!/^\d{4}$/.test(code)||!['Fugle Free API','Yahoo chart fallback','FinMind Sponsor 1m'].includes(provider)||!['TWSE','TPEx'].includes(market)||!Array.isArray(q.bars)||q.bars.length>340)return response({ok:false,error:'bad minute payload'},400);
     const key='minute:'+date+':'+code,old=await this.s.get(key);
-    if(old?.provider==='Fugle Free API'&&provider!=='Fugle Free API')return response({ok:true,skipped:true,date,code});
+    const rank=p=>p==='FinMind Sponsor 1m'?3:p==='Fugle Free API'?2:1;if(old&&rank(old.provider)>rank(provider))return response({ok:true,skipped:true,date,code});
     const combined=new Map(old?.provider===provider?(old.bars||[]).map(b=>[b.minute,b]):[]);
     for(const bar of q.bars)combined.set(bar.minute,bar);
     const bars=[...combined.values()].sort((a,b)=>a.minute.localeCompare(b.minute));
@@ -165,7 +233,7 @@ export class C30FreeStore{
    }
    if(route==='status'&&method==='GET'){
     const m=await this.s.list({prefix:'index:'}),mins=await this.s.list({prefix:'minuteIndex:'}),days=[];
-    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}const priceObject=idx.chips?.TaiwanStockPrice||{},checked=Object.keys(priceObject).filter(x=>['available','empty_checked'].includes(priceObject[x].state)),valid=Object.keys(priceObject).filter(x=>priceObject[x].state==='available');days.push({date,price:idx.price||{state:valid.length>=225?'available':'partial',stock_count:valid.length,saved_codes:checked,source:'FinMind Free per-stock backfill'},chips,minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length}})}
+    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}const priceObject=idx.chips?.TaiwanStockPrice||{},checked=Object.keys(priceObject).filter(x=>['available','empty_checked'].includes(priceObject[x].state)),valid=Object.keys(priceObject).filter(x=>priceObject[x].state==='available');days.push({date,price:idx.price||{state:valid.length>=225?'available':'partial',stock_count:valid.length,saved_codes:checked,source:'FinMind per-stock backfill'},chips,batch:idx.batch||{},minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length}})}
     for(const [key,info] of mins){const date=key.slice('minuteIndex:'.length);if(!days.some(x=>x.date===date))days.push({date,price:null,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:Object.keys(info),count:Object.keys(info).length}})}
     days.sort((a,b)=>a.date.localeCompare(b.date));return response({ok:true,days,stored_days:days.length,latest_price_date:days.filter(x=>x.price?.state==='available').at(-1)?.date||null,complete_days:days.filter(x=>x.price?.state==='available'&&CHIP.every(ds=>x.chips[ds].saved_codes.length===233)).length,model_replayed:false,freeze_end:'2026-11-20',source:'Free: official TWSE/TPEx + FinMind per-stock'});
    }
