@@ -27,7 +27,7 @@ async function reserve(v){try{return await internal(v,'reserve','POST')}catch(e)
 export async function c30FreeOfficialScheduled(env){
  if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
  const v=officialVault(env),previous=await internal(v,'status'),through=cutoff();
- if(previous.latest_price_date===through)return {ok:true,cached:true,as_of:through};
+ if(previous.latest_price_date===through&&previous.days?.find(x=>x.date===through)?.price?.saved_codes?.length)return {ok:true,cached:true,as_of:through};
  const r=await c30FreeDailyRoute(new Request('https://internal/api/c30/latest'));
  const j=await r.json();if(!j.ok||!j.same_trade_date||!validDate(j.as_of)||j.as_of>through)throw Error('Official TWSE/TPEx not synchronized');
  const frozen=await pool(env),price=[...(j.markets?.twse?.rows||[]),...(j.markets?.tpex?.rows||[])].filter(x=>frozen.get(x.code)===x.market);
@@ -77,7 +77,7 @@ export async function c30FreeSourceRoute(req,env){
   }
   if(route==='official'){
    const done=await internal(officialVault(env),'status'),date=cutoff();
-   if(done.latest_price_date===date)return response({ok:true,cached:true,as_of:date,stock_count:done.days?.find(x=>x.date===date)?.price?.stock_count||0});
+   if(done.latest_price_date===date&&done.days?.find(x=>x.date===date)?.price?.saved_codes?.length)return response({ok:true,cached:true,as_of:date,stock_count:done.days?.find(x=>x.date===date)?.price?.stock_count||0});
    return response({...await c30FreeOfficialScheduled(env),cached:false});
   }
   if(route==='minute'){
