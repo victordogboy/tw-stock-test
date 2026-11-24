@@ -11,6 +11,7 @@ import {researchPackRoute} from './research-pack.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
 import {etfDividendRoute} from './etf-dividends-0050.mjs';
 import {c30MinuteRoute} from './c30/free-minute.mjs';
+import {c30ArchiveRoute,C30Archive} from './c30/archive.mjs';
 import {c30FreeDailyRoute} from './c30/free-daily.mjs';
 import worker from './index.js';
 import {forwardPeRoute} from './forward-pe.mjs';
@@ -23,7 +24,7 @@ import {r26LiveQuoteRoute} from './r26-live-quote.mjs';
 import {r11PreopenRoute} from './r11-preopen.mjs';
 import {r11BackfillRoute} from './r11-backfill.mjs';
 import {r11TradingDaysRoute} from './r11-trading-days.mjs';
-export {TxDownloadJob,StockFuturesBatch,StockFuturesData};
+export {TxDownloadJob,StockFuturesBatch,StockFuturesData,C30Archive};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
@@ -88,6 +89,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-chip/'))return stockFuturesRoute(request,env,'daily-chip');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-research/'))return stockFuturesRoute(request,env,'daily-research');
   if(new URL(request.url).pathname.startsWith('/api/tx-download/'))return txDownloadRoute(request,env);
+  if(new URL(request.url).pathname.startsWith('/api/c30/archive/'))return c30ArchiveRoute(request,env);
   if(new URL(request.url).pathname==='/api/c30/minute')return c30MinuteRoute(request);
   if(new URL(request.url).pathname==='/api/c30/latest')return c30FreeDailyRoute(request);
   if(new URL(request.url).pathname==='/api/etf-vix-daily')return etfVixDailyRoute(request,env);
