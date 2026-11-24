@@ -59,9 +59,44 @@ async function fetchMinutes(token,date,codes,signal){
  if(!r.ok||!x.ok)throw Error('雲端 '+date+' 分 K 讀取失敗 '+(x.error||r.status));
  return x.items||[];
 }
+async function previousLocalMinuteRecords(){
+ if(typeof indexedDB==='undefined')return [];
+ return new Promise((resolve,reject)=>{
+  const req=indexedDB.open('C30_StockMinute_Free_v1',1),items=[];
+  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('days')){const st=db.createObjectStore('days',{keyPath:'id'});st.createIndex('date','date')}};
+  req.onerror=()=>reject(req.error);
+  req.onsuccess=()=>{
+   const db=req.result,tx=db.transaction('days','readonly');
+   tx.objectStore('days').openCursor().onsuccess=e=>{const x=e.target.result;if(x){items.push(x.value);x.continue()}};
+   tx.oncomplete=()=>{db.close();resolve(items)};
+   tx.onerror=()=>{db.close();reject(tx.error)}
+  }
+ })
+}
+async function syncPreviouslyDownloadedMinutes(token,progress,signal){
+ const records=await previousLocalMinuteRecords();
+ if(!records.length)return {found:0,saved:0,skipped:0};
+ const old=await c30FreeStatus(token),done=new Map();
+ for(const d of old.days||[])done.set(d.date,new Set(d.minute?.saved_codes||[]));
+ let saved=0,skipped=0;
+ const taipei=new Date(Date.now()+8*3600000).toISOString(),date=taipei.slice(0,10),cutoff=taipei.slice(11,16)>='20:00'?date:new Date(Date.parse(date+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+ for(let i=0;i<records.length;i++){
+  if(signal?.aborted)throw Error('你已取消匯出');
+  const rec=records[i];if(!rec||!/^20\d{2}-\d{2}-\d{2}$/.test(rec.date)||rec.date<'2026-11-23'||rec.date>cutoff||!(/^\d{4}$/.test(rec.code))||done.get(rec.date)?.has(rec.code)){skipped++;continue}
+  if(!['TWSE','TPEx'].includes(rec.market)||!['Fugle Free API','Yahoo chart fallback'].includes(rec.provider)){skipped++;continue}
+  const bars=(rec.rows||[]).map(x=>({date:rec.date,minute:x[0],stock_id:rec.code,open:Number(x[1]),high:Number(x[2]),low:Number(x[3]),close:Number(x[4]),volume_shares:Number(x[5])}));
+  if(!bars.length){skipped++;continue}
+  const ack=await fetch(ROOT+'minute',{method:'POST',cache:'no-store',headers:{Authorization:'Bearer '+token,'content-type':'application/json'},body:JSON.stringify({code:rec.code,market:rec.market,provider:rec.provider,bars}),signal});
+  const result=await ack.json().catch(()=>({}));
+  if(!ack.ok||!result.ok)throw Error('舊本機分K '+rec.date+' '+rec.code+' 雲端同步失敗：'+(result.error||ack.status));
+  const set=done.get(rec.date)||new Set();set.add(rec.code);done.set(rec.date,set);saved++;
+  if(saved%20===0)progress('同步本機舊分K至雲端：成功 '+saved+'、已略過 '+skipped+'，共 '+records.length+' 筆股票日');
+ }
+ return {found:records.length,saved,skipped}
+}
 async function legacyFileLines(files){return (files||[]).map(x=>({name:x.name,bytes:x.size}))}
 export async function exportC30A56AllArchived({
- token=c30FreeToken(),progress=()=>{},includeMinutes=true,legacyFiles=[],signal=null
+ token=c30FreeToken(),progress=()=>{},includeMinutes=true,legacyFiles=[],syncLocalMinutes=true,signal=null
 }={}){
  if(!token)throw Error('請先在原本的 Token 欄位保存 FinMind Token');
  const fileName='C30_A56_233_全部已存資料_'+new Date().toISOString().slice(0,10)+'.zip';
@@ -75,6 +110,7 @@ export async function exportC30A56AllArchived({
  const check=()=>{if(signal?.aborted)throw Error('已取消資料匯出，已保存的雲端資料不會刪除')};
  try{
   check();
+  const localSync=syncLocalMinutes?await syncPreviouslyDownloadedMinutes(token,progress,signal):{found:0,saved:0,skipped:0};
   const [status,poolResponse]=await Promise.all([c30FreeStatus(token),fetch('/c30/pool.json',{cache:'force-cache',signal})]);
   if(!poolResponse.ok)throw Error('233 檔固定股池未取得');
   const pool=await poolResponse.json();if(pool.stocks?.length!==233)throw Error('股票池不是 233 檔');
@@ -95,7 +131,7 @@ export async function exportC30A56AllArchived({
    sources:['TWSE/TPEx daily EOD','FinMind Free per-symbol','FinMind Sponsor day batch / stock 1m','Fugle/Yahoo stock minute'],
    exported_dates:days.map(d=>d.date),include_minutes:includeMinutes,
    counts:days.map(d=>({date:d.date,price:d.price?.saved_codes?.length||0,chip:Object.fromEntries(Object.entries(d.chips||{}).map(([k,v])=>[k,v.saved_codes?.length||0])),minute:d.minute?.saved_codes?.length||0})),
-   legacy_files:await legacyFileLines(legacyFiles),
+   legacy_files:await legacyFileLines(legacyFiles),local_minute_sync:localSync,
    limitations:['Existing historical raw 2016-2026 DB from other archives is NOT automatically copied into this token vault',
     'Missing or suspended-stock data is listed in missing.csv, and must not be fabricated',
     'Frozen original C30/A56 Python trading engine is NOT run by an export']};
