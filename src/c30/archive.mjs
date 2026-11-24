@@ -31,7 +31,7 @@ export class C30Archive{
    if(groups.size>40||!groups.size)return msg({ok:false,error:'BAR_DAYS_INVALID',rejects},400);
    let saved=0,skip=0;for(const [date,rows] of groups){const k='bar:'+date+':'+code;const existing=await s.get(k);if(existing?.provider==='Fugle Free API'&&provider!=='Fugle Free API'){skip++;continue}
      const obj={date,code,market,provider,updated_at:new Date().toISOString(),rows:[...rows.values()].sort((a,b)=>a[0].localeCompare(b[0]))};
-     const dk='day:'+date,di=await s.get(dk)||{codes:{},updated_at:''};di.codes[code]={bars:obj.rows.length,provider};di.updated_at=obj.updated_at;
+     const dk='day:'+date,di=await s.get(dk)||{codes:{},updated_at:''};const now=new Date(),taipei=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei'}).format(now),hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',hour12:false}).format(now));const complete=date<taipei||(date===taipei&&hour>=16);di.codes[code]={bars:obj.rows.length,provider,complete};di.updated_at=obj.updated_at;
      await s.put({[k]:obj,[dk]:di});saved++;
    }
    return msg({ok:true,code,saved_days:saved,skipped_days:skip,invalid_bars:rejects,cloud_saved:true});
