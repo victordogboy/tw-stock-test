@@ -59,9 +59,9 @@ export async function c30FreeSourceRoute(req,env){
    if(route==='replay-input'){
     const status=await internal(v,'status'),entry=status.days?.find(x=>x.date===date),prices=privateData.datasets?.TaiwanStockPrice?.rows||[];
     const missing=Object.fromEntries(CHIP.map(ds=>[ds,233-(entry?.chips?.[ds]?.saved_codes?.length||0)]));
-    const minute=entry?.minute?.count||0;
+    const minute=entry?.minute?.count||0,empty_checked=Object.fromEntries(CHIP.map(ds=>[ds,entry?.chips?.[ds]?.empty||0]));
     privateData.replay_gate={source_date:date,anchor_date:'2026-11-20',expected_stocks:233,price_stocks:prices.length,
-      chip_missing:missing,minute_stocks:minute,source_complete:prices.length>=225&&Object.values(missing).every(n=>n===0)&&minute===233,
+      chip_missing:missing,chip_empty_unverified:empty_checked,minute_stocks:minute,source_complete:prices.length===233&&Object.values(missing).every(n=>n===0)&&Object.values(empty_checked).every(n=>n===0)&&minute===233,
       original_engine_attached:false,model_replayed:false,plan_ready:false,reason:'Full original C30/A56 Python engine and 2026-11-20 state have not been verified on Cloudflare'};
    }
    return response(privateData);
@@ -111,9 +111,7 @@ export class C30FreeStore{
  async fetch(req){const u=new URL(req.url),route=u.pathname.split('/').at(-1),method=req.method;
   try{
    if(route==='reserve'&&method==='POST'){
-    const now=Date.now(),last=await this.s.get('rate:next')||0;
-    if(now<last)return response({ok:false,error:'FinMind Free pacing',retry_after_ms:last-now+100},429);
-    await this.s.put('rate:next',now+8000);return response({ok:true,next_at:now+8000});
+    const now=Date.now();let retry=0;const granted=await this.s.transaction(async tx=>{const last=await tx.get('rate:next')||0;if(now<last){retry=last-now+100;return false}await tx.put('rate:next',now+8000);return true});if(!granted)return response({ok:false,error:'FinMind Free pacing',retry_after_ms:retry},429);return response({ok:true,next_at:now+8000});
    }
    if(route==='calendar'&&method==='GET')return response({ok:true,...await this.s.get('calendar')||{as_of:null,dates:[]}});
    if(route==='calendar'&&method==='POST'){
