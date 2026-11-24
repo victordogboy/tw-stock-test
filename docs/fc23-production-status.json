@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-11-24T16:09:00.490Z",
-  "commit": "87f6b2f7c203364910979e553cf7a04fd7559809",
+  "checked_at": "2026-11-24T16:32:47.800Z",
+  "commit": "5aac29af8b958baf9430d57b0fde021e63dae022",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
   "rules_http": 200,
@@ -104,6 +104,6 @@
   "after_market_date": "2026-11-13",
   "after_checked_through": "2026-11-15",
   "after_sync_status": "blocked",
-  "after_progress": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
+  "after_progress": "正在抓取官方日線、三大法人與融資券",
   "after_error": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC"
 }
