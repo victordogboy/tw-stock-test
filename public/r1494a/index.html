@@ -92,5 +92,5 @@ $('#strategy').onchange=()=>{const chosen=$('#strategy').value;$('#capital').val
 (async()=>{try{const cap=localStorage.getItem('r1494a-capital');if(cap&&Number(cap)>0)$('#capital').value=cap;const chosenStrategy=(typeof location!=='undefined'?new URLSearchParams(location.search).get('strategy'):null)||localStorage.getItem('r1494a-strategy');if(['R1494-A','FC23','C26','A56','C30'].includes(chosenStrategy))$('#strategy').value=chosenStrategy;if($('#strategy').value==='C30')$('#capital').value=localStorage.getItem('r1494a-c30-capital')||'3000000';await poll();setInterval(()=>{if(!document.hidden)poll()},600000)}catch(e){$('#status').textContent='讀取失敗：'+e.message}})();
 </script><script src="../finmind-token-manager.js" defer></script>
 
-<script type="module" src="./c26/device-token.mjs?v=20261113-device1"></script></body></html>
+<script type="module" src="./c26/device-token.mjs?v=20261125-background1"></script></body></html>
 

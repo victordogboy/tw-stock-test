@@ -1,3 +1,4 @@
+import {c30BackgroundRoute,C30Background} from './c30/background.mjs';
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
 import {c26StatusRoute} from './c26/status.mjs';
 import {a56QuotesRoute} from './c26/a56-quotes.mjs';
@@ -30,8 +31,9 @@ export {TxDownloadJob,StockFuturesBatch,StockFuturesData,C30Archive};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
- constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);this.c30free=new C30FreeStore(ctx);}
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);this.c30free=new C30FreeStore(ctx);this.c30background=new C30Background(ctx,env);}
  fetch(request){
+  if(new URL(request.url).pathname.startsWith('/c30-background-internal/'))return this.c30background.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-free-internal/'))return this.c30free.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-daily-internal/'))return this.c30daily.fetch(request);
   if(new URL(request.url).pathname.startsWith('/a56-internal/'))return this.a56refresh.fetch(request);
@@ -41,6 +43,7 @@ export class ScanJob extends BaseScanJob {
   return super.fetch(request);
  }
  async alarm(){
+  if(await this.c30background.alarm())return;
   // FC23 uses a dedicated object id. An alarm keeps the refresh alive after the
   // initiating browser request closes; unlike waitUntil it is crash-recoverable.
   const progress=await this.ctx.storage.get('fc23-progress');
@@ -57,6 +60,7 @@ export class ScanJob extends BaseScanJob {
 export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));ctx.waitUntil(c30FreeOfficialScheduled(env).catch(()=>null));},
  fetch(request,env,ctx){
+  if(new URL(request.url).pathname.startsWith('/api/c30/background/'))return c30BackgroundRoute(request,env);
   if(['/api/c26/a56/refresh','/api/c26/a56/refresh-status','/api/c26/a56/begin','/api/c26/a56/finish'].includes(new URL(request.url).pathname))return a56RefreshRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/quotes')return a56QuotesRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/status')return a56StatusRoute(request,env);

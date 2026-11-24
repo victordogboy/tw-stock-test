@@ -106,7 +106,38 @@ export function mountTokenPanel(doc=document){
  diagnosePanel.style.cssText='margin-top:10px;padding:12px;border:1px solid #deb885;border-radius:9px;background:#fffaf1';
  diagnosePanel.innerHTML='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px"><button id="c30-sponsor-test" type="button" style="border-color:#9d7b47;background:#fff4d7;color:#624714;font-weight:600">測試 Sponsor 日K＋分K（最多2筆）</button><span style="font-size:12px;color:#7a694e">先驗證 FinMind 回傳格式與權限，再大量下載；不會刪除雲端資料</span></div><pre id="c30-diagnostic-output" style="white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:12px;max-height:220px;overflow:auto;color:#523d2b">尚未診斷。若上次下載失敗，這裡會顯示保留的錯誤原因。</pre>';
  panel.append(diagnosePanel);
- const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停補檔（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
+ const freeStop=doc.createElement('button');
+ freeStop.type='button';freeStop.textContent='停止背景補檔';freeStop.hidden=true;panel.querySelector('div').append(freeStop);
+ let backgroundPoll;
+ const backgroundCall=async(path,token,body)=>{
+  const response=await fetch('/api/c30/background/'+path,{cache:'no-store',method:body?'POST':'GET',headers:{authorization:'Bearer '+token},...(body?{body:JSON.stringify(body)}:{})});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'背景任務 HTTP '+response.status);
+  return data.job;
+ };
+ const renderBackground=job=>{
+  if(!job)return;
+  const active=['queued','running','waiting'].includes(job.state);
+  freeStop.hidden=!active;
+  const labels={queued:'已排程',running:'補檔中',waiting:'等待 API 額度或請求間隔',cancelled:'已停止',completed:'已完成',partial:'完成但有缺漏',failed:'失敗',expired:'已逾時，可再續傳'};
+  backgroundStatus.textContent='背景補檔'+labels[job.state]+'｜成功 '+job.done+' 組'+(job.current&&active?'｜'+job.current:'')+(job.errors.length?'｜最後錯誤 '+job.errors.at(-1):'');
+  if(!active){clearInterval(backgroundPoll);backgroundPoll=null}
+ };
+ const backgroundStatus=doc.createElement('p');backgroundStatus.setAttribute('role','status');panel.append(backgroundStatus);
+ const watchBackground=async(token,job)=>{
+  if(job)renderBackground(job);
+  const check=async()=>{
+   const state=await backgroundCall('status',token);
+   renderBackground(state);
+   return ['queued','running','waiting'].includes(state?.state);
+  };
+  clearInterval(backgroundPoll);
+  if(await check())backgroundPoll=setInterval(()=>check().catch(()=>{}),3000);
+ };
+ freeStop.onclick=async()=>{
+  try{renderBackground(await backgroundCall('stop',readToken(),{}))}
+  catch(error){backgroundStatus.textContent=error.message}
+ };
  const download=doc.createElement('button');
  download.type='button';download.id='c26-archive-download';
  download.textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'下載全部已封存的 233 檔資料（ZIP）':'下載已存回測資料（ZIP）';
@@ -150,24 +181,20 @@ export function mountTokenPanel(doc=document){
   finally{button.disabled=false}
  };
 
- input.value=readToken();say(input.value?'已記住此瀏覽器的 Token。':'尚未設定 Token。');
+ input.value=readToken();if(input.value)watchBackground(input.value).catch(()=>{});say(input.value?'已記住此瀏覽器的 Token。':'尚未設定 Token。');
  doc.getElementById('c26-token-save').onclick=()=>{try{input.value=saveToken(input.value);say('已儲存在此瀏覽器。')}catch(e){say(e.message)}};
  doc.getElementById('c26-token-clear').onclick=()=>{clearToken();try{globalThis.TWFinMindTokens?.write({tokens:['',''],active:0})}catch{}input.value='';say('已清除這個瀏覽器的 Token。')};
  doc.getElementById('c26-token-update').textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'更新 233 檔（Free／Sponsor S）':'使用 Token 更新 C26 資料';
  doc.getElementById('c26-token-update').onclick=async()=>{
   const buttons=panel.querySelectorAll('button');
   try{
-   const token=saveToken(input.value);for(const b of buttons)b.disabled=true;const isFree=['C30','A56'].includes(doc.getElementById('strategy')?.value);if(isFree){freeStop.hidden=false;freeStop.disabled=false;}
+   const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
     const free=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');
-    const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:1000});
-    say(selected+' '+(state.tier_used==='sponsor'?'Sponsor（S）':'Free')+' 雲端：官方日K至 '+(state.latest_price_date||'尚無')+'，已封存 '+state.stored_days+' 個交易日，剩餘 '+(state.pending||0)+' 個補檔工作'+(state.paused_by_quota?'；帳號額度已用完，稍後再按續傳':'')+(state.warning?'；'+state.warning:'')+'。正式買賣仍須原引擎重播。');
-    if(state.errors?.length||state.blocked_by_error||state.paused_by_quota){
-     diagnosis.textContent=(state.fatal_error||'補檔已結束，以下為最後錯誤')+'\n'+(state.errors||[]).slice(-6).map(x=>[x.label||x.path,'HTTP '+(x.http||'?'),x.code||'',x.error||''].join('｜')).join('\n')+
-      (state.paused_by_quota?'\n額度暫停；請待額度恢復再按更新。':'');
-    }
-    if(typeof globalThis.poll==='function')globalThis.poll(false);
+    const job=await backgroundCall('start',token,{tier:free.getC30SourceTier(),interval:free.getC30FreeIntervalMs()});
+    await watchBackground(token,job);
+    say('背景任務已提交，可以離開頁面。FinMind Token 僅在補檔任務期間加密暫存。');
     return;
    }
    const status=await updateDeviceSource(token,say);
@@ -176,7 +203,7 @@ export function mountTokenPanel(doc=document){
     say('資料已保存並核對至 '+status.source_as_of+'；已請求 A56 合併帳本與盤前計畫更新，完成後主頁同步重載。');
     if(typeof globalThis.poll==='function')globalThis.poll();
    }else say('資料已保存並核對至 '+status.source_as_of+'；'+status.available_days+' 個接續交易日。C26 交易計畫仍須通過原引擎逐日重播。');
-  }catch(e){say('更新未完成：'+e.message)}finally{for(const b of buttons)b.disabled=false;freeStop.hidden=true}
+  }catch(e){say('更新未完成：'+e.message)}finally{for(const b of buttons)b.disabled=false}
  };
 }
 if(typeof document!=='undefined')mountTokenPanel();

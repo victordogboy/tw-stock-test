@@ -74,7 +74,7 @@ export function c30FreeSummary(x){
  const pending=x.pending===undefined?'':('，剩餘 '+x.pending+' 組股票／資料集');
  return '官方日 K '+(x.latest_price_date||'尚無')+'；雲端 '+(x.stored_days||0)+' 個資料日；完整 '+(x.complete_days||0)+' 日'+pending;
 }
-function remainingTasks(days,codes){const list=[];const slots=new Map();
+export function remainingTasks(days,codes){const list=[];const slots=new Map();
  for(const d of days){const record=d.stored||null,st=record||{};
   // Official snapshots can be unavailable for older dates. Backfill ONLY missing price symbols via FinMind Free data_id.
   const priceSaved=new Set(st.price?.saved_codes||[]);
@@ -94,7 +94,7 @@ function remainingTasks(days,codes){const list=[];const slots=new Map();
  return list;
 }
 function sessionDays(calendar,status){return (calendar.dates||[]).map(date=>({date,stored:(status.days||[]).find(x=>x.date===date)}));}
-function batchJobs(days,stockCount=233){
+export function batchJobs(days,stockCount=233){
  const list=[],datasets=['TaiwanStockPrice',...THREE.map(x=>x[0])];
  for(const d of days){
   for(const dataset of datasets){
@@ -105,7 +105,7 @@ function batchJobs(days,stockCount=233){
  }
  return list;
 }
-function minuteJobs(days,codes,upgradeSponsor=false){
+export function minuteJobs(days,codes,upgradeSponsor=false){
  const jobs=[];
  for(const d of days){const have=new Set(d.minute?.saved_codes||[]),meta=d.minute?.meta||{};
   for(const code of codes){
