@@ -50,13 +50,16 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
   const auto=token&&Date.now()-autoLastAttemptAt>45*60000;
   if(refresh||auto){
    autoLastAttemptAt=Date.now();
-   const progress=s=>{const ui=document.querySelector('#flash');if(ui)ui.textContent=s};
-   lastFinMind=await syncC30FinMind(token,progress,{auto:!refresh});
+   const progress=s=>{const ui=document.querySelector('#flash');if(ui&&document.querySelector('#strategy')?.value==='C30')ui.textContent=s};
+   // Never block historical holdings/UI while a free-rate-limited refresh runs.
+   Promise.resolve().then(()=>syncC30FinMind(token,progress,{auto:true,maxRequests:refresh?12:4}))
+    .then(updated=>{lastFinMind=updated;if(document.querySelector('#strategy')?.value==='C30')setTimeout(()=>globalThis.poll?.(false),0)})
+    .catch(e=>{progress('C30 免費增量遇到錯誤：'+e.message+'；雲端原有資料未清除')});
   }
  }catch(e){
   lastFinMind={...(lastFinMind||{}),ok:false,sync_error:String(e.message||e),needs_token:!token,days:lastFinMind?.days||[],stored_days:lastFinMind?.stored_days||0};
  }
- if(lastFinMind?.latest_price_date){lastOfficial={ok:true,as_of:lastFinMind.latest_price_date,source:'FinMind 已封存日K',at:lastFinMind.updated_at||lastFinMind.checked_at||null}}
+ if(lastFinMind?.latest_price_date){lastOfficial={ok:true,as_of:lastFinMind.latest_price_date,source:'TWSE／TPEx 官方行情已封存',at:lastFinMind.updated_at||lastFinMind.checked_at||null}}
  else if(refresh||!lastOfficial)await checkOfficial();
  return {...hist,model_version:'C30',ledger:'C30_RISK23_core_history',
   curves:{strategy:hist.snapshots.map(x=>x.nav),market:hist.benchmark},
@@ -131,9 +134,9 @@ export function decorateC30Monitor(D){
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
  $('#rulesMain').innerHTML='<h2>C30 原版｜固定規則與封存資料</h2><ol><li><strong>原版凍結：</strong>buffer250_partial_2019，2021/01/06～2026/11/20，1,425 個交易日，累積淨報酬 +2,328.07%、最大回撤 −18.50%、勝大盤 46/71 月。</li><li>交易池採原研究的 233 檔股期現股，當年航運／金融仍包含於原研究，不能將排除產業的實驗版當正式原版。</li><li>初始300萬元、小數股複利模擬，最多8檔、單檔上限30%；原本的核心與反轉部位、動態選股排序、帳戶高水位、危機風控及現金銜接規則皆不變。</li><li>核心日線成交依原引擎觸價與開盤執行假設，買入費0.14275%、賣出費稅0.44275%（往返0.5855%）；實際下單不保證成交。</li><li>原版最後交易日2026/11/20；最新免費日K或分K僅代表行情更新，尚須完成原Python引擎的逐日狀態接續才能發布隔日委託。</li></ol><p><a href="/c30/minute/">免費233檔分K下載</a>　·　<a href="/c30/archive/">C30 雲端永久封存</a>　·　<a href="/c30/">獨立來源／診斷</a></p>';
- $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['FinMind 雲端已儲存日數',D.finmind?.stored_days||0],['FinMind 日K最新資料日',D.finmind?.latest_price_date||'尚無'],['FinMind 四類資料完整日數',D.finmind?.complete_days||0],['FinMind 最近更新',D.finmind?.updated_at||'尚未保存'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
+ $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
  set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。反轉個股明細及2026/11/23以後重播仍待補。');
- set('#rulesFoot','C30 FinMind Token 的日K、三大法人、融資融券、借券資料按日期保存在 Cloudflare 私人資料庫；同一 Token 日後直接沿用成功資料，不需重抓。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
+ set('#rulesFoot','Free：TWSE/TPEx 官方日K；FinMind 免費逐檔 data_id 三大法人、融資融券及借券，按交易日＋股票＋資料集保存到 Cloudflare，與 A56 共用資料。已完成的資料不再重抓。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
  set('#strategyFooter','C30 RISK23 原版｜2021/01/06～2026/11/20｜原始凍結績效 +2328.07%／−18.50%｜未發布今日買賣');
 }
 export function exportC30Orders(D,I){
