@@ -10,6 +10,7 @@ import {txDownloadRoute,TxDownloadJob} from './tx-download.mjs';
 import {researchPackRoute} from './research-pack.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
 import {etfDividendRoute} from './etf-dividends-0050.mjs';
+import {c30FreeDailyRoute} from './c30/free-daily.mjs';
 import worker from './index.js';
 import {forwardPeRoute} from './forward-pe.mjs';
 import {createScanJobClass,scanRoute} from './scan-job.mjs';
@@ -86,6 +87,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-chip/'))return stockFuturesRoute(request,env,'daily-chip');
   if(new URL(request.url).pathname.startsWith('/api/stock-daily-research/'))return stockFuturesRoute(request,env,'daily-research');
   if(new URL(request.url).pathname.startsWith('/api/tx-download/'))return txDownloadRoute(request,env);
+  if(new URL(request.url).pathname==='/api/c30/latest')return c30FreeDailyRoute(request);
   if(new URL(request.url).pathname==='/api/etf-vix-daily')return etfVixDailyRoute(request,env);
   if(new URL(request.url).pathname==='/api/etf-dividends-0050')return etfDividendRoute(request);
   if(new URL(request.url).pathname.startsWith('/api/pe-screener/'))return forwardPeRoute(request,env,(r)=>worker.fetch(r,env,ctx));
