@@ -83,6 +83,11 @@ export function mountTokenPanel(doc=document){
  download.onclick=async()=>{
   download.disabled=true;
   try{
+   if(['C30','A56'].includes(doc.getElementById('strategy')?.value)){
+    const {exportC30A56FreeInputs}=await import('../c30/export-incremental.mjs?v=20261125-free-v2');
+    await exportC30A56FreeInputs(readToken(),say,false);
+    return;
+   }
    const {buildArchive}=await import('./decision-download.mjs');
    const {blob,date}=await buildArchive(readToken(),name=>say('正在打包 '+name));
    const link=doc.createElement('a');
