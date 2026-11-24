@@ -84,7 +84,7 @@ async function poll(refresh=false){
  try{
   await load({refresh});
   const s=D.status;
-  $('#flash').textContent=D.model_version==='C30'?'C30 原版凍結歷史已核對；最新免費行情未完成原引擎接續':D.model_version==='A56'?(D.a56.queue?.phase||D.plan.reason||('A56已核對至 '+s.data_as_of)):D?.updateProgress&&['queued','running'].includes(D.updateProgress.state)?'FC23 背景更新：'+D.updateProgress.phase:s.sync_status==='model_pending'?'模型持倉已核對至 '+s.data_as_of+'；最新計畫待自動重播':s.lastError?'待補 '+(s.lastError.date||s.data_as_of)+'：'+s.lastError.message:s.sync_status==='current'?'已核對至 '+s.checkedThrough:'等待補齊資料，目前已核對至 '+s.checkedThrough;
+  $('#flash').textContent=D.model_version==='C30'?'C30 FinMind 雲端日K至 '+(D.finmind?.latest_price_date||'尚無')+'；已保存 '+(D.finmind?.stored_days||0)+' 個交易日；原版交易訊號仍須引擎接續':D.model_version==='A56'?(D.a56.queue?.phase||D.plan.reason||('A56已核對至 '+s.data_as_of)):D?.updateProgress&&['queued','running'].includes(D.updateProgress.state)?'FC23 背景更新：'+D.updateProgress.phase:s.sync_status==='model_pending'?'模型持倉已核對至 '+s.data_as_of+'；最新計畫待自動重播':s.lastError?'待補 '+(s.lastError.date||s.data_as_of)+'：'+s.lastError.message:s.sync_status==='current'?'已核對至 '+s.checkedThrough:'等待補齊資料，目前已核對至 '+s.checkedThrough;
  }catch(e){$('#flash').textContent='讀取失敗：'+e.message;$('#strategy').value=D?.model_version||'R1494-A'}
  finally{busy=false;$('#refresh').disabled=false;$('#strategy').disabled=false;if(a56Timer!==null){clearTimeout(a56Timer);a56Timer=null}if(D?.model_version==='A56'&&$('#strategy').value==='A56'&&(['queued','running'].includes(D.a56.queue?.state)||Date.now()-Date.parse(D.a56.queue?.finished_at||0)<120000))a56Timer=setTimeout(()=>poll(),D.a56.queue?.delayed?60000:8000)}
 }
