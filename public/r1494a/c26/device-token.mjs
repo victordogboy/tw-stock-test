@@ -97,15 +97,16 @@ export function mountTokenPanel(doc=document){
  input.value=readToken();say(input.value?'已記住此瀏覽器的 Token。':'尚未設定 Token。');
  doc.getElementById('c26-token-save').onclick=()=>{try{input.value=saveToken(input.value);say('已儲存在此瀏覽器。')}catch(e){say(e.message)}};
  doc.getElementById('c26-token-clear').onclick=()=>{clearToken();try{globalThis.TWFinMindTokens?.write({tokens:['',''],active:0})}catch{}input.value='';say('已清除這個瀏覽器的 Token。')};
- doc.getElementById('c26-token-update').textContent=doc.getElementById('strategy')?.value==='C30'?'使用 Token 更新 C30 資料':doc.getElementById('strategy')?.value==='A56'?'使用 Token 更新 A56 資料':'使用 Token 更新 C26 資料';
+ doc.getElementById('c26-token-update').textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'Free 更新 233 檔 C30/A56 資料':'使用 Token 更新 C26 資料';
  doc.getElementById('c26-token-update').onclick=async()=>{
   const buttons=panel.querySelectorAll('button');
   try{
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
-   if(doc.getElementById('strategy')?.value==='C30'){
-    const c30=await import('../c30/data-sync.mjs?v=20261125-cache1');
-    const state=await c30.syncC30FinMind(token,say,{auto:false});
-    say('C30 資料已永久保存：日K至 '+(state.latest_price_date||'資料尚缺')+'，完整四類資料 '+state.complete_days+' 個交易日；'+(state.missing||0)+' 個缺口。原版 C30 新買賣計畫仍須原引擎重播。');
+   const selected=doc.getElementById('strategy')?.value;
+   if(selected==='C30'||selected==='A56'){
+    const free=await import('../c30/free-sync.mjs?v=20261125-free-v2');
+    const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:100});
+    say(selected+' 免費增量：官方日K至 '+(state.latest_price_date||'尚未核對')+'，雲端 '+state.stored_days+' 個交易日；'+state.complete_days+' 個四類資料完整日；尚有 '+(state.pending||0)+' 組逐檔查詢待補'+(state.errors.length?'，失敗 '+state.errors.length+' 組':'')+'。關閉網頁後雲端已存內容保留；原策略需獨立引擎重播。');
     if(typeof globalThis.poll==='function')globalThis.poll(false);
     return;
    }
