@@ -32,7 +32,7 @@ function remainingTasks(days,codes){const list=[];const slots=new Map();
  for(const d of days){const record=d.stored||null,st=record||{};
   // Official snapshots can be unavailable for older dates. Backfill ONLY missing price symbols via FinMind Free data_id.
   const priceSaved=new Set(st.price?.saved_codes||[]);
-  if(!st.price||priceSaved.size>0&&priceSaved.size<codes.length){
+  if(priceSaved.size<codes.length){
    for(const code of codes)if(!priceSaved.has(code)){const k='TaiwanStockPrice|'+code,arr=slots.get(k)||[];arr.push(d.date);slots.set(k,arr)}
   }
   for(const [dataset,label] of THREE){const saved=new Set(st.chips?.[dataset]?.saved_codes||[]);
