@@ -1,4 +1,4 @@
-import {readC30StoredStatus,syncC30FinMind,c30DeviceToken,c30StatusSummary} from './data-sync.mjs?v=20261125-adjustable-v1';
+import {readC30StoredStatus,syncC30FinMind,c30DeviceToken,c30StatusSummary} from './data-sync.mjs?v=20261125-1s-sponsor-v3';
 /* C30 original strategy: native renderer for the existing A56/R1494-A FOUR tabs.
  * FROZEN until 2026-11-20. Never infer live orders from newly downloaded OHLCV.
  * C30 original engine unchanged; this module only adapts verified archived records.
