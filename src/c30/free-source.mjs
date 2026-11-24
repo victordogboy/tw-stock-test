@@ -26,14 +26,13 @@ async function finmind(token,dataset,code,start,end){const q=new URLSearchParams
 async function reserve(v){try{return await internal(v,'reserve','POST')}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||8000,error:e.message};throw e}}
 export async function c30FreeOfficialScheduled(env){
  if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
- const v=officialVault(env),old=await internal(v,'status'),through=cutoff();
- if(old.latest_price_date===through)return {ok:true,cached:true,as_of:through};
- const r=await c30FreeDailyRoute(new Request('https://worker.internal/api/c30/latest'));
- const j=await r.json();
- if(!j.ok||!j.same_trade_date||!validDate(j.as_of)||j.as_of>through)throw Error('TWSE/TPEx EOD dates not synchronized');
- const frozen=await pool(env),prices=[...(j.markets?.twse?.rows||[]),...(j.markets?.tpex?.rows||[])].filter(x=>frozen.get(x.code)===x.market);
- if(prices.length<200)throw Error('Official stocks below minimum '+prices.length+'/233');
- return internal(v,'official','POST',{date:j.as_of,rows:prices,expected:233,source:'TWSE/TPEx official scheduled EOD'});
+ const v=officialVault(env),previous=await internal(v,'status'),through=cutoff();
+ if(previous.latest_price_date===through)return {ok:true,cached:true,as_of:through};
+ const r=await c30FreeDailyRoute(new Request('https://internal/api/c30/latest'));
+ const j=await r.json();if(!j.ok||!j.same_trade_date||!validDate(j.as_of)||j.as_of>through)throw Error('Official TWSE/TPEx not synchronized');
+ const frozen=await pool(env),price=[...(j.markets?.twse?.rows||[]),...(j.markets?.tpex?.rows||[])].filter(x=>frozen.get(x.code)===x.market);
+ if(price.length<200)throw Error('Only '+price.length+' / 233 official prices');
+ return internal(v,'official','POST',{date:j.as_of,rows:price,expected:233,source:'Scheduled TWSE/TPEx official EOD'});
 }
 export async function c30FreeSourceRoute(req,env){
  const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','day','replay-input'];
@@ -47,24 +46,25 @@ export async function c30FreeSourceRoute(req,env){
    const [own,shared]=await Promise.all([internal(v,'status'),internal(officialVault(env),'status')]);
    const byDate=new Map((own.days||[]).map(x=>[x.date,x]));
    for(const x of shared.days||[]){if(!x.price)continue;const old=byDate.get(x.date);
-    if(old)old.price=x.price;else byDate.set(x.date,{date:x.date,price:x.price,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:[],count:0}})
+    if(old){const available=new Set([...(x.price.saved_codes||[]),...(old.price?.saved_codes||[])]);old.price={...x.price,stock_count:available.size,saved_codes:[...available],state:available.size>=225?'available':'partial'}}else byDate.set(x.date,{date:x.date,price:x.price,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:[],count:0}})
    }
    const days=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
    return response({...own,days,stored_days:days.length,latest_price_date:days.filter(x=>x.price?.state==='available').at(-1)?.date||null,complete_days:days.filter(x=>x.price?.state==='available'&&CHIP.every(ds=>x.chips?.[ds]?.saved_codes?.length===233)).length,model_replayed:false});
   }
   if(route==='day'||route==='replay-input'){
    const date=u.searchParams.get('date'),dataset=u.searchParams.get('dataset');if(!validDate(date)||date<START||dataset&&![...ALL,'minute'].includes(dataset))return response({ok:false,error:'invalid date/dataset'},400);
-   const [data,shared]=await Promise.all([internal(v,'day?date='+date+(dataset?'&dataset='+dataset:'')+(route==='replay-input'?'&manifest=1':'')),internal(officialVault(env),'day?date='+date+'&dataset=TaiwanStockPrice')]);
-   if(!dataset||dataset==='TaiwanStockPrice')data.datasets.TaiwanStockPrice=shared.datasets.TaiwanStockPrice;
+   const [privateData,sharedData]=await Promise.all([internal(v,'day?date='+date+(dataset?'&dataset='+dataset:'')+(route==='replay-input'?'&manifest=1':'')),
+      internal(officialVault(env),'day?date='+date+'&dataset=TaiwanStockPrice')]);
+   if(!dataset||dataset==='TaiwanStockPrice'){const a=sharedData.datasets?.TaiwanStockPrice?.rows||[],seen=new Set(a.map(x=>x.code)),tail=(privateData.datasets?.TaiwanStockPrice?.rows||[]).filter(x=>!seen.has(x.code));privateData.datasets.TaiwanStockPrice={meta:sharedData.datasets?.TaiwanStockPrice?.meta||privateData.datasets?.TaiwanStockPrice?.meta,rows:[...a,...tail]}}
    if(route==='replay-input'){
-    const status=await internal(v,'status'),entry=status.days?.find(x=>x.date===date),prices=shared.datasets?.TaiwanStockPrice?.rows||[];
+    const status=await internal(v,'status'),entry=status.days?.find(x=>x.date===date),prices=privateData.datasets?.TaiwanStockPrice?.rows||[];
     const missing=Object.fromEntries(CHIP.map(ds=>[ds,233-(entry?.chips?.[ds]?.saved_codes?.length||0)]));
     const minute=entry?.minute?.count||0;
-    data.replay_gate={source_date:date,anchor_date:'2026-11-20',expected_stocks:233,price_stocks:prices.length,chip_missing:missing,minute_stocks:minute,
-     source_complete:prices.length>=225&&Object.values(missing).every(n=>n===0)&&minute===233,original_engine_attached:false,model_replayed:false,plan_ready:false,
-     reason:'Original C30/A56 Python engine state is not deployed on Cloudflare and has not been replayed'};
+    privateData.replay_gate={source_date:date,anchor_date:'2026-11-20',expected_stocks:233,price_stocks:prices.length,
+      chip_missing:missing,minute_stocks:minute,source_complete:prices.length>=225&&Object.values(missing).every(n=>n===0)&&minute===233,
+      original_engine_attached:false,model_replayed:false,plan_ready:false,reason:'Full original C30/A56 Python engine and 2026-11-20 state have not been verified on Cloudflare'};
    }
-   return response(data);
+   return response(privateData);
   }
   if(route==='calendar'){
    const stored=await internal(v,'calendar');const through=cutoff();
@@ -76,8 +76,8 @@ export async function c30FreeSourceRoute(req,env){
    return response({...await internal(v,'calendar','POST',{as_of:through,dates}),cached:false});
   }
   if(route==='official'){
-   const old=await internal(officialVault(env),'status'),date=cutoff();
-   if(old.latest_price_date===date)return response({ok:true,cached:true,as_of:date,stock_count:old.days?.find(x=>x.date===date)?.price?.stock_count||0});
+   const done=await internal(officialVault(env),'status'),date=cutoff();
+   if(done.latest_price_date===date)return response({ok:true,cached:true,as_of:date,stock_count:done.days?.find(x=>x.date===date)?.price?.stock_count||0});
    return response({...await c30FreeOfficialScheduled(env),cached:false});
   }
   if(route==='minute'){
@@ -91,7 +91,7 @@ export async function c30FreeSourceRoute(req,env){
   }
   if(route==='chip'){
    const q=await req.json().catch(()=>null);const ds=q?.dataset,code=String(q?.code||''),from=q?.from,to=q?.to;
-   if(!CHIP.includes(ds)||!/^\d{4}$/.test(code)||!validDate(from)||!validDate(to)||from<START||to>cutoff()||from>to||Date.parse(to)-Date.parse(from)>31*86400000)return response({ok:false,error:'invalid code/dataset/range'},400);
+   if(!ALL.includes(ds)||!/^\d{4}$/.test(code)||!validDate(from)||!validDate(to)||from<START||to>cutoff()||from>to||Date.parse(to)-Date.parse(from)>31*86400000)return response({ok:false,error:'invalid code/dataset/range'},400);
    if(!(await pool(env)).has(code))return response({ok:false,error:'code not in frozen 233'},400);
    const cal=await internal(v,'calendar');const dates=cal.dates?.filter(d=>d>=from&&d<=to)||[];
    if(!dates.length)return response({ok:false,error:'calendar has no verified sessions; request calendar first'},409);
@@ -123,14 +123,15 @@ export class C30FreeStore{
    if(route==='official'&&method==='POST'){
     const b=await req.json(),date=b.date;if(!validDate(date)||date<START||!Array.isArray(b.rows)||b.rows.length>233||b.rows.length<200)return response({ok:false,error:'invalid official rows'},400);
     const ids=new Set();for(const x of b.rows){if(!/^\d{4}$/.test(x.code||'')||x.date!==date||ids.has(x.code)||![x.open,x.high,x.low,x.close,x.volume_shares].every(Number.isFinite)||x.low>Math.min(x.open,x.close)||x.high<Math.max(x.open,x.close))return response({ok:false,error:'invalid OHLCV or duplicate code'},422);ids.add(x.code)}
-    const index=await this.s.get('index:'+date)||{chips:{}};index.price={state:ids.size>=225?'available':'partial',stock_count:ids.size,source:b.source,updated_at:new Date().toISOString()};
+    const index=await this.s.get('index:'+date)||{chips:{}};index.price={state:ids.size>=225?'available':'partial',stock_count:ids.size,saved_codes:[...ids],source:b.source,updated_at:new Date().toISOString()};
     await this.s.put({['price:'+date]:b.rows,['index:'+date]:index});return response({ok:true,stored:true,as_of:date,stock_count:ids.size,missing:233-ids.size,state:index.price.state});
    }
    if(route==='chip'&&method==='POST'){
     const b=await req.json(),dates=b.dates||[],ds=b.dataset,code=b.code;
-    if(!CHIP.includes(ds)||!/\d{4}/.test(code)||!Array.isArray(dates)||!dates.length||dates.length>32||dates.some(x=>!validDate(x)||x<START)||!Array.isArray(b.rows)||b.rows.length>8000)return response({ok:false,error:'invalid chip input'},400);
+    if(!ALL.includes(ds)||!/^\d{4}$/.test(code)||!Array.isArray(dates)||!dates.length||dates.length>32||dates.some(x=>!validDate(x)||x<START)||!Array.isArray(b.rows)||b.rows.length>8000)return response({ok:false,error:'invalid chip input'},400);
     const by=new Map(dates.map(d=>[d,[]]));for(const x of b.rows){if(!by.has(x.date)||x.stock_id!==code)return response({ok:false,error:'FinMind symbol/date mismatch'},422);by.get(x.date).push(x)}
     let written=0,empty=0;for(const [date,rows] of by){
+     if(ds==='TaiwanStockPrice'&&rows.some(x=>![x.open,x.max,x.min,x.close,x.Trading_Volume].every(v=>Number.isFinite(Number(v)))||Number(x.open)<=0||Number(x.close)<=0||Number(x.max)<Number(x.min)))return response({ok:false,error:'invalid FinMind price OHLCV'},422);
      const index=await this.s.get('index:'+date)||{chips:{}};index.chips??={};index.chips[ds]??={};
      const current=index.chips[ds][code];if(current?.state==='available'||current?.state==='empty_checked')continue;
      index.chips[ds][code]={state:rows.length?'available':'empty_checked',rows:rows.length,source:b.source,updated_at:new Date().toISOString()};
@@ -153,14 +154,14 @@ export class C30FreeStore{
    }
    if(route==='status'&&method==='GET'){
     const m=await this.s.list({prefix:'index:'}),mins=await this.s.list({prefix:'minuteIndex:'}),days=[];
-    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}days.push({date,price:idx.price||null,chips,minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length}})}
+    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}const priceObject=idx.chips?.TaiwanStockPrice||{},checked=Object.keys(priceObject).filter(x=>['available','empty_checked'].includes(priceObject[x].state)),valid=Object.keys(priceObject).filter(x=>priceObject[x].state==='available');days.push({date,price:idx.price||{state:valid.length>=225?'available':'partial',stock_count:valid.length,saved_codes:checked,source:'FinMind Free per-stock backfill'},chips,minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length}})}
     for(const [key,info] of mins){const date=key.slice('minuteIndex:'.length);if(!days.some(x=>x.date===date))days.push({date,price:null,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:Object.keys(info),count:Object.keys(info).length}})}
     days.sort((a,b)=>a.date.localeCompare(b.date));return response({ok:true,days,stored_days:days.length,latest_price_date:days.filter(x=>x.price?.state==='available').at(-1)?.date||null,complete_days:days.filter(x=>x.price?.state==='available'&&CHIP.every(ds=>x.chips[ds].saved_codes.length===233)).length,model_replayed:false,freeze_end:'2026-11-20',source:'Free: official TWSE/TPEx + FinMind per-stock'});
    }
    if(route==='day'&&method==='GET'){
     const date=u.searchParams.get('date'),dataset=u.searchParams.get('dataset');if(!validDate(date)||date<START||dataset&&![...ALL,'minute'].includes(dataset))return response({ok:false,error:'invalid date/dataset'},400);
     if(dataset==='minute'){const index=await this.s.get('minuteIndex:'+date)||{},code=u.searchParams.get('code');if(code&&!/^\d{4}$/.test(code))return response({ok:false,error:'invalid code'},400);const ids=code?[code]:Object.keys(index);if(ids.length>12)return response({ok:false,error:'minute day export must be batched by code (max 12)'},413);const items=[];for(const id of ids){const item=await this.s.get('minute:'+date+':'+id);if(item)items.push(item)}return response({ok:true,date,items,model_replayed:false})}
-    const idx=await this.s.get('index:'+date)||{},sets={};if(!dataset||dataset==='TaiwanStockPrice')sets.TaiwanStockPrice={meta:idx.price||null,rows:await this.s.get('price:'+date)||[]};
+    const idx=await this.s.get('index:'+date)||{},sets={};if(!dataset||dataset==='TaiwanStockPrice'){const out=[...await this.s.get('price:'+date)||[]],marks=idx.chips?.TaiwanStockPrice||{};for(const code of Object.keys(marks)){const rs=await this.s.get('chip:'+date+':TaiwanStockPrice:'+code)||[];for(const r of rs)out.push({date,code,market:null,open:Number(r.open),high:Number(r.max),low:Number(r.min),close:Number(r.close),volume_shares:Number(r.Trading_Volume),source:'FinMind Free per-stock backfill'})}sets.TaiwanStockPrice={meta:idx.price||null,rows:out}};
     for(const ds of dataset&&dataset!=='TaiwanStockPrice'?[dataset]:!dataset?CHIP:[]){const status=idx.chips?.[ds]||{},all=[];for(const code of Object.keys(status)){const value=await this.s.get('chip:'+date+':'+ds+':'+code);if(Array.isArray(value))all.push(...value)}sets[ds]={meta:{saved_count:Object.keys(status).length,complete:Object.keys(status).length===233},rows:all}}
     return response({ok:true,date,datasets:sets,price_ready:idx.price?.state==='available'||false,full_model_replay_ready:false,model_replayed:false});
    }
