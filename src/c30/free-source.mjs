@@ -23,7 +23,7 @@ async function vault(env,token){if(!env.SCAN_JOBS)throw Error('SCAN_JOBS Durable
 function officialVault(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c30:a56:official:v1'))}
 async function internal(v,path,method='GET',body){const r=await v.fetch(new Request('https://cache.internal/c30-free-internal/'+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}));let j;try{j=await r.json()}catch{throw Error('C30 free cache malformed response')};if(!r.ok||j.ok===false){const e=new Error(j.error||'Cloud cache failure');e.status=r.status;e.retry_after_ms=j.retry_after_ms;throw e}return j}
 async function finmind(token,dataset,code,start,end){const q=new URLSearchParams({dataset});if(code){q.set('data_id',code);q.set('start_date',start);q.set('end_date',tomorrow(end))}let r;try{r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q.toString(),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(25000),cache:'no-store'})}catch(e){throw Error('FinMind connection failed '+String(e.name||''))}if(!r.ok){const e=new Error('FinMind HTTP '+r.status);e.status=r.status;throw e}const x=await r.json().catch(()=>null);if(x?.status!==200||!Array.isArray(x.data))throw Error('FinMind Free rejected '+dataset+': '+String(x?.msg||x?.status||'schema'));return x.data}
-async function reserve(v){try{return await internal(v,'reserve','POST')}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||8000,error:e.message};throw e}}
+async function reserve(v,intervalMs=8000){try{return await internal(v,'reserve','POST',{interval_ms:intervalMs})}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||8000,error:e.message};throw e}}
 export async function c30FreeOfficialScheduled(env){
  if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
  const v=officialVault(env),previous=await internal(v,'status'),through=cutoff();
@@ -40,6 +40,7 @@ export async function c30FreeSourceRoute(req,env){
  const method=['status','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
  if(!sameOrigin(req))return response({ok:false,error:'cross-origin request rejected'},403);
  const token=tokenOf(req);if(!token)return response({ok:false,error:'FinMind Free device token required'},401);
+ const intervalHeader=Number(req.headers.get('x-c30-free-interval-ms'));const intervalMs=Number.isFinite(intervalHeader)&&intervalHeader>=6500&&intervalHeader<=30000?Math.round(intervalHeader/500)*500:8000;
  try{
   const v=await vault(env,token);
   if(route==='status'){
@@ -69,7 +70,7 @@ export async function c30FreeSourceRoute(req,env){
   if(route==='calendar'){
    const stored=await internal(v,'calendar');const through=cutoff();
    if(stored.as_of===through&&stored.dates?.length)return response({...stored,cached:true});
-   const permit=await reserve(v);if(!permit.ok)return response({...permit,code:'FREE_RATE_LIMIT'},429);
+   const permit=await reserve(v,intervalMs);if(!permit.ok)return response({...permit,code:'FREE_RATE_LIMIT'},429);
    const rows=await finmind(token,'TaiwanStockTradingDate');
    const dates=[...new Set(rows.map(x=>x.date).filter(d=>validDate(d)&&d>=START&&d<=through))].sort();
    if(!dates.length)throw Error('FinMind Free calendar empty');
@@ -97,7 +98,7 @@ export async function c30FreeSourceRoute(req,env){
    if(!dates.length)return response({ok:false,error:'calendar has no verified sessions; request calendar first'},409);
    const state=await internal(v,'status');const need=dates.filter(d=>!state.days?.find(x=>x.date===d)?.chips?.[ds]?.saved_codes?.includes(code));
    if(!need.length)return response({ok:true,cached:true,code,dataset:ds,dates:dates.length,model_replayed:false});
-   const permit=await reserve(v);if(!permit.ok)return response({...permit,code:'FREE_RATE_LIMIT'},429);
+   const permit=await reserve(v,intervalMs);if(!permit.ok)return response({...permit,code:'FREE_RATE_LIMIT'},429);
    const rows=await finmind(token,ds,code,from,to);
    const selected=rows.filter(x=>x&&x.stock_id===code&&validDate(x.date)&&dates.includes(x.date));
    if(selected.length>8000)throw Error('Unexpected FinMind row count');
@@ -111,7 +112,9 @@ export class C30FreeStore{
  async fetch(req){const u=new URL(req.url),route=u.pathname.split('/').at(-1),method=req.method;
   try{
    if(route==='reserve'&&method==='POST'){
-    const now=Date.now();let retry=0;const granted=await this.s.transaction(async tx=>{const last=await tx.get('rate:next')||0;if(now<last){retry=last-now+100;return false}await tx.put('rate:next',now+8000);return true});if(!granted)return response({ok:false,error:'FinMind Free pacing',retry_after_ms:retry},429);return response({ok:true,next_at:now+8000});
+    const body=await req.json().catch(()=>({})),requested=Number(body.interval_ms);
+    const intervalMs=Number.isFinite(requested)&&requested>=6500&&requested<=30000?Math.round(requested/500)*500:8000;
+    const now=Date.now();let retry=0;const granted=await this.s.transaction(async tx=>{const last=await tx.get('rate:next')||0;if(now<last){retry=last-now+100;return false}await tx.put('rate:next',now+intervalMs);return true});if(!granted)return response({ok:false,error:'FinMind Free pacing',retry_after_ms:retry,interval_ms:intervalMs},429);return response({ok:true,next_at:now+intervalMs,interval_ms:intervalMs});
    }
    if(route==='calendar'&&method==='GET')return response({ok:true,...await this.s.get('calendar')||{as_of:null,dates:[]}});
    if(route==='calendar'&&method==='POST'){
