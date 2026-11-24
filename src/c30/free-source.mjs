@@ -35,9 +35,9 @@ export async function c30FreeOfficialScheduled(env){
  return internal(v,'official','POST',{date:j.as_of,rows:price,expected:233,source:'Scheduled TWSE/TPEx official EOD'});
 }
 export async function c30FreeSourceRoute(req,env){
- const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','minute','sponsor-batch','sponsor-minute','diagnose','day','replay-input'];
+ const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','minute','sponsor-batch','sponsor-minute','diagnose','market-day','day','replay-input'];
  if(!u.pathname.startsWith('/api/c30/free/')||!allow.includes(route))return response({ok:false,error:'unknown endpoint'},404);
- const method=['status','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
+ const method=['status','market-day','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
  if(!sameOrigin(req))return response({ok:false,error:'cross-origin request rejected'},403);
  const token=tokenOf(req);if(!token)return response({ok:false,error:'FinMind Free device token required'},401);
  const tier=req.headers.get('x-c30-source-tier')==='sponsor'?'sponsor':'free';
@@ -68,6 +68,11 @@ export async function c30FreeSourceRoute(req,env){
       original_engine_attached:false,model_replayed:false,plan_ready:false,reason:'Full original C30/A56 Python engine and 2026-11-20 state have not been verified on Cloudflare'};
    }
    return response(privateData);
+  }
+  if(route==='market-day'){
+   const date=u.searchParams.get('date');
+   if(!validDate(date)||date<START||date>cutoff())return response({ok:false,error:'invalid market date'},400);
+   return response(await internal(v,'market-day?date='+date));
   }
   if(route==='calendar'){
    const stored=await internal(v,'calendar');const through=cutoff();
@@ -112,15 +117,20 @@ export async function c30FreeSourceRoute(req,env){
    const q=await req.json().catch(()=>null),date=q?.date,ds=q?.dataset;
    if(!validDate(date)||date<START||date>cutoff()||!ALL.includes(ds))return response({ok:false,error:'Sponsor dataset or date invalid'},400);
    const batchInfo=await internal(v,'batch-state?date='+date+'&dataset='+ds);
-   if(batchInfo.done&&!q.force)return response({ok:true,cached:true,date,dataset:ds,selected_rows:batchInfo.rows||0,model_replayed:false});
+   const marketMeta=ds==='TaiwanStockPrice'?await internal(v,'market-meta?date='+date):null;
+   if(batchInfo.done&&(ds!=='TaiwanStockPrice'||marketMeta?.stored)&&!q.force)return response({ok:true,cached:true,date,dataset:ds,selected_rows:batchInfo.rows||0,all_market_rows:marketMeta?.rows||0,model_replayed:false});
    const permit=await reserve(v,intervalMs,tier);
    if(!permit.ok)return response({...permit,code:permit.code||'SPONSOR_QUOTA'},429);
    const allRows=await finmind(token,ds,null,date,date),fixed=await pool(env);
    const matched=allRows.filter(x=>x?.date===date&&fixed.has(String(x.stock_id||'')));
    if(allRows.length===0)throw Error('Sponsor 整日回傳空資料，不會封存為完成');
    if(allRows.length>100000||matched.length>22000)throw Error('FinMind 回傳筆數異常，不保存');
+   // Retain the entire day's unfiltered market OHLCV for breadth and historical membership research.
+   // Do not substitute 233-stock breadth into the original frozen strategy.
+   let marketSaved=null;
+   if(ds==='TaiwanStockPrice')marketSaved=await internal(v,'market-store','POST',{date,rows:allRows,source:'FinMind Sponsor TaiwanStockPrice all instruments'});
    const saved=await internal(v,'batch','POST',{date,dataset:ds,rows:matched,source:'FinMind Sponsor whole-market by date'});
-   return response({...saved,cached:false,market_rows:allRows.length,selected_rows:matched.length,model_replayed:false});
+   return response({...saved,cached:false,market_rows:allRows.length,all_market_saved:marketSaved?.stored||false,selected_rows:matched.length,model_replayed:false});
   }
   if(route==='sponsor-minute'){
    if(tier!=='sponsor')return response({ok:false,error:'僅 Sponsor（S）模式允許 FinMind TaiwanStockKBar'},403);
@@ -191,6 +201,48 @@ export class C30FreeStore{
     const index=await this.s.get('index:'+date)||{chips:{}};index.price={state:ids.size>=225?'available':'partial',stock_count:ids.size,saved_codes:[...ids],source:b.source,updated_at:new Date().toISOString()};
     await this.s.put({['price:'+date]:b.rows,['index:'+date]:index});return response({ok:true,stored:true,as_of:date,stock_count:ids.size,missing:233-ids.size,state:index.price.state});
    }
+   if(route==='market-meta'&&method==='GET'){
+    const date=u.searchParams.get('date');
+    if(!validDate(date)||date<START)return response({ok:false,error:'invalid date'},400);
+    const meta=await this.s.get('market-meta:'+date);
+    return response({ok:true,stored:!!meta,...meta});
+   }
+   if(route==='market-store'&&method==='POST'){
+    const q=await req.json(),date=q.date,rows=q.rows;
+    if(!validDate(date)||date<START||!Array.isArray(rows)||!rows.length||rows.length>12000)return response({ok:false,error:'invalid all-market OHLCV payload'},400);
+    // Keep all returned stock_ids, including nonstandard IDs. Filter ordinary listed/OTC stocks only at the breadth calculation stage.
+    const symbols=new Set(),data=[];
+    for(const x of rows){
+     const code=String(x.stock_id||'');
+     if(x.date!==date||!code||code.length>16||symbols.has(code))return response({ok:false,error:'duplicate or invalid market symbol/date'},422);
+     symbols.add(code);
+     const numeric=k=>x[k]===null||x[k]===undefined?null:Number.isFinite(Number(x[k]))?Number(x[k]):null;
+     data.push([code,numeric('open'),numeric('max'),numeric('min'),numeric('close'),numeric('Trading_Volume'),numeric('Trading_money')])
+    }
+    const columns=['stock_id','open','max','min','close','Trading_Volume','Trading_money'],batch=180;
+    for(let i=0;i<data.length;i+=batch)await this.s.put('market-chunk:'+date+':'+String(i/batch).padStart(4,'0'),data.slice(i,i+batch));
+    // Publish manifest only after every data chunk is safely stored.
+    const meta={date,stored:true,rows:data.length,positive_closes:data.filter(x=>x[4]>0).length,
+      chunks:Math.ceil(data.length/batch),columns,source:q.source||'FinMind Sponsor daily all-market',
+      universe:'unfiltered TWSE/TPEx/ESB/ETF/etc; requires as-of ordinary-share classification before breadth',
+      updated_at:new Date().toISOString()};
+    await this.s.put('market-meta:'+date,meta);
+    return response({ok:true,...meta});
+   }
+   if(route==='market-day'&&method==='GET'){
+    const date=u.searchParams.get('date');
+    if(!validDate(date)||date<START)return response({ok:false,error:'invalid date'},400);
+    const meta=await this.s.get('market-meta:'+date);
+    if(!meta)return response({ok:false,error:'此日尚無 Sponsor 全市場收盤價封存',date},404);
+    const rows=[];
+    for(let i=0;i<meta.chunks;i++){
+     const chunk=await this.s.get('market-chunk:'+date+':'+String(i).padStart(4,'0'));
+     if(!Array.isArray(chunk))return response({ok:false,error:'全市場日K封存缺少第 '+i+' 段，拒絕輸出不完整資料'},409);
+     rows.push(...chunk)
+    }
+    if(rows.length!==meta.rows)return response({ok:false,error:'全市場日K封存行數不符'},409);
+    return response({ok:true,meta,columns:meta.columns,rows});
+   }
    if(route==='batch-state'&&method==='GET'){
     const date=u.searchParams.get('date'),dataset=u.searchParams.get('dataset');
     if(!validDate(date)||!ALL.includes(dataset))return response({ok:false,error:'invalid date/dataset'},400);
@@ -250,7 +302,7 @@ export class C30FreeStore{
    }
    if(route==='status'&&method==='GET'){
     const m=await this.s.list({prefix:'index:'}),mins=await this.s.list({prefix:'minuteIndex:'}),days=[];
-    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}const priceObject=idx.chips?.TaiwanStockPrice||{},checked=Object.keys(priceObject).filter(x=>['available','empty_checked'].includes(priceObject[x].state)),valid=Object.keys(priceObject).filter(x=>priceObject[x].state==='available');days.push({date,price:idx.price||{state:valid.length>=225?'available':'partial',stock_count:valid.length,saved_codes:checked,source:'FinMind per-stock backfill'},chips,batch:idx.batch||{},minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length,meta:mins.get('minuteIndex:'+date)||{}}})}
+    for(const [key,idx] of m){const date=key.slice(6),chips={};for(const ds of CHIP){const obj=idx.chips?.[ds]||{};chips[ds]={saved_codes:Object.keys(obj).filter(x=>['available','empty_checked'].includes(obj[x].state)),available:Object.values(obj).filter(x=>x.state==='available').length,empty:Object.values(obj).filter(x=>x.state==='empty_checked').length}}const priceObject=idx.chips?.TaiwanStockPrice||{},checked=Object.keys(priceObject).filter(x=>['available','empty_checked'].includes(priceObject[x].state)),valid=Object.keys(priceObject).filter(x=>priceObject[x].state==='available');days.push({date,price:idx.price||{state:valid.length>=225?'available':'partial',stock_count:valid.length,saved_codes:checked,source:'FinMind per-stock backfill'},chips,batch:idx.batch||{},market:await this.s.get('market-meta:'+date)||null,minute:{saved_codes:Object.keys(mins.get('minuteIndex:'+date)||{}),count:Object.keys(mins.get('minuteIndex:'+date)||{}).length,meta:mins.get('minuteIndex:'+date)||{}}})}
     for(const [key,info] of mins){const date=key.slice('minuteIndex:'.length);if(!days.some(x=>x.date===date))days.push({date,price:null,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:Object.keys(info),count:Object.keys(info).length,meta:info}})}
     days.sort((a,b)=>a.date.localeCompare(b.date));return response({ok:true,days,stored_days:days.length,latest_price_date:days.filter(x=>x.price?.state==='available').at(-1)?.date||null,complete_days:days.filter(x=>x.price?.state==='available'&&CHIP.every(ds=>x.chips[ds].saved_codes.length===233)).length,model_replayed:false,freeze_end:'2026-11-20',source:'Free: official TWSE/TPEx + FinMind per-stock'});
    }
