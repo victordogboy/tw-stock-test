@@ -29,6 +29,10 @@
       {
         "name": "STOCK_FUTURES_DATA",
         "class_name": "StockFuturesData"
+      },
+      {
+        "name": "C30_ARCHIVE",
+        "class_name": "C30Archive"
       }
     ]
   },
@@ -50,6 +54,12 @@
       "new_sqlite_classes": [
         "StockFuturesBatch",
         "StockFuturesData"
+      ]
+    },
+    {
+      "tag": "r60-c30-private-archive-v1",
+      "new_sqlite_classes": [
+        "C30Archive"
       ]
     }
   ],
