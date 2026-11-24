@@ -75,10 +75,13 @@ function batchJobs(days,stockCount=233){
  }
  return list;
 }
-function minuteJobs(days,codes){
+function minuteJobs(days,codes,upgradeSponsor=false){
  const jobs=[];
- for(const d of days){const have=new Set(d.minute?.saved_codes||[]);
-  for(const code of codes)if(!have.has(code))jobs.push({date:d.date,code})
+ for(const d of days){const have=new Set(d.minute?.saved_codes||[]),meta=d.minute?.meta||{};
+  for(const code of codes){
+   const cached=have.has(code),replace=upgradeSponsor&&cached&&meta[code]?.provider!=='FinMind Sponsor 1m';
+   if(!cached||replace)jobs.push({date:d.date,code,force:replace})
+  }
  }
  return jobs
 }
@@ -152,7 +155,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   let currentDays=sessionDays(calendar,state).map(x=>({...x.stored,date:x.date}));
   // Sponsor can fill missing one-minute candles; Free keeps Fugle/Yahoo instead.
   if(tier==='sponsor'&&!auto&&!pausedByQuota&&!stopped&&done<cap){
-   for(const job of minuteJobs(currentDays,codes)){
+   for(const job of minuteJobs(currentDays,codes,true)){
     if(stopped||pausedByQuota||done>=cap)break;
     const ok=await perform('sponsor-minute',job,job.date+' '+job.code+' 現股1分K');
     if(!ok&&tier!=='sponsor')break;
@@ -169,7 +172,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   state=await c30FreeStatus(token);
   const updatedDays=sessionDays(calendar,state).map(x=>({...x.stored,date:x.date}));
   const pendingChips=remainingTasks(updatedDays,codes).length;
-  const pendingMinutes=minuteJobs(updatedDays,codes).length;
+  const pendingMinutes=minuteJobs(updatedDays,codes,tier==='sponsor').length;
   const pendingSponsor=tier==='sponsor'?batchJobs(updatedDays,codes.length).length:0;
   const result={...state,downloaded,cached:skipped,empty_checked:emptyChecked,
     pending:pendingChips+(tier==='sponsor'?pendingMinutes+pendingSponsor:0),pending_chip:pendingChips,
