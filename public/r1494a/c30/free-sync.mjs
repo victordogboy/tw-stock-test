@@ -23,6 +23,10 @@ export function setC30SourceTier(tier){
  if(!['free','sponsor'].includes(tier))throw Error('請選 Free 或 Sponsor（S）');
  globalThis.localStorage?.setItem(TIER_KEY,tier);return tier
 }
+const ERROR_KEY='c30-a56-last-source-diagnostics-v1';
+function scrubError(message){return String(message||'').replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,'[TOKEN_HIDDEN]').slice(0,240)}
+function persistErrors(errors){try{globalThis.localStorage?.setItem(ERROR_KEY,JSON.stringify({at:new Date().toISOString(),items:errors.slice(-30)}))}catch{}}
+export function c30LastSourceErrors(){try{return JSON.parse(globalThis.localStorage?.getItem(ERROR_KEY)||'{"items":[]}')}catch{return {items:[]}}}
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const today=()=>new Date(Date.now()+8*3600000).toISOString().slice(0,10);
 const fToken=x=>String(x||globalThis.C26DeviceFinMind?.activeToken?.()||globalThis.localStorage?.getItem('c26-finmind-device-token-v1')||globalThis.TWFinMindTokens?.activeToken?.()||'').trim().replace(/\\_/g,'_');
@@ -40,6 +44,30 @@ export async function c30FreeStatus(token=c30FreeToken()){
  return call(token,'status');
 }
 export async function c30FreeDownloadDay(date,dataset,token=c30FreeToken()){return call(token,'day?date='+encodeURIComponent(date)+(dataset?'&dataset='+encodeURIComponent(dataset):''))}
+export async function diagnoseC30Sponsor(token=c30FreeToken(),notify=()=>{},specifiedDate=''){
+ if(!token)throw Error('請先在本機儲存 FinMind Token');
+ if(getC30SourceTier()!=='sponsor')throw Error('請先將會員資料模式切到 Sponsor（S）');
+ const cloud=await c30FreeStatus(token);
+ const storedDates=(cloud.days||[]).map(x=>x.date).filter(x=>/^20\d\d-\d\d-\d\d$/.test(x)&&x>='2026-11-23').sort();
+ const clock=new Date(Date.now()+8*3600000).toISOString(),through=clock.slice(11,16)>='20:00'?clock.slice(0,10):new Date(Date.parse(clock.slice(0,10)+'T00:00:00Z')-86400000).toISOString().slice(0,10);
+ const date=specifiedDate||storedDates.filter(d=>d<=through).at(-1)||'2026-11-23';
+ if(!/^20\d\d-\d\d-\d\d$/.test(date)||date>through||date<'2026-11-23')throw Error('Sponsor 診斷日期必須是已完成的交易日');
+ const results=[];
+ for(const [dataset,code] of [['TaiwanStockPrice',null],['TaiwanStockKBar','2330']]){
+  notify('正在單筆測試 '+dataset+'（'+date+'），不重抓整個 233 檔…');
+  try{
+   const answer=await call(token,'diagnose','POST',{dataset,date,...(code?{code}:{})},'sponsor');
+   results.push({dataset,date,ok:answer.ok,rows:answer.total_rows||0,fields:answer.fields||[],message:answer.message||''});
+  }catch(e){
+   results.push({dataset,date,ok:false,http:e.status||null,code:e.code||null,message:scrubError(e.message),retry_after_ms:e.retry_after_ms||0});
+   if(e.status===402||[401,403].includes(e.status)||e.code==='UPSTREAM_QUOTA')break;
+  }
+  if(dataset==='TaiwanStockPrice')await delay(Math.max(100,getC30FreeIntervalMs('sponsor')));
+ }
+ persistErrors(results.filter(x=>!x.ok).map(x=>({path:'diagnose',dataset:x.dataset,status:x.http,code:x.code,error:x.message})));
+ notify('Sponsor 診斷 '+results.filter(x=>x.ok&&x.rows>0).length+'/'+results.length+' 項成功；'+results.map(x=>x.dataset+': '+(x.ok?x.rows+' 筆':x.message)).join('；'));
+ return {ok:results.every(x=>x.ok&&x.rows>0),date,results};
+}
 export function stopC30FreeSync(){stopped=true}
 export function c30FreeSummary(x){
  if(!x||x.needs_token)return '尚未輸入 FinMind Free Token';
@@ -88,7 +116,7 @@ function minuteJobs(days,codes,upgradeSponsor=false){
  return jobs
 }
 function needsQuotaPause(e){
- return e.status===402||(e.status===429&&(e.code==='HOURLY_QUOTA'||e.retry_after_ms>60000));
+ return e.status===402||(e.status===429&&(['HOURLY_QUOTA','UPSTREAM_QUOTA'].includes(e.code)||e.retry_after_ms>60000));
 }
 async function quotaSafeRequest(token,path,body,notify,overrideTier){
  for(let retry=0;retry<4;retry++){
@@ -109,7 +137,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
  if(!token)throw Error('請先填入 FinMind Token');
  stopped=false;
  active=(async()=>{
-  let tier=getC30SourceTier(),pausedByQuota=null,permissionWarning='',usedRequests=0;
+  let tier=getC30SourceTier(),pausedByQuota=null,permissionWarning='',fatalError=null,previousFailure='',repeatFailures=0;
   const interval=getC30FreeIntervalMs(tier),codes=await pool(),errors=[];
   notify((tier==='sponsor'?'Sponsor（S）批次':'Free 逐檔')+' 模式，每 '+(interval/1000).toFixed(1)+' 秒一筆；正在核對既有雲端資料…');
   let state=await c30FreeStatus(token),calendar;
@@ -136,19 +164,27 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
     if(!stopped&&done<cap)await delay(getC30FreeIntervalMs(tier)+10);
     return true
    }catch(e){
-    if(needsQuotaPause(e)){pausedByQuota=e;return false}
-    if(tier==='sponsor'&&[400,401,403].includes(e.status)&&path.startsWith('sponsor-')){
-     permissionWarning='Sponsor 權限未獲確認（'+e.message+'），本輪轉用 Free 逐檔補缺';
-     tier='free';notify(permissionWarning);return false
+    if(needsQuotaPause(e)){pausedByQuota=e;notify('FinMind 額度不足，已保存進度；'+scrubError(e.message));return false}
+    const item={path,label,http:e.status||null,code:e.code||null,error:scrubError(e.message),retry_after_ms:e.retry_after_ms||0};
+    errors.push(item);persistErrors(errors);done++;
+    notify('資料失敗 '+done+'/'+cap+'：'+label+'｜HTTP '+(item.http||'?')+'｜'+item.error);
+    const signature=path+'|'+item.http+'|'+item.code+'|'+item.error;
+    repeatFailures=signature===previousFailure?repeatFailures+1:1;previousFailure=signature;
+    if([400,401,403].includes(e.status)&&path.startsWith('sponsor-')){
+     fatalError='Sponsor 請求被拒絕：'+item.error+'。此錯誤不代表你沒有 Sponsor 資格，請先按單筆診斷。';
+     notify(fatalError);return false
     }
-    errors.push({path,label,error:String(e.message||e)});done++;
+    if(repeatFailures>=3){
+     fatalError='連續 3 筆相同來源錯誤：'+item.error+'。已安全停止；請先執行 Sponsor 單筆診斷。';
+     notify(fatalError);return false
+    }
     if(!stopped&&done<cap)await delay(getC30FreeIntervalMs(tier)+10);
     return true
    }
   }
   if(tier==='sponsor'){
    for(const job of batchJobs(dates,codes.length)){
-    if(stopped||pausedByQuota||done>=cap)break;
+    if(stopped||pausedByQuota||fatalError||done>=cap)break;
     const ok=await perform('sponsor-batch',{date:job.date,dataset:job.dataset},job.date+' '+job.label+' 整市場批次');
     if(!ok&&tier!=='sponsor')break;
    }
@@ -156,9 +192,9 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   state=await c30FreeStatus(token);
   let currentDays=sessionDays(calendar,state).map(x=>({...x.stored,date:x.date}));
   // Sponsor can fill missing one-minute candles; Free keeps Fugle/Yahoo instead.
-  if(tier==='sponsor'&&!auto&&!pausedByQuota&&!stopped&&done<cap){
+  if(tier==='sponsor'&&!auto&&!pausedByQuota&&!stopped&&!fatalError&&done<cap){
    for(const job of minuteJobs(currentDays,codes,true)){
-    if(stopped||pausedByQuota||done>=cap)break;
+    if(stopped||pausedByQuota||fatalError||done>=cap)break;
     const ok=await perform('sponsor-minute',job,job.date+' '+job.code+' 現股1分K');
     if(!ok&&tier!=='sponsor')break;
    }
@@ -168,7 +204,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   // Free per-symbol fallback ALSO repairs sparsely populated Sponsor batches.
   const queue=remainingTasks(currentDays,codes);
   for(const job of queue){
-   if(stopped||pausedByQuota||done>=cap)break;
+   if(stopped||pausedByQuota||fatalError||done>=cap)break;
    await perform('chip',job,job.code+' '+job.label+' '+job.from+'～'+job.to);
   }
   state=await c30FreeStatus(token);
@@ -179,11 +215,11 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   const result={...state,downloaded,cached:skipped,empty_checked:emptyChecked,
     pending:pendingChips+(tier==='sponsor'?pendingMinutes+pendingSponsor:0),pending_chip:pendingChips,
     pending_minute:pendingMinutes,pending_sponsor:pendingSponsor,
-    interrupted:stopped,paused_by_quota:!!pausedByQuota,
+    interrupted:stopped,paused_by_quota:!!pausedByQuota,blocked_by_error:!!fatalError,fatal_error:fatalError,
     retry_after_ms:pausedByQuota?.retry_after_ms||0,errors,
     warning:permissionWarning,calendar_as_of:calendar.as_of,tier_used:tier,
     model_replayed:false};
-  notify((pausedByQuota?'已達 FinMind 帳號／安全額度，請稍後按續傳。':stopped?'已暫停，資料保留。':'本輪資料更新完成。')+
+  persistErrors(errors);notify((fatalError?'已停止：'+fatalError+' ':pausedByQuota?'已達 FinMind 帳號／安全額度，請稍後按續傳。':stopped?'已暫停，資料保留。':'本輪資料更新完成。')+
    c30FreeSummary(result)+'；剩餘籌碼／日K '+pendingChips+
    (tier==='sponsor'?'，分 K '+pendingMinutes:'')+
    (permissionWarning?'；'+permissionWarning:'')+
