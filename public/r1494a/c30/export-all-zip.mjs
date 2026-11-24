@@ -13,7 +13,7 @@ function crc32(bytes){let c=0xffffffff;for(const b of bytes)c=CRC_TABLE[(c^b)&25
 function nameSafe(s){return String(s).replace(/[\/\\\0-\x1f]/g,'_').slice(0,180)}
 class ZipWriter{
  constructor(fileWriter=null){this.target=fileWriter;this.parts=[];this.entries=[];this.offset=0;this.closed=false}
- async write(data){if(this.offset+data.byteLength>0xffffffff)throw Error('這份封存超過 ZIP 4GB 上限，請分批匯出或改用 ZIP64');if(this.target)await this.target.write(data);else this.parts.push(data);this.offset+=data.byteLength}
+ async write(data){if(this.offset+data.byteLength>0xffffffff)throw Error('這份封存超過 ZIP 4GB 上限，請分批匯出或改用 ZIP64');if(!this.target&&this.offset+data.byteLength>350*1024*1024)throw Error('瀏覽器記憶體下載已超過 350MB，請改用支援檔案串流保存的桌面瀏覽器，或分批匯出');if(this.target)await this.target.write(data);else this.parts.push(data);this.offset+=data.byteLength}
  async add(name,blob){
   if(this.entries.length>=65534)throw Error('ZIP 檔案項目過多');
   name=nameSafe(name.replaceAll('\\','/')).replaceAll('_','_'); // flat safe names; no traversal
@@ -21,10 +21,13 @@ class ZipWriter{
   if(nameBytes.length>65535)throw Error('ZIP filename too long');
   blob=blob instanceof Blob?blob:new Blob([blob]);
   if(blob.size>0xffffffff)throw Error('單個 ZIP 項目超過 4GB');
-  const bytes=new Uint8Array(await blob.arrayBuffer()),size=bytes.length,crc=crc32(bytes),start=this.offset;
+  const size=blob.size,start=this.offset,STEP=4*1024*1024;
+  let accumulator=0xffffffff;
+  for(let at=0;at<size;at+=STEP){const part=new Uint8Array(await blob.slice(at,Math.min(size,at+STEP)).arrayBuffer());for(const byte of part)accumulator=CRC_TABLE[(accumulator^byte)&255]^(accumulator>>>8)}
+  const crc=(accumulator^0xffffffff)>>>0;
   const head=new Uint8Array(30+nameBytes.length),v=new DataView(head.buffer);
   u32(v,0,0x04034b50);u16(v,4,20);u16(v,6,0x0800);u16(v,8,0);u32(v,14,crc);u32(v,18,size);u32(v,22,size);u16(v,26,nameBytes.length);
-  head.set(nameBytes,30);await this.write(head);await this.write(bytes);
+  head.set(nameBytes,30);await this.write(head);for(let at=0;at<size;at+=STEP)await this.write(new Uint8Array(await blob.slice(at,Math.min(size,at+STEP)).arrayBuffer()));
   this.entries.push({nameBytes,size,crc,start});
  }
  async finish(){
