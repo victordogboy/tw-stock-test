@@ -76,6 +76,7 @@ function decorateStrategy(){
  $('.brand b').textContent=D.model_version;document.title=D.model_version+'｜策略監控台';
  $('#strategy').value=isC30?'C30':isA56?'A56':isC26?'C26':isFc?'FC23':'R1494-A';
  const tokenUpdate=document.querySelector('#c26-token-update');if(tokenUpdate)tokenUpdate.textContent=isC30||isA56?'Free 更新 233 檔 C30/A56 資料':'使用 Token 更新 C26 資料';
+ const intervalPanel=document.getElementById('c30-free-pacing-panel');if(intervalPanel)intervalPanel.hidden=!(isC30||isA56);
  const downloadButton=document.getElementById('c26-archive-download');if(downloadButton)downloadButton.textContent=isC30||isA56?'下載 Free 雲端增量資料（NDJSON.gz）':'下載已存回測資料（ZIP）';
  document.querySelectorAll('[data-strategy-title]').forEach(el=>el.textContent=D.model_version+' 報酬');
  $('#strategySummary').textContent=D.model_version+' 累積 '+pct(D.curves.strategy.at(-1)-1)+' · 最大回撤 '+pct(drawdown(D.curves.strategy))+' · '+D.dates[0]+'～'+D.dates.at(-1);
