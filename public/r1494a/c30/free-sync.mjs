@@ -5,13 +5,22 @@
 const API='/api/c30/free/';
 const THREE=[['TaiwanStockInstitutionalInvestorsBuySell','三大法人'],['TaiwanStockMarginPurchaseShortSale','融資融券'],['TaiwanStockSecuritiesLending','借券成交']];
 let cachedPool=null,active=null,stopped=false;
+const INTERVAL_KEY='c30-a56-free-request-interval-ms-v1';
+export function getC30FreeIntervalMs(){
+ try{const v=Number(globalThis.localStorage?.getItem(INTERVAL_KEY));return Number.isFinite(v)&&v>=6500&&v<=30000&&v%500===0?v:8000}catch{return 8000}
+}
+export function setC30FreeIntervalMs(value){
+ const ms=Math.round(Number(value)/500)*500;
+ if(!Number.isFinite(ms)||ms<6500||ms>30000)throw Error('FinMind Free 請求間隔必須介於 6.5～30 秒，並以 0.5 秒遞增');
+ globalThis.localStorage?.setItem(INTERVAL_KEY,String(ms));return ms
+}
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const today=()=>new Date(Date.now()+8*3600000).toISOString().slice(0,10);
 const fToken=x=>String(x||globalThis.C26DeviceFinMind?.activeToken?.()||globalThis.localStorage?.getItem('c26-finmind-device-token-v1')||globalThis.TWFinMindTokens?.activeToken?.()||'').trim().replace(/\\_/g,'_');
 export function c30FreeToken(explicit=''){const t=fToken(explicit);return t.length>=30&&t.length<=4096&&!/\s/.test(t)?t:''}
 async function call(token,path,method='GET',body){
  if(!token)throw Error('缺少 FinMind Free Token：請在 A56 原本的 Token 區儲存');
- const r=await fetch(API+path,{method,cache:'no-store',headers:{Authorization:'Bearer '+token,...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const r=await fetch(API+path,{method,cache:'no-store',headers:{Authorization:'Bearer '+token,'x-c30-free-interval-ms':String(getC30FreeIntervalMs()),...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
  let out;try{out=await r.json()}catch{throw Error('C30 免費資料服務無效 HTTP '+r.status)}
  if(!r.ok||out.ok===false){const e=new Error(out.error||'HTTP '+r.status);e.status=r.status;e.retry_after_ms=out.retry_after_ms||0;throw e}
  return out;
@@ -53,11 +62,11 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
  if(!token)throw Error('請先填入 FinMind Free Token');
  stopped=false;
  active=(async()=>{
-  notify('正在讀取雲端已保存的資料，不下載 2016～2026 歷史整包…');
+  notify('FinMind Free 請求間隔 '+(getC30FreeIntervalMs()/1000).toFixed(1)+' 秒；正在讀取雲端已保存的資料，不下載歷史整包…');
   const codes=await pool();let state=await c30FreeStatus(token);
   let calendar;
   for(let retry=0;retry<4;retry++){
-   try{calendar=await call(token,'calendar','POST',{});break}catch(e){if(e.status!==429||retry===3)throw e;await delay(Math.min(15000,e.retry_after_ms||8500))}
+   try{calendar=await call(token,'calendar','POST',{});break}catch(e){if(e.status!==429||retry===3)throw e;await delay(Math.min(35000,e.retry_after_ms||getC30FreeIntervalMs()))}
   }
   let priceResult=null;
   try{priceResult=await call(token,'official','POST',{});if(!priceResult.cached)notify('已保存官方上市／上櫃日K：'+priceResult.as_of+'，'+priceResult.stock_count+'/233 檔')}catch(e){notify('官方日K未完整：'+e.message+'；原有成功資料保留')}
@@ -69,11 +78,11 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
    let pass=false;
    for(let tries=0;tries<3&&!pass&&!stopped;tries++){
     try{const x=await call(token,'chip','POST',job);pass=true;downloaded+=x.cached?0:1;skipped+=x.cached?1:0;checkedEmpty+=x.empty_days||0}
-    catch(e){if(e.status===429&&tries<2){await delay(Math.min(17000,Math.max(1200,e.retry_after_ms||8000)));continue}
+    catch(e){if(e.status===429&&tries<2){await delay(Math.min(35000,Math.max(1200,e.retry_after_ms||getC30FreeIntervalMs())));continue}
      errors.push({code:job.code,dataset:job.dataset,from:job.from,to:job.to,error:e.message});break}
    }
-   // Server enforces 8-second gap across multiple tabs for the same token.
-   if(i<max-1&&!stopped)await delay(8050);
+   // Server enforces the user-selected interval across multiple tabs for the same token (minimum 6.5 seconds).
+   if(i<max-1&&!stopped)await delay(getC30FreeIntervalMs()+50);
   }
   state=await c30FreeStatus(token);const pending=remainingTasks(sessionDays(calendar,state),codes).length;
   const result={...state,downloaded,cached:skipped,empty_checked:checkedEmpty,pending,interrupted:stopped,errors,calendar_as_of:calendar.as_of,price:priceResult,model_replayed:false};
