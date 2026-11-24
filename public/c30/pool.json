@@ -1,0 +1,940 @@
+{
+  "universe": "C30 original research symbols",
+  "as_of": "2026-11-20",
+  "expected_stock_count": 233,
+  "notes": "Research pool only, not daily historical futures eligibility",
+  "stocks": [
+    {
+      "code": "1101",
+      "market": "TWSE"
+    },
+    {
+      "code": "1102",
+      "market": "TWSE"
+    },
+    {
+      "code": "1210",
+      "market": "TWSE"
+    },
+    {
+      "code": "1216",
+      "market": "TWSE"
+    },
+    {
+      "code": "1301",
+      "market": "TWSE"
+    },
+    {
+      "code": "1303",
+      "market": "TWSE"
+    },
+    {
+      "code": "1312",
+      "market": "TWSE"
+    },
+    {
+      "code": "1314",
+      "market": "TWSE"
+    },
+    {
+      "code": "1319",
+      "market": "TWSE"
+    },
+    {
+      "code": "1326",
+      "market": "TWSE"
+    },
+    {
+      "code": "1402",
+      "market": "TWSE"
+    },
+    {
+      "code": "1440",
+      "market": "TWSE"
+    },
+    {
+      "code": "1476",
+      "market": "TWSE"
+    },
+    {
+      "code": "1477",
+      "market": "TWSE"
+    },
+    {
+      "code": "1503",
+      "market": "TWSE"
+    },
+    {
+      "code": "1504",
+      "market": "TWSE"
+    },
+    {
+      "code": "1513",
+      "market": "TWSE"
+    },
+    {
+      "code": "1536",
+      "market": "TWSE"
+    },
+    {
+      "code": "1560",
+      "market": "TWSE"
+    },
+    {
+      "code": "1565",
+      "market": "TPEx"
+    },
+    {
+      "code": "1590",
+      "market": "TWSE"
+    },
+    {
+      "code": "1605",
+      "market": "TWSE"
+    },
+    {
+      "code": "1609",
+      "market": "TWSE"
+    },
+    {
+      "code": "1717",
+      "market": "TWSE"
+    },
+    {
+      "code": "1718",
+      "market": "TWSE"
+    },
+    {
+      "code": "1722",
+      "market": "TWSE"
+    },
+    {
+      "code": "1795",
+      "market": "TWSE"
+    },
+    {
+      "code": "1802",
+      "market": "TWSE"
+    },
+    {
+      "code": "1904",
+      "market": "TWSE"
+    },
+    {
+      "code": "1905",
+      "market": "TWSE"
+    },
+    {
+      "code": "1907",
+      "market": "TWSE"
+    },
+    {
+      "code": "1909",
+      "market": "TWSE"
+    },
+    {
+      "code": "2002",
+      "market": "TWSE"
+    },
+    {
+      "code": "2006",
+      "market": "TWSE"
+    },
+    {
+      "code": "2027",
+      "market": "TWSE"
+    },
+    {
+      "code": "2049",
+      "market": "TWSE"
+    },
+    {
+      "code": "2059",
+      "market": "TWSE"
+    },
+    {
+      "code": "2105",
+      "market": "TWSE"
+    },
+    {
+      "code": "2201",
+      "market": "TWSE"
+    },
+    {
+      "code": "2231",
+      "market": "TWSE"
+    },
+    {
+      "code": "2301",
+      "market": "TWSE"
+    },
+    {
+      "code": "2303",
+      "market": "TWSE"
+    },
+    {
+      "code": "2308",
+      "market": "TWSE"
+    },
+    {
+      "code": "2312",
+      "market": "TWSE"
+    },
+    {
+      "code": "2313",
+      "market": "TWSE"
+    },
+    {
+      "code": "2317",
+      "market": "TWSE"
+    },
+    {
+      "code": "2323",
+      "market": "TWSE"
+    },
+    {
+      "code": "2324",
+      "market": "TWSE"
+    },
+    {
+      "code": "2327",
+      "market": "TWSE"
+    },
+    {
+      "code": "2328",
+      "market": "TWSE"
+    },
+    {
+      "code": "2330",
+      "market": "TWSE"
+    },
+    {
+      "code": "2331",
+      "market": "TWSE"
+    },
+    {
+      "code": "2332",
+      "market": "TWSE"
+    },
+    {
+      "code": "2337",
+      "market": "TWSE"
+    },
+    {
+      "code": "2338",
+      "market": "TWSE"
+    },
+    {
+      "code": "2340",
+      "market": "TWSE"
+    },
+    {
+      "code": "2344",
+      "market": "TWSE"
+    },
+    {
+      "code": "2345",
+      "market": "TWSE"
+    },
+    {
+      "code": "2347",
+      "market": "TWSE"
+    },
+    {
+      "code": "2352",
+      "market": "TWSE"
+    },
+    {
+      "code": "2353",
+      "market": "TWSE"
+    },
+    {
+      "code": "2354",
+      "market": "TWSE"
+    },
+    {
+      "code": "2355",
+      "market": "TWSE"
+    },
+    {
+      "code": "2356",
+      "market": "TWSE"
+    },
+    {
+      "code": "2357",
+      "market": "TWSE"
+    },
+    {
+      "code": "2360",
+      "market": "TWSE"
+    },
+    {
+      "code": "2368",
+      "market": "TWSE"
+    },
+    {
+      "code": "2371",
+      "market": "TWSE"
+    },
+    {
+      "code": "2376",
+      "market": "TWSE"
+    },
+    {
+      "code": "2377",
+      "market": "TWSE"
+    },
+    {
+      "code": "2379",
+      "market": "TWSE"
+    },
+    {
+      "code": "2382",
+      "market": "TWSE"
+    },
+    {
+      "code": "2383",
+      "market": "TWSE"
+    },
+    {
+      "code": "2385",
+      "market": "TWSE"
+    },
+    {
+      "code": "2388",
+      "market": "TWSE"
+    },
+    {
+      "code": "2392",
+      "market": "TWSE"
+    },
+    {
+      "code": "2393",
+      "market": "TWSE"
+    },
+    {
+      "code": "2401",
+      "market": "TWSE"
+    },
+    {
+      "code": "2404",
+      "market": "TWSE"
+    },
+    {
+      "code": "2408",
+      "market": "TWSE"
+    },
+    {
+      "code": "2409",
+      "market": "TWSE"
+    },
+    {
+      "code": "2412",
+      "market": "TWSE"
+    },
+    {
+      "code": "2439",
+      "market": "TWSE"
+    },
+    {
+      "code": "2441",
+      "market": "TWSE"
+    },
+    {
+      "code": "2449",
+      "market": "TWSE"
+    },
+    {
+      "code": "2454",
+      "market": "TWSE"
+    },
+    {
+      "code": "2455",
+      "market": "TWSE"
+    },
+    {
+      "code": "2457",
+      "market": "TWSE"
+    },
+    {
+      "code": "2458",
+      "market": "TWSE"
+    },
+    {
+      "code": "2474",
+      "market": "TWSE"
+    },
+    {
+      "code": "2481",
+      "market": "TWSE"
+    },
+    {
+      "code": "2485",
+      "market": "TWSE"
+    },
+    {
+      "code": "2486",
+      "market": "TWSE"
+    },
+    {
+      "code": "2489",
+      "market": "TWSE"
+    },
+    {
+      "code": "2492",
+      "market": "TWSE"
+    },
+    {
+      "code": "2498",
+      "market": "TWSE"
+    },
+    {
+      "code": "2515",
+      "market": "TWSE"
+    },
+    {
+      "code": "2520",
+      "market": "TWSE"
+    },
+    {
+      "code": "2542",
+      "market": "TWSE"
+    },
+    {
+      "code": "2548",
+      "market": "TWSE"
+    },
+    {
+      "code": "2603",
+      "market": "TWSE"
+    },
+    {
+      "code": "2605",
+      "market": "TWSE"
+    },
+    {
+      "code": "2606",
+      "market": "TWSE"
+    },
+    {
+      "code": "2609",
+      "market": "TWSE"
+    },
+    {
+      "code": "2610",
+      "market": "TWSE"
+    },
+    {
+      "code": "2615",
+      "market": "TWSE"
+    },
+    {
+      "code": "2618",
+      "market": "TWSE"
+    },
+    {
+      "code": "2633",
+      "market": "TWSE"
+    },
+    {
+      "code": "2634",
+      "market": "TWSE"
+    },
+    {
+      "code": "2801",
+      "market": "TWSE"
+    },
+    {
+      "code": "2834",
+      "market": "TWSE"
+    },
+    {
+      "code": "2880",
+      "market": "TWSE"
+    },
+    {
+      "code": "2881",
+      "market": "TWSE"
+    },
+    {
+      "code": "2882",
+      "market": "TWSE"
+    },
+    {
+      "code": "2883",
+      "market": "TWSE"
+    },
+    {
+      "code": "2884",
+      "market": "TWSE"
+    },
+    {
+      "code": "2885",
+      "market": "TWSE"
+    },
+    {
+      "code": "2886",
+      "market": "TWSE"
+    },
+    {
+      "code": "2887",
+      "market": "TWSE"
+    },
+    {
+      "code": "2890",
+      "market": "TWSE"
+    },
+    {
+      "code": "2891",
+      "market": "TWSE"
+    },
+    {
+      "code": "2892",
+      "market": "TWSE"
+    },
+    {
+      "code": "2913",
+      "market": "TWSE"
+    },
+    {
+      "code": "2915",
+      "market": "TWSE"
+    },
+    {
+      "code": "3005",
+      "market": "TWSE"
+    },
+    {
+      "code": "3006",
+      "market": "TWSE"
+    },
+    {
+      "code": "3008",
+      "market": "TWSE"
+    },
+    {
+      "code": "3017",
+      "market": "TWSE"
+    },
+    {
+      "code": "3019",
+      "market": "TWSE"
+    },
+    {
+      "code": "3034",
+      "market": "TWSE"
+    },
+    {
+      "code": "3035",
+      "market": "TWSE"
+    },
+    {
+      "code": "3036",
+      "market": "TWSE"
+    },
+    {
+      "code": "3037",
+      "market": "TWSE"
+    },
+    {
+      "code": "3042",
+      "market": "TWSE"
+    },
+    {
+      "code": "3044",
+      "market": "TWSE"
+    },
+    {
+      "code": "3045",
+      "market": "TWSE"
+    },
+    {
+      "code": "3078",
+      "market": "TPEx"
+    },
+    {
+      "code": "3081",
+      "market": "TPEx"
+    },
+    {
+      "code": "3105",
+      "market": "TPEx"
+    },
+    {
+      "code": "3152",
+      "market": "TPEx"
+    },
+    {
+      "code": "3189",
+      "market": "TWSE"
+    },
+    {
+      "code": "3211",
+      "market": "TPEx"
+    },
+    {
+      "code": "3227",
+      "market": "TPEx"
+    },
+    {
+      "code": "3231",
+      "market": "TWSE"
+    },
+    {
+      "code": "3260",
+      "market": "TPEx"
+    },
+    {
+      "code": "3264",
+      "market": "TPEx"
+    },
+    {
+      "code": "3293",
+      "market": "TPEx"
+    },
+    {
+      "code": "3324",
+      "market": "TPEx"
+    },
+    {
+      "code": "3374",
+      "market": "TPEx"
+    },
+    {
+      "code": "3376",
+      "market": "TWSE"
+    },
+    {
+      "code": "3380",
+      "market": "TWSE"
+    },
+    {
+      "code": "3406",
+      "market": "TWSE"
+    },
+    {
+      "code": "3443",
+      "market": "TWSE"
+    },
+    {
+      "code": "3481",
+      "market": "TWSE"
+    },
+    {
+      "code": "3529",
+      "market": "TPEx"
+    },
+    {
+      "code": "3532",
+      "market": "TWSE"
+    },
+    {
+      "code": "3533",
+      "market": "TWSE"
+    },
+    {
+      "code": "3552",
+      "market": "TPEx"
+    },
+    {
+      "code": "3653",
+      "market": "TWSE"
+    },
+    {
+      "code": "3661",
+      "market": "TWSE"
+    },
+    {
+      "code": "3673",
+      "market": "TWSE"
+    },
+    {
+      "code": "3680",
+      "market": "TPEx"
+    },
+    {
+      "code": "3691",
+      "market": "TPEx"
+    },
+    {
+      "code": "3702",
+      "market": "TWSE"
+    },
+    {
+      "code": "3706",
+      "market": "TWSE"
+    },
+    {
+      "code": "3711",
+      "market": "TWSE"
+    },
+    {
+      "code": "3714",
+      "market": "TWSE"
+    },
+    {
+      "code": "4123",
+      "market": "TPEx"
+    },
+    {
+      "code": "4128",
+      "market": "TPEx"
+    },
+    {
+      "code": "4162",
+      "market": "TPEx"
+    },
+    {
+      "code": "4736",
+      "market": "TWSE"
+    },
+    {
+      "code": "4743",
+      "market": "TPEx"
+    },
+    {
+      "code": "4904",
+      "market": "TWSE"
+    },
+    {
+      "code": "4919",
+      "market": "TWSE"
+    },
+    {
+      "code": "4938",
+      "market": "TWSE"
+    },
+    {
+      "code": "4958",
+      "market": "TWSE"
+    },
+    {
+      "code": "5009",
+      "market": "TPEx"
+    },
+    {
+      "code": "5269",
+      "market": "TWSE"
+    },
+    {
+      "code": "5274",
+      "market": "TPEx"
+    },
+    {
+      "code": "5347",
+      "market": "TPEx"
+    },
+    {
+      "code": "5388",
+      "market": "TWSE"
+    },
+    {
+      "code": "5425",
+      "market": "TPEx"
+    },
+    {
+      "code": "5457",
+      "market": "TPEx"
+    },
+    {
+      "code": "5483",
+      "market": "TPEx"
+    },
+    {
+      "code": "5534",
+      "market": "TWSE"
+    },
+    {
+      "code": "5871",
+      "market": "TWSE"
+    },
+    {
+      "code": "5880",
+      "market": "TWSE"
+    },
+    {
+      "code": "5904",
+      "market": "TPEx"
+    },
+    {
+      "code": "6005",
+      "market": "TWSE"
+    },
+    {
+      "code": "6116",
+      "market": "TWSE"
+    },
+    {
+      "code": "6121",
+      "market": "TPEx"
+    },
+    {
+      "code": "6139",
+      "market": "TWSE"
+    },
+    {
+      "code": "6147",
+      "market": "TPEx"
+    },
+    {
+      "code": "6153",
+      "market": "TWSE"
+    },
+    {
+      "code": "6173",
+      "market": "TPEx"
+    },
+    {
+      "code": "6176",
+      "market": "TWSE"
+    },
+    {
+      "code": "6182",
+      "market": "TPEx"
+    },
+    {
+      "code": "6188",
+      "market": "TPEx"
+    },
+    {
+      "code": "6213",
+      "market": "TWSE"
+    },
+    {
+      "code": "6239",
+      "market": "TWSE"
+    },
+    {
+      "code": "6245",
+      "market": "TPEx"
+    },
+    {
+      "code": "6257",
+      "market": "TWSE"
+    },
+    {
+      "code": "6269",
+      "market": "TWSE"
+    },
+    {
+      "code": "6271",
+      "market": "TWSE"
+    },
+    {
+      "code": "6274",
+      "market": "TPEx"
+    },
+    {
+      "code": "6278",
+      "market": "TWSE"
+    },
+    {
+      "code": "6279",
+      "market": "TPEx"
+    },
+    {
+      "code": "6282",
+      "market": "TWSE"
+    },
+    {
+      "code": "6285",
+      "market": "TWSE"
+    },
+    {
+      "code": "6414",
+      "market": "TWSE"
+    },
+    {
+      "code": "6443",
+      "market": "TWSE"
+    },
+    {
+      "code": "6488",
+      "market": "TPEx"
+    },
+    {
+      "code": "6510",
+      "market": "TPEx"
+    },
+    {
+      "code": "6547",
+      "market": "TPEx"
+    },
+    {
+      "code": "6669",
+      "market": "TWSE"
+    },
+    {
+      "code": "6770",
+      "market": "TWSE"
+    },
+    {
+      "code": "8039",
+      "market": "TWSE"
+    },
+    {
+      "code": "8044",
+      "market": "TPEx"
+    },
+    {
+      "code": "8046",
+      "market": "TWSE"
+    },
+    {
+      "code": "8069",
+      "market": "TPEx"
+    },
+    {
+      "code": "8086",
+      "market": "TPEx"
+    },
+    {
+      "code": "8112",
+      "market": "TWSE"
+    },
+    {
+      "code": "8150",
+      "market": "TWSE"
+    },
+    {
+      "code": "8163",
+      "market": "TWSE"
+    },
+    {
+      "code": "8299",
+      "market": "TPEx"
+    },
+    {
+      "code": "8358",
+      "market": "TPEx"
+    },
+    {
+      "code": "8436",
+      "market": "TPEx"
+    },
+    {
+      "code": "9904",
+      "market": "TWSE"
+    },
+    {
+      "code": "9914",
+      "market": "TWSE"
+    },
+    {
+      "code": "9938",
+      "market": "TWSE"
+    },
+    {
+      "code": "9939",
+      "market": "TWSE"
+    },
+    {
+      "code": "9945",
+      "market": "TWSE"
+    },
+    {
+      "code": "9958",
+      "market": "TWSE"
+    }
+  ]
+}
