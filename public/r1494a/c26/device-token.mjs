@@ -97,10 +97,18 @@ export function mountTokenPanel(doc=document){
  input.value=readToken();say(input.value?'已記住此瀏覽器的 Token。':'尚未設定 Token。');
  doc.getElementById('c26-token-save').onclick=()=>{try{input.value=saveToken(input.value);say('已儲存在此瀏覽器。')}catch(e){say(e.message)}};
  doc.getElementById('c26-token-clear').onclick=()=>{clearToken();try{globalThis.TWFinMindTokens?.write({tokens:['',''],active:0})}catch{}input.value='';say('已清除這個瀏覽器的 Token。')};
+ doc.getElementById('c26-token-update').textContent=doc.getElementById('strategy')?.value==='C30'?'使用 Token 更新 C30 資料':doc.getElementById('strategy')?.value==='A56'?'使用 Token 更新 A56 資料':'使用 Token 更新 C26 資料';
  doc.getElementById('c26-token-update').onclick=async()=>{
   const buttons=panel.querySelectorAll('button');
   try{
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
+   if(doc.getElementById('strategy')?.value==='C30'){
+    const c30=await import('../c30/data-sync.mjs?v=20261125-cache1');
+    const state=await c30.syncC30FinMind(token,say,{auto:false});
+    say('C30 資料已永久保存：日K至 '+(state.latest_price_date||'資料尚缺')+'，完整四類資料 '+state.complete_days+' 個交易日；'+(state.missing||0)+' 個缺口。原版 C30 新買賣計畫仍須原引擎重播。');
+    if(typeof globalThis.poll==='function')globalThis.poll(false);
+    return;
+   }
    const status=await updateDeviceSource(token,say);
    if(doc.getElementById('strategy')?.value==='A56'){
     const queued=await fetch('/api/c26/a56/refresh',{method:'POST',cache:'no-store'});if(!queued.ok)throw Error('A56原引擎更新排程未成功');
