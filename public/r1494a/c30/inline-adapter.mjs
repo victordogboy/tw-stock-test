@@ -1,3 +1,4 @@
+import {readC30StoredStatus,syncC30FinMind,c30DeviceToken,c30StatusSummary} from './data-sync.mjs?v=20261125-cache1';
 /* C30 original strategy: native renderer for the existing A56/R1494-A FOUR tabs.
  * FROZEN until 2026-11-20. Never infer live orders from newly downloaded OHLCV.
  * C30 original engine unchanged; this module only adapts verified archived records.
@@ -14,7 +15,7 @@ let frozen;
 async function original(){
  if(frozen)return frozen;
  frozen=(async()=>{
-  const r=await fetch(ROOT+'history.b64',{cache:'no-store'});
+  const r=await fetch(ROOT+'history.b64',{cache:'force-cache'});
   if(!r.ok)throw Error('C30 原始壓縮帳本 HTTP '+r.status);
   const bytes=Uint8Array.from(atob((await r.text()).trim()),c=>c.charCodeAt(0));
   const raw=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
@@ -29,6 +30,8 @@ async function original(){
  })().catch(e=>{frozen=null;throw e});
  return frozen;
 }
+let lastFinMind=null;
+let autoLastAttemptAt=0;
 let lastOfficial=null;
 async function checkOfficial(){
  try{
@@ -41,13 +44,26 @@ async function checkOfficial(){
 export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
  const hist=await original();
  if(refresh||!lastOfficial)await checkOfficial();
+ const token=c30DeviceToken();
+ try{
+  lastFinMind=await readC30StoredStatus(token);
+  // Read cloud cache every visit; refresh only missing days, not historical 10 years.
+  const auto=token&&Date.now()-autoLastAttemptAt>45*60000;
+  if(refresh||auto){
+   autoLastAttemptAt=Date.now();
+   const progress=s=>{const ui=document.querySelector('#flash');if(ui)ui.textContent=s};
+   lastFinMind=await syncC30FinMind(token,progress,{auto:!refresh});
+  }
+ }catch(e){
+  lastFinMind={...(lastFinMind||{}),ok:false,sync_error:String(e.message||e),needs_token:!token,days:lastFinMind?.days||[],stored_days:lastFinMind?.stored_days||0};
+ }
  return {...hist,model_version:'C30',ledger:'C30_RISK23_core_history',
   curves:{strategy:hist.snapshots.map(x=>x.nav),market:hist.benchmark},
   status:{model_version:'C30',data_as_of:hist.as_of,checkedThrough:hist.as_of,
    price_updated_at:lastOfficial?.at||null,signal_as_of:hist.as_of,sync_status:'frozen',
    trade_status:'historical_only',lastError:null,sources:[{type:'C30 原始引擎',kind:'凍結歷史'}]},
   plan:{readiness:'blocked',blockedReason:'目前只有原版 C30 2026/11/20 前的完整重播；免費行情更新不代表已產生新的正式交易訊號。'},
-  official:lastOfficial};
+  official:lastOfficial,finmind:lastFinMind};
 }
 const reason={new_position:'核心新建倉',topup:'核心補倉',rank_exit:'核心排序退出',risk_exit:'核心風控退出',portfolio_reduce:'核心減少曝險',protective_stop:'核心保護停損',cap16:'單股配置調整',no_touch_no_buy:'未觸買入價',no_offer_no_fill:'鎖漲停、無法買入',no_bid_no_fill:'鎖跌停、無法賣出',bad_market_data:'資料未驗證',target_exposure_full:'曝險或現金已滿',replace:'選股換股'};
 function htmlRows(rows){return rows.join('')}
@@ -55,7 +71,7 @@ function scale(D,s){const c=Number($('#capital')?.value)||3000000;return c/s.nav
 function held(h,f,s){const value=h.q*h.p*f,cost=h.q*h.entry*f,pnl=value-cost,profit=h.entry>0?h.p/h.entry-1:NaN;
  return {v:value,c:cost,pnl,profit,weight:h.q*h.p/s.nav}}
 function historicalOrders(D,date){return D.orders.filter(o=>o.date===date)}
-function finalMsg(D){return 'C30 凍結引擎已驗證至 2026/11/20；'+(D.official?.ok?'免費行情最新一致交易日 '+D.official.as_of+'（不等於完成原引擎接續）':'免費行情未完成兩市場同日核對')+'；隔日買賣指令暫不發布。'}
+function finalMsg(D){return 'C30 凍結引擎已驗證至 2026/11/20；'+c30StatusSummary(D.finmind)+'；'+(D.official?.ok?'免費行情最新一致交易日 '+D.official.as_of+'（不等於完成原引擎接續）':'免費行情未完成兩市場同日核對')+'；隔日買賣指令暫不發布。'}
 export function renderC30Monitor(D,I,limit=120){
  const s=D.snapshots[I],f=scale(D,s),isLast=I===D.snapshots.length-1;
  const exposure=(s.core+s.side)/s.nav;
@@ -114,9 +130,9 @@ export function decorateC30Monitor(D){
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
  $('#rulesMain').innerHTML='<h2>C30 原版｜固定規則與封存資料</h2><ol><li><strong>原版凍結：</strong>buffer250_partial_2019，2021/01/06～2026/11/20，1,425 個交易日，累積淨報酬 +2,328.07%、最大回撤 −18.50%、勝大盤 46/71 月。</li><li>交易池採原研究的 233 檔股期現股，當年航運／金融仍包含於原研究，不能將排除產業的實驗版當正式原版。</li><li>初始300萬元、小數股複利模擬，最多8檔、單檔上限30%；原本的核心與反轉部位、動態選股排序、帳戶高水位、危機風控及現金銜接規則皆不變。</li><li>核心日線成交依原引擎觸價與開盤執行假設，買入費0.14275%、賣出費稅0.44275%（往返0.5855%）；實際下單不保證成交。</li><li>原版最後交易日2026/11/20；最新免費日K或分K僅代表行情更新，尚須完成原Python引擎的逐日狀態接續才能發布隔日委託。</li></ol><p><a href="/c30/minute/">免費233檔分K下載</a>　·　<a href="/c30/archive/">C30 雲端永久封存</a>　·　<a href="/c30/">獨立來源／診斷</a></p>';
- $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['雲端最新免費日K',D.official?.ok?D.official.as_of:'未完整核對'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
+ $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['FinMind 雲端已儲存日數',D.finmind?.stored_days||0],['FinMind 日K最新資料日',D.finmind?.latest_price_date||'尚無'],['FinMind 四類資料完整日數',D.finmind?.complete_days||0],['FinMind 最近更新',D.finmind?.updated_at||'尚未保存'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['雲端最新免費日K',D.official?.ok?D.official.as_of:'未完整核對'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
  set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。反轉個股明細及2026/11/23以後重播仍待補。');
- set('#rulesFoot','已下載資料可保存至 C30 雲端存檔，不需每次重抓。但需完成原版引擎接續，才可以將新交易日標記為正式驗證。');
+ set('#rulesFoot','C30 FinMind Token 的日K、三大法人、融資融券、借券資料按日期保存在 Cloudflare 私人資料庫；同一 Token 日後直接沿用成功資料，不需重抓。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
  set('#strategyFooter','C30 RISK23 原版｜2021/01/06～2026/11/20｜原始凍結績效 +2328.07%／−18.50%｜未發布今日買賣');
 }
 export function exportC30Orders(D,I){
