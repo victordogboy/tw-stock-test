@@ -130,7 +130,7 @@ export async function exportC30A56AllArchived({
    frozen_universe:233,base_engine_validated_to:'2026-11-20',model_replayed:false,
    sources:['TWSE/TPEx daily EOD','FinMind Free per-symbol','FinMind Sponsor day batch / stock 1m','Fugle/Yahoo stock minute'],
    exported_dates:days.map(d=>d.date),include_minutes:includeMinutes,
-   counts:days.map(d=>({date:d.date,price:d.price?.saved_codes?.length||0,chip:Object.fromEntries(Object.entries(d.chips||{}).map(([k,v])=>[k,v.saved_codes?.length||0])),minute:d.minute?.saved_codes?.length||0})),
+   counts:days.map(d=>({date:d.date,price:d.price?.saved_codes?.length||0,all_market_daily_rows:d.market?.stored?d.market.rows:0,chip:Object.fromEntries(Object.entries(d.chips||{}).map(([k,v])=>[k,v.saved_codes?.length||0])),minute:d.minute?.saved_codes?.length||0})),
    legacy_files:await legacyFileLines(legacyFiles),local_minute_sync:localSync,
    limitations:['Existing historical raw 2016-2026 DB from other archives is NOT automatically copied into this token vault',
     'Missing or suspended-stock data is listed in missing.csv, and must not be fabricated',
@@ -146,6 +146,13 @@ export async function exportC30A56AllArchived({
    check();const d=days[i],date=d.date;progress('雲端匯出 '+(i+1)+'/'+days.length+'：'+date+' 日K、籌碼');
    const daily=await c30FreeDownloadDay(date,null,token);
    const lines=[JSON.stringify({kind:'daily',date,datasets:daily.datasets,model_replayed:false})];
+   if(d.market?.stored){
+    const mr=await fetch('/api/c30/free/market-day?date='+encodeURIComponent(date),{cache:'no-store',headers:{Authorization:'Bearer '+token},signal});
+    const all=await mr.json().catch(()=>({}));
+    if(!mr.ok||!all.ok||!Array.isArray(all.rows)||all.rows.length!==d.market.rows)throw Error(date+' 全市場日 K 雲端資料不完整，拒絕建立不完整 ZIP');
+    lines.push(JSON.stringify({kind:'full_market_daily_OHLCV',date,columns:all.columns,rows:all.rows,meta:all.meta,
+      note:'Unfiltered daily instruments including ETFs/ESB; filter time-valid ordinary stocks before market-breadth calculations'}));
+   }
    if(includeMinutes){
     const symbols=[...new Set(d.minute?.saved_codes||[])].sort();
     for(let k=0;k<symbols.length;k+=12){
