@@ -19,4 +19,14 @@ function latestView(){const ds=Object.keys(db).filter(s=>/^\d{4}-\d\d-\d\d$/.tes
 function csv(all=false){const dates=Object.keys(db).sort(),use=all?dates:[dates.at(-1)],lines=['date,stock_id,stock_name,market,open,high,low,close,volume_shares,source'];for(const d of use)for(const r of db[d]||[])lines.push([d,r.code,r.name,r.market,r.open,r.high,r.low,r.close,r.volume_shares,r.source].map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(','));const url=URL.createObjectURL(new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='C30_Free_DailyK_'+(dates.at(-1)||'empty')+(all?'_all':'')+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 async function update(){if(waiting)return;waiting=true;Q('#update').disabled=true;Q('#dataState').textContent='核對官方上市、上櫃行情中…';try{const r=await fetch('/api/c30/latest?ts='+Date.now(),{cache:'no-store'}),j=await r.json();if(!j.ok||!j.same_trade_date)throw Error((j.errors||[]).map(x=>x.market+': '+x.error).join('；')||'日期不一致');const rows=[...(j.markets.twse?.rows||[]),...(j.markets.tpex?.rows||[])].filter(x=>pool.has(x.code));if(!rows.length)throw Error('233 檔研究池無有效匹配資料');db[j.as_of]=rows;for(const old of Object.keys(db).sort().slice(0,-90))delete db[old];try{localStorage.setItem('C30_EOD_VERIFIED_V1',JSON.stringify(db))}catch{Q('#dataState').textContent='本機儲存空間滿，請匯出 CSV'}latestView();Q('#dataState').textContent='成功：'+j.as_of+' 官方日 K '+rows.length+'/233。這不代表引擎已重播。';}catch(e){latestView();Q('#dataState').textContent='資料抓取失敗，保留已存快照：'+String(e.message||e)}finally{waiting=false;Q('#update').disabled=false}}
 Q('#filter').oninput=latestView;Q('#update').onclick=update;Q('#export').onclick=()=>csv(false);Q('#exportAll').onclick=()=>csv(true);latestView();update();setInterval(()=>{if(!document.hidden)update()},1800000);
+</script><script>
+(function(){
+ if(!new URLSearchParams(location.search).has('embedded'))return;
+ document.querySelector('header')?.setAttribute('hidden','');
+ const head=document.querySelector('header');if(head)head.style.display='none';
+ const main=document.querySelector('main');if(main)main.style.padding='8px 0 32px';
+ function tellHeight(){if(window.parent===window)return;const height=Math.max(document.body.scrollHeight,main?.scrollHeight||0);window.parent.postMessage({type:'C30_EMBED_HEIGHT',height},location.origin)}
+ if(typeof ResizeObserver==='function'){const observer=new ResizeObserver(tellHeight);observer.observe(document.body);if(main)observer.observe(main)}
+ window.addEventListener('load',tellHeight);setTimeout(tellHeight,300);
+})();
 </script></body></html>
