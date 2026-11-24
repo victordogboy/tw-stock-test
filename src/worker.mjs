@@ -11,7 +11,7 @@ import {researchPackRoute} from './research-pack.mjs';
 import {etfVixDailyRoute} from './etf-vix-daily.mjs';
 import {etfDividendRoute} from './etf-dividends-0050.mjs';
 import {c30DailyRoute,C30DailyStore} from './c30/daily-cache.mjs';
-import {c30FreeSourceRoute,C30FreeStore} from './c30/free-source.mjs';
+import {c30FreeSourceRoute,C30FreeStore,c30FreeOfficialScheduled} from './c30/free-source.mjs';
 import {c30MinuteRoute} from './c30/free-minute.mjs';
 import {c30ArchiveRoute,C30Archive} from './c30/archive.mjs';
 import {c30FreeDailyRoute} from './c30/free-daily.mjs';
@@ -55,7 +55,7 @@ export class ScanJob extends BaseScanJob {
  }
 }
 export default {
- scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));},
+ scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));ctx.waitUntil(c30FreeOfficialScheduled(env).catch(()=>null));},
  fetch(request,env,ctx){
   if(['/api/c26/a56/refresh','/api/c26/a56/refresh-status','/api/c26/a56/begin','/api/c26/a56/finish'].includes(new URL(request.url).pathname))return a56RefreshRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/quotes')return a56QuotesRoute(request,env);
