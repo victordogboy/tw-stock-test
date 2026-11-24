@@ -99,7 +99,7 @@ export async function exportC30A56AllArchived({
  token=c30FreeToken(),progress=()=>{},includeMinutes=true,legacyFiles=[],syncLocalMinutes=true,signal=null
 }={}){
  if(!token)throw Error('請先在原本的 Token 欄位保存 FinMind Token');
- const fileName='C30_A56_233_全部已存資料_'+new Date().toISOString().slice(0,10)+'.zip';
+ const fileName='C30_A56_233_全部已存資料_'+new Date(Date.now()+8*3600000).toISOString().slice(0,10)+'.zip';
  // File picker must be invoked during the actual button click, before awaiting network I/O.
  let target=null;
  if(typeof globalThis.showSaveFilePicker==='function'){
