@@ -64,7 +64,7 @@ export async function loadA56MonitorSnapshot(shared,{refresh=false}={}){
  let queue={state:'free_source_only',phase:'免費資料更新；原 A56 Python 引擎尚未接續'},error=null;
  // Free mode: NEVER enqueue the legacy Sponsor/bulk-data workflow.
  try{
-  const f=await import('../../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4'),token=f.c30FreeToken();
+  const f=await import('../../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5'),token=f.c30FreeToken();
   freeStatus=await f.c30FreeStatus(token);
   const shouldAuto=token&&(refresh||!requested||Date.now()-freeLastCheck>40*60000);
   if(shouldAuto){freeLastCheck=Date.now();
