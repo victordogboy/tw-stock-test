@@ -5,14 +5,16 @@
 const API='/api/c30/free/';
 const THREE=[['TaiwanStockInstitutionalInvestorsBuySell','三大法人'],['TaiwanStockMarginPurchaseShortSale','融資融券'],['TaiwanStockSecuritiesLending','借券成交']];
 let cachedPool=null,active=null,stopped=false;
-const INTERVAL_KEY='c30-a56-request-interval-ms-v2',TIER_KEY='c30-a56-source-tier-v1';
-export function getC30FreeIntervalMs(){
- try{const v=Number(globalThis.localStorage?.getItem(INTERVAL_KEY));return Number.isFinite(v)&&v>=1000&&v<=30000&&v%500===0?v:1000}catch{return 1000}
+const INTERVAL_KEY='c30-a56-request-interval-ms-v2',SPONSOR_INTERVAL_KEY='c30-a56-sponsor-request-interval-ms-v1',TIER_KEY='c30-a56-source-tier-v1';
+export function getC30FreeIntervalMs(tier=getC30SourceTier()){
+ const isSponsor=tier==='sponsor',fallback=isSponsor?100:1000,min=isSponsor?50:1000,step=isSponsor?50:500;
+ try{const raw=globalThis.localStorage?.getItem(isSponsor?SPONSOR_INTERVAL_KEY:INTERVAL_KEY);if(raw===null||raw===undefined||raw==='')return fallback;
+ const v=Number(raw);return Number.isFinite(v)&&v>=min&&v<=30000&&v%step===0?v:fallback}catch{return fallback}
 }
-export function setC30FreeIntervalMs(value){
- const ms=Math.round(Number(value)/500)*500;
- if(!Number.isFinite(ms)||ms<1000||ms>30000)throw Error('請求間隔必須介於 1～30 秒，每次可調整 0.5 秒');
- globalThis.localStorage?.setItem(INTERVAL_KEY,String(ms));return ms
+export function setC30FreeIntervalMs(value,tier=getC30SourceTier()){
+ const isSponsor=tier==='sponsor',step=isSponsor?50:500,min=isSponsor?50:1000,ms=Math.round(Number(value)/step)*step;
+ if(!Number.isFinite(ms)||ms<min||ms>30000)throw Error(isSponsor?'Sponsor S 間隔需介於 0.05～30 秒，調整單位 0.05 秒':'Free 間隔需介於 1～30 秒，調整單位 0.5 秒');
+ globalThis.localStorage?.setItem(isSponsor?SPONSOR_INTERVAL_KEY:INTERVAL_KEY,String(ms));return ms
 }
 export function getC30SourceTier(){
  try{return globalThis.localStorage?.getItem(TIER_KEY)==='sponsor'?'sponsor':'free'}catch{return 'free'}
@@ -27,7 +29,7 @@ const fToken=x=>String(x||globalThis.C26DeviceFinMind?.activeToken?.()||globalTh
 export function c30FreeToken(explicit=''){const t=fToken(explicit);return t.length>=30&&t.length<=4096&&!/\s/.test(t)?t:''}
 async function call(token,path,method='GET',body,overrideTier=null){
  if(!token)throw Error('缺少 FinMind Free Token：請在 A56 原本的 Token 區儲存');
- const r=await fetch(API+path,{method,cache:'no-store',headers:{Authorization:'Bearer '+token,'x-c30-free-interval-ms':String(getC30FreeIntervalMs()),'x-c30-source-tier':overrideTier||getC30SourceTier(),...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
+ const r=await fetch(API+path,{method,cache:'no-store',headers:{Authorization:'Bearer '+token,'x-c30-free-interval-ms':String(getC30FreeIntervalMs(overrideTier||getC30SourceTier())),'x-c30-source-tier':overrideTier||getC30SourceTier(),...(body===undefined?{}:{'content-type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});
  let out;try{out=await r.json()}catch{throw Error('C30 免費資料服務無效 HTTP '+r.status)}
  if(!r.ok||out.ok===false){const e=new Error(out.error||'HTTP '+r.status);e.status=r.status;e.retry_after_ms=out.retry_after_ms||0;e.code=out.code||'';throw e}
  return out;
@@ -94,7 +96,7 @@ async function quotaSafeRequest(token,path,body,notify,overrideTier){
   catch(e){
    if(needsQuotaPause(e))throw e;
    if(e.status===429&&retry<3){
-    const wait=Math.max(1000,Math.min(31000,e.retry_after_ms||getC30FreeIntervalMs()));
+    const wait=Math.max(50,Math.min(31000,e.retry_after_ms||getC30FreeIntervalMs(overrideTier)));
     notify('FinMind 請求間隔中，等待 '+(wait/1000).toFixed(1)+' 秒後繼續');
     await delay(wait);continue
    }
@@ -108,13 +110,13 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
  stopped=false;
  active=(async()=>{
   let tier=getC30SourceTier(),pausedByQuota=null,permissionWarning='',usedRequests=0;
-  const interval=getC30FreeIntervalMs(),codes=await pool(),errors=[];
+  const interval=getC30FreeIntervalMs(tier),codes=await pool(),errors=[];
   notify((tier==='sponsor'?'Sponsor（S）批次':'Free 逐檔')+' 模式，每 '+(interval/1000).toFixed(1)+' 秒一筆；正在核對既有雲端資料…');
   let state=await c30FreeStatus(token),calendar;
   for(let retry=0;retry<4;retry++){
    try{calendar=await call(token,'calendar','POST',{},tier);break}
    catch(e){if(needsQuotaPause(e)){pausedByQuota=e;break}
-    if(e.status===429&&retry<3){await delay(Math.min(31000,Math.max(1000,e.retry_after_ms||interval)));continue}throw e}
+    if(e.status===429&&retry<3){await delay(Math.min(31000,Math.max(50,e.retry_after_ms||interval)));continue}throw e}
   }
   if(!calendar){
    const result={...state,pending:0,paused_by_quota:true,retry_after_ms:pausedByQuota?.retry_after_ms||0,errors:[{error:pausedByQuota?.message||'交易日資料取得失敗'}],model_replayed:false};
@@ -131,7 +133,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
    try{
     const reply=await quotaSafeRequest(token,path,body,notify,tier);
     done++;if(reply.cached)skipped++;else downloaded++;emptyChecked+=reply.empty_days||0;
-    if(!stopped&&done<cap)await delay(getC30FreeIntervalMs()+50);
+    if(!stopped&&done<cap)await delay(getC30FreeIntervalMs(tier)+10);
     return true
    }catch(e){
     if(needsQuotaPause(e)){pausedByQuota=e;return false}
@@ -140,7 +142,7 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
      tier='free';notify(permissionWarning);return false
     }
     errors.push({path,label,error:String(e.message||e)});done++;
-    if(!stopped&&done<cap)await delay(getC30FreeIntervalMs()+50);
+    if(!stopped&&done<cap)await delay(getC30FreeIntervalMs(tier)+10);
     return true
    }
   }
