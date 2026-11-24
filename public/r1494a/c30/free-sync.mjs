@@ -170,11 +170,11 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
     notify('資料失敗 '+done+'/'+cap+'：'+label+'｜HTTP '+(item.http||'?')+'｜'+item.error);
     const signature=path+'|'+item.http+'|'+item.code+'|'+item.error;
     repeatFailures=signature===previousFailure?repeatFailures+1:1;previousFailure=signature;
-    if([400,401,403].includes(e.status)&&path.startsWith('sponsor-')){
+    if([401,403].includes(e.status)&&path.startsWith('sponsor-')){
      fatalError='Sponsor 請求被拒絕：'+item.error+'。此錯誤不代表你沒有 Sponsor 資格，請先按單筆診斷。';
      notify(fatalError);return false
     }
-    if(repeatFailures>=3){
+    if(repeatFailures>=3||e.code==='MARKET_ROW_COUNT'){
      fatalError='連續 3 筆相同來源錯誤：'+item.error+'。已安全停止；請先執行 Sponsor 單筆診斷。';
      notify(fatalError);return false
     }

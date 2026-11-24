@@ -8,6 +8,7 @@ import {c30FreeDailyRoute} from './free-daily.mjs';
 const START='2026-11-23';
 const CHIP=['TaiwanStockInstitutionalInvestorsBuySell','TaiwanStockMarginPurchaseShortSale','TaiwanStockSecuritiesLending'];
 const ALL=['TaiwanStockPrice',...CHIP];
+const MAX_MARKET_ROWS=100000;
 const HASH_BYTES=new TextEncoder();
 const response=(o,status=200)=>Response.json(o,{status,headers:{'cache-control':'no-store','x-c30-replay-state':'frozen_not_replayed'}});
 const hash=async str=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',HASH_BYTES.encode(str)))].map(x=>x.toString(16).padStart(2,'0')).join('');
@@ -124,7 +125,7 @@ export async function c30FreeSourceRoute(req,env){
    const allRows=await finmind(token,ds,null,date,date),fixed=await pool(env);
    const matched=allRows.filter(x=>x?.date===date&&fixed.has(String(x.stock_id||'')));
    if(allRows.length===0)throw Error('Sponsor 整日回傳空資料，不會封存為完成');
-   if(allRows.length>100000||matched.length>22000)throw Error('FinMind 回傳筆數異常，不保存');
+   if(allRows.length>MAX_MARKET_ROWS||matched.length>22000)throw Error('FinMind 回傳筆數異常，不保存');
    // Retain the entire day's unfiltered market OHLCV for breadth and historical membership research.
    // Do not substitute 233-stock breadth into the original frozen strategy.
    let marketSaved=null;
@@ -169,7 +170,7 @@ export async function c30FreeSourceRoute(req,env){
    return response({...await internal(v,'chip','POST',{code,dataset:ds,dates:need,rows:selected,source:'FinMind Free per-stock data_id'}),cached:false,model_replayed:false});
   }
   return response({ok:false,error:'unknown'},404)
- }catch(e){const m=String(e.message||e).slice(0,260).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,'[TOKEN_REDACTED]'),status=e.status===429?429:e.status===402?402:e.status===401||e.status===403?403:e.status===400?400:e.status===409?409:502;return response({ok:false,error:m,code:e.code||'SOURCE_ERROR',upstream_status:e.status||null,retry_after_ms:e.retry_after_ms||null,model_replayed:false},status)}
+ }catch(e){const m=String(e.message||e).slice(0,260).replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g,'[TOKEN_REDACTED]'),status=e.status===429?429:e.status===402?402:e.status===401||e.status===403?403:e.status===400?400:e.status===409?409:e.status===422?422:502;return response({ok:false,error:m,code:e.code||'SOURCE_ERROR',upstream_status:e.status||null,retry_after_ms:e.retry_after_ms||null,model_replayed:false},status)}
 }
 export class C30FreeStore{
  constructor(ctx){this.ctx=ctx;this.s=ctx.storage}
@@ -209,7 +210,8 @@ export class C30FreeStore{
    }
    if(route==='market-store'&&method==='POST'){
     const q=await req.json(),date=q.date,rows=q.rows;
-    if(!validDate(date)||date<START||!Array.isArray(rows)||!rows.length||rows.length>12000)return response({ok:false,error:'invalid all-market OHLCV payload'},400);
+    if(!validDate(date)||date<START)return response({ok:false,error:'全市場封存日期無效'},400);
+    if(!Array.isArray(rows)||!rows.length||rows.length>MAX_MARKET_ROWS)return response({ok:false,code:'MARKET_ROW_COUNT',error:'全市場封存筆數 '+(rows?.length??0)+'，允許 1～'+MAX_MARKET_ROWS},422);
     // Keep all returned stock_ids, including nonstandard IDs. Filter ordinary listed/OTC stocks only at the breadth calculation stage.
     const symbols=new Set(),data=[];
     for(const x of rows){
@@ -220,9 +222,16 @@ export class C30FreeStore{
      data.push([code,numeric('open'),numeric('max'),numeric('min'),numeric('close'),numeric('Trading_Volume'),numeric('Trading_money')])
     }
     const columns=['stock_id','open','max','min','close','Trading_Volume','Trading_money'],batch=180;
-    for(let i=0;i<data.length;i+=batch)await this.s.put('market-chunk:'+date+':'+String(i/batch).padStart(4,'0'),data.slice(i,i+batch));
+    const generation=await hash(JSON.stringify(data)),prefix='market-chunk:'+date+':'+generation+':';
+    for(let offset=0;offset<data.length;offset+=batch*12){
+     const parts={};
+     for(let i=offset;i<Math.min(offset+batch*12,data.length);i+=batch){
+      parts[prefix+String(i/batch).padStart(4,'0')]=data.slice(i,i+batch);
+     }
+     await this.s.put(parts);
+    }
     // Publish manifest only after every data chunk is safely stored.
-    const meta={date,stored:true,rows:data.length,positive_closes:data.filter(x=>x[4]>0).length,
+    const meta={date,generation,stored:true,rows:data.length,positive_closes:data.filter(x=>x[4]>0).length,
       chunks:Math.ceil(data.length/batch),columns,source:q.source||'FinMind Sponsor daily all-market',
       universe:'unfiltered TWSE/TPEx/ESB/ETF/etc; requires as-of ordinary-share classification before breadth',
       updated_at:new Date().toISOString()};
@@ -236,7 +245,7 @@ export class C30FreeStore{
     if(!meta)return response({ok:false,error:'此日尚無 Sponsor 全市場收盤價封存',date},404);
     const rows=[];
     for(let i=0;i<meta.chunks;i++){
-     const chunk=await this.s.get('market-chunk:'+date+':'+String(i).padStart(4,'0'));
+     const chunk=await this.s.get('market-chunk:'+date+':'+(meta.generation?meta.generation+':':'')+String(i).padStart(4,'0'));
      if(!Array.isArray(chunk))return response({ok:false,error:'全市場日K封存缺少第 '+i+' 段，拒絕輸出不完整資料'},409);
      rows.push(...chunk)
     }
