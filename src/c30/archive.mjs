@@ -2,7 +2,7 @@
 // Cloudflare secret C30_ARCHIVE_SECRET MUST be configured before use.
 // Dedicated SQLite-backed Durable Object: keeps history separate from trading engines.
 const JSONH={'content-type':'application/json; charset=utf-8','cache-control':'no-store'};
-const CHUNK=256*1024,FILE_LIMIT=700*1024*1024,VAULT_LIMIT=850*1024*1024;
+const CHUNK=256*1024,FILE_LIMIT=350*1024*1024,VAULT_LIMIT=850*1024*1024;
 const msg=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:JSONH});
 const iso=s=>/^\d{4}-\d{2}-\d{2}$/.test(s||'')&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 const keyOk=(req,env)=>{const secret=String(env.C30_ARCHIVE_SECRET||''),given=req.headers.get('x-c30-archive-key')||'';if(secret.length<16||secret.length>256||!given||given.length!==secret.length)return false;let diff=0;for(let i=0;i<secret.length;i++)diff|=secret.charCodeAt(i)^given.charCodeAt(i);return diff===0};
@@ -36,6 +36,12 @@ export class C30Archive{
    }
    return msg({ok:true,code,saved_days:saved,skipped_days:skip,invalid_bars:rejects,cloud_saved:true});
  }
+ if(path==='/api/c30/archive/coverage'&&m==='GET'){
+   const min=u.searchParams.get('since')||'2000-01-01';if(!iso(min))return msg({ok:false,error:'INVALID_SINCE'},400);
+   const a=await s.list({prefix:'day:',start:'day:'+min});
+   const days=[...a].map(([k,x])=>({date:k.slice(4),codes:x.codes||{}})).sort((x,y)=>y.date.localeCompare(x.date));
+   return msg({ok:true,days});
+ }
  if(path==='/api/c30/archive/day'&&m==='GET'){
    const date=u.searchParams.get('date');if(!iso(date))return msg({ok:false,error:'DATE_REQUIRED'},400);
    const all=await s.list({prefix:'bar:'+date+':'});
@@ -45,15 +51,15 @@ export class C30Archive{
    const q=await limitedJson(req,2000),name=String(q.name||'').replace(/[\\/\x00-\x1f]/g,'_').slice(0,170),size=Number(q.size),sha=String(q.sha256||'').toLowerCase();
    if(!name||!/\.(zip|csv|gz|json|parquet|npz)$/i.test(name)||!Number.isSafeInteger(size)||size<=0||size>FILE_LIMIT||!(/^[0-9a-f]{64}$/.test(sha)))return msg({ok:false,error:'FILE_NAME_SIZE_OR_HASH_INVALID'},400);
    const all=await s.list({prefix:'file:'});let total=0;
-   for(const f of all.values()){if(f.state==='complete')total+=f.size;if(f.size===size&&f.sha256===sha&&f.state==='complete')return msg({ok:true,already_saved:true,id:f.id,uploaded_parts:f.parts,parts:f.parts,filename:f.name});if(f.size===size&&f.sha256===sha&&f.state==='uploading')return msg({ok:true,resume:true,id:f.id,uploaded_parts:(await s.list({prefix:'chunk:'+f.id+':'})).size,parts:f.parts,filename:f.name})}
+   for(const f of all.values()){if(f.state==='complete')total+=f.size;if(f.size===size&&f.sha256===sha&&f.state==='complete')return msg({ok:true,already_saved:true,id:f.id,uploaded_parts:f.parts,parts:f.parts,filename:f.name});if(f.size===size&&f.sha256===sha&&f.state==='uploading')return msg({ok:true,resume:true,id:f.id,uploaded_parts:(f.received||[]).length,parts:f.parts,filename:f.name})}
    if(total+size>VAULT_LIMIT)return msg({ok:false,code:'QUOTA_LIMIT',error:'雲端已達安全容量上限；請改用 Cloudflare R2 保存更大型歷史資料',committed:total,requested:size,limit:VAULT_LIMIT},413);
-   const id=crypto.randomUUID().replaceAll('-',''),ts=new Date().toISOString(),meta={id,name,size,sha256:sha,parts:Math.ceil(size/CHUNK),state:'uploading',created_at:ts,updated_at:ts};
+   const id=crypto.randomUUID().replaceAll('-',''),ts=new Date().toISOString(),meta={id,name,size,sha256:sha,parts:Math.ceil(size/CHUNK),state:'uploading',received:[],created_at:ts,updated_at:ts};
    await s.put('file:'+id,meta);return msg({ok:true,id,parts:meta.parts,uploaded_parts:0,filename:name});
  }
  if(path==='/api/c30/archive/file/progress'&&m==='GET'){
    const id=u.searchParams.get('id')||'';if(!/^[a-f0-9]{32}$/.test(id))return msg({ok:false,error:'BAD_ID'},400);
    const meta=await s.get('file:'+id);if(!meta)return msg({ok:false,error:'NOT_FOUND'},404);
-   const chunks=await s.list({prefix:'chunk:'+id+':'}),indices=[...chunks.keys()].map(k=>Number(k.split(':').at(-1))).filter(Number.isInteger);return msg({ok:true,meta,uploaded_indices:indices});
+   return msg({ok:true,meta,uploaded_indices:meta.received||[]});
  }
  if(path==='/api/c30/archive/file/chunk'&&m==='PUT'){
    const id=u.searchParams.get('id')||'',index=Number(u.searchParams.get('index'));
@@ -65,15 +71,15 @@ export class C30Archive{
    if(!/^[0-9a-f]{64}$/.test(claimed||''))return msg({ok:false,error:'CHUNK_HASH_REQUIRED'},400);
    const digest=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');
    if(digest!==claimed)return msg({ok:false,error:'CHUNK_CHECKSUM_FAILED'},422);
-   await s.put('chunk:'+id+':'+index,bytes);return msg({ok:true,id,index,saved:true});
+   await s.put('chunk:'+id+':'+index,bytes);if(!meta.received.includes(index)){meta.received.push(index);meta.updated_at=new Date().toISOString();await s.put('file:'+id,meta)}return msg({ok:true,id,index,saved:true});
  }
  if(path==='/api/c30/archive/file/finish'&&m==='POST'){
    const q=await limitedJson(req,1000),id=String(q.id||'');
    if(!/^[a-f0-9]{32}$/.test(id))return msg({ok:false,error:'BAD_ID'},400);
    const meta=await s.get('file:'+id);if(!meta)return msg({ok:false,error:'NOT_FOUND'},404);
    if(meta.state==='complete')return msg({ok:true,id,already_finished:true});
-   const chunks=await s.list({prefix:'chunk:'+id+':'});if(chunks.size!==meta.parts)return msg({ok:false,error:'INCOMPLETE_PARTS',have:chunks.size,expected:meta.parts},409);
-   let size=0;for(let i=0;i<meta.parts;i++){const p=chunks.get('chunk:'+id+':'+i);if(!(p instanceof Uint8Array))return msg({ok:false,error:'CHUNK_CORRUPT',index:i},409);size+=p.byteLength}
+   const received=new Set(meta.received||[]);if(received.size!==meta.parts)return msg({ok:false,error:'INCOMPLETE_PARTS',have:received.size,expected:meta.parts},409);
+   let size=0;for(let i=0;i<meta.parts;i++){const p=await s.get('chunk:'+id+':'+i,{noCache:true});if(!(p instanceof Uint8Array))return msg({ok:false,error:'CHUNK_CORRUPT',index:i},409);size+=p.byteLength}
    if(size!==meta.size)return msg({ok:false,error:'FILE_SIZE_MISMATCH',size,expected:meta.size},409);
    meta.state='complete';meta.updated_at=new Date().toISOString();await s.put('file:'+id,meta);return msg({ok:true,id,complete:true,filename:meta.name,bytes:size,sha256_client:meta.sha256});
  }
