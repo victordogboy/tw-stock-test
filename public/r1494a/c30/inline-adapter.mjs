@@ -144,6 +144,28 @@ export function decorateC30Monitor(D){
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
  $('#rulesMain').innerHTML='<h2>C30 原版｜固定規則與封存資料</h2><ol><li><strong>原版凍結：</strong>buffer250_partial_2019，2021/01/06～2026/11/20，1,425 個交易日，累積淨報酬 +2,328.07%、最大回撤 −18.50%、勝大盤 46/71 月。</li><li>交易池採原研究的 233 檔股期現股，當年航運／金融仍包含於原研究，不能將排除產業的實驗版當正式原版。</li><li>初始300萬元、小數股複利模擬，最多8檔、單檔上限30%；原本的核心與反轉部位、動態選股排序、帳戶高水位、危機風控及現金銜接規則皆不變。</li><li>核心日線成交依原引擎觸價與開盤執行假設，買入費0.14275%、賣出費稅0.44275%（往返0.5855%）；實際下單不保證成交。</li><li>原版最後交易日2026/11/20；最新免費日K或分K僅代表行情更新，尚須完成原Python引擎的逐日狀態接續才能發布隔日委託。</li></ol><p><a href="/api/c30/latest?download=csv">下載最新上市＋上櫃四碼標的日K（CSV）</a>　·　<a href="/c30/minute/">免費233檔分K下載</a>　·　<a href="/c30/archive/">C30 雲端永久封存</a>　·　<a href="/c30/">獨立來源／診斷</a></p>';
+ const controls=document.createElement('div');
+ controls.innerHTML='<label>FinMind S 全市場日K資料日 <input type="date"></label> <button type="button">一次下載全市場日K</button> <span role="status"></span>';
+ $('#rulesMain').prepend(controls);
+ const dateInput=controls.querySelector('input'),button=controls.querySelector('button'),message=controls.querySelector('span');
+ dateInput.value=D.finmind?.calendar_as_of||D.official?.as_of||'';
+ button.onclick=async()=>{
+  const date=dateInput.value,token=c30DeviceToken();
+  if(!date||!token){message.textContent='請選擇交易日並儲存本機 FinMind Token';return}
+  button.disabled=true;message.textContent='正在取得 '+date+' 全市場資料…';
+  const headers={Authorization:'Bearer '+token,'x-c30-source-tier':'sponsor','content-type':'application/json'};
+  try{
+   const batch=await fetch('/api/c30/free/sponsor-batch',{method:'POST',headers,body:JSON.stringify({date,dataset:'TaiwanStockPrice'})});
+   const status=await batch.json();if(!batch.ok||!status.ok)throw Error(status.error||'整市場查詢失敗');
+   const response=await fetch('/api/c30/free/market-day?date='+date,{headers,cache:'no-store'});
+   const data=await response.json();if(!response.ok||!data.ok||data.meta?.date!==date||!data.rows?.length)throw Error(data.error||'全市場封存驗證失敗');
+   const lines=[['date',...data.columns],...data.rows.map(row=>[date,...row])];
+   const csv=lines.map(row=>row.map(value=>'"'+String(value??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
+   const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+   const link=document.createElement('a');link.href=url;link.download='FinMind_market_'+date+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+   message.textContent=date+' 全市場 '+data.rows.length+' 筆，已匯出 CSV';
+  }catch(error){message.textContent=error.message}finally{button.disabled=false}
+ };
  $('#rulesMain').insertAdjacentHTML('beforeend','<h3>Free 雲端逐日完整性（固定 233 檔）</h3>'+freeCoverageHtml(D.finmind));
  $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
  set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。反轉個股明細及2026/11/23以後重播仍待補。');
