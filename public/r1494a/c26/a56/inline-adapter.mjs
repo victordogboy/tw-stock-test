@@ -50,6 +50,7 @@ export function verifyAccount(snapshots,orders){
  return true;
 }
 let requested=false;
+let freeStatus=null,freeLastCheck=0;
 let historicalConditions;
 async function conditions(){
  if(!historicalConditions)historicalConditions=Promise.all([2021,2022,2023,2024,2025,2026].map(async y=>{
@@ -60,14 +61,24 @@ async function conditions(){
  return historicalConditions;
 }
 export async function loadA56MonitorSnapshot(shared,{refresh=false}={}){
- let queue=null,error=null;
- // Opening this strategy in a page session and pressing refresh both enqueue.
- if(refresh||!requested){requested=true;try{const r=await fetch('/api/c26/a56/refresh',{method:'POST',cache:'no-store'});if(!r.ok)throw Error('更新排程 HTTP '+r.status);queue=await r.json()}catch(e){error=e.message}}
+ let queue={state:'free_source_only',phase:'免費資料更新；原 A56 Python 引擎尚未接續'},error=null;
+ // Free mode: NEVER enqueue the legacy Sponsor/bulk-data workflow.
+ try{
+  const f=await import('../../c30/free-sync.mjs?v=20261125-free-v2'),token=f.c30FreeToken();
+  freeStatus=await f.c30FreeStatus(token);
+  const shouldAuto=token&&(refresh||!requested||Date.now()-freeLastCheck>40*60000);
+  if(shouldAuto){freeLastCheck=Date.now();
+   Promise.resolve().then(()=>f.updateC30A56Free(token,msg=>{const ui=$('flash');if(ui&&$('strategy')?.value==='A56')ui.textContent=msg},{auto:true,maxRequests:refresh?10:4}))
+   .then(status=>{freeStatus=status;if($('strategy')?.value==='A56')setTimeout(()=>globalThis.poll?.(false),0)})
+   .catch(e=>{if($('strategy')?.value==='A56')$('flash').textContent='A56 Free 更新失敗：'+e.message});
+  }
+  requested=true;
+ }catch(e){error=e.message;freeStatus={ok:false,latest_price_date:null,model_replayed:false}}
  const base=await history();const legacy=await conditions();
  if(legacy.length!==1419||legacy.some((p,i)=>p.date!==base.snapshots[i].date||p.signal>=p.date))throw Error('歷史盤前條件日期未對齊');
  let server={},delta=null;
  try{
-  [server,queue]=await Promise.all([get('/api/c26/a56/status'),get('/api/c26/a56/refresh-status').catch(()=>queue)]);
+  server=await get('/api/c26/a56/status'); // Read frozen model; do not enqueue paid workflow in Free mode.
   if(server.model_version!=='A56'||server.lock_id!==LOCK)throw Error('A56狀態版本不符');
   if(server.model_archive){
    const r=await fetch(ROOT+'forward.json',{cache:'no-store'});if(!r.ok)throw Error('A56接續資料尚未發布');
@@ -88,7 +99,7 @@ export async function loadA56MonitorSnapshot(shared,{refresh=false}={}){
  return {model_version:'A56',ledger:LOCK,names:shared.names||{},dates,snapshots,orders,byDate,curves,plan,
   planHistory:{},benchmarkCarry:{},status:{data_as_of:dates.at(-1),checkedThrough:server.source?.as_of||base.as_of,
     sync_status:pending?'running':ready?'current':'model_pending',price_updated_at:server.updated_at,
-    lastError:error?{message:error}:null},a56:{base,server,queue,ready,historyPlans:base.core_plans||[],legacy,planHistory:delta?.plan_history||{},reviewPlans:delta?[...Object.values(delta.plan_history||{}),delta.plan]:[]}};
+    lastError:error?{message:error}:null},a56:{base,server,queue,ready,free:freeStatus,historyPlans:base.core_plans||[],legacy,planHistory:delta?.plan_history||{},reviewPlans:delta?[...Object.values(delta.plan_history||{}),delta.plan]:[]}};
 }
 const factor=(D,I)=>(Number($('capital')?.value)||0)/D.snapshots[I].nav;
 function activePlan(D,I){
@@ -120,6 +131,7 @@ export function renderA56Monitor(D,I){
  const pending=sourceLate||ledgerLate;
  const runner='https://github.com/victordogboy/tw-stock-test/actions/workflows/c26-forward-eod.yml';
  html('status','<strong>'+(pending?'⚠ A56 資料尚未同步，暫停發布新交易指示':'A56 合併帳本已核對至 '+esc(D.dates.at(-1)))+'</strong>'+
+  '<br>免費共用資料：官方日K '+esc(D.a56.free?.latest_price_date||'尚無')+'；完整股票日 '+esc(D.a56.free?.complete_days||0)+' 日（原引擎未重播）'+
   '<br>已驗證帳本：'+esc(D.dates.at(-1))+'；已驗證市場資料：'+esc(D.status.checkedThrough)+
   (sourceLate?'；待補交易日：'+esc(nextDue):'')+
   '<br>'+(ready?'盤前計畫已核對：'+esc(D.plan.trade_date):'最新盤前計畫未驗證，僅供查閱舊帳本：'+esc(D.plan.reason||''))+
@@ -141,7 +153,7 @@ export function renderA56Monitor(D,I){
   (!recent.length?'當日無委託。':'')+'\n收盤持股 '+s.holdings.length+' 檔、曝險 '+pct(s.exposure)+'。\n'+(latest&&ready?(D.plan.warning?'大盤急跌警戒啟動；只有符合 A/B/C 及資金／輪次限制才買入。':'未達大盤急跌警戒，因此不開新增反轉部位，照核心規則管理現有部位。'):'')+
   (latest&&ready&&p.core_entry_explanation?'\n'+p.core_entry_explanation:'')+(latest&&!ready?'\n最新計畫未核對，不能把歷史持倉直接當成今日指令。':''));
  html('risk',[['核心目標曝險',pct(p.target??s.target)],['大盤反轉警戒',p.warning?'啟動':'未啟動／歷史詳見重播'],['核心空頭',s.bear?'啟動':'未啟動'],['20日急跌',s.overlay?'啟動':'未啟動'],['反轉輪次',p.side_used?'本輪已使用':'依警戒與成交日核對'],['退出條件',p.exit_reason?explain(p.exit_reason):'警戒解除／核心恢復／首次成交+5日'],['核心冷卻／相關性','26日／40日'],['交易成本','往返0.5855%']].map(([a,b])=>'<div class="risk"><b>'+esc(a)+'</b><p>'+esc(b)+'</p></div>').join(''));
- html('dataFacts',Object.entries({策略:'A56 合併獨立帳本',版本:LOCK,帳本日期:D.dates.at(-1),行情日期:D.status.checkedThrough,交易日:p.trade_date||'待核對',委託筆數:D.orders.length,歷史基準:'1419日／1759筆',新增交易日:D.dates.length-1419,盤前計畫:ready?'已驗證（紙上模型）':'歷史／待更新',更新進度:D.a56.queue?.phase||'狀態待讀取',券商:'未串接',來源:'FinMind 日K／法人、原市場代理；需時使用已核對Tick分K'}).map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join(''));
+ html('dataFacts',Object.entries({策略:'A56 合併獨立帳本',版本:LOCK,帳本日期:D.dates.at(-1),行情日期:D.status.checkedThrough,交易日:p.trade_date||'待核對',委託筆數:D.orders.length,歷史基準:'1419日／1759筆',新增交易日:D.dates.length-1419,盤前計畫:ready?'已驗證（紙上模型）':'歷史／待更新',更新進度:D.a56.queue?.phase||'狀態待讀取',券商:'未串接',來源:'免費 TWSE／TPEx 日K、FinMind Free 逐檔籌碼、Fugle/Yahoo 1分K；歷史引擎不變'}).map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join(''));
  text('replay','A56 1,419日、1,759筆核心＋反轉委託獨立對帳；原反轉38筆／19次交易一致。接續使用原C26因子，保留A56自己的資金與風控路徑。');
 }
 function periodRows(D,monthly,year){
@@ -175,7 +187,7 @@ export function decorateA56Monitor(D){
  text('performanceLegend','A56／49檔長抱／200檔市場代理');
  html('performanceNotice','<strong>A56 原合併帳本 · 往返成本0.5855%</strong>原始 '+D.a56.base.snapshots.length+' 日歷史封存與 '+(D.snapshots.length-1419)+' 日接續均以同一策略帳本對帳。全期研究資料並非獨立樣本外績效。');
  text('ordersNote','完整核心與反轉委託一起顯示；單筆已實現損益含買賣費稅，金額按所選日期的試算資產縮放；非券商成交。');
- text('rulesFoot','開頁與按重新讀取會送出更新請求；背景工作每5分鐘檢查佇列（GitHub啟動可能延後），另於台北07:30／21:50自動更新。資料齊全且帳本及盤前計畫驗收通過後四個分頁同步重載；失敗保留已驗證資料並顯示原因。');
+ text('rulesFoot','A56／C30 共用 233 檔 Free 原始資料：TWSE/TPEx 官方日K，FinMind Free 逐檔籌碼，Fugle/Yahoo 分K，按日期＋股票＋資料集永久封存。免費模式不再觸發原來假設 Sponsor 資料的 A56 工作流；仍須原 Python 引擎驗收才會顯示最新正式交易計畫。');
  text('strategyFooter',LOCK+'｜帳本至 '+D.dates.at(-1)+'｜核心與反轉共用資金｜券商未串接');
  html('execution-study-v29','<details><summary><strong>A56 三路徑成交與未成交處理</strong></summary><p>A盤前只預選一檔，開盤超過昨收103%就放棄。B/C使用已完成分鐘確認收復，下一分鐘價格必須在區間內；沒有有效成交價、資料不足或超出容量均不得假設成交。最晚12:30；持倉不能以未成交賣單提早釋放資金。</p></details>');
  html('rulesMain','<h2>A56 完整策略與資料</h2><ol><li><b>原C26核心不變：</b>事件換股；原趨勢、RS、EMA、ATR、法人與動態同儕評分；虧損完整離場冷卻26交易日，40日Pearson相關性≥0.60且相似群組曝險≥30%限制新建倉。最多8檔、核心單股16%目標、新核心建倉至少1萬元。保護停損依原啟用條件，非固定每日掛單。</li><li><b>大盤警戒：</b>前五個完成交易日，最差單日跌幅至少6%或累計跌幅至少10%。個股五日跌幅至少3%，依急跌前60日強度取前四；不使用當天尚未完成日K選股。</li><li><b>A隔日開盤：</b>昨低≤前收92.5%，昨收較昨低反彈≥1%；盤前最多預選一檔，買價最高昨收103%，股數不超過昨量0.1%。開盤不符則放棄，不換下一檔。</li><li><b>B跨日收復：</b>前1～2日曾跌至原參考價92.5%，尚未收復94%；已完成分K收復94%後，下一分鐘價格須在94%～96.5%，數量上限最近三根完成分K量中位數2.5%。</li><li><b>C盤中反轉：</b>今日先跌至昨收92.5%，後續另一根完成分K收復94%，下一分鐘價格在94%～96.5%；容量中位數5%。B/C同時成立先C，同分鐘跨股票依代號順序；最晚12:30。</li><li><b>資金：</b>核心目標曝險≥40%或有新核心進場時不開反轉新單。首批最多4檔，首次成交次日最多3檔，每批名義配置前日淨值40%；扣除核心預留，並受現金、容量和全帳戶8檔限制。連續一段警戒只開一輪。</li><li><b>反轉出場：</b>首次成交後第5交易日開盤，或警戒解除、核心恢復提前開盤賣出。鎖跌停或無有效開盤價則遞延；未另設固定停損停利。</li><li><b>資料與驗收：</b>FinMind日K與法人、原普通股市場代理；反轉執行需要時抓取Tick並與完整日K和成交量核對，再聚合分K。歷史委託、持股、現金與每日淨值獨立對帳；最新計畫在讀取下一盤成交資料前擷取。成本買0.14275%＋賣0.44275%，總0.5855%。</li></ol><p><a href="./c26/a56/">A56逐分鐘歷史核對頁</a> · <a href="https://github.com/victordogboy/tw-stock-test/tree/main/research/a56-live">原引擎與驗收程式</a></p>');
