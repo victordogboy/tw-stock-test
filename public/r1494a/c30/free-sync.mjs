@@ -99,7 +99,7 @@ function batchJobs(days,stockCount=233){
  for(const d of days){
   for(const dataset of datasets){
    const c=dataset==='TaiwanStockPrice'?(d.price?.saved_codes?.length||0):(d.chips?.[dataset]?.saved_codes?.length||0);
-   if(dataset==='TaiwanStockPrice'?!d.market?.stored:(c>=stockCount||d.batch?.[dataset]?.done))continue;
+   if(dataset==='TaiwanStockPrice'?!!d.market?.stored:(c>=stockCount||d.batch?.[dataset]?.done))continue;
    list.push({date:d.date,dataset,label:dataset==='TaiwanStockPrice'?'日K':THREE.find(x=>x[0]===dataset)?.[1]||dataset});
   }
  }
