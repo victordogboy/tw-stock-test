@@ -128,7 +128,7 @@ function freeCoverageHtml(status){
  if(!days.length)return '<p class="sub">Free 雲端目前沒有 2026/11/23 後的資料；請先填入 Token 並執行增量更新。</p>';
  const rows=days.map(d=>{
   const cols=[d.price?.stock_count||0,...ds.map(k=>d.chips?.[k]?.saved_codes?.length||0),d.minute?.count||0];
-  return '<tr><td>'+esc(d.date)+'</td>'+cols.map((x,i)=>'<td class="'+(x===233?'positive':x<225?'negative':'')+'">'+x+'/233</td>').join('')+'<td>'+(d.market?.stored?d.market.rows+' 筆':'尚未封存')+'</td><td>'+(cols.every(v=>v===233)?'<span class="pill">原始資料已覆蓋</span>':'<span class="pill amber">尚有缺漏／停牌</span>')+'</td></tr>'
+  return '<tr><td>'+esc(d.date)+'</td>'+cols.map((x,i)=>'<td class="'+(x===233?'positive':x<225?'negative':'')+'">'+x+'/233</td>').join('')+'<td>'+(d.market?.stored?d.market.rows+' 筆'+(d.market.quality?.conflicting_symbols?'（隔離 '+d.market.quality.conflicting_symbols+' 個衝突代號）':''):'尚未封存')+'</td><td>'+(cols.every(v=>v===233)?'<span class="pill">原始資料已覆蓋</span>':'<span class="pill amber">尚有缺漏／停牌</span>')+'</td></tr>'
  }).join('');
  return '<div class="scroll"><table><thead><tr><th>日期</th><th>日K（233）</th><th>法人</th><th>融資券</th><th>借券</th><th>現股1分K</th><th>全市場日K（原始筆數）</th><th>資料完整性</th></tr></thead><tbody>'+rows+'</tbody></table></div><p class="sub">數字代表成功取得或查核過的股票數，法人等資料可能是空值已檢查，不等於每根分 K 都完整。原 Python C30 引擎尚未逐日接續，因此不發布最新買賣單。</p>';
 }
@@ -163,7 +163,9 @@ export function decorateC30Monitor(D){
    const csv=lines.map(row=>row.map(value=>'"'+String(value??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
    const url=URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
    const link=document.createElement('a');link.href=url;link.download='FinMind_market_'+date+'.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
-   message.textContent=date+' 全市場 '+data.rows.length+' 筆，已匯出 CSV';
+   const quality=data.meta.quality;
+   const details=quality?'｜異日 '+quality.other_date+' 筆、無效代號 '+quality.invalid_symbol+' 筆、重複 '+quality.duplicates+' 筆、衝突隔離 '+quality.conflicting_symbols+' 個代號':'';
+   message.textContent=date+' 全市場 '+data.rows.length+' 筆，已匯出 CSV'+details;
   }catch(error){message.textContent=error.message}finally{button.disabled=false}
  };
  $('#rulesMain').insertAdjacentHTML('beforeend','<h3>Free 雲端逐日完整性（固定 233 檔）</h3>'+freeCoverageHtml(D.finmind));

@@ -17,6 +17,31 @@ const tomorrow=d=>new Date(Date.parse(d+'T00:00:00Z')+86400000).toISOString().sl
 const clock=()=>new Date(Date.now()+8*3600000).toISOString();
 const cutoff=()=>{const t=clock(),d=t.slice(0,10);return t.slice(11,16)>='20:00'?d:new Date(Date.parse(d+'T00:00:00Z')-86400000).toISOString().slice(0,10)};
 const tokenOf=req=>{const h=req.headers.get('authorization')||'',t=h.startsWith('Bearer ')?h.slice(7).trim():'';return t.length>=30&&t.length<=4096&&!/\s/.test(t)?t:null};
+const MARKET_FIELDS=['open','max','min','close','Trading_Volume','Trading_money'];
+function normalizeMarketRows(rows,date){
+ const byCode=new Map(),conflicts=new Set();
+ const quality={input_rows:rows.length,other_date:0,invalid_symbol:0,duplicates:0,conflicting_symbols:0};
+ for(const row of rows){
+  if(row?.date!==date){quality.other_date++;continue}
+  const code=['string','number'].includes(typeof row.stock_id)?String(row.stock_id).trim():'';
+  if(!code||code.length>64||/\s/.test(code)){quality.invalid_symbol++;continue}
+  const prices=MARKET_FIELDS.map(field=>{
+   const value=row[field];
+   return value!==null&&value!==undefined&&String(value).trim()!==''&&Number.isFinite(Number(value))?Number(value):null;
+  });
+  const previous=byCode.get(code);
+  if(previous){
+   quality.duplicates++;
+   if(prices.some((value,i)=>value!==previous.prices[i]))conflicts.add(code);
+  }else byCode.set(code,{row:{...row,stock_id:code},prices});
+ }
+ quality.conflicting_symbols=conflicts.size;
+ return {rows:[...byCode.values()].filter(({row})=>!conflicts.has(row.stock_id)).map(({row,prices})=>({...row,...Object.fromEntries(MARKET_FIELDS.map((key,i)=>[key,prices[i]]))})),quality};
+}
+function validSponsorPrice(row){
+ return MARKET_FIELDS.slice(0,5).every(key=>Number.isFinite(row[key]))&&
+  row.min>0&&row.min<=Math.min(row.open,row.close)&&row.max>=Math.max(row.open,row.close)&&row.Trading_Volume>=0;
+}
 const sameOrigin=req=>{const origin=req.headers.get('origin');return !origin||origin===new URL(req.url).origin};
 let poolPromise;
 async function pool(env){if(!poolPromise)poolPromise=(async()=>{const r=await env.ASSETS.fetch(new Request('https://assets.internal/c30/pool.json'));if(!r.ok)throw Error('233-stock frozen pool missing');const j=await r.json();if(j.stocks?.length!==233||new Set(j.stocks.map(x=>x.code)).size!==233)throw Error('233-stock pool mismatch');return new Map(j.stocks.map(x=>[x.code,x.market]))})().catch(e=>{poolPromise=null;throw e});return poolPromise}
@@ -123,15 +148,14 @@ export async function c30FreeSourceRoute(req,env){
    const permit=await reserve(v,intervalMs,tier);
    if(!permit.ok)return response({...permit,code:permit.code||'SPONSOR_QUOTA'},429);
    const allRows=await finmind(token,ds,null,date,date),fixed=await pool(env);
-   const matched=allRows.filter(x=>x?.date===date&&fixed.has(String(x.stock_id||'')));
-   if(allRows.length===0)throw Error('Sponsor 整日回傳空資料，不會封存為完成');
-   if(allRows.length>MAX_MARKET_ROWS||matched.length>22000)throw Error('FinMind 回傳筆數異常，不保存');
-   // Retain the entire day's unfiltered market OHLCV for breadth and historical membership research.
-   // Do not substitute 233-stock breadth into the original frozen strategy.
-   let marketSaved=null;
-   if(ds==='TaiwanStockPrice')marketSaved=await internal(v,'market-store','POST',{date,rows:allRows,source:'FinMind Sponsor TaiwanStockPrice all instruments'});
+   if(!allRows.length||allRows.length>MAX_MARKET_ROWS)throw Error('FinMind 回傳筆數異常：'+allRows.length);
+   const market=ds==='TaiwanStockPrice'?normalizeMarketRows(allRows,date):null;
+   if(market&&!market.rows.some(row=>row.close>0))return response({ok:false,code:'MARKET_NO_VALID_DATE',error:'FinMind 未回傳 '+date+' 的有效收盤價',quality:market.quality},422);
+   const matched=(market?.rows||allRows).filter(row=>row?.date===date&&fixed.has(String(row.stock_id||''))&&(!market||validSponsorPrice(row)));
+   if(matched.length>22000)throw Error('FinMind 股池回傳筆數異常，不保存');
+   const marketSaved=market?await internal(v,'market-store','POST',{date,...market,source:'FinMind Sponsor TaiwanStockPrice all instruments'}):null;
    const saved=await internal(v,'batch','POST',{date,dataset:ds,rows:matched,source:'FinMind Sponsor whole-market by date'});
-   return response({...saved,cached:false,market_rows:allRows.length,all_market_saved:marketSaved?.stored||false,selected_rows:matched.length,model_replayed:false});
+   return response({...saved,cached:false,market_rows:marketSaved?.rows||0,market_quality:marketSaved?.quality||null,all_market_saved:marketSaved?.stored||false,selected_rows:matched.length,model_replayed:false});
   }
   if(route==='sponsor-minute'){
    if(tier!=='sponsor')return response({ok:false,error:'僅 Sponsor（S）模式允許 FinMind TaiwanStockKBar'},403);
@@ -212,16 +236,8 @@ export class C30FreeStore{
     const q=await req.json(),date=q.date,rows=q.rows;
     if(!validDate(date)||date<START)return response({ok:false,error:'全市場封存日期無效'},400);
     if(!Array.isArray(rows)||!rows.length||rows.length>MAX_MARKET_ROWS)return response({ok:false,code:'MARKET_ROW_COUNT',error:'全市場封存筆數 '+(rows?.length??0)+'，允許 1～'+MAX_MARKET_ROWS},422);
-    // Keep all returned stock_ids, including nonstandard IDs. Filter ordinary listed/OTC stocks only at the breadth calculation stage.
-    const symbols=new Set(),data=[];
-    for(const x of rows){
-     const code=String(x.stock_id||'');
-     if(x.date!==date||!code||code.length>16||symbols.has(code))return response({ok:false,error:'duplicate or invalid market symbol/date'},422);
-     symbols.add(code);
-     const numeric=k=>x[k]===null||x[k]===undefined?null:Number.isFinite(Number(x[k]))?Number(x[k]):null;
-     data.push([code,numeric('open'),numeric('max'),numeric('min'),numeric('close'),numeric('Trading_Volume'),numeric('Trading_money')])
-    }
-    const columns=['stock_id','open','max','min','close','Trading_Volume','Trading_money'],batch=180;
+    const columns=['stock_id',...MARKET_FIELDS],batch=180;
+    const data=rows.map(row=>columns.map(field=>row[field]));
     const generation=await hash(JSON.stringify(data)),prefix='market-chunk:'+date+':'+generation+':';
     for(let offset=0;offset<data.length;offset+=batch*12){
      const parts={};
@@ -231,7 +247,7 @@ export class C30FreeStore{
      await this.s.put(parts);
     }
     // Publish manifest only after every data chunk is safely stored.
-    const meta={date,generation,stored:true,rows:data.length,positive_closes:data.filter(x=>x[4]>0).length,
+    const meta={date,generation,quality:q.quality,stored:true,rows:data.length,positive_closes:data.filter(x=>x[4]>0).length,
       chunks:Math.ceil(data.length/batch),columns,source:q.source||'FinMind Sponsor daily all-market',
       universe:'unfiltered TWSE/TPEx/ESB/ETF/etc; requires as-of ordinary-share classification before breadth',
       updated_at:new Date().toISOString()};
