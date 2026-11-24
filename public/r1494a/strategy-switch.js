@@ -71,10 +71,11 @@ function decorateStrategy(){
  const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote','#annual thead','#monthly thead','#orders table thead'];
  if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(nodes.map(id=>[id,$(id).innerHTML]));
  for(const id of nodes)$(id).innerHTML=originalDashboardCopy[id];
- $('#finmind-device-panel').style.display=isC30?'none':'';
+ const oldTokenPanel=document.querySelector('#finmind-device-panel');if(oldTokenPanel)oldTokenPanel.style.display='';
+ const sharedTokenPanel=document.querySelector('#c26-device-token-panel');if(sharedTokenPanel)sharedTokenPanel.style.display='';
  $('.brand b').textContent=D.model_version;document.title=D.model_version+'｜策略監控台';
  $('#strategy').value=isC30?'C30':isA56?'A56':isC26?'C26':isFc?'FC23':'R1494-A';
- const tokenUpdate=document.querySelector('#c26-token-update');if(tokenUpdate)tokenUpdate.textContent=isA56?'使用 Token 更新 A56 資料':'使用 Token 更新 C26 資料';
+ const tokenUpdate=document.querySelector('#c26-token-update');if(tokenUpdate)tokenUpdate.textContent=isC30?'使用 Token 更新 C30 資料':isA56?'使用 Token 更新 A56 資料':'使用 Token 更新 C26 資料';
  document.querySelectorAll('[data-strategy-title]').forEach(el=>el.textContent=D.model_version+' 報酬');
  $('#strategySummary').textContent=D.model_version+' 累積 '+pct(D.curves.strategy.at(-1)-1)+' · 最大回撤 '+pct(drawdown(D.curves.strategy))+' · '+D.dates[0]+'～'+D.dates.at(-1);
  if(isC30){window.__c30Monitor.decorateC30Monitor(D);return;}
