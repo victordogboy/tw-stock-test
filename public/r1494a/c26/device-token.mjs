@@ -89,11 +89,11 @@ export function mountTokenPanel(doc=document){
  }
  applyTierPacing();
  tierSelect.onchange=async()=>{
-  try{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');m.setC30SourceTier(tierSelect.value);applyTierPacing();message.textContent='已切換 '+(tierSelect.value==='sponsor'?'Sponsor S（預設 0.1 秒）':'Free（預設 1 秒）')+'；先前雲端資料仍保留。'}
+  try{const m=await import('../c30/free-sync.mjs?v=20261125-background2');m.setC30SourceTier(tierSelect.value);applyTierPacing();message.textContent='已切換 '+(tierSelect.value==='sponsor'?'Sponsor S（預設 0.1 秒）':'Free（預設 1 秒）')+'；先前雲端資料仍保留。'}
   catch(e){message.textContent='切換失敗：'+e.message}
  };
  pacingInput.onchange=async()=>{
-  try{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5'),ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000,tierSelect.value);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms,tierSelect.value);message.textContent='已儲存 '+(ms/1000).toFixed(2)+' 秒／次；後續請求套用，達每小時額度仍會自動停止。'}
+  try{const m=await import('../c30/free-sync.mjs?v=20261125-background2'),ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000,tierSelect.value);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms,tierSelect.value);message.textContent='已儲存 '+(ms/1000).toFixed(2)+' 秒／次；後續請求套用，達每小時額度仍會自動停止。'}
   catch(e){message.textContent='設定失敗：'+e.message;applyTierPacing()}
  };
  const backupOptions=doc.createElement('div');backupOptions.id='c30-backup-options';backupOptions.style.cssText='margin-top:9px;padding:10px;background:#f4faf6;border:1px solid #b8ccbf;border-radius:9px';
@@ -173,7 +173,7 @@ export function mountTokenPanel(doc=document){
  doc.getElementById('c30-sponsor-test').onclick=async()=>{
   const button=doc.getElementById('c30-sponsor-test');button.disabled=true;
   try{
-   const token=saveToken(input.value),m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');
+   const token=saveToken(input.value),m=await import('../c30/free-sync.mjs?v=20261125-background2');
    const result=await m.diagnoseC30Sponsor(token,x=>{diagnosis.textContent=x;say(x)});
    diagnosis.textContent='Sponsor 單筆診斷（'+result.date+'）：\n'+result.results.map(x=>x.dataset+'｜'+(x.ok?'成功 '+x.rows+' 筆':'失敗 HTTP '+(x.http||'?')+' ['+(x.code||'-')+'] '+x.message)).join('\n')+
     '\n'+(result.ok?'兩種資料都可讀取，現在可以開始增量下載。':'至少一項失敗。請先檢查上述 HTTP／原因；大量補檔不應繼續。');
@@ -191,7 +191,7 @@ export function mountTokenPanel(doc=document){
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
-    const free=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');
+    const free=await import('../c30/free-sync.mjs?v=20261125-background2');
     const job=await backgroundCall('start',token,{tier:free.getC30SourceTier(),interval:free.getC30FreeIntervalMs()});
     await watchBackground(token,job);
     say('背景任務已提交，可以離開頁面。FinMind Token 僅在補檔任務期間加密暫存。');

@@ -202,14 +202,14 @@ export async function updateC30A56Free(token=c30FreeToken(),notify=()=>{},{auto=
   state=await c30FreeStatus(token);
   currentDays=sessionDays(calendar,state).map(x=>({...x.stored,date:x.date}));
   // Free per-symbol fallback ALSO repairs sparsely populated Sponsor batches.
-  const queue=remainingTasks(currentDays,codes);
+  const queue=remainingTasks(sessionDays(calendar,state),codes);
   for(const job of queue){
    if(stopped||pausedByQuota||fatalError||done>=cap)break;
    await perform('chip',job,job.code+' '+job.label+' '+job.from+'～'+job.to);
   }
   state=await c30FreeStatus(token);
   const updatedDays=sessionDays(calendar,state).map(x=>({...x.stored,date:x.date}));
-  const pendingChips=remainingTasks(updatedDays,codes).length;
+  const pendingChips=remainingTasks(sessionDays(calendar,state),codes).length;
   const pendingMinutes=minuteJobs(updatedDays,codes,tier==='sponsor').length;
   const pendingSponsor=tier==='sponsor'?batchJobs(updatedDays,codes.length).length:0;
   const result={...state,downloaded,cached:skipped,empty_checked:emptyChecked,

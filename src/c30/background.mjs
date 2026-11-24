@@ -6,10 +6,12 @@ const ttl=6*60*60*1000;
 const terminal=state=>!['queued','running','waiting'].includes(state);
 const json=(value,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store'}});
 const bytes=new TextEncoder();
-const secret=env=>env.C30_BACKGROUND_SECRET||env.FINMIND_TOKEN||'';
+const keyName='system:c30:background-encryption:v1';
 async function encryptionKey(env){
- const digest=await crypto.subtle.digest('SHA-256',bytes.encode('C30 background job v1\0'+secret(env)));
- return crypto.subtle.importKey('raw',digest,'AES-GCM',false,['encrypt','decrypt']);
+ const stub=env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName(keyName));
+ const response=await stub.fetch(new Request('https://cache.internal/c30-background-internal/key',{method:'POST'}));
+ if(!response.ok)throw Error('背景任務加密金鑰無法讀取');
+ return crypto.subtle.importKey('raw',await response.arrayBuffer(),'AES-GCM',false,['encrypt','decrypt']);
 }
 function publicJob(job){
  if(!job)return null;
@@ -19,13 +21,15 @@ function publicJob(job){
 export async function c30BackgroundRoute(request,env){
  const url=new URL(request.url);
  if(request.headers.has('origin')&&request.headers.get('origin')!==url.origin)return json({error:'來源不符'},403);
- if(url.pathname.endsWith('/capability')&&request.method==='GET')return json({configured:secret(env).length>=24});
+ const operation=url.pathname.split('/').at(-1);
+ if(!['capability','status','start','stop'].includes(operation))return json({error:'找不到背景任務操作'},404);
+ if(operation==='capability'&&request.method==='GET')return json({configured:!!env.SCAN_JOBS});
  const token=request.headers.get('authorization')?.match(/^Bearer (\S{30,4096})$/)?.[1];
  if(!token)return json({error:'請先儲存 FinMind Token'},401);
- if(!env.SCAN_JOBS||secret(env).length<24)return json({error:'Cloudflare 尚未設定背景任務加密金鑰'},503);
+ if(!env.SCAN_JOBS)return json({error:'Cloudflare 尚未設定背景任務加密金鑰'},503);
  const digest=await crypto.subtle.digest('SHA-256',bytes.encode(token));
  const id=env.SCAN_JOBS.idFromName('private:c30:background:'+Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,'0')).join(''));
- return env.SCAN_JOBS.get(id).fetch(new Request('https://cache.internal/c30-background-internal/'+url.pathname.split('/').at(-1),request));
+ return env.SCAN_JOBS.get(id).fetch(new Request('https://cache.internal/c30-background-internal/'+operation,request));
 }
 export class C30Background {
  constructor(ctx,env){this.storage=ctx.storage;this.env=env}
@@ -41,12 +45,22 @@ export class C30Background {
  }
  async fetch(request){
   const path=new URL(request.url).pathname.split('/').at(-1);
+  if(path==='key'&&request.method==='POST'){
+   const key=await this.storage.transaction(async tx=>{
+    const saved=await tx.get('c30-background-aes-key');
+    if(saved)return saved;
+    const generated=crypto.getRandomValues(new Uint8Array(32));
+    await tx.put('c30-background-aes-key',generated);
+    return generated;
+   });
+   return new Response(key,{headers:{'cache-control':'no-store'}});
+  }
   if(path==='status'&&request.method==='GET')return json({job:publicJob(await this.storage.get(stateKey))});
   if(request.method!=='POST'||!['start','stop'].includes(path))return json({error:'找不到背景任務操作'},404);
   if(path==='stop'){
    return this.storage.transaction(async tx=>{
     const job=await tx.get(stateKey);
-    if(job&&!terminal(job.state)){job.state='cancelled';delete job.credential;await tx.put(stateKey,job)}
+    if(job&&!terminal(job.state)){job.state='cancelled';delete job.credential;await tx.put(stateKey,job);await tx.deleteAlarm()}
     return json({job:publicJob(job)});
    });
   }
@@ -91,7 +105,7 @@ export class C30Background {
      job.queue=job.tier==='sponsor'?batchJobs(days).map(task=>({path:'sponsor-batch',task})):[];
      job.phase='individual';
     }else if(job.phase==='individual'){
-     job.queue=[...(job.tier==='sponsor'?minuteJobs(days,codes,true).map(task=>({path:'sponsor-minute',task})):[]),...remainingTasks(days,codes).map(task=>({path:'chip',task}))];
+     job.queue=[...(job.tier==='sponsor'?minuteJobs(days,codes,true).map(task=>({path:'sponsor-minute',task})):[]),...remainingTasks(days.map(day=>({date:day.date,stored:day})),codes).map(task=>({path:'chip',task}))];
      job.phase='end';
     }else{job.queue=[];job.state=job.errors.length?'partial':'completed'}
     return true;
