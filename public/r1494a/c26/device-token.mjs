@@ -88,7 +88,7 @@ export function mountTokenPanel(doc=document){
  pacingInput.onchange=async()=>{try{const m=await import('../c30/free-sync.mjs?v=20261125-1s-sponsor-v3');const ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms);message.textContent='已保存 '+(ms/1000)+' 秒／次；下載下一筆請求生效，雲端資料不受影響。'}catch(e){message.textContent='設定失敗：'+e.message;pacingInput.value=String(initialInterval/1000)}};
  const backupOptions=doc.createElement('div');backupOptions.id='c30-backup-options';backupOptions.style.cssText='margin-top:9px;padding:10px;background:#f4faf6;border:1px solid #b8ccbf;border-radius:9px';
  backupOptions.hidden=!['C30','A56'].includes(doc.getElementById('strategy')?.value);
- backupOptions.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><label><input type="checkbox" id="c30-backup-minutes" checked> ZIP 包含所有雲端現股 1 分 K</label><label>可選擇原本十年歷史 ZIP／CSV 一併打包：<input type="file" id="c30-backup-legacy" multiple accept=".zip,.csv,.gz,.npz,.json,.parquet" style="max-width:250px"></label></div><p style="font-size:12px;margin:5px 0;color:#5b7261">包含雲端日K、籌碼、已保存分K、233檔股票池、缺漏清單和凍結模型快照；以前未上傳的原始十年資料需自行選取，系統不會虛構。</p>';
+ backupOptions.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><label><input type="checkbox" id="c30-backup-minutes" checked> ZIP 包含所有雲端現股 1 分 K</label><label><input type="checkbox" id="c30-backup-sync-local" checked> 匯出前同步本機舊分 K（不重下載）</label><label>可選擇原本十年歷史 ZIP／CSV 一併打包：<input type="file" id="c30-backup-legacy" multiple accept=".zip,.csv,.gz,.npz,.json,.parquet" style="max-width:250px"></label></div><p style="font-size:12px;margin:5px 0;color:#5b7261">包含雲端日K、籌碼、已保存分K、233檔股票池、缺漏清單和凍結模型快照；以前未上傳的原始十年資料需自行選取，系統不會虛構。</p>';
  panel.append(backupOptions);
  const backupCancel=doc.createElement('button');backupCancel.id='c30-backup-cancel';backupCancel.type='button';backupCancel.textContent='取消 ZIP 匯出';backupCancel.hidden=true;let backupAbort=null;backupCancel.onclick=()=>backupAbort?.abort();panel.append(backupCancel);
  const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-1s-sponsor-v3');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
@@ -106,7 +106,7 @@ export function mountTokenPanel(doc=document){
     backupAbort=new AbortController();backupCancel.hidden=false;
     const {exportC30A56AllArchived}=await import('../c30/export-all-zip.mjs?v=20261125-1s-sponsor-v3');
     await exportC30A56AllArchived({token:readToken(),progress:say,includeMinutes:doc.getElementById('c30-backup-minutes').checked,
-      legacyFiles:[...doc.getElementById('c30-backup-legacy').files],signal:backupAbort.signal});
+      legacyFiles:[...doc.getElementById('c30-backup-legacy').files],syncLocalMinutes:doc.getElementById('c30-backup-sync-local').checked,signal:backupAbort.signal});
     return;
    }
    const {buildArchive}=await import('./decision-download.mjs');
