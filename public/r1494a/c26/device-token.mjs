@@ -75,8 +75,8 @@ export function mountTokenPanel(doc=document){
  panel.innerHTML='<h2 style="margin:0 0 8px;font-size:18px">FinMind Token · 僅記住此瀏覽器</h2><p style="margin:0 0 10px;font-size:13px">Token 只保存在此裝置的這個瀏覽器。更新時以 HTTPS 傳送，不寫入伺服器儲存。換裝置、換瀏覽器或清除網站資料後需重新輸入。</p><div style="display:flex;flex-wrap:wrap;gap:8px"><input id="c26-device-token" type="password" autocomplete="off" spellcheck="false" aria-label="FinMind Token" placeholder="貼上 FinMind Token" style="flex:1;min-width:180px;padding:10px;border:1px solid #aebfb3;border-radius:7px"><button id="c26-token-save" type="button">儲存到此瀏覽器</button><button id="c26-token-update" type="button">使用 Token 更新 C26 資料</button><button id="c26-token-clear" type="button">清除本機 Token</button></div><p id="c26-token-message" role="status" aria-live="polite" style="font-size:13px;margin:10px 0 0"></p>';
  const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-free-v2');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
- download.type='button';
- download.textContent='下載已存回測資料（ZIP）';
+ download.type='button';download.id='c26-archive-download';
+ download.textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'下載 Free 雲端增量資料（NDJSON.gz）':'下載已存回測資料（ZIP）';
  panel.querySelector('div').append(download);
  const jobs=doc.createElement('a');
  jobs.href='/stock-futures-download.html';jobs.textContent='股期下載器已存任務';
