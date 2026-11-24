@@ -22,7 +22,7 @@ async function pool(env){if(!poolPromise)poolPromise=(async()=>{const r=await en
 async function vault(env,token){if(!env.SCAN_JOBS)throw Error('SCAN_JOBS Durable Object unavailable');const digest=await hash(token);return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('private:c30:a56:free:v2:'+digest))}
 function officialVault(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c30:a56:official:v1'))}
 async function internal(v,path,method='GET',body){const r=await v.fetch(new Request('https://cache.internal/c30-free-internal/'+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}));let j;try{j=await r.json()}catch{throw Error('C30 free cache malformed response')};if(!r.ok||j.ok===false){const e=new Error(j.error||'Cloud cache failure');e.status=r.status;e.retry_after_ms=j.retry_after_ms;e.code=j.code||null;throw e}return j}
-async function finmind(token,dataset,code,start,end){const q=new URLSearchParams({dataset});if(code)q.set('data_id',code);if(start&&end){q.set('start_date',start);if(code&&dataset!=='TaiwanStockKBar')q.set('end_date',tomorrow(end))}let r;try{r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q.toString(),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(25000),cache:'no-store'})}catch(e){throw Error('FinMind connection failed '+String(e.name||''))}if(!r.ok){const e=new Error('FinMind HTTP '+r.status+(r.status===402?'（額度用盡，請稍後續傳）':''));e.status=r.status;throw e}const x=await r.json().catch(()=>null);if(x?.status!==200||!Array.isArray(x.data)){const e=new Error('FinMind '+dataset+': '+String(x?.msg||x?.status||'schema').slice(0,160));e.status=Number(x?.status)||502;throw e}return x.data}
+async function finmind(token,dataset,code,start,end){const q=new URLSearchParams({dataset});if(code)q.set('data_id',code);if(start&&end){q.set('start_date',start);if(code&&dataset!=='TaiwanStockKBar')q.set('end_date',tomorrow(end))}let r;try{r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q.toString(),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(25000),cache:'no-store'})}catch(e){throw Error('FinMind connection failed '+String(e.name||''))}if(!r.ok){const e=new Error('FinMind 上游 HTTP '+r.status+(r.status===402||r.status===429?'（FinMind 限流或額度不足）':''));e.status=r.status;e.code=[402,429].includes(r.status)?'UPSTREAM_QUOTA':'FINMIND_HTTP_ERROR';throw e}const x=await r.json().catch(()=>null);if(x?.status!==200||!Array.isArray(x.data)){const e=new Error('FinMind '+dataset+': '+String(x?.msg||x?.status||'schema').slice(0,160));e.status=Number(x?.status)||502;e.code=[402,429].includes(e.status)?'UPSTREAM_QUOTA':'FINMIND_DATA_ERROR';throw e}return x.data}
 async function reserve(v,intervalMs=1000,tier='free'){try{return await internal(v,'reserve','POST',{interval_ms:intervalMs,tier})}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||1000,error:e.message,code:e.code||'REQUEST_PACING'};throw e}}
 export async function c30FreeOfficialScheduled(env){
  if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
@@ -35,7 +35,7 @@ export async function c30FreeOfficialScheduled(env){
  return internal(v,'official','POST',{date:j.as_of,rows:price,expected:233,source:'Scheduled TWSE/TPEx official EOD'});
 }
 export async function c30FreeSourceRoute(req,env){
- const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','minute','sponsor-batch','sponsor-minute','day','replay-input'];
+ const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','minute','sponsor-batch','sponsor-minute','diagnose','day','replay-input'];
  if(!u.pathname.startsWith('/api/c30/free/')||!allow.includes(route))return response({ok:false,error:'unknown endpoint'},404);
  const method=['status','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
  if(!sameOrigin(req))return response({ok:false,error:'cross-origin request rejected'},403);
@@ -92,6 +92,21 @@ export async function c30FreeSourceRoute(req,env){
    const out=[];for(const [date,bars] of groups){out.push(await internal(v,'minute','POST',{date,code,provider,market,bars}))}
    return response({ok:true,stored:out.length,days:out,model_replayed:false});
   }
+  if(route==='diagnose'){
+   // Exactly one upstream FinMind API request; caller must explicitly invoke via UI.
+   const q=await req.json().catch(()=>null),dataset=q?.dataset,code=String(q?.code||''),date=q?.date;
+   if(tier!=='sponsor')return response({ok:false,code:'SPONSOR_MODE_REQUIRED',error:'請先切換 Sponsor S 模式'},400);
+   if(!validDate(date)||date<START||date>cutoff()||!['TaiwanStockPrice','TaiwanStockKBar'].includes(dataset))return response({ok:false,code:'BAD_DIAGNOSTIC_INPUT',error:'請選擇有效的歷史交易日與資料集'},400);
+   if(dataset==='TaiwanStockKBar'&&(!(await pool(env)).has(code)))return response({ok:false,error:'診斷股票不在 233 檔固定研究池'},400);
+   const permit=await reserve(v,intervalMs,tier);
+   if(!permit.ok)return response({...permit,code:permit.code||'SPONSOR_QUOTA'},429);
+   const rows=await finmind(token,dataset,dataset==='TaiwanStockKBar'?code:null,date,date);
+   const matched=dataset==='TaiwanStockKBar'?rows.filter(x=>String(x.stock_id)===code&&x.date===date):rows.filter(x=>x.date===date&&(String(x.stock_id||'')==='2330'));
+   return response({ok:true,dataset,date,requested_stock:dataset==='TaiwanStockKBar'?code:'整日全市場',total_rows:rows.length,sample_stock_rows:matched.length,
+     fields:Object.keys(rows[0]||{}).slice(0,25),api_request_format:'Sponsor single-day start_date only',
+     message:rows.length?'Sponsor 來源已回傳資料；仍須檢查雲端保存格式':'API 成功但此日回傳 0 筆，請改選有交易的日期',
+     model_replayed:false});
+  }
   if(route==='sponsor-batch'){
    if(tier!=='sponsor')return response({ok:false,error:'請在介面選 Sponsor（S）模式；FinMind 會驗證實際會員權限'},403);
    const q=await req.json().catch(()=>null),date=q?.date,ds=q?.dataset;
@@ -144,7 +159,7 @@ export async function c30FreeSourceRoute(req,env){
    return response({...await internal(v,'chip','POST',{code,dataset:ds,dates:need,rows:selected,source:'FinMind Free per-stock data_id'}),cached:false,model_replayed:false});
   }
   return response({ok:false,error:'unknown'},404)
- }catch(e){const m=String(e.message||e).slice(0,280),status=e.status===429?429:e.status===402?402:e.status===401||e.status===403?403:e.status===409?409:502;return response({ok:false,error:m,model_replayed:false},status)}
+ }catch(e){const m=String(e.message||e).slice(0,260).replace(/eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+/g,'[TOKEN_REDACTED]'),status=e.status===429?429:e.status===402?402:e.status===401||e.status===403?403:e.status===400?400:e.status===409?409:502;return response({ok:false,error:m,code:e.code||'SOURCE_ERROR',upstream_status:e.status||null,retry_after_ms:e.retry_after_ms||null,model_replayed:false},status)}
 }
 export class C30FreeStore{
  constructor(ctx){this.ctx=ctx;this.s=ctx.storage}
