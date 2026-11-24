@@ -20,9 +20,21 @@ const sameOrigin=req=>{const origin=req.headers.get('origin');return !origin||or
 let poolPromise;
 async function pool(env){if(!poolPromise)poolPromise=(async()=>{const r=await env.ASSETS.fetch(new Request('https://assets.internal/c30/pool.json'));if(!r.ok)throw Error('233-stock frozen pool missing');const j=await r.json();if(j.stocks?.length!==233||new Set(j.stocks.map(x=>x.code)).size!==233)throw Error('233-stock pool mismatch');return new Map(j.stocks.map(x=>[x.code,x.market]))})().catch(e=>{poolPromise=null;throw e});return poolPromise}
 async function vault(env,token){if(!env.SCAN_JOBS)throw Error('SCAN_JOBS Durable Object unavailable');const digest=await hash(token);return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('private:c30:a56:free:v2:'+digest))}
+function officialVault(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c30:a56:official:v1'))}
 async function internal(v,path,method='GET',body){const r=await v.fetch(new Request('https://cache.internal/c30-free-internal/'+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}));let j;try{j=await r.json()}catch{throw Error('C30 free cache malformed response')};if(!r.ok||j.ok===false){const e=new Error(j.error||'Cloud cache failure');e.status=r.status;e.retry_after_ms=j.retry_after_ms;throw e}return j}
 async function finmind(token,dataset,code,start,end){const q=new URLSearchParams({dataset});if(code){q.set('data_id',code);q.set('start_date',start);q.set('end_date',tomorrow(end))}let r;try{r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q.toString(),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(25000),cache:'no-store'})}catch(e){throw Error('FinMind connection failed '+String(e.name||''))}if(!r.ok){const e=new Error('FinMind HTTP '+r.status);e.status=r.status;throw e}const x=await r.json().catch(()=>null);if(x?.status!==200||!Array.isArray(x.data))throw Error('FinMind Free rejected '+dataset+': '+String(x?.msg||x?.status||'schema'));return x.data}
 async function reserve(v){try{return await internal(v,'reserve','POST')}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||8000,error:e.message};throw e}}
+export async function c30FreeOfficialScheduled(env){
+ if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
+ const v=officialVault(env),old=await internal(v,'status'),through=cutoff();
+ if(old.latest_price_date===through)return {ok:true,cached:true,as_of:through};
+ const r=await c30FreeDailyRoute(new Request('https://worker.internal/api/c30/latest'));
+ const j=await r.json();
+ if(!j.ok||!j.same_trade_date||!validDate(j.as_of)||j.as_of>through)throw Error('TWSE/TPEx EOD dates not synchronized');
+ const frozen=await pool(env),prices=[...(j.markets?.twse?.rows||[]),...(j.markets?.tpex?.rows||[])].filter(x=>frozen.get(x.code)===x.market);
+ if(prices.length<200)throw Error('Official stocks below minimum '+prices.length+'/233');
+ return internal(v,'official','POST',{date:j.as_of,rows:prices,expected:233,source:'TWSE/TPEx official scheduled EOD'});
+}
 export async function c30FreeSourceRoute(req,env){
  const u=new URL(req.url),route=u.pathname.replace(/^\/api\/c30\/free\//,''),allow=['status','calendar','official','chip','day','replay-input'];
  if(!u.pathname.startsWith('/api/c30/free/')||!allow.includes(route))return response({ok:false,error:'unknown endpoint'},404);
@@ -31,10 +43,28 @@ export async function c30FreeSourceRoute(req,env){
  const token=tokenOf(req);if(!token)return response({ok:false,error:'FinMind Free device token required'},401);
  try{
   const v=await vault(env,token);
-  if(route==='status')return response(await internal(v,'status'));
+  if(route==='status'){
+   const [own,shared]=await Promise.all([internal(v,'status'),internal(officialVault(env),'status')]);
+   const byDate=new Map((own.days||[]).map(x=>[x.date,x]));
+   for(const x of shared.days||[]){if(!x.price)continue;const old=byDate.get(x.date);
+    if(old)old.price=x.price;else byDate.set(x.date,{date:x.date,price:x.price,chips:Object.fromEntries(CHIP.map(ds=>[ds,{saved_codes:[],available:0,empty:0}])),minute:{saved_codes:[],count:0}})
+   }
+   const days=[...byDate.values()].sort((a,b)=>a.date.localeCompare(b.date));
+   return response({...own,days,stored_days:days.length,latest_price_date:days.filter(x=>x.price?.state==='available').at(-1)?.date||null,complete_days:days.filter(x=>x.price?.state==='available'&&CHIP.every(ds=>x.chips?.[ds]?.saved_codes?.length===233)).length,model_replayed:false});
+  }
   if(route==='day'||route==='replay-input'){
    const date=u.searchParams.get('date'),dataset=u.searchParams.get('dataset');if(!validDate(date)||date<START||dataset&&![...ALL,'minute'].includes(dataset))return response({ok:false,error:'invalid date/dataset'},400);
-   return response(await internal(v,'day?date='+date+(dataset?'&dataset='+dataset:'')+(route==='replay-input'?'&manifest=1':'')));
+   const [data,shared]=await Promise.all([internal(v,'day?date='+date+(dataset?'&dataset='+dataset:'')+(route==='replay-input'?'&manifest=1':'')),internal(officialVault(env),'day?date='+date+'&dataset=TaiwanStockPrice')]);
+   if(!dataset||dataset==='TaiwanStockPrice')data.datasets.TaiwanStockPrice=shared.datasets.TaiwanStockPrice;
+   if(route==='replay-input'){
+    const status=await internal(v,'status'),entry=status.days?.find(x=>x.date===date),prices=shared.datasets?.TaiwanStockPrice?.rows||[];
+    const missing=Object.fromEntries(CHIP.map(ds=>[ds,233-(entry?.chips?.[ds]?.saved_codes?.length||0)]));
+    const minute=entry?.minute?.count||0;
+    data.replay_gate={source_date:date,anchor_date:'2026-11-20',expected_stocks:233,price_stocks:prices.length,chip_missing:missing,minute_stocks:minute,
+     source_complete:prices.length>=225&&Object.values(missing).every(n=>n===0)&&minute===233,original_engine_attached:false,model_replayed:false,plan_ready:false,
+     reason:'Original C30/A56 Python engine state is not deployed on Cloudflare and has not been replayed'};
+   }
+   return response(data);
   }
   if(route==='calendar'){
    const stored=await internal(v,'calendar');const through=cutoff();
@@ -46,12 +76,9 @@ export async function c30FreeSourceRoute(req,env){
    return response({...await internal(v,'calendar','POST',{as_of:through,dates}),cached:false});
   }
   if(route==='official'){
-   const done=await internal(v,'status');const date=cutoff();if(done.latest_price_date===date)return response({ok:true,cached:true,as_of:date,stock_count:done.days?.find(x=>x.date===date)?.price?.stock_count||0});
-   const r=await c30FreeDailyRoute(new Request('https://localhost/api/c30/latest'));
-   const j=await r.json();if(!j.ok||!j.same_trade_date||!validDate(j.as_of)||j.as_of>date)throw Error('TWSE/TPEx official EOD cross-market date mismatch');
-   const frozen=await pool(env),price=[...(j.markets?.twse?.rows||[]),...(j.markets?.tpex?.rows||[])].filter(x=>frozen.get(x.code)===x.market);
-   if(price.length<200)throw Error('Official quote coverage too low ('+price.length+'/233)');
-   return response({...await internal(v,'official','POST',{date:j.as_of,rows:price,expected:233,source:'TWSE/TPEx official EOD'}),cached:false});
+   const old=await internal(officialVault(env),'status'),date=cutoff();
+   if(old.latest_price_date===date)return response({ok:true,cached:true,as_of:date,stock_count:old.days?.find(x=>x.date===date)?.price?.stock_count||0});
+   return response({...await c30FreeOfficialScheduled(env),cached:false});
   }
   if(route==='minute'){
    const q=await req.json().catch(()=>null),code=String(q?.code||''),market=q?.market,provider=q?.provider;
