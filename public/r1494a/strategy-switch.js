@@ -68,9 +68,15 @@ function renderFc23Plan(){
 let originalDashboardCopy;
 function decorateStrategy(){
  const isFc=D.model_version==='FC23',isC26=D.model_version==='C26',isA56=D.model_version==='A56',isC30=D.model_version==='C30';
- const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote','#annual thead','#monthly thead','#orders table thead'];
- if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(nodes.map(id=>[id,$(id).innerHTML]));
- for(const id of nodes)$(id).innerHTML=originalDashboardCopy[id];
+ const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote'];
+ const tableHeads=[
+  ['#c30-annual-thead',document.querySelector('#annual')?.closest('table')?.querySelector('thead')],
+  ['#c30-monthly-thead',document.querySelector('#monthly')?.closest('table')?.querySelector('thead')],
+  ['#c30-orders-thead',document.querySelector('#orderRows')?.closest('table')?.querySelector('thead')]
+ ];
+ const targets=[...nodes.map(id=>[id,document.querySelector(id)]),...tableHeads].filter(([,element])=>element);
+ if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(targets.map(([id,element])=>[id,element.innerHTML]));
+ for(const [id,element] of targets)if(Object.prototype.hasOwnProperty.call(originalDashboardCopy,id))element.innerHTML=originalDashboardCopy[id];
  const oldTokenPanel=document.querySelector('#finmind-device-panel');if(oldTokenPanel)oldTokenPanel.style.display='';
  const sharedTokenPanel=document.querySelector('#c26-device-token-panel');if(sharedTokenPanel)sharedTokenPanel.style.display='';
  $('.brand b').textContent=D.model_version;document.title=D.model_version+'｜策略監控台';
