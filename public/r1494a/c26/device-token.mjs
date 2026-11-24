@@ -89,11 +89,11 @@ export function mountTokenPanel(doc=document){
  }
  applyTierPacing();
  tierSelect.onchange=async()=>{
-  try{const m=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4');m.setC30SourceTier(tierSelect.value);applyTierPacing();message.textContent='已切換 '+(tierSelect.value==='sponsor'?'Sponsor S（預設 0.1 秒）':'Free（預設 1 秒）')+'；先前雲端資料仍保留。'}
+  try{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');m.setC30SourceTier(tierSelect.value);applyTierPacing();message.textContent='已切換 '+(tierSelect.value==='sponsor'?'Sponsor S（預設 0.1 秒）':'Free（預設 1 秒）')+'；先前雲端資料仍保留。'}
   catch(e){message.textContent='切換失敗：'+e.message}
  };
  pacingInput.onchange=async()=>{
-  try{const m=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4'),ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000,tierSelect.value);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms,tierSelect.value);message.textContent='已儲存 '+(ms/1000).toFixed(2)+' 秒／次；後續請求套用，達每小時額度仍會自動停止。'}
+  try{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5'),ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000,tierSelect.value);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms,tierSelect.value);message.textContent='已儲存 '+(ms/1000).toFixed(2)+' 秒／次；後續請求套用，達每小時額度仍會自動停止。'}
   catch(e){message.textContent='設定失敗：'+e.message;applyTierPacing()}
  };
  const backupOptions=doc.createElement('div');backupOptions.id='c30-backup-options';backupOptions.style.cssText='margin-top:9px;padding:10px;background:#f4faf6;border:1px solid #b8ccbf;border-radius:9px';
@@ -106,7 +106,7 @@ export function mountTokenPanel(doc=document){
  diagnosePanel.style.cssText='margin-top:10px;padding:12px;border:1px solid #deb885;border-radius:9px;background:#fffaf1';
  diagnosePanel.innerHTML='<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px"><button id="c30-sponsor-test" type="button" style="border-color:#9d7b47;background:#fff4d7;color:#624714;font-weight:600">測試 Sponsor 日K＋分K（最多2筆）</button><span style="font-size:12px;color:#7a694e">先驗證 FinMind 回傳格式與權限，再大量下載；不會刪除雲端資料</span></div><pre id="c30-diagnostic-output" style="white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:12px;max-height:220px;overflow:auto;color:#523d2b">尚未診斷。若上次下載失敗，這裡會顯示保留的錯誤原因。</pre>';
  panel.append(diagnosePanel);
- const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停補檔（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
+ const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停補檔（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
  download.type='button';download.id='c26-archive-download';
  download.textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'下載全部已封存的 233 檔資料（ZIP）':'下載已存回測資料（ZIP）';
@@ -119,7 +119,7 @@ export function mountTokenPanel(doc=document){
   try{
    if(['C30','A56'].includes(doc.getElementById('strategy')?.value)){
     backupAbort=new AbortController();backupCancel.hidden=false;
-    const {exportC30A56AllArchived}=await import('../c30/export-all-zip.mjs?v=20261125-100ms-sponsor-v4');
+    const {exportC30A56AllArchived}=await import('../c30/export-all-zip.mjs?v=20261125-sponsor-diagnose-v5');
     await exportC30A56AllArchived({token:readToken(),progress:say,includeMinutes:doc.getElementById('c30-backup-minutes').checked,
       legacyFiles:[...doc.getElementById('c30-backup-legacy').files],syncLocalMinutes:doc.getElementById('c30-backup-sync-local').checked,signal:backupAbort.signal});
     return;
@@ -160,7 +160,7 @@ export function mountTokenPanel(doc=document){
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;const isFree=['C30','A56'].includes(doc.getElementById('strategy')?.value);if(isFree){freeStop.hidden=false;freeStop.disabled=false;}
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
-    const free=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4');
+    const free=await import('../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5');
     const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:1000});
     say(selected+' '+(state.tier_used==='sponsor'?'Sponsor（S）':'Free')+' 雲端：官方日K至 '+(state.latest_price_date||'尚無')+'，已封存 '+state.stored_days+' 個交易日，剩餘 '+(state.pending||0)+' 個補檔工作'+(state.paused_by_quota?'；帳號額度已用完，稍後再按續傳':'')+(state.warning?'；'+state.warning:'')+'。正式買賣仍須原引擎重播。');
     if(state.errors?.length||state.blocked_by_error||state.paused_by_quota){
