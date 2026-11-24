@@ -21,9 +21,9 @@ let poolPromise;
 async function pool(env){if(!poolPromise)poolPromise=(async()=>{const r=await env.ASSETS.fetch(new Request('https://assets.internal/c30/pool.json'));if(!r.ok)throw Error('233-stock frozen pool missing');const j=await r.json();if(j.stocks?.length!==233||new Set(j.stocks.map(x=>x.code)).size!==233)throw Error('233-stock pool mismatch');return new Map(j.stocks.map(x=>[x.code,x.market]))})().catch(e=>{poolPromise=null;throw e});return poolPromise}
 async function vault(env,token){if(!env.SCAN_JOBS)throw Error('SCAN_JOBS Durable Object unavailable');const digest=await hash(token);return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('private:c30:a56:free:v2:'+digest))}
 function officialVault(env){return env.SCAN_JOBS.get(env.SCAN_JOBS.idFromName('system:c30:a56:official:v1'))}
-async function internal(v,path,method='GET',body){const r=await v.fetch(new Request('https://cache.internal/c30-free-internal/'+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}));let j;try{j=await r.json()}catch{throw Error('C30 free cache malformed response')};if(!r.ok||j.ok===false){const e=new Error(j.error||'Cloud cache failure');e.status=r.status;e.retry_after_ms=j.retry_after_ms;throw e}return j}
+async function internal(v,path,method='GET',body){const r=await v.fetch(new Request('https://cache.internal/c30-free-internal/'+path,{method,headers:{'content-type':'application/json'},...(body===undefined?{}:{body:JSON.stringify(body)})}));let j;try{j=await r.json()}catch{throw Error('C30 free cache malformed response')};if(!r.ok||j.ok===false){const e=new Error(j.error||'Cloud cache failure');e.status=r.status;e.retry_after_ms=j.retry_after_ms;e.code=j.code||null;throw e}return j}
 async function finmind(token,dataset,code,start,end){const q=new URLSearchParams({dataset});if(code)q.set('data_id',code);if(start&&end){q.set('start_date',start);q.set('end_date',tomorrow(end))}let r;try{r=await fetch('https://api.finmindtrade.com/api/v4/data?'+q.toString(),{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(25000),cache:'no-store'})}catch(e){throw Error('FinMind connection failed '+String(e.name||''))}if(!r.ok){const e=new Error('FinMind HTTP '+r.status+(r.status===402?'（額度用盡，請稍後續傳）':''));e.status=r.status;throw e}const x=await r.json().catch(()=>null);if(x?.status!==200||!Array.isArray(x.data)){const e=new Error('FinMind '+dataset+': '+String(x?.msg||x?.status||'schema').slice(0,160));e.status=Number(x?.status)||502;throw e}return x.data}
-async function reserve(v,intervalMs=1000,tier='free'){try{return await internal(v,'reserve','POST',{interval_ms:intervalMs,tier})}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||1000,error:e.message,code:e.retry_after_ms>60000?'HOURLY_QUOTA':'REQUEST_PACING'};throw e}}
+async function reserve(v,intervalMs=1000,tier='free'){try{return await internal(v,'reserve','POST',{interval_ms:intervalMs,tier})}catch(e){if(e.status===429)return {ok:false,retry_after_ms:e.retry_after_ms||1000,error:e.message,code:e.code||'REQUEST_PACING'};throw e}}
 export async function c30FreeOfficialScheduled(env){
  if(!env.SCAN_JOBS)throw Error('SCAN_JOBS missing');
  const v=officialVault(env),previous=await internal(v,'status'),through=cutoff();
@@ -40,8 +40,9 @@ export async function c30FreeSourceRoute(req,env){
  const method=['status','day','replay-input'].includes(route)?'GET':'POST';if(req.method!==method)return response({ok:false,error:method+' required'},405);
  if(!sameOrigin(req))return response({ok:false,error:'cross-origin request rejected'},403);
  const token=tokenOf(req);if(!token)return response({ok:false,error:'FinMind Free device token required'},401);
- const intervalHeader=Number(req.headers.get('x-c30-free-interval-ms'));const intervalMs=Number.isFinite(intervalHeader)&&intervalHeader>=1000&&intervalHeader<=30000?Math.round(intervalHeader/500)*500:1000;
  const tier=req.headers.get('x-c30-source-tier')==='sponsor'?'sponsor':'free';
+ const intervalHeader=Number(req.headers.get('x-c30-free-interval-ms')),minMs=tier==='sponsor'?50:1000,defaultMs=tier==='sponsor'?100:1000,stepMs=tier==='sponsor'?50:500;
+ const intervalMs=Number.isFinite(intervalHeader)&&intervalHeader>=minMs&&intervalHeader<=30000?Math.round(intervalHeader/stepMs)*stepMs:defaultMs;
  try{
   const v=await vault(env,token);
   if(route==='status'){
@@ -150,15 +151,16 @@ export class C30FreeStore{
  async fetch(req){const u=new URL(req.url),route=u.pathname.split('/').at(-1),method=req.method;
   try{
    if(route==='reserve'&&method==='POST'){
-    const body=await req.json().catch(()=>({})),requested=Number(body.interval_ms),ms=Number.isFinite(requested)&&requested>=1000&&requested<=30000?Math.round(requested/500)*500:1000;
-    const tier=body.tier==='sponsor'?'sponsor':'free',hourlyCap=tier==='sponsor'?5600:540,now=Date.now(),windowMs=3600000;
+    const body=await req.json().catch(()=>({})),tier=body.tier==='sponsor'?'sponsor':'free',requested=Number(body.interval_ms),minMs=tier==='sponsor'?50:1000,stepMs=tier==='sponsor'?50:500,defaultMs=tier==='sponsor'?100:1000;
+    const ms=Number.isFinite(requested)&&requested>=minMs&&requested<=30000?Math.round(requested/stepMs)*stepMs:defaultMs;
+    const hourlyCap=tier==='sponsor'?5600:540,now=Date.now(),windowMs=3600000;
     let retry=0,reason='REQUEST_PACING',count=0;
     const granted=await this.s.transaction(async tx=>{
       const last=await tx.get('rate:next')||0;
       const history=(await tx.get('rate:history')||[]).filter(t=>t>now-windowMs);
       count=history.length;
       if(count>=hourlyCap){retry=Math.max(1000,history[0]+windowMs-now+1000);reason='HOURLY_QUOTA';return false}
-      if(now<last){retry=last-now+100;reason='REQUEST_PACING';return false}
+      if(now<last){retry=last-now+15;reason='REQUEST_PACING';return false}
       history.push(now);await tx.put('rate:history',history);await tx.put('rate:next',now+ms);count=history.length;return true
     });
     return granted?response({ok:true,next_at:now+ms,interval_ms:ms,tier,used_last_hour:count,hourly_safe_cap:hourlyCap}):response({ok:false,error:reason==='HOURLY_QUOTA'?'已達安全額度，請稍後續傳':'請求間隔尚未結束',code:reason,retry_after_ms:retry,used_last_hour:count,hourly_safe_cap:hourlyCap},429);
