@@ -34,7 +34,7 @@ async function downloadList(three){if(busy)return;busy=true;halt=false;errors=[]
 try{for(const s of all){if(halt)break;const code=s.code;if(!$('#force').checked&&done[code]===main){finished++;skipped++;$('#progress').value=finished;continue}
 let j=null,why='';for(let attempt=0;attempt<3&&!j;attempt++){try{j=await requestBar(code,s.market,main,key)}catch(e){why=String(e.message||e);if(why.includes('RATE_LIMIT')&&attempt<2){log('富果限流；正在保留已存資料並重試 '+code);await sleep(65000)}else break}}
 if(!j&&main==='fugle'&&$('#fallback').checked){try{j=await requestBar(code,s.market,'yahoo','')}catch(e){why+=' / Yahoo '+String(e.message||e)}}
-if(j){try{await addBars(code,s.market,j);good++;done[code]=j.provider.startsWith('Fugle')?'fugle':'yahoo';saveDone(done)}catch(e){fail++;errors.push({code,error:'IndexedDB '+String(e.message||e)})}}
+if(j){try{await addBars(code,s.market,j);good++;if(Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Taipei',hour:'2-digit',hour12:false}).format(new Date()))>=16){done[code]=j.provider.startsWith('Fugle')?'fugle':'yahoo';saveDone(done)}}catch(e){fail++;errors.push({code,error:'IndexedDB '+String(e.message||e)})}}
 else{fail++;errors.push({code,error:why})}
 finished++;$('#progress').value=finished;$('#progressText').textContent=finished+'/'+all.length+' 已完成 '+good+'，略過 '+skipped+'，失敗 '+fail;log('目前 '+code+' '+(j?j.provider+'：'+j.bars.length+' 根':'失敗：'+why)+'\n可隨時暫停，下次從已完成名單續傳。');if(!halt&&finished<all.length)await sleep(1500)}
 }finally{busy=false;$('#test').disabled=$('#start').disabled=false;$('#stop').disabled=true;log((halt?'已暫停':'本輪結束')+'。成功 '+good+' 檔；略過 '+skipped+' 檔；失敗 '+fail+' 檔。'+(fail?'請匯出失敗清單。':''));await stats()}}
