@@ -73,6 +73,17 @@ export function mountTokenPanel(doc=document){
  const panel=doc.createElement('section');panel.id='c26-device-token-panel';
  panel.style.cssText='border:1px solid #b8ccbf;background:#f4faf6;border-radius:12px;padding:16px;margin:18px 0;color:#173b2d';
  panel.innerHTML='<h2 style="margin:0 0 8px;font-size:18px">FinMind Token · 僅記住此瀏覽器</h2><p style="margin:0 0 10px;font-size:13px">Token 只保存在此裝置的這個瀏覽器。更新時以 HTTPS 傳送，不寫入伺服器儲存。換裝置、換瀏覽器或清除網站資料後需重新輸入。</p><div style="display:flex;flex-wrap:wrap;gap:8px"><input id="c26-device-token" type="password" autocomplete="off" spellcheck="false" aria-label="FinMind Token" placeholder="貼上 FinMind Token" style="flex:1;min-width:180px;padding:10px;border:1px solid #aebfb3;border-radius:7px"><button id="c26-token-save" type="button">儲存到此瀏覽器</button><button id="c26-token-update" type="button">使用 Token 更新 C26 資料</button><button id="c26-token-clear" type="button">清除本機 Token</button></div><p id="c26-token-message" role="status" aria-live="polite" style="font-size:13px;margin:10px 0 0"></p>';
+ const pacing=doc.createElement('div');pacing.id='c30-free-pacing-panel';
+ pacing.style.cssText='margin-top:12px;padding:11px 12px;background:#e9f3ee;border:1px solid #b6cfbe;border-radius:9px';
+ pacing.innerHTML='<div style="display:flex;align-items:center;flex-wrap:wrap;gap:9px"><label for="c30-free-interval" style="font-weight:600">FinMind Free 請求間隔</label><input id="c30-free-interval" type="number" min="6.5" max="30" step="0.5" value="8" aria-describedby="c30-free-interval-hint" style="width:85px;padding:7px;border:1px solid #92b6a2;border-radius:7px;color:#173b2d;background:white"><span>秒／次</span><span id="c30-free-interval-current" style="font-size:13px;color:#176247">目前 8 秒（約 450 次／小時）</span></div><p id="c30-free-interval-hint" style="margin:6px 0 0;font-size:12px;color:#516c5c">可調 6.5～30 秒，每次 0.5 秒；同一瀏覽器保存設定，下載途中調整從下一筆請求生效。其他 App／裝置使用同一 Token 的流量不在此數字內。</p>';
+ pacing.hidden=!['C30','A56'].includes(doc.getElementById('strategy')?.value);
+ panel.append(pacing);
+ const pacingInput=pacing.querySelector('#c30-free-interval'),pacingCurrent=pacing.querySelector('#c30-free-interval-current');
+ const pacingText=ms=>'目前 '+(ms/1000).toFixed(1)+' 秒（約 '+Math.floor(3600000/ms)+' 次／小時）';
+ const savedInterval=Number(globalThis.localStorage?.getItem('c30-a56-free-request-interval-ms-v1'));
+ const initialInterval=Number.isFinite(savedInterval)&&savedInterval>=6500&&savedInterval<=30000&&savedInterval%500===0?savedInterval:8000;
+ pacingInput.value=String(initialInterval/1000);pacingCurrent.textContent=pacingText(initialInterval);
+ pacingInput.onchange=async()=>{try{const m=await import('../c30/free-sync.mjs?v=20261125-adjustable-v1');const ms=m.setC30FreeIntervalMs(Number(pacingInput.value)*1000);pacingInput.value=String(ms/1000);pacingCurrent.textContent=pacingText(ms);message.textContent='已儲存 Free 請求間隔 '+(ms/1000)+' 秒；不會刪除雲端資料。'}catch(e){message.textContent='間隔設定失敗：'+e.message;pacingInput.value=String(initialInterval/1000)}};
  const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停 Free 下載（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-free-v2');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
  download.type='button';download.id='c26-archive-download';
