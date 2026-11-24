@@ -22,6 +22,32 @@
 'use strict';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms)),TODAY=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let universe=[],halt=false,busy=false,errors=[];const DBNAME='C30_StockMinute_Free_v1',STORE='days';
+
+let cloudCoverage=null,cloudAsOf=null,cloudAvailable=false;
+async function connectCloud(){
+ const k=$('#cloudKey').value.trim();if(k)window.C30Cloud.setKey(k,true);
+ if(!window.C30Cloud.key()){$('#cloudState').textContent='沒有設定雲端金鑰；只用本機 IndexedDB。';return false}
+ try{
+  const d=new Date(TODAY+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-48);
+  const [s,c]=await Promise.all([window.C30Cloud.status(),window.C30Cloud.coverage(d.toISOString().slice(0,10))]);
+  const index=new Map();
+  for(const day of c.days||[])for(const code of Object.keys(day.codes||{})){if(!index.has(code))index.set(code,new Set());index.get(code).add(day.date)}
+  cloudCoverage=index;cloudAvailable=true;
+  let date=null;
+  try{const r=await fetch('/api/c30/latest',{cache:'no-store'}),j=await r.json();if(j.ok&&j.same_trade_date)date=j.as_of}catch(e){}
+  if(!date){try{const obj=JSON.parse(localStorage.getItem('C30_EOD_VERIFIED_V1')||'{}');date=Object.keys(obj).sort().at(-1)||null}catch(e){}}
+  cloudAsOf=date;
+  $('#cloudState').textContent='連線成功｜雲端已儲存 '+(s.days||[]).length+' 天、'+(s.files||[]).filter(x=>x.state==='complete').length+' 個原始備份。'+(date?'最新已核對官方日K '+date+'；相同股票日期不會重抓。':'最新官方日K日期尚未確認，為避免漏檔，請先開 C30 主頁更新日K。');
+  return true;
+ }catch(e){cloudAvailable=false;cloudCoverage=null;cloudAsOf=null;$('#cloudState').textContent='雲端連線未成功：'+String(e.message||e)+'。本機資料不會被清除。';return false}
+}
+function rowsForCloud(local){const bars=[];for(const o of local||[])for(const r of o.rows||[])bars.push({date:o.date,minute:r[0],stock_id:o.code,open:r[1],high:r[2],low:r[3],close:r[4],volume_shares:r[5]});return bars}
+async function pushLocal(code,market,records){if(!cloudAvailable||!records?.length)return false;
+ const bySource=new Map();for(const rec of records){const x=bySource.get(rec.provider)||[];x.push(rec);bySource.set(rec.provider,x)}
+ for(const [provider,data] of bySource){const rows=rowsForCloud(data);for(let i=0;i<rows.length;i+=4000)await window.C30Cloud.saveBars(code,market,{provider,bars:rows.slice(i,i+4000)})}
+ return true
+}
+
 function log(s){$('#status').textContent=s}function openDB(){return new Promise((res,rej)=>{const req=indexedDB.open(DBNAME,1);req.onupgradeneeded=()=>{const store=req.result.createObjectStore(STORE,{keyPath:'id'});store.createIndex('date','date')};req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error)})}
 function put(obj){return new Promise(async(res,rej)=>{try{const db=await openDB(),tx=db.transaction(STORE,'readwrite');const st=tx.objectStore(STORE),get=st.get(obj.id);get.onsuccess=()=>{const prior=get.result;if(!(String(prior?.provider||'').startsWith('Fugle')&&!String(obj.provider||'').startsWith('Fugle')))st.put(obj)};tx.oncomplete=()=>{db.close();res()};tx.onerror=()=>{db.close();rej(tx.error)}}catch(e){rej(e)}})}
 function entries(){return new Promise(async(res,rej)=>{try{const db=await openDB(),a=[],tx=db.transaction(STORE,'readonly');tx.objectStore(STORE).openCursor().onsuccess=e=>{const cur=e.target.result;if(cur){a.push(cur.value);cur.continue()}};tx.oncomplete=()=>{db.close();res(a)};tx.onerror=()=>{db.close();rej(tx.error)}}catch(e){rej(e)}})}
