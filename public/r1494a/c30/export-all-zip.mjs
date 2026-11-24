@@ -2,7 +2,7 @@
  * A single ZIP (stored entries) with individually gzip-compressed per-day NDJSON.
  * No FinMind network calls. No claim that frozen 2016-2026 original raw files are online.
  */
-import {c30FreeToken,c30FreeStatus,c30FreeDownloadDay} from './free-sync.mjs?v=20261125-1s-sponsor-v3';
+import {c30FreeToken,c30FreeStatus,c30FreeDownloadDay} from './free-sync.mjs?v=20261125-100ms-sponsor-v4';
 const ROOT='/api/c30/free/';
 const enc=new TextEncoder();
 const u16=(v,i,n)=>v.setUint16(i,n,true);
