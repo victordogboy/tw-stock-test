@@ -28,7 +28,7 @@ let cloudCoverage=null,cloudAsOf=null,cloudAvailable=false,cloudDays=[];
 let freeVault={available:false,token:'',codes:new Map(),days:[]};
 async function connectFreeVault(){
  try{
-  const m=await import('/r1494a/c30/free-sync.mjs?v=20261125-free-v2'),token=m.c30FreeToken();
+  const m=await import('/r1494a/c30/free-sync.mjs?v=20261125-adjustable-v1'),token=m.c30FreeToken();
   if(!token)return false;
   const status=await m.c30FreeStatus(token);
   const map=new Map();
