@@ -68,7 +68,7 @@ function renderFc23Plan(){
 let originalDashboardCopy;
 function decorateStrategy(){
  const isFc=D.model_version==='FC23',isC26=D.model_version==='C26',isA56=D.model_version==='A56',isC30=D.model_version==='C30';
- const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote','#annual thead','#monthly thead'];
+ const nodes=['#rulesMain','#performanceNotice','#performanceLegend','#execution-study-v29','#ledgerLabel','#rulesFoot','#heroDescription','#strategyFooter','#ordersNote','#annual thead','#monthly thead','#orders table thead'];
  if(!originalDashboardCopy)originalDashboardCopy=Object.fromEntries(nodes.map(id=>[id,$(id).innerHTML]));
  for(const id of nodes)$(id).innerHTML=originalDashboardCopy[id];
  $('#finmind-device-panel').style.display=isC30?'none':'';
