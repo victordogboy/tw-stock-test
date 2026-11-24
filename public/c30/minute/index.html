@@ -14,16 +14,16 @@
 <div class="panel"><h2>2. 開始補齊</h2><div class="flex"><button id="test">先測 3 檔</button><button id="start" class="primary">下載／續傳 233 檔</button><button id="stop" disabled>暫停</button></div><p>每次只查一檔，主動間隔約 1.5 秒，避免超過免費方案的頻率限制。收到 429 會暫停並有限次重試。</p><progress id="progress" max="233" value="0"></progress><div id="progressText" class="muted">未啟動</div><div id="status" class="status">取得行情來源與股池後可開始。</div></div>
 </div>
 <div class="panel"><h2>3. 檢查資料與匯出</h2><p class="muted">每根以台灣時間起始分鐘記錄，成交量轉換為「股」。存入本裝置 IndexedDB，以交易日＋股票去重。不同來源以 Fugle 優先，Yahoo 不覆蓋 Fugle；不補造無成交分鐘。</p>
-<div class="flex"><label>資料日 <select id="date"><option value="">尚無資料</option></select></label><button id="exportDay">匯出該日 CSV.gz</button><button id="exportAll">匯出所有日期 CSV.gz</button><button id="exportFail">匯出失敗清單 CSV</button><button id="recalc">重算覆蓋率</button></div>
+<div class="flex"><label>資料日 <select id="date"><option value="">尚無資料</option></select></label><button id="exportDay">匯出該日 CSV.gz</button><button id="exportAll">匯出本機全部日期 CSV.gz</button><button id="cloudExportDay">從雲端匯出所選日期</button><button id="cloudExportAll">從雲端匯出最近 60 日</button><button id="exportFail">匯出失敗清單 CSV</button><button id="recalc">重算覆蓋率</button></div>
 <div id="coverage" class="status">尚未檢查。</div><div class="scroll"><table><thead><tr><th>日期</th><th>有效股票數</th><th>1 分 K 根數</th><th>覆蓋率</th></tr></thead><tbody id="coverageRows"></tbody></table></div></div>
 <div class="panel"><h2>4. 資料驗收規格</h2><p>每根保存 <code>date,minute,stock_id,market,open,high,low,close,volume_shares,source</code>。接入回測前，必須核對個股分 K 的日最高、最低、收盤、總量與官方日 K，另外標記停牌、收盤集合競價、無成交分鐘、早盤價格限制及實際委託可能無法成交的情況。</p><p>回測用的分 K 是「現股」；台指期日／夜盤要用另外的期貨分鐘資料，不可用現股分 K 代替。</p></div>
 <footer>本頁是 C30 研究資料補檔工具，不是交易引擎，沒有重寫 C30 原版參數，也不宣稱資料抓到後一定產生今日交易指令。</footer>
-<script src="./cloud-sync.js"></script><script>
+<script src="./cloud-sync.js"></script><script src="./cloud-export.js"></script><script>
 'use strict';
 const $=s=>document.querySelector(s),sleep=ms=>new Promise(r=>setTimeout(r,ms)),TODAY=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 let universe=[],halt=false,busy=false,errors=[];const DBNAME='C30_StockMinute_Free_v1',STORE='days';
 
-let cloudCoverage=null,cloudAsOf=null,cloudAvailable=false;
+let cloudCoverage=null,cloudAsOf=null,cloudAvailable=false,cloudDays=[];
 async function connectCloud(){
  const k=$('#cloudKey').value.trim();if(k)window.C30Cloud.setKey(k,true);
  if(!window.C30Cloud.key()){$('#cloudState').textContent='沒有設定雲端金鑰；只用本機 IndexedDB。';return false}
@@ -32,14 +32,14 @@ async function connectCloud(){
   const [s,c]=await Promise.all([window.C30Cloud.status(),window.C30Cloud.coverage(d.toISOString().slice(0,10))]);
   const index=new Map();
   for(const day of c.days||[])for(const code of Object.keys(day.codes||{})){if(day.codes[code]?.complete!==true)continue;if(!index.has(code))index.set(code,new Set());index.get(code).add(day.date)}
-  cloudCoverage=index;cloudAvailable=true;
+  cloudCoverage=index;cloudDays=c.days||[];cloudAvailable=true;
   let date=null;
   try{const r=await fetch('/api/c30/latest',{cache:'no-store'}),j=await r.json();if(j.ok&&j.same_trade_date)date=j.as_of}catch(e){}
   if(!date){try{const obj=JSON.parse(localStorage.getItem('C30_EOD_VERIFIED_V1')||'{}');date=Object.keys(obj).sort().at(-1)||null}catch(e){}}
   cloudAsOf=date;
-  $('#cloudState').textContent='連線成功｜雲端已儲存 '+(s.days||[]).length+' 天、'+(s.files||[]).filter(x=>x.state==='complete').length+' 個原始備份。'+(date?'最新已核對官方日K '+date+'；相同股票日期不會重抓。':'最新官方日K日期尚未確認，為避免漏檔，請先開 C30 主頁更新日K。');
+  await stats();$('#cloudState').textContent='連線成功｜雲端已儲存 '+(s.days||[]).length+' 天、'+(s.files||[]).filter(x=>x.state==='complete').length+' 個原始備份。'+(date?'最新已核對官方日K '+date+'；相同股票日期不會重抓。':'最新官方日K日期尚未確認，為避免漏檔，請先開 C30 主頁更新日K。');
   return true;
- }catch(e){cloudAvailable=false;cloudCoverage=null;cloudAsOf=null;$('#cloudState').textContent='雲端連線未成功：'+String(e.message||e)+'。本機資料不會被清除。';return false}
+ }catch(e){cloudAvailable=false;cloudCoverage=null;cloudAsOf=null;cloudDays=[];$('#cloudState').textContent='雲端連線未成功：'+String(e.message||e)+'。本機資料不會被清除。';return false}
 }
 function rowsForCloud(local){const bars=[];for(const o of local||[])for(const r of o.rows||[])bars.push({date:o.date,minute:r[0],stock_id:o.code,open:r[1],high:r[2],low:r[3],close:r[4],volume_shares:r[5]});return bars}
 async function pushLocal(code,market,records){if(!cloudAvailable||!records?.length)return false;
