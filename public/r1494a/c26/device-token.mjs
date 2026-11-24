@@ -101,7 +101,7 @@ export function mountTokenPanel(doc=document){
  backupOptions.innerHTML='<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><label><input type="checkbox" id="c30-backup-minutes" checked> ZIP 包含所有雲端現股 1 分 K</label><label><input type="checkbox" id="c30-backup-sync-local" checked> 匯出前同步本機舊分 K（不重下載）</label><label>可選擇原本十年歷史 ZIP／CSV 一併打包：<input type="file" id="c30-backup-legacy" multiple accept=".zip,.csv,.gz,.npz,.json,.parquet" style="max-width:250px"></label></div><p style="font-size:12px;margin:5px 0;color:#5b7261">包含雲端日K、籌碼、已保存分K、233檔股票池、缺漏清單和凍結模型快照；以前未上傳的原始十年資料需自行選取，系統不會虛構。</p>';
  panel.append(backupOptions);
  const backupCancel=doc.createElement('button');backupCancel.id='c30-backup-cancel';backupCancel.type='button';backupCancel.textContent='取消 ZIP 匯出';backupCancel.hidden=true;let backupAbort=null;backupCancel.onclick=()=>backupAbort?.abort();panel.append(backupCancel);
- const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停補檔（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-1s-sponsor-v3');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
+ const freeStop=doc.createElement('button');freeStop.id='c30-free-stop';freeStop.type='button';freeStop.textContent='暫停補檔（已存資料保留）';freeStop.hidden=true;freeStop.onclick=async()=>{const m=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4');m.stopC30FreeSync();};panel.querySelector('div').append(freeStop);
  const download=doc.createElement('button');
  download.type='button';download.id='c26-archive-download';
  download.textContent=['C30','A56'].includes(doc.getElementById('strategy')?.value)?'下載全部已封存的 233 檔資料（ZIP）':'下載已存回測資料（ZIP）';
@@ -114,7 +114,7 @@ export function mountTokenPanel(doc=document){
   try{
    if(['C30','A56'].includes(doc.getElementById('strategy')?.value)){
     backupAbort=new AbortController();backupCancel.hidden=false;
-    const {exportC30A56AllArchived}=await import('../c30/export-all-zip.mjs?v=20261125-1s-sponsor-v3');
+    const {exportC30A56AllArchived}=await import('../c30/export-all-zip.mjs?v=20261125-100ms-sponsor-v4');
     await exportC30A56AllArchived({token:readToken(),progress:say,includeMinutes:doc.getElementById('c30-backup-minutes').checked,
       legacyFiles:[...doc.getElementById('c30-backup-legacy').files],syncLocalMinutes:doc.getElementById('c30-backup-sync-local').checked,signal:backupAbort.signal});
     return;
@@ -140,7 +140,7 @@ export function mountTokenPanel(doc=document){
    const token=saveToken(input.value);for(const b of buttons)b.disabled=true;const isFree=['C30','A56'].includes(doc.getElementById('strategy')?.value);if(isFree){freeStop.hidden=false;freeStop.disabled=false;}
    const selected=doc.getElementById('strategy')?.value;
    if(selected==='C30'||selected==='A56'){
-    const free=await import('../c30/free-sync.mjs?v=20261125-1s-sponsor-v3');
+    const free=await import('../c30/free-sync.mjs?v=20261125-100ms-sponsor-v4');
     const state=await free.updateC30A56Free(token,say,{auto:false,maxRequests:1000});
     say(selected+' '+(state.tier_used==='sponsor'?'Sponsor（S）':'Free')+' 雲端：官方日K至 '+(state.latest_price_date||'尚無')+'，已封存 '+state.stored_days+' 個交易日，剩餘 '+(state.pending||0)+' 個補檔工作'+(state.paused_by_quota?'；帳號額度已用完，稍後再按續傳':'')+(state.warning?'；'+state.warning:'')+'。正式買賣仍須原引擎重播。');
     if(typeof globalThis.poll==='function')globalThis.poll(false);
