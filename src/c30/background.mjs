@@ -68,7 +68,7 @@ export class C30Background {
   if(previous&&!terminal(previous.state))return json({job:publicJob(previous)});
   const {tier,interval}=await request.json();
   const token=request.headers.get('authorization').slice(7);
-  const job={id:crypto.randomUUID(),state:'queued',tier:tier==='sponsor'?'sponsor':'free',interval:Math.min(30000,Math.max(tier==='sponsor'?50:1000,Number(interval)||1000)),expires:Date.now()+ttl,queue:[],cursor:0,phase:'bulk',done:0,errors:[],dates:[]};
+  const job={id:crypto.randomUUID(),state:'queued',tier:tier==='sponsor'?'sponsor':'free',interval:Math.min(30000,Math.max(tier==='sponsor'?50:1000,Number(interval)||1000)),expires:Date.now()+ttl,queue:[],cursor:0,phase:'bulk',done:0,errorCount:0,errors:[],dates:[]};
   try{job.dates=(await this.source(token,job,'calendar',{})).dates}
   catch(error){return json({error:error.message},error.status||502)}
   const iv=crypto.getRandomValues(new Uint8Array(12));
@@ -93,6 +93,11 @@ export class C30Background {
    const {iv,ciphertext}=job.credential;
    const token=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},await encryptionKey(this.env),ciphertext));
    job.state='running';
+   if(job.phase==='end'&&job.queue.slice(job.cursor).some(({path,task})=>path==='chip'&&task.from>task.to)){
+    job.phase='individual';
+    job.queue=[];
+    job.cursor=0;
+   }
    if(job.cursor===job.queue.length){
     const dates=job.dates;
     const status=await this.source(token,job,'status');
@@ -116,7 +121,7 @@ export class C30Background {
     if(current?.id!==job.id||terminal(current.state))return true;
     if(Date.now()>=job.expires){job.state='expired';return true}
     const {path,task}=job.queue[job.cursor];
-    job.current=[task.date||task.from,task.code,task.dataset||'分 K'].filter(Boolean).join(' ');
+    job.current=[task.date||(task.from===task.to?task.from:task.from+'～'+task.to),task.code,task.dataset||'分 K'].filter(Boolean).join(' ');
     try{await this.source(token,job,path,task);job.done++}
     catch(error){
      if([402,429].includes(error.status)){
@@ -124,6 +129,7 @@ export class C30Background {
       delay=Math.max(100,error.retry||([402].includes(error.status)||error.code==='UPSTREAM_QUOTA'?300000:1000));
       break;
      }
+     job.errorCount=(job.errorCount??job.errors.length)+1;
      job.errors.push(job.current+'｜'+error.message);
      job.errors=job.errors.slice(-12);
      if([401,403].includes(error.status)){job.state='failed';break}
@@ -133,7 +139,7 @@ export class C30Background {
     if(delay>1500||job.cursor===job.queue.length)break;
     await new Promise(resolve=>setTimeout(resolve,delay));
    }
-  }catch(error){job.state='failed';job.errors.push(error.message)}
+  }catch(error){job.state='failed';job.errorCount=(job.errorCount??job.errors.length)+1;job.errors.push(error.message)}
   finally{
    await this.storage.transaction(async tx=>{
     const current=await tx.get(stateKey);

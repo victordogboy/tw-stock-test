@@ -87,7 +87,7 @@ export function remainingTasks(days,codes){const list=[];const slots=new Map();
    }
   }
  }
- for(const [k,dates] of slots){const [dataset,code]=k.split('|'),label=dataset==='TaiwanStockPrice'?'官方缺漏日 K 回補':THREE.find(x=>x[0]===dataset)?.[1]||dataset;
+ for(const [k,unsortedDates] of slots){const dates=[...new Set(unsortedDates)].sort();const [dataset,code]=k.split('|'),label=dataset==='TaiwanStockPrice'?'官方缺漏日 K 回補':THREE.find(x=>x[0]===dataset)?.[1]||dataset;
   for(let i=0;i<dates.length;){let j=i;while(j+1<dates.length&&Date.parse(dates[j+1])-Date.parse(dates[i])<=31*86400000)j++;
    list.push({dataset,code,label,from:dates[i],to:dates[j],dates:j-i+1});i=j+1}
  }
