@@ -16,8 +16,8 @@ globalThis.fetch=async url=>{
  return new Response(read(url.replace(/^\//,'')));
 };
 let D;
-test('opening A56 enqueues a real refresh, verifies all combined cash/shares/NAV and merges its own delta',async()=>{
- D=await loadA56MonitorSnapshot(shared);assert.equal(requests,1);assert.equal(D.model_version,'A56');
+test('opening A56 reads the scheduled replay, verifies all combined cash/shares/NAV and merges its own delta',async()=>{
+ D=await loadA56MonitorSnapshot(shared);assert.equal(requests,0);assert.equal(D.model_version,'A56');
  assert.equal(D.snapshots.length,1419+delta.snapshots.length);assert.equal(D.orders.length,1759+delta.orders.length);
  assert.equal(D.a56.ready,true);assert.ok(D.orders.some(o=>!o.filled));
  assert.ok(D.orders.some(o=>o.sleeve==='REVERSAL'));assert.ok(D.orders.some(o=>o.sleeve==='C26'));
@@ -25,21 +25,22 @@ test('opening A56 enqueues a real refresh, verifies all combined cash/shares/NAV
 });
 test('all four original dashboard tabs receive A56 holdings, plans, yearly/monthly performance, unfilled orders and rules',()=>{
  const i=D.dates.length-1;renderA56Monitor(D,i);renderA56Orders(D,i,3000);renderA56Performance(D);renderA56Monthly(D);decorateA56Monitor(D);
- assert.ok(node('#holdings').innerHTML.includes('2801'));assert.ok(node('#planActions').innerHTML.includes('續抱'));
+ assert.equal(node('#count').textContent,delta.snapshots.at(-1).holdings.length+' / 8');
+ assert.ok(node('#planDate').textContent.includes(delta.plan.trade_date));
  assert.ok(node('#annual').innerHTML.includes('2026'));assert.ok(node('#monthly').innerHTML.includes('2026-11'));
  assert.ok(node('#orderRows').innerHTML.includes('未成交'));assert.ok(node('#orderRows').innerHTML.includes('反轉'));
  assert.ok(node('#rulesMain').innerHTML.includes('B跨日收復'));assert.ok(node('#dataFacts').innerHTML.includes(delta.as_of));
  assert.ok(node('#dailyWhy').textContent.includes(delta.plan.warning?'大盤急跌警戒啟動':'未達大盤急跌警戒'));
  assert.ok(node('#chart').innerHTML.includes('polyline'));assert.ok(node('header .brand').innerHTML.includes('A56'));
 });
-test('polling reads current data without requeuing; pressing refresh enqueues again',async()=>{
- await loadA56MonitorSnapshot(shared);assert.equal(requests,1);
- await loadA56MonitorSnapshot(shared,{refresh:true});assert.equal(requests,2);
+test('polling and manual refresh read the verified plan without enqueuing the original engine',async()=>{
+ await loadA56MonitorSnapshot(shared);assert.equal(requests,0);
+ await loadA56MonitorSnapshot(shared,{refresh:true});assert.equal(requests,0);
 });
 test('historical next-session plan includes precommitted A order and B/C levels without next-day fills',()=>{
  const i=D.dates.indexOf('2026-11-04');renderA56Monitor(D,i);
  assert.ok(node('#planActions').innerHTML.includes('3406'));assert.ok(node('#planActions').innerHTML.includes('967'));
- assert.ok(node('#planActions').innerHTML.includes('盤前 B／C 條件價'));
+ assert.ok(node('#planActions').innerHTML.includes('B／C 盤中條件'));
  assert.ok(!node('#planActions').innerHTML.includes('6,087,900'));
  renderA56Monitor(D,D.dates.length-1);
 });
@@ -59,10 +60,21 @@ test('duplicate or altered holdings and cash cannot pass the browser ledger audi
 test('main page wires A56 into every original view and remembered strategy selector',()=>{
  const html=read('r1494a/index.html').toString(),decorator=read('r1494a/strategy-switch.js').toString();
  for(const text of ['value="A56"','loadA56MonitorSnapshot','renderA56Monitor','renderA56Performance','renderA56Monthly','renderA56Orders','exportA56Orders'])assert.ok(html.includes(text),text);
- assert.ok(decorator.includes('decorateA56Monitor'));assert.ok(html.includes("['R1494-A','FC23','C26','A56'].includes"));
+ assert.ok(decorator.includes('decorateA56Monitor'));assert.ok(html.includes("['R1494-A','FC23','C26','A56','C30'].includes"));
 });
 
 
 test('closed-session expiry blocks new instructions but retains SHA-verified plan for review',async()=>{
  expired=true;try{const d=await loadA56MonitorSnapshot(shared);assert.equal(d.a56.ready,false);assert.equal(d.plan.readiness,'blocked');assert.deepEqual(d.plan.actions,[]);assert.ok(d.a56.reviewPlans.some(p=>p.trade_date===delta.plan.trade_date&&p.actions.length===delta.plan.actions.length));}finally{expired=false}
+});
+
+test('exhausted reversal shows no orders and collapsed price references with an explicit reason',()=>{
+ const i=D.dates.length-1;
+ const plan={...D.plan,warning:true,side_used:true,side_first:-1,opening_slots:0,actions:[],
+  candidates:[{code:'3374',b_floor:351,b_cap:359.5,c_arm:314.5,c_floor:320,c_cap:328}]};
+ renderA56Monitor({...D,plan},i);
+ assert.equal(node('#planState').textContent,'已驗證 · 無預排買賣');
+ assert.match(node('#status').innerHTML,/反轉名額 0，本輪額度已使用/);
+ assert.match(node('#planActions').innerHTML,/<details><summary>B／C 觀察名單（本盤未開放買入）/);
+ assert.match(node('#planActions').innerHTML,/即使碰到表中的價格/);
 });

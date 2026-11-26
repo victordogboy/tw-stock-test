@@ -1,4 +1,4 @@
-import {syncA56Quotes} from './quotes.mjs?v=20261118-close1';
+import {syncA56Quotes} from './quotes.mjs?v=20261126-plan-first';
 /* A56 combined account inside the original four-tab monitoring dashboard. */
 const ROOT='/r1494a/c26/a56/',LOCK='A56-LOCK-20261116';
 const $=id=>document.querySelector('#'+id),esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -61,7 +61,7 @@ async function conditions(){
  return historicalConditions;
 }
 export async function loadA56MonitorSnapshot(shared,{refresh=false}={}){
- let queue={state:'free_source_only',phase:'免費資料更新；原 A56 Python 引擎尚未接續'},error=null;
+ let queue={state:'free_source_only',phase:'共用行情補檔與原引擎排程各自運作'},error=null;
  // Free mode: NEVER enqueue the legacy Sponsor/bulk-data workflow.
  try{
   const f=await import('../../c30/free-sync.mjs?v=20261125-sponsor-diagnose-v5'),token=f.c30FreeToken();
@@ -129,31 +129,43 @@ export function renderA56Monitor(D,I){
  const sourceLate=taipeiNow.slice(11,16)>='20:00'&&nextDue&&nextDue<=today&&D.status.checkedThrough<nextDue;
  const ledgerLate=D.dates.at(-1)<D.status.checkedThrough;
  const pending=sourceLate||ledgerLate;
+ const planRows=latest&&!ready?[]:p.actions;
+ const buys=planRows.filter(a=>a.side==='BUY').length,sells=planRows.filter(a=>a.side==='SELL').length;
+ const adjustments=planRows.filter(a=>a.side==='REBALANCE').length;
+ const reversalClosed=p.side_used===true&&p.side_first===-1&&p.opening_slots===0;
+ const watchOnly=reversalClosed||p.warning===false;
+ const actionable=buys+sells+adjustments>0;
+ const planSummary=actionable?'買入 '+buys+' 筆、賣出 '+sells+' 筆、開盤調整 '+adjustments+' 筆':
+  '沒有預排買賣委託'+(s.holdings.length?'':'，模型空手');
+ const reversalReason=reversalClosed?'本輪反轉額度已使用，開放名額 0。即使碰到表中的價格，本盤也不開放 B／C 買入。':
+  p.warning===false?'大盤未達反轉警戒，本盤不開放 B／C 買入。':p.conditions;
+ text('planHeading','盤前委託與條件');
+
  const runner='https://github.com/victordogboy/tw-stock-test/actions/workflows/c26-forward-eod.yml';
- html('status','<strong>'+(pending?'⚠ A56 資料尚未同步，暫停發布新交易指示':'A56 合併帳本已核對至 '+esc(D.dates.at(-1)))+'</strong>'+
-  '<br>免費共用資料：官方日K '+esc(D.a56.free?.latest_price_date||'尚無')+'；完整股票日 '+esc(D.a56.free?.complete_days||0)+' 日（原引擎未重播）'+
-  '<br>已驗證帳本：'+esc(D.dates.at(-1))+'；已驗證市場資料：'+esc(D.status.checkedThrough)+
-  (sourceLate?'；待補交易日：'+esc(nextDue):'')+
-  '<br>'+(ready?'盤前計畫已核對：'+esc(D.plan.trade_date):'最新盤前計畫未驗證，僅供查閱舊帳本：'+esc(D.plan.reason||''))+
-  (D.a56.queue?'<br>更新佇列：'+esc(D.a56.queue.state||'unknown')+'；'+esc(D.a56.queue.phase||'狀態待核對'):'<br>更新佇列：無法取得')+
-  (D.a56.queue?.delayed?'<br><b>更新逾時：原始引擎尚未接手或尚未完成，反覆按重新整理不會產生新帳本。</b>':'')+
-  '<br><a href="'+runner+'" target="_blank" rel="noopener noreferrer">開啟 GitHub 原始引擎排程／手動 Run workflow</a>（需登入有權限的 GitHub 帳號）'+
-  '<br>開頁或按重新整理只會提出更新請求；必須等原引擎完成、驗證並發布，才可使用最新交易計畫。');
+ html('status','<strong>'+(pending?'A56 資料尚待同步':ready?esc(D.plan.trade_date)+'｜'+esc(planSummary):'A56 合併帳本已核對至 '+esc(D.dates.at(-1)))+'</strong>'+
+  '<br>原引擎帳本 '+esc(D.dates.at(-1))+'；已驗證市場資料 '+esc(D.status.checkedThrough)+
+  (sourceLate?'；待補交易日 '+esc(nextDue):'')+
+  (ready&&reversalClosed?'<br>反轉名額 0，本輪額度已使用。':'')+
+  (!ready&&D.plan.reason?'<br>'+esc(D.plan.reason):'')+
+  '<details><summary>資料來源與更新排程</summary>'+
+  '<p>共用行情補檔：官方日K '+esc(D.a56.free?.latest_price_date||'尚無')+'，完整股票日 '+esc(D.a56.free?.complete_days||0)+' 日。</p>'+
+  (D.a56.queue?.delayed?'<p>'+esc(D.a56.queue.phase)+'</p>':'')+
+  '<p><a href="'+runner+'" target="_blank" rel="noopener noreferrer">查看原引擎排程</a></p></details>');
  const rows=s.holdings.map(h=>'<tr><td><b>'+esc(name(h.code))+'</b><span class="sub">'+(h.sideQuantity>0?'反轉部位':'C26 核心')+' · 首次 '+esc(h.entryDate)+' · 最近買入 '+esc(h.lastBuyDate)+'</span></td><td>'+num(h.avgEntryPrice)+'</td><td>'+num(h.price)+'</td><td>'+pct(h.unrealizedPct)+'</td><td>'+num(h.unrealizedNotional*scale,0)+' 元</td><td>'+num(h.costNotional*scale,0)+'／'+num(h.marketNotional*scale,0)+' 元<span class="sub">'+num(h.quantity*scale,3)+'股（比例試算）</span></td><td>'+pct(h.weight)+'</td></tr>');
  html('holdings',rows.join('')||'<tr><td colspan="7" class="empty">A56 模型空手</td></tr>');
  html('holdingCards',s.holdings.map(h=>'<article class="holding"><div class="row"><b>'+esc(name(h.code))+'</b><b>'+pct(h.unrealizedPct)+'</b></div><p>'+(h.sideQuantity>0?'反轉':'核心')+' · 均價 '+num(h.avgEntryPrice)+'／收盤 '+num(h.price)+'</p><div class="facts">'+[['剩餘成本',num(h.costNotional*scale,0)+' 元'],['市值',num(h.marketNotional*scale,0)+' 元'],['未實現損益',num(h.unrealizedNotional*scale,0)+' 元'],['權重',pct(h.weight)],['首次買入',h.entryDate],['最近買入',h.lastBuyDate]].map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join('')+'</div></article>').join('')||'<p class="empty">A56 模型空手</p>');
- text('planState',ready?'A56 已驗證盤前計畫':latest?'A56 等待最新計畫':'A56 歷史盤前重建');
+ text('planState',ready?(actionable?'已驗證 · 有預排委託':'已驗證 · 無預排買賣'):latest?'A56 等待最新計畫':'A56 歷史盤前重建');
  text('planDate','訊號 '+(p.signal_as_of||'—')+' → 交易 '+(p.trade_date||'—'));
  text('planNote',latest&&!ready?p.reason:'C26 核心與三路徑反轉共同管理現金及名額；條件價於盤前凍結，未觸價不買。股期合約、基差與口數另行確認。');
- const planRows=latest&&!ready?[]:p.actions;
- html('planActions',planRows.map(a=>a.side==='REBALANCE'?'<article class="action"><div class="row"><b>核心組合開盤配置</b><span class="pill">條件調整</span></div><div class="price">目標曝險 '+pct(a.target)+'</div><p>單股目標上限 '+pct(a.stockCap)+'；'+(a.allowTopup?'允許原規則補足既有部位，單次加碼須達帳戶權益 '+pct(a.minimumTopupNav):'本盤不啟用既有部位加碼')+'。</p><p class="sub">'+esc(a.details)+' 最終股數與金額待開盤核對，鎖單不假設成交。</p></article>':'<article class="action"><div class="row"><b>'+esc(name(a.code))+'</b><span class="pill">'+esc(a.sleeve==='REVERSAL'?'反轉':'核心')+' · '+esc({BUY:'條件買入',SELL:'開盤賣出',HOLD:'續抱'}[a.side])+'</span></div><div class="price">'+(a.side==='HOLD'?'續抱':a.side==='SELL'?'現股開盤，鎖跌停則順延':(a.orderType==='A_OPEN_LIMIT'?'開盤最高 ':'突破觸發 ')+num(a.level))+'</div><p>前收 '+num(a.referencePrice)+' · '+esc(explain(a.reason))+'</p><p class="sub">'+(a.side==='SELL'?'前收參考金額 '+num(a.quantity*a.referencePrice*scale,0)+' 元':a.maxShares?'數量上限 '+num(Math.floor(Math.min(a.maxShares,a.maxShares/3e6*scale)),0)+' 股（容量與現金另核對）':a.budgetCap?'參考預算上限 '+num(a.budgetCap*scale,0)+' 元':a.stopActive===true?'保護停損啟用 '+num(a.stop):a.stopActive===false?'保護停損未啟用':a.stop!=null?'歷史參考停損 '+num(a.stop)+'（啟用狀態未附）':'依核心風控檢查')+'</p></article>').join('')||'<p class="empty">'+(latest&&!ready?'最新策略仍待原引擎驗收；保留已驗證持倉。':'本盤無新買賣委託，按規則續抱或維持空手。')+'</p>');
- if(p.candidates?.length)html('planActions',$('planActions').innerHTML+'<div class="panel"><h3>盤前 B／C 條件價（尚未觸發）</h3>'+table(['股票','B 收復／上限','C 先跌至','C 再收復','最高買價'],p.candidates.map(c=>[name(c.code),c.b_floor?num(c.b_floor)+'／'+num(c.b_cap):'無跨日資格',num(c.c_arm),num(c.c_floor),num(c.c_cap)]))+'<p>'+esc(p.conditions)+'</p></div>');
+ html('planActions',planRows.map(a=>a.side==='REBALANCE'?'<article class="action"><div class="row"><b>核心組合開盤配置</b><span class="pill">條件調整</span></div><div class="price">目標曝險 '+pct(a.target)+'</div><p>單股目標上限 '+pct(a.stockCap)+'；'+(a.allowTopup?'允許原規則補足既有部位，單次加碼須達帳戶權益 '+pct(a.minimumTopupNav):'本盤不啟用既有部位加碼')+'。</p><p class="sub">'+esc(a.details)+' 最終股數與金額待開盤核對，鎖單不假設成交。</p></article>':'<article class="action"><div class="row"><b>'+esc(name(a.code))+'</b><span class="pill">'+esc(a.sleeve==='REVERSAL'?'反轉':'核心')+' · '+esc({BUY:'條件買入',SELL:'開盤賣出',HOLD:'續抱'}[a.side])+'</span></div><div class="price">'+(a.side==='HOLD'?'續抱':a.side==='SELL'?'現股開盤，鎖跌停則順延':(a.orderType==='A_OPEN_LIMIT'?'開盤最高 ':'突破觸發 ')+num(a.level))+'</div><p>前收 '+num(a.referencePrice)+' · '+esc(explain(a.reason))+'</p><p class="sub">'+(a.side==='SELL'?'前收參考金額 '+num(a.quantity*a.referencePrice*scale,0)+' 元':a.maxShares?'數量上限 '+num(Math.floor(Math.min(a.maxShares,a.maxShares/3e6*scale)),0)+' 股（容量與現金另核對）':a.budgetCap?'參考預算上限 '+num(a.budgetCap*scale,0)+' 元':a.stopActive===true?'保護停損啟用 '+num(a.stop):a.stopActive===false?'保護停損未啟用':a.stop!=null?'歷史參考停損 '+num(a.stop)+'（啟用狀態未附）':'依核心風控檢查')+'</p></article>').join('')||'<p class="empty">'+(latest&&!ready?'最新策略仍待原引擎驗收；保留已驗證持倉。':esc(planSummary)+'。')+'</p>');
+ if((!latest||ready)&&p.candidates?.length)html('planActions',$('planActions').innerHTML+
+  '<details'+(watchOnly?'':' open')+'><summary>'+ (watchOnly?'B／C 觀察名單（本盤未開放買入）':'B／C 盤中條件（待觸發及核帳）')+'</summary><p>'+esc(reversalReason)+'</p>'+table(['股票','B 收復／上限','C 先跌至','C 再收復','最高買價'],p.candidates.map(c=>[name(c.code),c.b_floor?num(c.b_floor)+'／'+num(c.b_cap):'無跨日資格',num(c.c_arm),num(c.c_floor),num(c.c_cap)]))+'</details>');
  const recent=D.byDate.get(s.date)||[];
  text('dailyWhy',s.date+'：依 '+s.signal+' 已完成資料執行。\n'+recent.map(o=>o.code+' '+(o.sleeve==='REVERSAL'?'反轉':'核心')+' '+(o.side==='BUY'?'買入':'賣出')+'｜'+explain(o.reason)+'｜'+(o.filled?'模擬成交 '+num(o.price):'未成交')).join('\n')+
   (!recent.length?'當日無委託。':'')+'\n收盤持股 '+s.holdings.length+' 檔、曝險 '+pct(s.exposure)+'。\n'+(latest&&ready?(D.plan.warning?'大盤急跌警戒啟動；只有符合 A/B/C 及資金／輪次限制才買入。':'未達大盤急跌警戒，因此不開新增反轉部位，照核心規則管理現有部位。'):'')+
   (latest&&ready&&p.core_entry_explanation?'\n'+p.core_entry_explanation:'')+(latest&&!ready?'\n最新計畫未核對，不能把歷史持倉直接當成今日指令。':''));
  html('risk',[['核心目標曝險',pct(p.target??s.target)],['大盤反轉警戒',p.warning?'啟動':'未啟動／歷史詳見重播'],['核心空頭',s.bear?'啟動':'未啟動'],['20日急跌',s.overlay?'啟動':'未啟動'],['反轉輪次',p.side_used?'本輪已使用':'依警戒與成交日核對'],['退出條件',p.exit_reason?explain(p.exit_reason):'警戒解除／核心恢復／首次成交+5日'],['核心冷卻／相關性','26日／40日'],['交易成本','往返0.5855%']].map(([a,b])=>'<div class="risk"><b>'+esc(a)+'</b><p>'+esc(b)+'</p></div>').join(''));
- html('dataFacts',Object.entries({策略:'A56 合併獨立帳本',版本:LOCK,帳本日期:D.dates.at(-1),行情日期:D.status.checkedThrough,交易日:p.trade_date||'待核對',委託筆數:D.orders.length,Free雲端日K:D.a56.free?.latest_price_date||'未取得',Free四類完整日:D.a56.free?.complete_days||0,Free已保存日:D.a56.free?.stored_days||0,資料接續:'原Python引擎尚未使用Free資料驗證',歷史基準:'1419日／1759筆',新增交易日:D.dates.length-1419,盤前計畫:ready?'已驗證（紙上模型）':'歷史／待更新',更新進度:D.a56.queue?.phase||'狀態待讀取',券商:'未串接',來源:'免費 TWSE／TPEx 日K、FinMind Free 逐檔籌碼、Fugle/Yahoo 1分K；歷史引擎不變'}).map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join(''));
+ html('dataFacts',Object.entries({策略:'A56 合併獨立帳本',版本:LOCK,帳本日期:D.dates.at(-1),行情日期:D.status.checkedThrough,交易日:p.trade_date||'待核對',委託筆數:D.orders.length,Free雲端日K:D.a56.free?.latest_price_date||'未取得',Free四類完整日:D.a56.free?.complete_days||0,Free已保存日:D.a56.free?.stored_days||0,資料接續:'A56 原引擎帳本至 '+D.dates.at(-1),歷史基準:'1419日／1759筆',新增交易日:D.dates.length-1419,盤前計畫:ready?'已驗證（紙上模型）':'歷史／待更新',更新進度:D.a56.queue?.phase||'狀態待讀取',券商:'未串接',來源:'免費 TWSE／TPEx 日K、FinMind Free 逐檔籌碼、Fugle/Yahoo 1分K；歷史引擎不變'}).map(([k,v])=>'<div>'+esc(k)+'<b>'+esc(v)+'</b></div>').join(''));
  text('replay','A56 1,419日、1,759筆核心＋反轉委託獨立對帳；原反轉38筆／19次交易一致。接續使用原C26因子，保留A56自己的資金與風控路徑。');
 }
 function periodRows(D,monthly,year){
