@@ -14,6 +14,20 @@ const pct=(v,dec=2)=>Number.isFinite(v)?(v>=0?'+':'')+money(v*100,dec)+'%':'—'
 const set=(sel,value)=>{const e=$(sel);if(e)e.textContent=String(value)};
 let frozen;
 let stockNames;
+let reversalLedger;
+function loadReversalLedger(history){
+ return reversalLedger??=fetch(ROOT+'reversal-history.json',{signal:AbortSignal.timeout(5000)}).then(async response=>{
+  if(!response.ok)throw Error('C30 reversal history unavailable');
+  const report=await response.json(),dates=new Set(history.dates);
+  if(report.lock_id!==LOCK||report.core_history_sha256!==HASH||report.through!==history.as_of
+    ||!Array.isArray(report.orders)||report.orders.length!==report.order_count||!report.orders.length
+    ||report.orders.some((o,i)=>!dates.has(o.date)||!dates.has(o.signal)||o.signal>=o.date
+      ||o.date<(report.orders[i-1]?.date||'')||o.sleeve!=='reversal'||o.filled!==true
+      ||!/^\d{4}$/.test(o.code)||!['BUY','SELL'].includes(o.side)
+      ||![o.price,o.quantity,o.notional].every(v=>Number.isFinite(v)&&v>0)))throw Error('C30 reversal history invalid');
+  return report;
+ }).catch(()=>{reversalLedger=null;return null});
+}
 function loadStockNames(){
  return stockNames??=fetch(ROOT+'stock-names.json',{signal:AbortSignal.timeout(5000)}).then(response=>{
   if(!response.ok)throw Error('C30 stock names unavailable');
@@ -51,6 +65,7 @@ async function checkOfficial(){
 }
 export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
  const [history,names]=await Promise.all([original(),loadStockNames()]);
+ const sideRequest=loadReversalLedger(history);
  let forward=null;
  try{
   const response=await fetch(ROOT+'verified-forward.json',{cache:'no-store',signal:AbortSignal.timeout(8000)});
@@ -59,6 +74,7 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
  const hist=forward?{...history,as_of:forward.signal_date,dates:[...history.dates,...forward.replayed_dates],
   snapshots:[...history.snapshots,...forward.snapshots],orders:[...history.orders,...forward.orders],
   benchmark:[...history.benchmark,...forward.snapshots.map(row=>row.benchmark)]}:history;
+ const side=await sideRequest;
  const token=c30DeviceToken();
  try{
   lastFinMind=await readC30StoredStatus(token);
@@ -77,7 +93,7 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
  }
  if(lastFinMind?.latest_price_date){lastOfficial={ok:true,as_of:lastFinMind.latest_price_date,source:'TWSE／TPEx 官方行情已封存',at:lastFinMind.updated_at||lastFinMind.checked_at||null}}
  else if((refresh||!lastOfficial)&&!forward)await checkOfficial();
- return {...hist,names:{...names,...hist.names},model_version:'C30',ledger:'C30_RISK23_core_history',
+ return {...hist,orders:mergeOrders(hist.orders,side?.orders||[]),reversalHistory:side,names:{...names,...hist.names},model_version:'C30',ledger:'C30_RISK23_core_history',
   curves:{strategy:hist.snapshots.map(x=>x.nav),market:hist.benchmark},
   status:{model_version:'C30',data_as_of:hist.as_of,checkedThrough:hist.as_of,
    price_updated_at:lastOfficial?.at||null,signal_as_of:hist.as_of,sync_status:forward?'current':'frozen',
@@ -85,7 +101,10 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
   forward,plan:forward||{readiness:'blocked',blockedReason:'目前只有原版 C30 2026/11/20 前的完整重播；免費行情更新不代表已產生新的正式交易訊號。'},
   official:lastOfficial,finmind:lastFinMind};
 }
-const reason={new_position:'核心新建倉',topup:'核心補倉',rank_exit:'核心排序退出',risk_exit:'核心風控退出',portfolio_reduce:'核心減少曝險',protective_stop:'核心保護停損',cap16:'單股配置調整',no_touch_no_buy:'未觸買入價',no_offer_no_fill:'鎖漲停、無法買入',no_bid_no_fill:'鎖跌停、無法賣出',bad_market_data:'資料未驗證',target_exposure_full:'曝險或現金已滿',replace:'選股換股'};
+const reason={new_position:'核心新建倉',topup:'核心補倉',rank_exit:'核心排序退出',risk_exit:'核心風控退出',portfolio_reduce:'核心減少曝險',protective_stop:'核心保護停損',cap16:'單股配置調整',no_touch_no_buy:'未觸買入價',no_offer_no_fill:'鎖漲停、無法買入',no_bid_no_fill:'鎖跌停、無法賣出',bad_market_data:'資料未驗證',target_exposure_full:'曝險或現金已滿',replace:'選股換股',reversal_entry:'反轉進場',reversal_exit:'反轉離場',reversal:'反轉成交',
+ core_recovery:'核心恢復',warning_ended:'反轉警戒解除',cycle_expiry:'反轉週期到期',
+ individual_expiry:'反轉持有期到期',pending_cycle:'反轉延後出場',a87_intraday_stop:'反轉盤中停損',
+ a62_weak:'反轉轉弱出場',dynamic_weak:'反轉動態出場',a73_stop:'反轉保護停損',a87_stop_deferred:'反轉停損延後出場'};
 function htmlRows(rows){return rows.join('')}
 function scale(s){return Math.max(0,Number($('#capital')?.value??3000000)||0)/s.nav}
 function held(h,f,s){const value=h.q*h.p*f,cost=h.q*h.entry*f,pnl=value-cost,profit=h.entry>0?h.p/h.entry-1:NaN;
@@ -105,8 +124,8 @@ export function renderC30Monitor(D,I,limit=120){
  set('#planState',isLast?'BLOCKED · 尚無今日正式委託':'歷史回放 · 非即時委託');
  set('#planDate','原引擎資料日 '+s.date+'；最新完整原版重播：2026-11-20');
  set('#planNote',isLast?'11/20 收盤風控已封鎖新交易。11/23 以後即使免費行情已取得，也必須先完成原版 C30 逐日引擎重播。':'這是 '+s.date+' 的原始歷史持股與成交回放；當天交易依前一交易日資訊決定。以下資料不可當作現在的委託。');
- const o=historicalOrders(D,s.date),filled=o.filter(x=>x.filled);
- $('#planActions').innerHTML=(o.length?'<p class="sub">'+esc(s.date)+' 原版歷史交易（不是下一交易日計畫）：'+filled.filter(x=>x.side==='BUY').length+' 筆核心買入、'+filled.filter(x=>x.side==='SELL').length+' 筆核心賣出。</p>':'<p class="empty">此日沒有核心部位委託。'+(s.sideCount?'反轉部位明細未包含在核心成交封存檔。':'')+'</p>')+
+ const o=historicalOrders(D,s.date).filter(x=>x.sleeve!=='reversal'),filled=o.filter(x=>x.filled);
+ $('#planActions').innerHTML=(o.length?'<p class="sub">'+esc(s.date)+' 原版歷史交易（不是下一交易日計畫）：'+filled.filter(x=>x.side==='BUY').length+' 筆核心買入、'+filled.filter(x=>x.side==='SELL').length+' 筆核心賣出。</p>':'<p class="empty">此日沒有核心部位委託。'+(s.sideCount?'反轉成交請見交易紀錄。':'')+'</p>')+
  (isLast?'<div class="notice"><strong>次日買賣計畫：尚未經原版 C30 引擎重算</strong>不會用最新股價事後補出買單；請先完成 11/23 起的完整狀態接續。</div>':'');
  if(plan){
   const historical=planMode==='historical';
@@ -132,11 +151,47 @@ export function renderC30Monitor(D,I,limit=120){
  const risk=s.risk||{},flag=x=>x===true?'啟動':x===false?'未啟動':'未記錄';
  $('#risk').innerHTML=[['危機模式',flag(risk.crisis),'原引擎盤前風控'],['新單封鎖',flag(risk.block),'不可將未完成計畫當已成交'],['冷市場',flag(risk.market_cold),'反彈警戒'],['帳戶高水位防禦',flag(risk.dd_gate),'原引擎帳戶記憶'],['市場廣度',Number.isFinite(risk.breadth)?pct(risk.breadth):'—','原封存當時訊號'],['核心／反轉',s.coreCount+'／'+s.sideCount+' 檔','同帳戶最多 8 檔']].map(([a,b,c])=>'<div class="risk"><div class="row"><b>'+a+'</b><span class="pill">'+esc(b)+'</span></div><p class="sub">'+esc(c)+'</p></div>').join('');
  set('#dailyWhy',s.date+' C30 原始歷史重播｜核心委託 '+o.length+' 筆（成交 '+filled.length+' 筆）。\n'+'當日淨值倍率 '+money(s.nav,5)+'，現金倍率 '+money(s.cash,5)+'，核心曝險 '+pct(s.core/s.nav)+'，反轉曝險 '+pct(s.side/s.nav)+'。\n'+(plan?'下一交易日計畫已核對至 '+plan.trade_date+'。':'請查看最新模型日期的盤前計畫。'));
+ set('#chartNote','績效採原引擎含費稅淨值。'+assessment(D,I));
  renderC30Orders(D,I,limit);
 }
-const SELL_COST=0.0044275;
+const BUY_COST=0.0014275,SELL_COST=0.0044275;
+
+function mergeOrders(orders,historicalReversal){
+ const basis=new Map();
+ return [...historicalReversal,...orders].sort((a,b)=>a.date.localeCompare(b.date)).map(o=>{
+  if(o.sleeve!=='reversal'||!o.filled)return o;
+  const lot=basis.get(o.code);
+  if(o.side==='BUY'){
+   basis.set(o.code,{quantity:(lot?.quantity||0)+o.quantity,cost:(lot?.cost||0)+o.notional*(1+BUY_COST)});
+   return o;
+  }
+  if(!lot||o.quantity>lot.quantity+1e-12)return o;
+  const cost=lot.cost*o.quantity/lot.quantity;
+  if(lot.quantity-o.quantity<=1e-12)basis.delete(o.code);
+  else basis.set(o.code,{quantity:lot.quantity-o.quantity,cost:lot.cost-cost});
+  return {...o,realized:(o.notional/cost-1)*100};
+ });
+}
+
+function assessment(D,I){
+ const current=D.snapshots[I],month=current.date.slice(0,7),f=scale(current);
+ const previous=D.snapshots.slice(0,I).findLast(s=>s.date.slice(0,7)<month);
+ const base=previous?.nav??1,change=current.nav-base;
+ const signed=v=>(v>=0?'+':'')+money(v*f)+' 元';
+ let detail='';
+ if(D.reversalHistory){
+  const sideCash=D.orders.reduce((sum,o)=>{
+   if(o.sleeve!=='reversal'||!o.filled||o.date.slice(0,7)!==month||o.date>current.date)return sum;
+   return sum+(o.side==='BUY'?-o.notional*(1+BUY_COST):o.notional*(1-SELL_COST));
+  },0);
+  const sideChange=current.side-(previous?.side??0)+sideCash;
+  detail='，核心 '+signed(change-sideChange)+'、反轉 '+signed(sideChange);
+ }
+ return month+' 至 '+current.date.slice(5)+' 試算淨值 '+money(base*f)+' → '+money(current.nav*f)
+   +' 元，變動 '+signed(change)+'（'+pct(current.nav/base-1)+'）'+detail+'。';
+}
 function sellNet(order){
- if(order.sleeve==='reversal'||!order.filled||order.side!=='SELL'
+ if(!order.filled||order.side!=='SELL'
     ||!Number.isFinite(order.realized)||!Number.isFinite(order.notional)||order.notional<=0)return null;
  // Engine realized is 100 × (price / average cost − 1). The cost already includes buy fees.
  const grossFactor=1+order.realized/100;
@@ -156,8 +211,11 @@ function orderName(D,o){return [D.names?.[o.code],o.code].filter(Boolean).join('
 export function renderC30Orders(D,I,limit=120){
  const orders=filteredOrders(D,I),f=scale(D.snapshots[I]);
  $('#orderRows').innerHTML=orders.slice(0,limit).map(o=>{
-  const net=sellNet(o),time=['MARKET_OPEN','OPEN'].includes(o.type)?' · 開盤價模擬':'';
-  return '<tr><td>'+esc(o.date)+'<span class="sub">訊號 '+esc(o.signal)+time+'</span></td>'
+  const net=sellNet(o),time=Number.isInteger(o.minute)&&o.minute>=0
+   ?' · '+String(9+Math.floor(o.minute/60)).padStart(2,'0')+':'+String(o.minute%60).padStart(2,'0')+' 模型'
+   :['MARKET_OPEN','OPEN'].includes(o.type)?' · 開盤價模擬':'';
+  const dateLabel=o.sleeve==='reversal'?'前一交易日 ':'訊號 ';
+  return '<tr><td>'+esc(o.date)+'<span class="sub">'+dateLabel+esc(o.signal)+time+'</span></td>'
    +'<td>'+esc(orderName(D,o))+'<span class="sub">'+orderSleeve(o)+'</span></td>'
    +'<td>'+orderSide(o)+'<span class="sub">'+orderStatus(o)+'</span></td>'
    +'<td>'+money(o.level,2)+'</td><td>'+money(o.price,2)+'</td><td>'+money(o.notional*f)+' 元</td>'
@@ -179,7 +237,6 @@ export function renderC30Performance(D){
  const monthly=annualOrMonthly(D,true),wins=monthly.filter(x=>x.return>x.market).length;
  set('#strategySummary','C30 累積 '+pct(nav.at(-1)-1)+' · 最大回撤 '+pct(dd([1,...nav]))+' · 勝大盤 '+wins+'/'+monthly.length+' 月');
  set('#performanceLegend','C30 原版（深綠）／加權指數（灰綠）｜相同日期同一起點');
- set('#chartNote','完整原版研究區間：2021/01/06～2026/11/20，初始300萬元，成本往返0.5855%。已核對 '+D.dates.length+' 個交易日，最後交易日 '+D.as_of+'。');
  $('#annual').innerHTML=rowsPeriod(annualOrMonthly(D,false));
 }
 export function renderC30Monthly(D){const yr=$('#monthYear')?.value;$('#monthly').innerHTML=rowsPeriod(annualOrMonthly(D,true).filter(x=>x.yr===yr))}
@@ -196,9 +253,10 @@ function freeCoverageHtml(status){
 export function decorateC30Monitor(D){
  // C30 shares A56's existing FinMind Token panel; never hide it.
  set('#heroDescription','C30 RISK23 原版 · 233 檔股期現股研究池 · 核心與反轉雙模組 · 最多 8 檔 · 0.5855% 往返成本');
+ set('#ordersNote',(D.reversalHistory?'核心與反轉成交同表。':'反轉歷史暫時無法讀取。')
+   +' 賣出損益含買賣費稅，績效也計入持倉市值變動。'+assessment(D,Number($('#date').value)));
  set('#ledgerLabel','C30 原版 · 凍結歷史紙上持倉（非目前實盤）');
- set('#ordersNote','賣出損益含買賣費稅，金額按所選日期的試算資產換算。歷史封存有核心逐筆明細，反轉歷史僅有每日合計市值。');
- $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>原始核心交易、逐日部位與加權指數已對帳；反轉個股逐筆明細缺於本次封存，無法補造。</p></details>';
+ $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>核心與反轉成交明細、逐日部位與加權指數已和原引擎重播對帳。</p></details>';
  $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>逐日核對至 '+esc(D.as_of)+'。此區顯示紙上模型績效。';
  $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>日期／訊號日</th><th>標的</th><th>動作／狀態</th><th>觸發價</th><th>模擬成交價</th><th>金額</th><th>賣出損益</th><th>原因</th></tr>';
  $('#annual').closest('table').querySelector('thead').innerHTML='<tr><th>年度</th><th>C30 累積報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
@@ -230,7 +288,7 @@ export function decorateC30Monitor(D){
   }catch(error){message.textContent=error.message}finally{button.disabled=false}
  };
  $('#rulesMain').insertAdjacentHTML('beforeend','<h3>Free 雲端逐日完整性（固定 233 檔）</h3>'+freeCoverageHtml(D.finmind));
- $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態',D.forward?'原引擎已核對 '+D.forward.trade_date:'原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
+ $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.filter(o=>o.sleeve!=='reversal').length],['已核對反轉成交',D.reversalHistory?D.orders.filter(o=>o.sleeve==='reversal').length:'歷史明細未載入'],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態',D.forward?'原引擎已核對 '+D.forward.trade_date:'原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
  set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。'+(D.forward?'原引擎接續核對至 '+D.as_of+'。':'等待原引擎接續。'));
  set('#rulesFoot','交易池固定 233 檔；Sponsor 整日全市場收盤價另行完整保存，供日後核對市場廣度（含 ETF／興櫃原始資料，計算時須過濾）。三大法人、融資券、借券與分K只做 233 檔。原版 C30 市場廣度不可未經原引擎對帳就替換。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 盤前計畫由原 Python 引擎重播產生。');
  set('#strategyFooter','C30 RISK23 原版｜帳本至 '+D.as_of+'｜紙上模型');
