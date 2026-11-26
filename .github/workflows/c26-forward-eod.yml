@@ -106,6 +106,47 @@ jobs:
           node research/c26-lock/forward/build-contexts.mjs
           python research/c26-lock/forward/replay-forward.py
           node --test tests/c26-verified-forward.test.mjs tests/c26-next-session-plan-gate.test.mjs
+      - name: Seal first C30 replay inputs for operator verification
+        if: github.event_name == 'push' && steps.model.outcome == 'success'
+        run: |
+          umask 077
+          cat > "$RUNNER_TEMP/c30-receiver.pem" <<'PEM'
+          -----BEGIN CERTIFICATE-----
+          MIIELTCCApWgAwIBAgIUATbXNnmeHGzsv9AYinkbXXOo6WAwDQYJKoZIhvcNAQEL
+          BQAwJjEkMCIGA1UEAwwbQzMwIHByaXZhdGUgcmVwbGF5IHRyYW5zZmVyMB4XDTI2
+          MTEyNjA5MjMwNVoXDTI2MTEyNzA5MjMwNVowJjEkMCIGA1UEAwwbQzMwIHByaXZh
+          dGUgcmVwbGF5IHRyYW5zZmVyMIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKC
+          AYEAz3ZZ+9e0LfIAnC8gfq85rWv5dEsJFigVGnci7eje9UknJdxjIlvkhc0Kwg6B
+          rBYwz5TVYF1GaB5C0LsRB+OMged2mAny7/kqv4v+FqoS+zn9mAdBDHlSwIxB2lVp
+          TZngTKN3MHxOgteV/Py6jh4D/ncaqLGBB8c5XJRbA7NtpyIc8lHIgtikpmP7e2Ma
+          8HTO3Jrvv7Kr3Bxnr7aFJWCYKAWX0mv7bcYiscl3+eXYW7n0OD77Gx3BaasHzwBy
+          tw/q10Jcxe0uzNGEytD12DyNfVB4GqNtqmKZECXfr1b3QjQIob7mqb5FE1dbpz7q
+          /eTiTJBKIxzke9YyA/GNIiV0T2n7IJzjh0QR5aSs/wJPtYsveHUfwhsfOTw5oZPe
+          ve6itw3pXhnV8YuCzf2BFNMk7wNJcRX+msK9DwBzgvvk/avJILYzUEeK5sS6ElaI
+          j+pBR7vvQQm7KcDxjGGcvVDBzw01qOlVJMV1dfmaoVbUTA4ea9kS4j5conHcvXm2
+          OhTpAgMBAAGjUzBRMB0GA1UdDgQWBBT2ca3lgIEhvaoTg+BZ1GadYlkLRzAfBgNV
+          HSMEGDAWgBT2ca3lgIEhvaoTg+BZ1GadYlkLRzAPBgNVHRMBAf8EBTADAQH/MA0G
+          CSqGSIb3DQEBCwUAA4IBgQB3s80XCOaGp2G9WA+0lvK0R14T/4fxX3XesWnx3Eyx
+          1uw96EQLZiGw1o7WO2EK3itduGCsyebFpam9L7UlZrPvKFZE6UF5j5GA2VWqq0xg
+          kOvpFN38eiKClY9YxncXT6y+qlZDUWujrVjDTyYdO+25wCKePX6SJXk1gMfzIefm
+          s5rOZY7mrQPfra6q0cu3hOi8AQe4FWZNHXwnNP5BzvCZypZm7ADlTlWrkbisV6HB
+          xjrg8Se8wmImoTr3vGmojkjgIBOF1Y3saijrzHLW2ZMfVy3nims+wq0Skjptd37A
+          vaaKOvTF9beLAbSgZrmK/G8+U0yjjvzo3N3OfQm77Ak6UsMu7AyFjCUl19nAZFk+
+          Eba5+d170dr+KPfEbrHHJZc5cWPnCuJFHWUxV7pNZmkvt78GHP0r1ZoIUSP2VNyg
+          rIShB2wyH+bxrOv0bvHHB27HtBPPOya2kQPjAJwQ7HjUGCsGYwuOGdDHpSZ8gbIh
+          TI8tmVYIHwthNzaK60viZfg=
+          -----END CERTIFICATE-----
+          PEM
+          tar -czf - .c26-private/forward-eod.json.gz .c26-private/contexts.json public/r1494a/c26/data/forward-status.json |
+            openssl cms -encrypt -binary -aes-256-gcm -outform DER -out "$RUNNER_TEMP/c30-sealed-inputs.cms" "$RUNNER_TEMP/c30-receiver.pem"
+      - name: Retain encrypted C30 verification transfer for one day
+        if: github.event_name == 'push' && steps.model.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: c30-encrypted-verification-inputs
+          path: ${{ runner.temp }}/c30-sealed-inputs.cms
+          retention-days: 1
+          if-no-files-found: error
       - name: Continue the independent A56 combined account and freeze next-session plan
         id: a56model
         if: steps.model.outcome == 'success'
