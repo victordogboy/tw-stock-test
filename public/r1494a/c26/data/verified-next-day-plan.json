@@ -139,7 +139,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-26T09:24:53.073133+00:00",
+  "created_at": "2026-11-26T09:38:12.819932+00:00",
   "no_future_execution_prices": true,
   "forward_asset_sha256": "7b9efeb29c7c9b042dee0f38a7e12d61454a818b4be88121712985e64fef17ca"
 }
