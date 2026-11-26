@@ -1,6 +1,6 @@
 {
-  "checked_at": "2026-11-26T14:44:08.542Z",
-  "commit": "025e4806425498edadf6d11eef98fa52314048f2",
+  "checked_at": "2026-11-26T15:04:31.693Z",
+  "commit": "464f6d4a7efe42f20fa5385699f9fd8727fadc40",
   "production_url": "https://tw-stock-api.victordogboy.workers.dev/r1494a/",
   "deployed": true,
   "rules_http": 200,
@@ -12,8 +12,8 @@
   "market_date": "2026-11-13",
   "checked_through": "2026-11-15",
   "sync_status": "blocked",
-  "update_progress": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
-  "update_error": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
+  "update_progress": "上櫃日線取得失敗：上櫃日線連線逾時；上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
+  "update_error": "上櫃日線取得失敗：上櫃日線連線逾時；上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
   "latest_snapshot_date": "2026-11-13",
   "new_snapshots": 13,
   "new_orders": 5,
@@ -104,6 +104,6 @@
   "after_market_date": "2026-11-13",
   "after_checked_through": "2026-11-15",
   "after_sync_status": "blocked",
-  "after_progress": "上櫃日線取得失敗：上櫃日線連線逾時；上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
-  "after_error": "上櫃日線取得失敗：上櫃日線連線逾時；上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC"
+  "after_progress": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC",
+  "after_error": "上櫃日線取得失敗：上櫃日線重新導向異常；FinMind 全市場備援缺少 Actions Secret FINMIND_TOKEN；日線缺漏 56 檔（1565,3078,3081,3105,3152,3211,3227,3260）；Yahoo 須有同日實際成交金額才能補 OHLC"
 }
