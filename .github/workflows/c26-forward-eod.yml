@@ -46,7 +46,11 @@ jobs:
             try{const r=await fetch('https://tw-stock-api.victordogboy.workers.dev'+path,{cache:'no-store',signal:AbortSignal.timeout(20000)});return r.ok?await r.json():null}catch{return null}
           };
           const [queue,status]=await Promise.all([read('/api/c26/a56/refresh-status'),read('/api/c26/a56/status')]);
-          const decision=refreshDecision({event:process.env.EVENT_NAME,cron:process.env.CRON,queue,status});
+          const readJson=path=>JSON.parse(fs.readFileSync(path,'utf8'));
+          const coverage=readJson('public/r1494a/c26/data/forward-status.json');
+          const c30Plan=readJson('public/r1494a/c30/verified-forward.json');
+          const c30={signalDate:c30Plan.signal_date,sourceDate:coverage.full_market_last_verified};
+          const decision=refreshDecision({event:process.env.EVENT_NAME,cron:process.env.CRON,queue,status,c30});
           console.log('A56_REFRESH_DECISION',JSON.stringify(decision));
           fs.appendFileSync(process.env.GITHUB_OUTPUT,'proceed='+decision.proceed+'\n');
           JS
@@ -201,6 +205,11 @@ jobs:
         if: steps.a56model.outcome == 'failure'
         run: |
           echo '::error::A56 combined-account replay failed. Prior verified A56 inventory retained; see the failed replay step.'
+          exit 1
+      - name: Report C30 replay failure with the last verified plan retained
+        if: steps.c30model.outcome == 'failure'
+        run: |
+          echo '::error::C30 original-engine replay failed. The prior verified C30 plan was retained.'
           exit 1
       - name: Report storage failure without discarding source coverage
         if: steps.persist.outcome == 'failure'

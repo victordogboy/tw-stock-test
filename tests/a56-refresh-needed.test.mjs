@@ -19,3 +19,13 @@ test('verified latest session and weekend/holiday exchange boundaries do not cau
  s.now=new Date('2026-11-22T16:00:00Z');s.status.source={as_of:'2026-11-20',next_trade_date:'2026-11-23'};s.status.model_archive.as_of='2026-11-20';assert.equal(refreshDecision(s).proceed,false);
  assert.equal(refreshDecision({...s,event:'push'}).proceed,true);
 });
+
+test('the schedule retries C30 even when A56 has already caught up',()=>{
+ const s=structuredClone(sample);
+ s.status.model_archive.as_of='2026-11-17';
+ s.status.source={as_of:'2026-11-17',next_trade_date:'2026-11-18'};
+ s.c30={signalDate:'2026-11-16',sourceDate:'2026-11-17'};
+ assert.equal(refreshDecision(s).reason,'c30_behind_verified_source');
+ s.c30.signalDate=s.c30.sourceDate;
+ assert.equal(refreshDecision(s).proceed,false);
+});
