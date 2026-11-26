@@ -69,7 +69,7 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
   lastFinMind={...(lastFinMind||{}),ok:false,sync_error:String(e.message||e),needs_token:!token,days:lastFinMind?.days||[],stored_days:lastFinMind?.stored_days||0};
  }
  if(lastFinMind?.latest_price_date){lastOfficial={ok:true,as_of:lastFinMind.latest_price_date,source:'TWSE／TPEx 官方行情已封存',at:lastFinMind.updated_at||lastFinMind.checked_at||null}}
- else if(refresh||!lastOfficial)await checkOfficial();
+ else if((refresh||!lastOfficial)&&!forward)await checkOfficial();
  return {...hist,model_version:'C30',ledger:'C30_RISK23_core_history',
   curves:{strategy:hist.snapshots.map(x=>x.nav),market:hist.benchmark},
   status:{model_version:'C30',data_as_of:hist.as_of,checkedThrough:hist.as_of,
