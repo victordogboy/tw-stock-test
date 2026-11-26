@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-Hant">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C30 原引擎初始化</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:1rem;color:#173831}
+form{display:grid;gap:1rem}
+input,button{font:inherit;margin:.35rem 0;padding:.6rem}
+</style>
+<h1>C30 原引擎初始化</h1>
+<p>確認封存版本後，將它保存至這個網站的私有重播環境。</p>
+<form>
+ <label>一次性初始化金鑰 <input type="password" name="key" required autocomplete="off"></label>
+ <label>驗證封存 <input type="file" name="archive" accept=".gz" required></label>
+ <button>初始化</button>
+</form>
+<p role="status"></p>
+<script type="module">
+const form = document.querySelector('form');
+const status = document.querySelector('[role=status]');
+const button = form.querySelector('button');
+form.addEventListener('submit', async event => {
+ event.preventDefault();
+ const file = form.elements.archive.files[0];
+ const key = form.elements.key.value.trim();
+ button.disabled = true;
+ try {
+  status.textContent = '核對封存版本…';
+  const response = await fetch('/r1494a/c30/runtime-manifest.json', {cache: 'no-store'});
+  if (!response.ok) throw new Error('找不到核對清單');
+  const manifest = await response.json();
+  if (file.size !== manifest.bytes) throw new Error('檔案大小與核對清單不同');
+  const checksum = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  const hex = Array.from(new Uint8Array(checksum), n => n.toString(16).padStart(2, '0')).join('');
+  if (hex !== manifest.sha256) throw new Error('封存版本與核對清單不同');
+  let progress = 0;
+  for (let index = 0; index < manifest.chunks.length; index++) {
+   const start = index * manifest.chunk_size;
+   const chunk = file.slice(start, start + manifest.chunk_size);
+   let answer;
+   for (let attempt = 0; attempt < 3; attempt++) {
+    answer = await fetch('/api/c30/runtime/chunk?index=' + index, {method: 'PUT',
+     headers: {Authorization: 'Bearer ' + key}, body: chunk});
+    if (answer.ok || answer.status < 500) break;
+   }
+   const record = await answer.json();
+   if (!answer.ok) throw new Error(record.error || 'HTTP ' + answer.status);
+   progress = record.received;
+   status.textContent = '已驗證並保存 ' + progress + '／' + manifest.chunks.length + ' 部分';
+  }
+  if (progress !== manifest.chunks.length) throw new Error('封存接續未完成');
+  form.reset();
+  status.textContent = 'C30 私有引擎封存已建置，可由原引擎排程讀取。';
+ } catch (error) {
+  status.textContent = error.message;
+ } finally {
+  button.disabled = false;
+ }
+});
+</script>

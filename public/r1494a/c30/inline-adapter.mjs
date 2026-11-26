@@ -1,3 +1,4 @@
+import {c30PlanMode,verifiedC30Forward} from './forward.mjs';
 import {readC30StoredStatus,syncC30FinMind,c30DeviceToken,c30StatusSummary} from './data-sync.mjs?v=20261125-sponsor-diagnose-v5';
 /* C30 original strategy: native renderer for the existing A56/R1494-A FOUR tabs.
  * FROZEN until 2026-11-20. Never infer live orders from newly downloaded OHLCV.
@@ -42,7 +43,15 @@ async function checkOfficial(){
  return lastOfficial;
 }
 export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
- const hist=await original();
+ const history=await original();
+ let forward=null;
+ try{
+  const response=await fetch(ROOT+'verified-forward.json',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+  if(response.ok){const report=await response.json();if(verifiedC30Forward(report,history))forward=report;}
+ }catch{}
+ const hist=forward?{...history,as_of:forward.signal_date,dates:[...history.dates,...forward.replayed_dates],
+  snapshots:[...history.snapshots,...forward.snapshots],orders:[...history.orders,...forward.orders],
+  benchmark:[...history.benchmark,...forward.snapshots.map(row=>row.benchmark)]}:history;
  const token=c30DeviceToken();
  try{
   lastFinMind=await readC30StoredStatus(token);
@@ -64,9 +73,9 @@ export async function loadC30MonitorSnapshot(_shared,{refresh=false}={}){
  return {...hist,model_version:'C30',ledger:'C30_RISK23_core_history',
   curves:{strategy:hist.snapshots.map(x=>x.nav),market:hist.benchmark},
   status:{model_version:'C30',data_as_of:hist.as_of,checkedThrough:hist.as_of,
-   price_updated_at:lastOfficial?.at||null,signal_as_of:hist.as_of,sync_status:'frozen',
-   trade_status:'historical_only',lastError:null,sources:[{type:'C30 原始引擎',kind:'凍結歷史'}]},
-  plan:{readiness:'blocked',blockedReason:'目前只有原版 C30 2026/11/20 前的完整重播；免費行情更新不代表已產生新的正式交易訊號。'},
+   price_updated_at:lastOfficial?.at||null,signal_as_of:hist.as_of,sync_status:forward?'current':'frozen',
+   trade_status:c30PlanMode(forward),lastError:null,sources:[{type:'C30 原始引擎',kind:'凍結歷史'}]},
+  forward,plan:forward||{readiness:'blocked',blockedReason:'目前只有原版 C30 2026/11/20 前的完整重播；免費行情更新不代表已產生新的正式交易訊號。'},
   official:lastOfficial,finmind:lastFinMind};
 }
 const reason={new_position:'核心新建倉',topup:'核心補倉',rank_exit:'核心排序退出',risk_exit:'核心風控退出',portfolio_reduce:'核心減少曝險',protective_stop:'核心保護停損',cap16:'單股配置調整',no_touch_no_buy:'未觸買入價',no_offer_no_fill:'鎖漲停、無法買入',no_bid_no_fill:'鎖跌停、無法賣出',bad_market_data:'資料未驗證',target_exposure_full:'曝險或現金已滿',replace:'選股換股'};
@@ -78,6 +87,8 @@ function historicalOrders(D,date){return D.orders.filter(o=>o.date===date)}
 function finalMsg(D){return 'C30 凍結引擎已驗證至 2026/11/20；'+c30StatusSummary(D.finmind)+'；'+(D.official?.ok?'資料來源 '+(D.official.source||'官方雙市場')+' 最新資料日 '+D.official.as_of+'（不代表策略已重播）':'沒有取得可核對的最新行情')+'；隔日買賣指令暫不發布。'}
 export function renderC30Monitor(D,I,limit=120){
  const s=D.snapshots[I],f=scale(D,s),isLast=I===D.snapshots.length-1;
+ const plan=isLast?D.forward:null,planMode=c30PlanMode(plan);
+ const sideSummary=s.sideCount&&!s.holdings.some(row=>row.sleeve==='reversal');
  const exposure=(s.core+s.side)/s.nav;
  $('#date').value=I;
  set('#count',(s.coreCount+s.sideCount)+' / 8');set('#exposure',pct(exposure));set('#target',pct(s.target));
@@ -90,14 +101,30 @@ export function renderC30Monitor(D,I,limit=120){
  const o=historicalOrders(D,s.date),filled=o.filter(x=>x.filled);
  $('#planActions').innerHTML=(o.length?'<p class="sub">'+esc(s.date)+' 原版歷史交易（不是下一交易日計畫）：'+filled.filter(x=>x.side==='BUY').length+' 筆核心買入、'+filled.filter(x=>x.side==='SELL').length+' 筆核心賣出。</p>':'<p class="empty">此日沒有核心部位委託。'+(s.sideCount?'反轉部位明細未包含在核心成交封存檔。':'')+'</p>')+
  (isLast?'<div class="notice"><strong>次日買賣計畫：尚未經原版 C30 引擎重算</strong>不會用最新股價事後補出買單；請先完成 11/23 起的完整狀態接續。</div>':'');
+ if(plan){
+  const historical=planMode==='historical';
+  $('#status').innerHTML='<strong>C30 原引擎已核對至 '+esc(plan.signal_date)+'</strong><div class="sub">原版 RISK23 帳本已逐日重播。本頁為紙上模型。</div>';
+  set('#planState',historical?'已驗證 · 盤前計畫回看':'C30 已驗證盤前計畫');
+  set('#planDate','訊號 '+plan.signal_date+' → 交易 '+plan.trade_date);
+  set('#planNote',(historical?'本交易日已結束。':'')+'計畫只使用訊號日收盤前已知資料，核心目標曝險 '+pct(plan.target)+'。');
+  const action=plan.engine_plan.map(row=>'<li>'+esc(D.names?.[row.code]||row.code)+' '+esc(row.code)+' · '+esc(row.method)+
+    (Number.isFinite(row.level)?' '+money(row.level,2):'')+'</li>').join('');
+  const extra=[
+   plan.reversal_watch?'反轉路徑須等開盤與分 K 條件。':null,
+   plan.reversal?.used?'反轉警戒本輪額度已使用。':null,
+   plan.execution?.pending_limit_buys?'原引擎保留 '+plan.execution.pending_limit_buys+' 筆待處理限價。':null,
+   plan.execution?.rebalance&&plan.position_count?'開盤依實際價格核對風控調倉。':null
+  ].filter(Boolean).join(' ');
+  $('#planActions').innerHTML=(action?'<ul>'+action+'</ul>':'<p class="empty">盤前無新增固定買賣委託。</p>')+(extra?'<p>'+esc(extra)+'</p>':'');
+ }
  set('#priceDate',s.date+' 收盤');
- set('#holdingNote','核心 '+s.coreCount+' 檔、反轉 '+s.sideCount+' 檔；歷史凍結模型（不代表券商實際持倉）。'+(s.sideCount?'反轉部位目前僅有已驗證合計市值，無法展示逐股買價。':''));
+ set('#holdingNote','核心 '+s.coreCount+' 檔、反轉 '+s.sideCount+' 檔；歷史凍結模型（不代表券商實際持倉）。'+(sideSummary?'反轉部位僅列合計市值。':''));
  $('#holdings').innerHTML=htmlRows(s.holdings.map(h=>{const p=held(h,f,s);return '<tr><td><b>'+esc(D.names?.[h.code]||h.code)+'</b> <small>'+esc(h.code)+'</small><span class="sub">首次 '+esc(h.start)+'／最近買入 '+esc(h.last)+'</span></td><td>'+money(h.entry,2)+'</td><td>'+money(h.p,2)+'</td><td class="'+(p.profit>=0?'positive':'negative')+'">'+pct(p.profit)+'</td><td>'+money(p.pnl)+'元</td><td>'+money(p.c)+'／'+money(p.v)+'元</td><td>'+pct(p.weight)+'</td></tr>';}))+
- (s.sideCount?'<tr><td><b>反轉部位合計（'+s.sideCount+' 檔）</b><span class="sub">缺逐股明細，僅列實際引擎合計市值</span></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—／'+money(s.side*f)+'元</td><td>'+pct(s.side/s.nav)+'</td></tr>':'')||'<tr><td colspan="7" class="empty">原版模型此日空手，未持有任何核心或反轉部位。</td></tr>';
- $('#holdingCards').innerHTML=htmlRows(s.holdings.map(h=>{const p=held(h,f,s);return '<article class="holding"><div class="row"><b>'+esc(D.names?.[h.code]||h.code)+' <small>'+esc(h.code)+'</small></b><b class="'+(p.profit>=0?'positive':'negative')+'">'+pct(p.profit)+'</b></div><div class="facts">'+[['買入均價',money(h.entry,2)],['最新收盤',money(h.p,2)],['剩餘成本',money(p.c)+' 元'],['市值',money(p.v)+' 元'],['未實現損益',money(p.pnl)+' 元'],['權重',pct(p.weight)],['首次買入',h.start],['最近買入',h.last]].map(([a,b])=>'<div>'+a+'<b>'+esc(b)+'</b></div>').join('')+'</div><p class="sub">歷史紙上模擬，未實現損益不含未實現賣出費稅</p></article>';}))||(s.sideCount?'<p class="empty">本日無核心部位個股明細；反轉部位合計 '+money(s.side*f)+' 元（'+s.sideCount+'檔）。</p>':'<p class="empty">原版模型空手，沒有核心或反轉持倉。</p>');
+ (sideSummary?'<tr><td><b>反轉部位合計（'+s.sideCount+' 檔）</b><span class="sub">缺逐股明細，僅列實際引擎合計市值</span></td><td>—</td><td>—</td><td>—</td><td>—</td><td>—／'+money(s.side*f)+'元</td><td>'+pct(s.side/s.nav)+'</td></tr>':'')||'<tr><td colspan="7" class="empty">原版模型此日空手，未持有任何核心或反轉部位。</td></tr>';
+ $('#holdingCards').innerHTML=htmlRows(s.holdings.map(h=>{const p=held(h,f,s);return '<article class="holding"><div class="row"><b>'+esc(D.names?.[h.code]||h.code)+' <small>'+esc(h.code)+'</small></b><b class="'+(p.profit>=0?'positive':'negative')+'">'+pct(p.profit)+'</b></div><div class="facts">'+[['買入均價',money(h.entry,2)],['最新收盤',money(h.p,2)],['剩餘成本',money(p.c)+' 元'],['市值',money(p.v)+' 元'],['未實現損益',money(p.pnl)+' 元'],['權重',pct(p.weight)],['首次買入',h.start],['最近買入',h.last]].map(([a,b])=>'<div>'+a+'<b>'+esc(b)+'</b></div>').join('')+'</div><p class="sub">歷史紙上模擬，未實現損益不含未實現賣出費稅</p></article>';}))||(sideSummary?'<p class="empty">本日無核心部位個股明細；反轉部位合計 '+money(s.side*f)+' 元（'+s.sideCount+'檔）。</p>':'<p class="empty">原版模型空手，沒有核心或反轉持倉。</p>');
  const risk=s.risk||{},flag=x=>x===true?'啟動':x===false?'未啟動':'未記錄';
  $('#risk').innerHTML=[['危機模式',flag(risk.crisis),'原引擎盤前風控'],['新單封鎖',flag(risk.block),'不可將未完成計畫當已成交'],['冷市場',flag(risk.market_cold),'反彈警戒'],['帳戶高水位防禦',flag(risk.dd_gate),'原引擎帳戶記憶'],['市場廣度',Number.isFinite(risk.breadth)?pct(risk.breadth):'—','原封存當時訊號'],['核心／反轉',s.coreCount+'／'+s.sideCount+' 檔','同帳戶最多 8 檔']].map(([a,b,c])=>'<div class="risk"><div class="row"><b>'+a+'</b><span class="pill">'+esc(b)+'</span></div><p class="sub">'+esc(c)+'</p></div>').join('');
- set('#dailyWhy',s.date+' C30 原始歷史重播｜核心委託 '+o.length+' 筆（成交 '+filled.length+' 筆）。\n'+'當日淨值倍率 '+money(s.nav,5)+'，現金倍率 '+money(s.cash,5)+'，核心曝險 '+pct(s.core/s.nav)+'，反轉曝險 '+pct(s.side/s.nav)+'。\n'+'下一交易日之正式委託：未產生。最新行情不得直接取代原引擎風控與倉位記憶。');
+ set('#dailyWhy',s.date+' C30 原始歷史重播｜核心委託 '+o.length+' 筆（成交 '+filled.length+' 筆）。\n'+'當日淨值倍率 '+money(s.nav,5)+'，現金倍率 '+money(s.cash,5)+'，核心曝險 '+pct(s.core/s.nav)+'，反轉曝險 '+pct(s.side/s.nav)+'。\n'+(plan?'下一交易日計畫已核對至 '+plan.trade_date+'。':'請查看最新模型日期的盤前計畫。'));
  renderC30Orders(D,I,limit);
 }
 export function renderC30Orders(D,I,limit=120){
@@ -114,11 +141,11 @@ export function renderC30Performance(D){
  const nav=D.curves.strategy,market=D.curves.market,min=1,max=Math.max(...nav,...market),w=1080,h=300,left=55,right=1020,top=22,bottom=260;
  const y=v=>bottom-(v-min)/(max-min||1)*(bottom-top),x=i=>left+i/(nav.length-1)*(right-left);
  function poly(series,color){const points=series.filter((_,i)=>i===0||i===series.length-1||i%3===0).map((v,k)=>{const i=k===0?0:k*3;return x(Math.min(i,series.length-1)).toFixed(2)+','+y(v).toFixed(2)}).join(' ');return '<polyline points="'+points+'" stroke="'+color+'" stroke-width="2.5" fill="none"/>'}
- $('#chart').innerHTML='<svg viewBox="0 0 1080 300" role="img" aria-label="C30 與加權指數歷史資金曲線" style="width:100%;height:auto">'+[0,.25,.5,.75,1].map(t=>{const v=min+(max-min)*t;return '<line x1="'+left+'" y1="'+y(v)+'" x2="'+right+'" y2="'+y(v)+'" stroke="#e1e6de"/><text x="45" y="'+(y(v)+4)+'" fill="#738078" text-anchor="end" font-size="12">'+money(v,1)+'×</text>'}).join('')+poly(market,'#97a99a')+poly(nav,'#18694f')+'<text x="55" y="285" fill="#738078" font-size="12">2021/01/06</text><text x="1020" y="285" fill="#738078" text-anchor="end" font-size="12">2026/11/20</text></svg>';
+ $('#chart').innerHTML='<svg viewBox="0 0 1080 300" role="img" aria-label="C30 與加權指數歷史資金曲線" style="width:100%;height:auto">'+[0,.25,.5,.75,1].map(t=>{const v=min+(max-min)*t;return '<line x1="'+left+'" y1="'+y(v)+'" x2="'+right+'" y2="'+y(v)+'" stroke="#e1e6de"/><text x="45" y="'+(y(v)+4)+'" fill="#738078" text-anchor="end" font-size="12">'+money(v,1)+'×</text>'}).join('')+poly(market,'#97a99a')+poly(nav,'#18694f')+'<text x="55" y="285" fill="#738078" font-size="12">2021/01/06</text><text x="1020" y="285" fill="#738078" text-anchor="end" font-size="12">'+esc(D.as_of.replaceAll('-','/'))+'</text></svg>';
  const monthly=annualOrMonthly(D,true),wins=monthly.filter(x=>x.return>x.market).length;
  set('#strategySummary','C30 累積 '+pct(nav.at(-1)-1)+' · 最大回撤 '+pct(dd([1,...nav]))+' · 勝大盤 '+wins+'/'+monthly.length+' 月');
  set('#performanceLegend','C30 原版（深綠）／加權指數（灰綠）｜相同日期同一起點');
- set('#chartNote','完整原版研究區間：2021/01/06～2026/11/20，初始300萬元，成本往返0.5855%。已重建 1,425 日日淨值；2026/11/23 起尚未原引擎重播。');
+ set('#chartNote','完整原版研究區間：2021/01/06～2026/11/20，初始300萬元，成本往返0.5855%。已核對 '+D.dates.length+' 個交易日，最後交易日 '+D.as_of+'。');
  $('#annual').innerHTML=rowsPeriod(annualOrMonthly(D,false));
 }
 export function renderC30Monthly(D){const yr=$('#monthYear')?.value;$('#monthly').innerHTML=rowsPeriod(annualOrMonthly(D,true).filter(x=>x.yr===yr))}
@@ -138,7 +165,7 @@ export function decorateC30Monitor(D){
  set('#ledgerLabel','C30 原版 · 凍結歷史紙上持倉（非目前實盤）');
  set('#ordersNote','原版核心 2,082 筆委託，含 163 筆未成交；表列金額依原始300萬元本金計，realized 欄保留原始值不擅自改單位；反轉部位只有每日總市值。');
  $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>原始核心交易、逐日部位與加權指數已對帳；反轉個股逐筆明細缺於本次封存，無法補造。</p></details>';
- $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>僅驗證截至2026/11/20的歷史策略，尚未上線每日原引擎重播。這不是現在的買賣指令，也不是券商實際績效。';
+ $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>逐日核對至 '+esc(D.as_of)+'。此區顯示紙上模型績效。';
  $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>日期／訊號日</th><th>股票</th><th>動作／歷史狀態</th><th>核心觸發價</th><th>原始成交價</th><th>300萬原始模型金額</th><th>原始 realized</th><th>原因</th></tr>';
  $('#annual').closest('table').querySelector('thead').innerHTML='<tr><th>年度</th><th>C30 累積報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
@@ -169,10 +196,10 @@ export function decorateC30Monitor(D){
   }catch(error){message.textContent=error.message}finally{button.disabled=false}
  };
  $('#rulesMain').insertAdjacentHTML('beforeend','<h3>Free 雲端逐日完整性（固定 233 檔）</h3>'+freeCoverageHtml(D.finmind));
- $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態','原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
- set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。反轉個股明細及2026/11/23以後重播仍待補。');
- set('#rulesFoot','交易池固定 233 檔；Sponsor 整日全市場收盤價另行完整保存，供日後核對市場廣度（含 ETF／興櫃原始資料，計算時須過濾）。三大法人、融資券、借券與分K只做 233 檔。原版 C30 市場廣度不可未經原引擎對帳就替換。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 原版買賣仍須原 Python 引擎重播。');
- set('#strategyFooter','C30 RISK23 原版｜2021/01/06～2026/11/20｜原始凍結績效 +2328.07%／−18.50%｜未發布今日買賣');
+ $('#dataFacts').innerHTML=[['策略','C30 RISK23 原版'],['版本',D.lock_id],['最後原引擎日',D.as_of],['已核對日數',D.dates.length],['已核對核心委託',D.orders.length],['C30／A56 免費雲端已儲存日數',D.finmind?.stored_days||0],['全市場日K封存日數',(D.finmind?.days||[]).filter(x=>x.market?.stored).length],['官方日K最後保存日',D.finmind?.latest_price_date||'尚無'],['四類資料完整日數（233檔）',D.finmind?.complete_days||0],['資料完整性',D.finmind?.complete_days?'已有至少一日完整':'仍需逐檔續傳，空資料另行審查'],['雲端更新錯誤',D.finmind?.sync_error||((D.finmind?.errors||[]).length?'有 '+D.finmind.errors.length+' 項缺漏／權限錯誤':'無')],['目前可讀取行情',D.official?.ok?(D.official.source||'TWSE/TPEx')+' '+D.official.as_of:'尚無可驗證行情'],['每日委託狀態',D.forward?'原引擎已核對 '+D.forward.trade_date:'原引擎待增量重播'],['券商成交','未串接／未確認']].map(([a,b])=>'<div>'+esc(a)+'<b>'+esc(b)+'</b></div>').join('');
+ set('#replay','C30 原始封存 SHA-256：'+HASH+'；每日持股價值與原始流水帳對帳誤差小於 0.000001 淨值單位。'+(D.forward?'原引擎接續核對至 '+D.as_of+'。':'等待原引擎接續。'));
+ set('#rulesFoot','交易池固定 233 檔；Sponsor 整日全市場收盤價另行完整保存，供日後核對市場廣度（含 ETF／興櫃原始資料，計算時須過濾）。三大法人、融資券、借券與分K只做 233 檔。原版 C30 市場廣度不可未經原引擎對帳就替換。'+(D.finmind?.sync_error?' 最近失敗：'+D.finmind.sync_error:'')+' 盤前計畫由原 Python 引擎重播產生。');
+ set('#strategyFooter','C30 RISK23 原版｜帳本至 '+D.as_of+'｜紙上模型');
 }
 export function exportC30Orders(D,I){
  const maxDate=D.dates[I],q=($('#search')?.value||'').trim(),f=$('#fill')?.value||'';

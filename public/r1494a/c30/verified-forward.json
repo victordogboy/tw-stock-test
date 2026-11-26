@@ -1,0 +1,76 @@
+{
+  "lock_id": "A89_C30_RISK23_buffer250_partial_2019",
+  "anchor": "2026-11-20",
+  "signal_date": "2026-11-25",
+  "trade_date": "2026-11-26",
+  "replayed_dates": [
+    "2026-11-23",
+    "2026-11-24",
+    "2026-11-25"
+  ],
+  "readiness": "verified_replay",
+  "no_execution_prices": true,
+  "anchor_days": 1425,
+  "target": 0.19845,
+  "risk": {
+    "risk": true,
+    "block": false,
+    "active": false
+  },
+  "position_count": 0,
+  "nav": 24.280661230260517,
+  "cash": 24.280661230260517,
+  "reversal": {
+    "warning": true,
+    "used": true,
+    "pending": false,
+    "active_position": false
+  },
+  "execution": {
+    "rebalance": true,
+    "pending_limit_buys": 0
+  },
+  "engine_plan": [],
+  "snapshots": [
+    {
+      "date": "2026-11-23",
+      "nav": 24.280661230260517,
+      "cash": 24.280661230260517,
+      "core": 0.0,
+      "side": 0.0,
+      "coreCount": 0,
+      "sideCount": 0,
+      "target": 0.0,
+      "holdings": [],
+      "benchmark": 2.456889181365977
+    },
+    {
+      "date": "2026-11-24",
+      "nav": 24.280661230260517,
+      "cash": 24.280661230260517,
+      "core": 0.0,
+      "side": 0.0,
+      "coreCount": 0,
+      "sideCount": 0,
+      "target": 0.0,
+      "holdings": [],
+      "benchmark": 2.6778350051024056
+    },
+    {
+      "date": "2026-11-25",
+      "nav": 24.280661230260517,
+      "cash": 24.280661230260517,
+      "core": 0.0,
+      "side": 0.0,
+      "coreCount": 0,
+      "sideCount": 0,
+      "target": 0.19845,
+      "holdings": [],
+      "benchmark": 2.5492290329190235
+    }
+  ],
+  "holdings": [],
+  "recorded_at": "2026-11-26T09:33:09.909675+00:00",
+  "reversal_watch": false,
+  "orders": []
+}

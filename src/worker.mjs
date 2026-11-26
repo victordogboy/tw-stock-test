@@ -1,3 +1,4 @@
+import {C30RuntimeStore,c30RuntimeRoute} from './c30/runtime.mjs';
 import {c30BackgroundRoute,C30Background} from './c30/background.mjs';
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
 import {c26StatusRoute} from './c26/status.mjs';
@@ -31,8 +32,9 @@ export {TxDownloadJob,StockFuturesBatch,StockFuturesData,C30Archive};
 const BaseScanJob=createScanJobClass((request,env)=>worker.fetch(request,env));
 // Existing namespace, isolated named object: no new namespace migration for preview uploads.
 export class ScanJob extends BaseScanJob {
- constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);this.c30free=new C30FreeStore(ctx);this.c30background=new C30Background(ctx,env);}
+ constructor(ctx,env){super(ctx,env);this.valuation=new ValuationCache(ctx,env);this.fc23=new Fc23Service(ctx,env);this.c26private=new C26PrivateStore(ctx);this.a56refresh=new A56RefreshState(ctx);this.c30daily=new C30DailyStore(ctx);this.c30free=new C30FreeStore(ctx);this.c30background=new C30Background(ctx,env);this.c30runtime=new C30RuntimeStore(ctx);}
  fetch(request){
+  if(new URL(request.url).pathname.startsWith('/c30-runtime-internal/'))return this.c30runtime.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-background-internal/'))return this.c30background.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-free-internal/'))return this.c30free.fetch(request);
   if(new URL(request.url).pathname.startsWith('/c30-daily-internal/'))return this.c30daily.fetch(request);
@@ -60,6 +62,7 @@ export class ScanJob extends BaseScanJob {
 export default {
  scheduled(event,env,ctx){ctx.waitUntil(fc23Stub(env).fetch(new Request('https://fc23.internal/fc23/refresh',{method:'POST'})));ctx.waitUntil(valuationStub(env).fetch(new Request('https://valuation.internal/valuation/refresh')));ctx.waitUntil(c30FreeOfficialScheduled(env).catch(()=>null));},
  fetch(request,env,ctx){
+  if(['/api/c30/runtime','/api/c30/runtime/chunk'].includes(new URL(request.url).pathname))return c30RuntimeRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/background/'))return c30BackgroundRoute(request,env);
   if(['/api/c26/a56/refresh','/api/c26/a56/refresh-status','/api/c26/a56/begin','/api/c26/a56/finish'].includes(new URL(request.url).pathname))return a56RefreshRoute(request,env);
   if(new URL(request.url).pathname==='/api/c26/a56/quotes')return a56QuotesRoute(request,env);
