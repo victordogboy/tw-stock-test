@@ -27,7 +27,8 @@
     "2026-11-20",
     "2026-11-23",
     "2026-11-24",
-    "2026-11-25"
+    "2026-11-25",
+    "2026-11-26"
   ],
   "boundary_feature_comparisons": {
     "P": {
@@ -97,13 +98,13 @@
     "ending_positions": {}
   },
   "forward_order_rows": 20,
-  "last_date": "2026-11-25",
+  "last_date": "2026-11-26",
   "source_after_boundary": true,
   "halted_stock_policy": "3714: no OHLC/no execution; last known mark for valuation only",
   "independent_forward_factors": {
     "peer_max_abs_error": 0.0,
     "F5_T5_max_abs_error": 1.4880501553182768e-08,
-    "days": 21,
+    "days": 22,
     "stocks": 233,
     "passed": true
   }

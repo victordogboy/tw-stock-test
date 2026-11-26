@@ -13,12 +13,12 @@
     "net_return_pct": 1720.495844396837,
     "max_drawdown_pct": -17.989769234703846
   },
-  "signal_as_of": "2026-11-25",
-  "trade_date": "2026-11-26",
+  "signal_as_of": "2026-11-26",
+  "trade_date": "2026-11-27",
   "forward_replay": {
     "first_date": "2026-10-28",
-    "last_date": "2026-11-25",
-    "trading_days": 21,
+    "last_date": "2026-11-26",
+    "trading_days": 22,
     "verified_dates": [
       "2026-10-28",
       "2026-10-29",
@@ -40,7 +40,8 @@
       "2026-11-20",
       "2026-11-23",
       "2026-11-24",
-      "2026-11-25"
+      "2026-11-25",
+      "2026-11-26"
     ],
     "complete": true
   },
@@ -108,7 +109,7 @@
     "independent_forward_factors": {
       "peer_max_abs_error": 0.0,
       "F5_T5_max_abs_error": 1.4880501553182768e-08,
-      "days": 21,
+      "days": 22,
       "stocks": 233,
       "passed": true
     }
@@ -125,8 +126,8 @@
   "actions": [
     {
       "action": "NO_ACTION",
-      "signal_date": "2026-11-25",
-      "execute_date": "2026-11-26",
+      "signal_date": "2026-11-26",
+      "execute_date": "2026-11-27",
       "reason": "C26本盤無持股或新進場候選"
     }
   ],
@@ -139,7 +140,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-26T09:38:12.819932+00:00",
+  "created_at": "2026-11-26T12:55:00.016897+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "7b9efeb29c7c9b042dee0f38a7e12d61454a818b4be88121712985e64fef17ca"
+  "forward_asset_sha256": "0a91cc8558cf48036b6efa49210d8b533b10628261e156df69e45e67055e67d1"
 }

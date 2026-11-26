@@ -6,7 +6,7 @@
   "portfolio_replay_not_performed": true,
   "causal": true,
   "universe_size": 233,
-  "source_as_of": "2026-11-25",
+  "source_as_of": "2026-11-26",
   "market_benchmark": "median daily return of 233-pool, NOT C26 original full-market proxy",
   "source": "C26 verified private FinMind EOD plus public frozen FC23 stock close seed",
   "limitations": "Indicator-side screen only; C26 original rank, cash, position, cooldown, risk exposure and actual trade signals must come from frozen Python engine. No future execution data used.",
@@ -120,52 +120,54 @@
       }
     },
     {
-      "close_as_of": "2026-11-25",
-      "candidate_for_next_session": "2026-11-26",
+      "close_as_of": "2026-11-26",
+      "candidate_for_next_session": "2026-11-27",
       "all_features_available": 233,
       "four_stock_technical": [
         {
           "code": "3443",
           "available": true,
           "tradable": true,
-          "rs5_pct": -14.756,
-          "rs20_pct": -13.935,
-          "near20_pct": 58.885,
-          "above_mean20_pct": -25.397
+          "rs5_pct": -10.566,
+          "rs20_pct": -9.875,
+          "near20_pct": 62.602,
+          "above_mean20_pct": -19.354
         },
         {
           "code": "3661",
           "available": true,
           "tradable": true,
-          "rs5_pct": 0.44,
-          "rs20_pct": 18.877,
-          "near20_pct": 89.677,
-          "above_mean20_pct": 3.577
+          "rs5_pct": 3.351,
+          "rs20_pct": 21.07,
+          "near20_pct": 92.91,
+          "above_mean20_pct": 7.227
         },
         {
           "code": "3035",
           "available": true,
           "tradable": true,
-          "rs5_pct": -4.266,
-          "rs20_pct": 0.493,
-          "near20_pct": 69.546,
-          "above_mean20_pct": -12.058
+          "rs5_pct": -0.399,
+          "rs20_pct": -5.695,
+          "near20_pct": 81.03,
+          "above_mean20_pct": -3.969
         },
         {
           "code": "2454",
           "available": true,
           "tradable": true,
-          "rs5_pct": 1.687,
-          "rs20_pct": 10.077,
-          "near20_pct": 88.471,
-          "above_mean20_pct": -3.712
+          "rs5_pct": -0.802,
+          "rs20_pct": 11.17,
+          "near20_pct": 89.927,
+          "above_mean20_pct": -1.685
         }
       ],
       "families": {
         "momentum": {
-          "passing_count": 1,
+          "passing_count": 3,
           "top5": [
-            "1210"
+            "1477",
+            "3227",
+            "2345"
           ],
           "four_stocks": [
             {
@@ -191,13 +193,13 @@
           ]
         },
         "reversal": {
-          "passing_count": 6,
+          "passing_count": 16,
           "top5": [
-            "2368",
-            "2345",
-            "3017",
-            "6139",
-            "2353"
+            "2308",
+            "3008",
+            "8299",
+            "5483",
+            "6669"
           ],
           "four_stocks": [
             {

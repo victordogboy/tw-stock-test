@@ -1,12 +1,12 @@
 {
   "lock_id": "C26-EVENT-CORR-LOCK-20261112",
   "archive_as_of": "2026-10-27",
-  "checked_at": "2026-11-26T09:37:26.399Z",
-  "requested_through": "2026-11-25",
-  "next_exchange_trade_date": "2026-11-26",
-  "full_market_last_verified": "2026-11-25",
-  "staged_trade_dates": 21,
-  "available_trade_dates": 21,
+  "checked_at": "2026-11-26T12:54:07.484Z",
+  "requested_through": "2026-11-26",
+  "next_exchange_trade_date": "2026-11-27",
+  "full_market_last_verified": "2026-11-26",
+  "staged_trade_dates": 22,
+  "available_trade_dates": 22,
   "days": [
     {
       "date": "2026-10-16",
@@ -178,11 +178,20 @@
       "invalid_count": 0,
       "institutional_codes": 233,
       "source_errors": []
+    },
+    {
+      "date": "2026-11-26",
+      "state": "available",
+      "price_valid": 233,
+      "missing_count": 0,
+      "invalid_count": 0,
+      "institutional_codes": 233,
+      "source_errors": []
     }
   ],
   "universe_count": 233,
-  "sha256_gzip": "73a16952f35d701b647a780d6f88c55765fc315c41ef6d8335ddc548b9517235",
-  "bytes_gzip": 2034934,
+  "sha256_gzip": "c5270cd8a7f412435678a3dd4cc85cb8954ecb7645e5af50ab24ded757c8818f",
+  "bytes_gzip": 2119901,
   "source": "FinMind TaiwanStockPrice + Institutional + Margin + SecuritiesLending",
   "secret_exposed": false,
   "public_raw_data": false,
@@ -201,5 +210,5 @@
   "live_plan_readiness": "BLOCKED",
   "warning": "僅公開FinMind資料涵蓋率；原始日K與法人資料不公開。C26最新訊號尚未通過凍結引擎重播。",
   "private_storage_verified": true,
-  "private_storage_as_of": "2026-11-25"
+  "private_storage_as_of": "2026-11-26"
 }
