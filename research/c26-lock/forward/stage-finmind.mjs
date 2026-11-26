@@ -42,7 +42,7 @@ if(!token)throw Error('FINMIND_TOKEN secret missing; no credentials logged');
 const DAY=86400000;const sleep=ms=>new Promise(ok=>setTimeout(ok,ms));
 const DATASETS={price:'TaiwanStockPrice',institutional:'TaiwanStockInstitutionalInvestorsBuySell',margin:'TaiwanStockMarginPurchaseShortSale',lending:'TaiwanStockSecuritiesLending'};
 async function pull(dataset,date,{allowEmpty=false}={}){
- const query=new URLSearchParams({dataset,start_date:date,end_date:addDate(date,1)});
+ const query=new URLSearchParams({dataset,start_date:date});
  const url='https://api.finmindtrade.com/api/v4/data?'+query.toString();
  let last='';
  for(let attempt=1;attempt<=3;attempt++){
@@ -108,6 +108,13 @@ for(let d=inputSince;d<=endAt;d=addDate(d,1)){
  // Reference universe includes halted/illiquid stocks, so do not fabricate their OHLC.
  // 'available' describes raw feed only; never means C26 signal/portfolio ready.
  day.source_state=day.price_valid>=210&&day.institutional_codes>=190&&day.source_errors.length===0?'available':'partial';
+ const cached=payload.days[d];
+ if(day.source_state!=='available'&&cached?.source_state==='available'){
+  statuses.push({date:d,state:'cached',price_valid:cached.price_valid,missing_count:cached.missing.length,
+   refresh_errors:day.source_errors});
+  console.log('C26_EOD_STAGE',JSON.stringify(statuses.at(-1)));
+  continue;
+ }
  if(day.source_state==='available')goodDays++;
  payload.days[d]=day;
  statuses.push({date:d,state:day.source_state,price_valid:day.price_valid,missing_count:day.missing.length,invalid_count:day.invalid.length,

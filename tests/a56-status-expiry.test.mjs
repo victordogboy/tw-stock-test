@@ -9,7 +9,9 @@ test('expired verified plan reports expiry, preserves latest inventory, and publ
   const coverage=JSON.parse(read('data/forward-status.json'));
   coverage.full_market_last_verified=manifest.as_of;
   coverage.next_exchange_trade_date=manifest.trade_date;
-  coverage.days=coverage.days.filter(d=>d.date<=manifest.as_of);
+  const delta=JSON.parse(read('a56/forward.json'));
+  coverage.state='source_staged';
+  coverage.days=delta.plan.verified_dates.map(date=>({date,state:'available'}));
   const env={ASSETS:{fetch:async r=>{
    const path=new URL(r.url).pathname.split('/c26/')[1];
    return path==='data/forward-status.json'?Response.json(coverage):new Response(read(path));

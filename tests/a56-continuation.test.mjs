@@ -4,7 +4,14 @@ import fs from 'node:fs';
 import {a56Readiness,a56StatusRoute,validateA56Delta} from '../src/c26/a56-status.mjs';
 const read=p=>JSON.parse(fs.readFileSync(new URL('../'+p,import.meta.url)));
 const cp=read('public/r1494a/c26/a56/checkpoint-verification.json');
-const coverage=read('public/r1494a/c26/data/forward-status.json');
+const publishedCoverage=read('public/r1494a/c26/data/forward-status.json');
+const delta=read('public/r1494a/c26/a56/forward.json');
+const manifest=read('public/r1494a/c26/a56/latest-manifest.json');
+// Isolate ready-path tests from the independently refreshed, possibly partial live feed.
+const coverage={...publishedCoverage,state:'source_staged',
+ full_market_last_verified:manifest.as_of,next_exchange_trade_date:manifest.trade_date,
+ days:[...publishedCoverage.days.filter(x=>x.date<=cp.as_of),
+  ...delta.plan.verified_dates.map(date=>({date,state:'available'}))]};
 test('real combined account checkpoint is resumable but source coverage never publishes an A56 plan',()=>{
  const s=a56Readiness(cp,coverage);
  assert.equal(s.checkpoint.as_of,'2026-11-12');assert.equal(s.checkpoint.resume_checks,6);
@@ -21,7 +28,7 @@ test('wrong lock, incomplete resume checks, missing side accounting and corrupte
  }
 });
 test('missing, misordered and incomplete source data do not erase verified historical account',()=>{
- for(const source of [null,{...coverage,days:[...coverage.days].reverse()},{...coverage,state:'running'}]){
+ for(const source of [null,{...coverage,state:'source_partial'},{...coverage,days:[...coverage.days].reverse()},{...coverage,state:'running'}]){
   const s=a56Readiness(cp,source);assert.equal(s.checkpoint.as_of,cp.as_of);assert.equal(s.source,null);assert.deepEqual(s.plan.actions,[]);
  }
  const source=structuredClone(coverage);source.days.find(x=>x.date===source.full_market_last_verified).state='missing';
@@ -40,7 +47,7 @@ test('missing assets fail closed with no invented balances',async()=>{
  assert.equal(s.checkpoint,null);assert.equal(s.plan.readiness,'blocked');assert.deepEqual(s.plan.actions,[]);
 });
 test('a verified plan can precommit an opening allocation without inventing fixed shares or tomorrow prices',()=>{
- const d=read('public/r1494a/c26/a56/forward.json'),m=read('public/r1494a/c26/a56/latest-manifest.json');
+ const d=structuredClone(delta),m=manifest;
  d.plan.actions.push({side:'REBALANCE',code:null,target:d.plan.target,orderType:'OPEN_RISK_REBALANCE'});
  assert.equal(validateA56Delta(d,m,cp,coverage),true);
  d.plan.actions.at(-1).target=Infinity;assert.equal(validateA56Delta(d,m,cp,coverage),false);

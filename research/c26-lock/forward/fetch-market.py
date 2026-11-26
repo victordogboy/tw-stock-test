@@ -25,7 +25,7 @@ def pull(date):
             cache[date]=ordinary(json.loads(gzip.decompress(target.read_bytes())))
             target.write_bytes(gzip.compress(json.dumps(cache[date]).encode()))
             return
-    query = urllib.parse.urlencode(dict(dataset='TaiwanStockPrice', start_date=date, end_date=date))
+    query = urllib.parse.urlencode(dict(dataset='TaiwanStockPrice', start_date=date))
     request = urllib.request.Request('https://api.finmindtrade.com/api/v4/data?'+query,
                                      headers={'Authorization': 'Bearer '+token})
     with urllib.request.urlopen(request, timeout=50) as response:
