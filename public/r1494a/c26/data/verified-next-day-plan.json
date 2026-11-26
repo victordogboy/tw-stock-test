@@ -10,7 +10,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.4958443968383,
+    "net_return_pct": 1720.495844396837,
     "max_drawdown_pct": -17.989769234703846
   },
   "signal_as_of": "2026-11-25",
@@ -117,8 +117,8 @@
     "inventory_parity": true,
     "cash_parity": true,
     "holdings": [],
-    "cash_ntd": 51014387.76918772,
-    "equity_ntd": 51014387.76918772
+    "cash_ntd": 51014387.76918768,
+    "equity_ntd": 51014387.76918768
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
@@ -139,7 +139,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-26T03:56:30.126038+00:00",
+  "created_at": "2026-11-26T05:22:34.771253+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "243a0777c9c2445c3347550f8cf05521869a7f098c82c6d5f288a118f0f621e1"
+  "forward_asset_sha256": "7b9efeb29c7c9b042dee0f38a7e12d61454a818b4be88121712985e64fef17ca"
 }
