@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-11-26T23:07:26.941Z",
+  "generated_at": "2026-11-27T12:13:46.309Z",
   "verified": false,
-  "fc23_date": "2026-11-13",
-  "market_date": "2026-11-13",
-  "checked_through": "2026-11-15",
+  "fc23_date": "2026-11-26",
+  "market_date": "2026-11-26",
+  "checked_through": "2026-11-26",
   "sync_status": "blocked",
   "last_error": {
-    "date": "2026-11-16",
-    "message": "公司行動或異常跳價待核實：3714",
-    "at": "2026-11-26T23:07:26.718Z"
+    "date": "2026-11-27",
+    "message": "上櫃融資券取得失敗：margin 籌碼欄位未通過檢查；FinMind 當日覆蓋 0/44 檔",
+    "at": "2026-11-27T12:13:46.004Z"
   },
-  "snapshot_count": 13,
-  "order_count": 5
+  "snapshot_count": 22,
+  "order_count": 24
 }
