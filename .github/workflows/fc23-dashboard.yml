@@ -41,6 +41,7 @@ jobs:
           node tests/fc23-dashboard.test.mjs
           node tests/fc23-full-archive.test.mjs
           node tests/strategy-switch.test.mjs
+          node tests/fc23-publish-verified-partial.test.mjs
           node tests/fc23-margin-fallback.test.mjs
           node tests/fc23-corporate-actions.test.mjs
           node tests/fc23-live.test.mjs
