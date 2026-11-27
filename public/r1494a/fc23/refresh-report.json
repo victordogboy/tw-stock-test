@@ -1,12 +1,16 @@
 {
-  "generated_at": "2026-11-27T12:21:17.729Z",
+  "generated_at": "2026-11-27T12:29:20.434Z",
   "verified": false,
-  "partial_verified": false,
-  "fc23_date": "2026-11-24",
-  "market_date": "2026-11-24",
-  "checked_through": "2026-11-24",
-  "sync_status": "running",
-  "last_error": null,
-  "snapshot_count": 20,
-  "order_count": 21
+  "partial_verified": true,
+  "fc23_date": "2026-11-26",
+  "market_date": "2026-11-26",
+  "checked_through": "2026-11-26",
+  "sync_status": "blocked",
+  "last_error": {
+    "date": "2026-11-27",
+    "message": "上櫃融資券取得失敗：margin 籌碼欄位未通過檢查；FinMind 1565 尚無 2026-11-27 有效融資券餘額（不能當0）",
+    "at": "2026-11-27T12:29:20.010Z"
+  },
+  "snapshot_count": 22,
+  "order_count": 24
 }
