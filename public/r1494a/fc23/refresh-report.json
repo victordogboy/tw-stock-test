@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T12:13:46.309Z",
+  "generated_at": "2026-11-27T12:17:16.385Z",
   "verified": false,
   "fc23_date": "2026-11-26",
   "market_date": "2026-11-26",
@@ -7,8 +7,8 @@
   "sync_status": "blocked",
   "last_error": {
     "date": "2026-11-27",
-    "message": "上櫃融資券取得失敗：margin 籌碼欄位未通過檢查；FinMind 當日覆蓋 0/44 檔",
-    "at": "2026-11-27T12:13:46.004Z"
+    "message": "上市融資券取得失敗：上市融資券尚無該日資料；FinMind 1101 尚無 2026-11-27 有效融資券餘額（不能當0）",
+    "at": "2026-11-27T12:17:16.134Z"
   },
   "snapshot_count": 22,
   "order_count": 24
