@@ -7,8 +7,14 @@ const service=new Fc23Service(ctx,env);await service.run();
 const delta=await service.delta(),account=await service.state(),{st:shared}=await load1494(await service.setup());
 console.log(JSON.stringify({date:delta.data_as_of,status:delta.sync_status,snapshots:delta.snapshots.length,orders:delta.orders.length,error:delta.lastError,progress:await storage.get('fc23-progress')}));
 // Never publish an incomplete paper account as if it were the current plan.
-const verified=delta.sync_status==='current'&&account.date===shared.date&&delta.data_as_of===account.date;
-const report={generated_at:new Date().toISOString(),verified,fc23_date:account.date,market_date:shared.date,checked_through:shared.lastChecked||null,sync_status:delta.sync_status,last_error:delta.lastError||shared.lastError||null,snapshot_count:delta.snapshots.length,order_count:delta.orders.length};
+const consistent=account.date===shared.date&&delta.data_as_of===account.date&&account.date>='2026-10-27';
+const verified=consistent&&delta.sync_status==='current'&&delta.plan?.readiness==='ready';
+const partial_verified=consistent&&!verified&&delta.sync_status==='blocked'&&delta.plan?.readiness==='blocked'&&delta.snapshots?.length>0;
+// Publish only the completely replayed historical portion. A failed 11/27
+// refresh must never erase the verified 11/26 NAV, nor publish old orders.
+const publishDelta=partial_verified?{...delta,plan:{...delta.plan,readiness:'blocked',actions:[],
+ blockedReason:delta.plan?.blockedReason||delta.lastError?.message||'增量資料未完整，禁止下單'}}:delta;
+const report={generated_at:new Date().toISOString(),verified,partial_verified,fc23_date:account.date,market_date:shared.date,checked_through:shared.lastChecked||null,sync_status:delta.sync_status,last_error:delta.lastError||shared.lastError||null,snapshot_count:delta.snapshots.length,order_count:delta.orders.length};
 fs.writeFileSync('public/r1494a/fc23/refresh-report.json',JSON.stringify(report,null,2)+'\n');
-if(verified)fs.writeFileSync('public/r1494a/fc23/live-bootstrap.b64',zlib.gzipSync(JSON.stringify({shared,account,delta})).toString('base64'));
-else process.exitCode=1;
+if(verified||partial_verified)fs.writeFileSync('public/r1494a/fc23/live-bootstrap.b64',zlib.gzipSync(JSON.stringify({shared,account,delta:publishDelta})).toString('base64'));
+if(!verified)process.exitCode=1;

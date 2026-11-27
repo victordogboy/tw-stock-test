@@ -22,17 +22,24 @@ export class Fc23Service {
  }
  async applyPublished(){
   const report=await asset(this.env,'refresh-report.json');
-  if(report.verified&&report.fc23_date<=this.publishedDate)return;
+  if(!report.verified&&!report.partial_verified)return;
+  if(report.fc23_date<=this.publishedDate)return;
   const {shared,account,delta}=await asset(this.env,'live-bootstrap.b64',true);
-  if(!account?.date||account.date<=this.publishedDate||account.date!==shared?.date||account.date!==delta?.data_as_of||delta.sync_status!=='current')return;
+  if(!account?.date||account.date<=this.publishedDate||account.date!==report.fc23_date||account.date!==shared?.date||account.date!==delta?.data_as_of)return;
+  if(report.verified){
+   if(delta.sync_status!=='current'||delta.plan?.readiness!=='ready')return;
+  }else if(!report.partial_verified||delta.sync_status!=='blocked'||
+    delta.plan?.readiness!=='blocked'||(delta.plan?.actions||[]).length)return;
   const stored=await this.bucket.get('r1494-a/state-v1.json');
   if(!stored||(await stored.json()).date<shared.date)await this.bucket.put('r1494-a/state-v1.json',JSON.stringify(shared));
   const existing=await this.bucket.get('fc23/bundle');
   if(!existing||(await existing.json()).account.date<account.date){
    await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}));
    const progress=await this.ctx.storage.get('fc23-progress');
-   if(progress?.state==='blocked'){
-    await this.progress({state:'current',phase:'FC23 已載入驗證完成的交易日資料',data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});
+   if(progress?.state==='blocked'||report.partial_verified){
+    await this.progress({state:report.verified?'current':'blocked',
+      phase:report.verified?'FC23 已載入最新完整交易日資料':'FC23 已核對至 '+account.date+'；更新仍受阻：'+(delta.lastError?.message||'缺少最新籌碼'),
+      data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});
    }
   }
   this.publishedDate=account.date;

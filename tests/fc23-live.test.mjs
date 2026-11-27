@@ -34,3 +34,35 @@ assert.equal(snapshot.data_as_of,publishedDate);
 assert.equal(snapshot.plan.readiness,'ready');
 assert.equal(snapshot.progress.state,'current');
 assert.equal(snapshot.running,false);
+
+
+// A partially completed later market day is still valuable historical equity,
+// but must never be presented as a current actionable trade plan.
+const partialDate='2026-11-26';
+let partialPayload={
+ shared:{date:partialDate,lastChecked:partialDate},
+ account:{date:partialDate},
+ delta:{data_as_of:partialDate,sync_status:'blocked',lastError:{message:'11/27上櫃融資券尚未完整'},
+  plan:{signal_as_of:partialDate,trade_date:'2026-11-27',readiness:'blocked',actions:[]}}
+};
+let partialReport={verified:false,partial_verified:true,fc23_date:partialDate};
+service.env.ASSETS.fetch=async req=>{
+ const p=new URL(req.url).pathname;
+ if(p.endsWith('/refresh-report.json'))return Response.json(partialReport);
+ if(p.endsWith('/live-bootstrap.b64'))return new Response(zlib.gzipSync(JSON.stringify(partialPayload)).toString('base64'));
+ return new Response(null,{status:404});
+};
+await service.applyPublished();
+assert.equal((await service.delta()).data_as_of,partialDate);
+assert.equal((await service.delta()).sync_status,'blocked');
+assert.deepEqual((await service.delta()).plan.actions,[]);
+assert.equal((await storage.get('fc23-progress')).state,'blocked');
+assert.equal((await service.state()).date,partialDate);
+// Fail closed if a supposed partial bundle contains an unverified order.
+partialReport={...partialReport,fc23_date:'2026-11-27'};
+partialPayload={shared:{date:'2026-11-27',lastChecked:'2026-11-27'},
+ account:{date:'2026-11-27'},
+ delta:{data_as_of:'2026-11-27',sync_status:'blocked',plan:{readiness:'blocked',actions:[{side:'BUY',code:'2330'}]}}};
+await service.applyPublished();
+assert.equal((await service.delta()).data_as_of,partialDate);
+console.log('PASS FC23 verified partial historical bootstrap and blocked live plan safety');
