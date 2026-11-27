@@ -1,4 +1,5 @@
 // Existing verified R1494 data collection and technical indicators; isolated FC23 storage.
+import {ENNOSTAR_3714,apply3714CashReduction} from './corporate-actions.mjs';
 let SEED1494,HISTORY1494={},SUPPLEMENT1494={},HOOKS={};
 export function initShared(seed,supplement={},hooks={}){SEED1494=seed;SUPPLEMENT1494=supplement;HOOKS=hooks}
 function applyCostTrade(ledger,o){if(!(o.price>0)||!(o.notional>=0))throw Error('成本記錄缺少有效成交參考價：'+o.date+' '+o.code);const p=o.price,n=o.notional,q=n/p;const v=ledger[o.code]??(ledger[o.code]={quantity:0,cost:0,totalBought:0,entryDate:null,lastBuyDate:null,firstEntryPrice:null});if(o.side==='BUY'||o.side==='ADD'){if(v.quantity<1e-14)Object.assign(v,{quantity:0,cost:0,totalBought:0,entryDate:o.date,lastBuyDate:o.date,firstEntryPrice:p});v.quantity+=q;v.cost+=n;v.totalBought+=n;v.lastBuyDate=o.date}else if(['SELL','REDUCE','TRIM'].includes(o.side)){if(!(v.quantity>0))throw Error('無持倉的賣出成本記錄：'+o.code);const avg=v.cost/v.quantity,soldCost=q*avg;Object.assign(o,{avgEntryPrice:avg,entryDate:v.entryDate,soldCostNotional:soldCost,realizedNotional:n-soldCost,realizedPct:p/avg-1});const f=Math.max(0,1-q/v.quantity);v.quantity*=f;v.cost*=f;if(o.side==='SELL'||v.quantity<1e-14){v.quantity=0;v.cost=0}}return v}
@@ -280,8 +281,18 @@ async function doSync1494(env,{through=cutoff(),maxDays=3}={}){if(through>cutoff
  for(const {code} of day.suspensions){excluded.add(code);delete day.chips[code]}
  day.benchmarkCloses=Object.fromEntries(day.rows.filter(row=>excluded.has(row.code)&&row.close>0).map(row=>[row.code,row.close]));
  day.rows=day.rows.filter(row=>!excluded.has(row.code));
- validate1494Day(st,day);
- if(HOOKS.context)await env.BUCKET.put('fc23/context/'+st.date+'.json',JSON.stringify(HOOKS.context(st)));const inputVersion=await hash1494(JSON.stringify(day)),candidate=structuredClone(st);const result=advance1494(candidate,day);ingest1494(candidate,day);if(HOOKS.ingest)HOOKS.ingest(candidate,day);candidate.excludedCodes=day.suspensions.map(x=>x.code);result.snapshot.dataGaps=day.suspensions;candidate.newSnapshots.push(result.snapshot);candidate.newOrders.push(...result.events);candidate.lastChecked=date;candidate.lastUpdatedAt=new Date().toISOString();candidate.dataVersion=inputVersion;candidate.revision++;candidate.lastError=null;candidate.lastSources=[...day.sources,...day.chipSources];await env.BUCKET.put('r1494-a/daily/'+date+'.json',JSON.stringify(day),{httpMetadata:{contentType:'application/json'}});await env.BUCKET.put('r1494-a/chips/'+date+'.json',JSON.stringify(source),{httpMetadata:{contentType:'application/json'}});candidate.planHistory[candidate.date]=await freeze1494(env,candidate);etag=await save1494(env,candidate,etag);st=candidate;cursor=date;report.push({date,status:'updated',rows:233,nav:result.snapshot.nav,events:result.events.length});
+ // Cash reduction is applied on a copy before checking jumps and generating
+ // pre-entry features; other unverified >25% jumps remain blocked.
+ const candidate=structuredClone(st);
+ if(date===ENNOSTAR_3714.date&&!day.rows.some(r=>r.code==='3714'&&r.close>0))
+   throw Error('3714 復牌日 OHLC 不完整，禁止假設減資後成交價');
+ const corporate=apply3714CashReduction(candidate,date);
+ if(corporate)day.corporateActions=[corporate];
+ candidate.excludedCodes=[...new Set([...(day.suspensions||[]).map(x=>x.code),...(corporate?['3714']:[])])];
+ validate1494Day(candidate,day);
+ if(HOOKS.context)await env.BUCKET.put('fc23/context/'+st.date+'.json',JSON.stringify(HOOKS.context(candidate)));
+ const inputVersion=await hash1494(JSON.stringify(day));
+ const result=advance1494(candidate,day);ingest1494(candidate,day);if(HOOKS.ingest)HOOKS.ingest(candidate,day);candidate.excludedCodes=[...new Set([...(day.suspensions||[]).map(x=>x.code),...(corporate?['3714']:[])])];result.snapshot.dataGaps=day.suspensions;result.snapshot.corporateActions=day.corporateActions||[];candidate.newSnapshots.push(result.snapshot);candidate.newOrders.push(...result.events);candidate.lastChecked=date;candidate.lastUpdatedAt=new Date().toISOString();candidate.dataVersion=inputVersion;candidate.revision++;candidate.lastError=null;candidate.lastSources=[...day.sources,...day.chipSources];await env.BUCKET.put('r1494-a/daily/'+date+'.json',JSON.stringify(day),{httpMetadata:{contentType:'application/json'}});await env.BUCKET.put('r1494-a/chips/'+date+'.json',JSON.stringify(source),{httpMetadata:{contentType:'application/json'}});candidate.planHistory[candidate.date]=await freeze1494(env,candidate);etag=await save1494(env,candidate,etag);st=candidate;cursor=date;report.push({date,status:'updated',rows:233,nav:result.snapshot.nav,events:result.events.length});
  }catch(e){st.lastError={date,message:sourceError(e),at:new Date().toISOString()};report.push({date,status:'blocked',message:st.lastError.message});break}}
  st.lastAttemptAt=new Date().toISOString();etag=await save1494(env,st,etag);return {model_version:MODEL1494,to:st.date,checkedThrough:st.lastChecked,report,lastError:st.lastError,more:st.lastChecked<through,revision:st.revision};}
 async function sync1494(env,options){if(running1494)return running1494;
