@@ -24,7 +24,14 @@ function loadReversalLedger(history){
     ||report.orders.some((o,i)=>!dates.has(o.date)||!dates.has(o.signal)||o.signal>=o.date
       ||o.date<(report.orders[i-1]?.date||'')||o.sleeve!=='reversal'||o.filled!==true
       ||!/^\d{4}$/.test(o.code)||!['BUY','SELL'].includes(o.side)
-      ||![o.price,o.quantity,o.notional].every(v=>Number.isFinite(v)&&v>0)))throw Error('C30 reversal history invalid');
+      ||![o.price,o.quantity,o.notional].every(v=>Number.isFinite(v)&&v>0)
+      ||Math.abs(o.price*o.quantity-o.notional)>1e-9))throw Error('C30 reversal history invalid');
+  const lots=new Map();
+  for(const o of report.orders){
+   const lot=lots.get(o.code);
+   if(o.side==='BUY'){if(lot)throw Error('C30 reversal duplicate lot');lots.set(o.code,o);}
+   else {if(!lot||Math.abs(lot.quantity-o.quantity)>1e-12||lot.date>o.date||(lot.date===o.date&&o.minute>=0&&lot.minute>=0&&lot.minute>o.minute))throw Error('C30 reversal trade sequence invalid');lots.delete(o.code);}
+  }
   return report;
  }).catch(()=>{reversalLedger=null;return null});
 }
@@ -129,7 +136,7 @@ export function renderC30Monitor(D,I,limit=120){
  (isLast?'<div class="notice"><strong>次日買賣計畫：尚未經原版 C30 引擎重算</strong>不會用最新股價事後補出買單；請先完成 11/23 起的完整狀態接續。</div>':'');
  if(plan){
   const historical=planMode==='historical';
-  $('#status').innerHTML='<strong>C30 原引擎已核對至 '+esc(plan.signal_date)+'</strong><div class="sub">原版 RISK23 帳本已逐日重播。本頁為紙上模型。</div>';
+  $('#status').innerHTML='<strong>C30 帳本資料至 '+esc(plan.signal_date)+'</strong><div class="sub negative">紙上模型；反轉分K成交與前視偏差尚待獨立驗證，非實盤成交確認。</div>';
   set('#planState',historical?'已驗證 · 盤前計畫回看':'C30 已驗證盤前計畫');
   set('#planDate','訊號 '+plan.signal_date+' → 交易 '+plan.trade_date);
   set('#planNote',(historical?'本交易日已結束。':'')+'計畫只使用訊號日收盤前已知資料，核心目標曝險 '+pct(plan.target)+'。');
@@ -202,26 +209,34 @@ function sellNet(order){
 function filteredOrders(D,I){
  const date=D.dates[I],q=($('#search')?.value||'').trim(),filter=$('#fill')?.value||'';
  return D.orders.filter(o=>o.date<=date&&(!q||o.code.includes(q)||String(D.names?.[o.code]||'').includes(q))
-   &&(!filter||(filter==='filled'?o.filled:!o.filled))).reverse();
+   &&(!filter||(filter==='filled'?o.filled:!o.filled))).reverse().sort((a,b)=>b.date.localeCompare(a.date)||((a.sleeve==='reversal'&&b.sleeve==='reversal'&&Number.isInteger(a.minute)&&a.minute>=0&&Number.isInteger(b.minute)&&b.minute>=0)?b.minute-a.minute:0));
 }
 const orderSleeve=o=>o.sleeve==='reversal'?'反轉':'核心';
 const orderSide=o=>o.side==='BUY'?'買入':'賣出';
 const orderStatus=o=>o.filled?'模型成交':'未成交';
+function executionTime(o){
+ if(Number.isInteger(o.minute)&&o.minute>=0&&o.minute<=270)return String(9+Math.floor(o.minute/60)).padStart(2,'0')+':'+String(o.minute%60).padStart(2,'0');
+ if(['MARKET_OPEN','OPEN'].includes(o.type)&&o.minute==null)return '開盤價模擬';
+ return null;
+}
+function executionAudit(o){
+ if(!o.filled)return '未成交';
+ if(o.sleeve==='reversal'&&!executionTime(o))return '缺成交時間・待核對';
+ if(o.sleeve==='reversal')return '模型紀錄・分K待獨立驗證';
+ return '模型紀錄';
+}
 function orderName(D,o){return [D.names?.[o.code],o.code].filter(Boolean).join(' ')}
 export function renderC30Orders(D,I,limit=120){
  const orders=filteredOrders(D,I),f=scale(D.snapshots[I]);
  $('#orderRows').innerHTML=orders.slice(0,limit).map(o=>{
-  const net=sellNet(o),time=Number.isInteger(o.minute)&&o.minute>=0
-   ?' · '+String(9+Math.floor(o.minute/60)).padStart(2,'0')+':'+String(o.minute%60).padStart(2,'0')+' 模型'
-   :['MARKET_OPEN','OPEN'].includes(o.type)?' · 開盤價模擬':'';
-  const dateLabel=o.sleeve==='reversal'?'前一交易日 ':'訊號 ';
-  return '<tr><td>'+esc(o.date)+'<span class="sub">'+dateLabel+esc(o.signal)+time+'</span></td>'
+  const net=sellNet(o),time=executionTime(o);
+  return '<tr><td>'+esc(o.date)+(time?' '+esc(time):'')+'<span class="sub">訊號日 '+esc(o.signal)+'</span>'+(o.filled&&o.sleeve==='reversal'&&!time?'<span class="sub negative">成交時間缺漏・待核對</span>':'')+'</td>'
    +'<td>'+esc(orderName(D,o))+'<span class="sub">'+orderSleeve(o)+'</span></td>'
-   +'<td>'+orderSide(o)+'<span class="sub">'+orderStatus(o)+'</span></td>'
-   +'<td>'+money(o.level,2)+'</td><td>'+money(o.price,2)+'</td><td>'+money(o.notional*f)+' 元</td>'
+   +'<td>'+orderSide(o)+'<span class="sub">'+orderStatus(o)+'</span><span class="sub">'+esc(reason[o.reason]||o.reason)+'</span></td>'
+   +'<td>'+money(o.level,2)+'</td><td>'+money(o.price,2)+'</td><td>'+money(o.notional*f)+' 元<span class="sub">試算 '+money(o.quantity*f,3)+' 股</span><span class="sub">原始模型 '+money(o.quantity*3000000,3)+' 股</span></td>'
    +'<td>'+(net?'<span class="'+(net.pct<0?'negative':'positive')+'">'+pct(net.pct)+'</span>'
       +'<span class="sub">'+money(net.amount*f)+' 元（含費稅）</span>':'—')+'</td>'
-   +'<td>'+esc(reason[o.reason]||o.reason)+'</td></tr>';
+   +'<td>'+esc(reason[o.reason]||o.reason)+'<span class="sub">'+esc(executionAudit(o))+'</span></td></tr>';
  }).join('')||'<tr><td colspan="8" class="empty">無符合紀錄</td></tr>';
  set('#orderCount','顯示 '+Math.min(limit,orders.length)+'／'+orders.length+' 筆');
  $('#more').disabled=limit>=orders.length;
@@ -254,11 +269,11 @@ export function decorateC30Monitor(D){
  // C30 shares A56's existing FinMind Token panel; never hide it.
  set('#heroDescription','C30 RISK23 原版 · 233 檔股期現股研究池 · 核心與反轉雙模組 · 最多 8 檔 · 0.5855% 往返成本');
  set('#ordersNote',(D.reversalHistory?'核心與反轉成交同表。':'反轉歷史暫時無法讀取。')
-   +' 賣出損益含買賣費稅，績效也計入持倉市值變動。'+assessment(D,Number($('#date').value)));
+   +' 成交日與訊號日分開。金額與股數依所選日期總資產等比例試算（可含小數股），非原始300萬元複利帳戶成交金額；成交金額不含費稅，賣出損益含買賣費稅。反轉分K成交與觸發價仍待獨立重播，缺時間不得視為已驗證。'+assessment(D,Number($('#date').value)));
  set('#ledgerLabel','C30 原版 · 凍結歷史紙上持倉（非目前實盤）');
- $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>核心與反轉成交明細、逐日部位與加權指數已和原引擎重播對帳。</p></details>';
+ $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>帳本凍結與原引擎輸出對帳不等於獨立驗證分K、成交可行性或無前視偏差。反轉成交逐筆驗證仍待完成；不應將紙上紀錄當作券商成交。</p></details>';
  $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>逐日核對至 '+esc(D.as_of)+'。此區顯示紙上模型績效。';
- $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>日期／訊號日</th><th>標的</th><th>動作／狀態</th><th>觸發價</th><th>模擬成交價</th><th>金額</th><th>賣出損益</th><th>原因</th></tr>';
+ $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>模型成交日／時間<br>訊號日</th><th>標的</th><th>動作／原因</th><th>觸發價</th><th>模擬成交價</th><th>試算金額／股數</th><th>賣出損益</th><th>原因／驗證狀態</th></tr>';
  $('#annual').closest('table').querySelector('thead').innerHTML='<tr><th>年度</th><th>C30 累積報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  $('#monthly').closest('table').querySelector('thead').innerHTML='<tr><th>月份</th><th>C30 報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
  document.querySelectorAll('[data-strategy-title]').forEach(x=>x.textContent='C30 報酬');
@@ -295,13 +310,13 @@ export function decorateC30Monitor(D){
 }
 export function exportC30Orders(D,I){
  const date=D.dates[I],f=scale(D.snapshots[I]);
- const header=['交易日','訊號日','股票代號','股票名稱','部位','買賣','狀態','觸發價','模擬成交價',
-  '模型股數','模型金額倍率','賣出報酬率（未扣賣出費稅，%）','試算成交金額（元）',
+ const header=['交易日','模型成交時間','訊號日','驗證狀態','股票代號','股票名稱','部位','買賣','狀態','觸發價','模擬成交價',
+  '模型股數倍率','原始300萬元模型股數','試算股數','模型金額倍率','賣出報酬率（未扣賣出費稅，%）','試算成交金額（元）',
   '賣出淨報酬率（%）','賣出淨損益（元）','原因'];
  const rows=filteredOrders(D,I).map(o=>{
   const net=sellNet(o);
-  return [o.date,o.signal,o.code,D.names?.[o.code],orderSleeve(o),orderSide(o),orderStatus(o),o.level,o.price,
-   o.quantity,o.notional,o.realized,Number.isFinite(o.notional)?Math.round(o.notional*f):null,
+  return [o.date,executionTime(o)||'',o.signal,executionAudit(o),o.code,D.names?.[o.code],orderSleeve(o),orderSide(o),orderStatus(o),o.level,o.price,
+   o.quantity,Number.isFinite(o.quantity)?o.quantity*3000000:null,Number.isFinite(o.quantity)?o.quantity*f:null,o.notional,o.realized,Number.isFinite(o.notional)?Math.round(o.notional*f):null,
    net?.pct==null?'':(net.pct*100).toFixed(2),net?Math.round(net.amount*f):null,reason[o.reason]||o.reason];
  });
  const csv=[header,...rows].map(row=>row.map(x=>'"'+String(x??'').replaceAll('"','""')+'"').join(',')).join('\r\n');
