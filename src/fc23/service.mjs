@@ -15,7 +15,7 @@ export class Fc23Service {
  async loadPublished(){
   if(!this.env.ASSETS)return;
   if(this.publishedCheck)return this.publishedCheck;
-  if(Date.now()-this.bootstrapCheckedAt<60000)return;
+  if(Date.now()-this.bootstrapCheckedAt<5000)return;
   this.bootstrapCheckedAt=Date.now();
   this.publishedCheck=this.applyPublished().catch(()=>{}).finally(()=>{this.publishedCheck=null});
   return this.publishedCheck;
@@ -35,12 +35,11 @@ export class Fc23Service {
   const existing=await this.bucket.get('fc23/bundle');
   if(!existing||(await existing.json()).account.date<account.date){
    await this.bucket.put('fc23/bundle',JSON.stringify({account,delta}));
-   const progress=await this.ctx.storage.get('fc23-progress');
-   if(progress?.state==='blocked'||report.partial_verified){
-    await this.progress({state:report.verified?'current':'blocked',
-      phase:report.verified?'FC23 已載入最新完整交易日資料':'FC23 已核對至 '+account.date+'；更新仍受阻：'+(delta.lastError?.message||'缺少最新籌碼'),
-      data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});
-   }
+   // The new validated publication supersedes stale queued/running flags.
+   // This branch is reached only when account.date increases.
+   await this.progress({state:report.verified?'current':'blocked',
+     phase:report.verified?'FC23 已載入最新完整交易日資料':'FC23 已核對至 '+account.date+'；更新仍受阻：'+(delta.lastError?.message||'缺少最新籌碼'),
+     data_as_of:account.date,market_as_of:shared.date,checkedThrough:shared.lastChecked});
   }
   this.publishedDate=account.date;
  }
