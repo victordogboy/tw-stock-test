@@ -157,7 +157,7 @@ function hash1494(s){return crypto.subtle.digest('SHA-256',new TextEncoder().enc
 async function freeze1494(env,st){const p=plan1494(st);p.universe_sha256=st.universe_sha256;p.data_version=st.dataVersion||'frozen-20261027';p.created_at=new Date().toISOString();p.trade_date_calendar_status='下一個平日；正式交易日待官方行情確認';const key='r1494-a/plans-cap5/'+p.signal_as_of+'.json',old=await env.BUCKET.get(key);if(old)return old.json();p.plan_sha256=await hash1494(JSON.stringify({...p,created_at:null}));const wrote=await env.BUCKET.put(key,JSON.stringify(p),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});if(!wrote){const existing=await env.BUCKET.get(key);if(!existing)throw Error('計畫凍結衝突');return existing.json()}return p}
 async function chipRequest1494(url){return fetchOfficialJSON(url,'法人／融資券來源')}
 function chipTable1494(raw,date,kind){if(raw.date&&dateOf(raw.date)!==date)throw Error(kind+' 籌碼日期不符');const ts=raw.tables||[{fields:raw.fields,data:raw.data}];const table=ts.find(t=>Array.isArray(t.fields)&&t.fields.some(f=>/^(證券代號|代號|股票代號)$/.test(f)));if(!table?.data?.length)throw Error(kind+' 籌碼欄位未通過檢查');if(table.date&&dateOf(table.date)!==date)throw Error(kind+' 表內籌碼日期不符');return table}
-async function finmindMargin1494(env,date,market,codes){
+export async function finmindMargin1494(env,date,market,codes){
  const dataset='TaiwanStockMarginPurchaseShortSale';
  const endpoint='https://api.finmindtrade.com/api/v4/data';
  async function query(code){
@@ -178,24 +178,44 @@ async function finmindMargin1494(env,date,market,codes){
   return [...found.values()];
  }
  const key='r1494-a/finmind-margin/'+date+'/'+market+'/';
+ // A Free FinMind token is NOT entitled to unrestricted whole-market
+ // TaiwanStockMarginPurchaseShortSale. Try the bulk endpoint first, but
+ // explicitly fall back to data_id per symbol when it returns 0/partial rows.
  let records=[];
- if(env.FINMIND_TOKEN)records=await query(null);
- else{
-  // Persist verified batches independently so later syncs resume within Worker limits.
+ if(env.FINMIND_TOKEN){
+  try{
+   const bulk=await query(null);
+   if(bulk.length===codes.length)records=bulk;
+  }catch(e){
+   if(/HTTP 401|HTTP 403/.test(String(e.message)))throw e;
+  }
+ }
+ if(records.length!==codes.length){
+  records=[];
+  // All per-symbol responses must match the requested date, code, and
+  // nonnegative integer balances. Never invent 0 for a missing response.
   const batches=Array.from({length:Math.ceil(codes.length/6)},(_,i)=>codes.slice(i*6,i*6+6));
   let fetched=0;
   for(const batch of batches){
    const path=key+batch.join('-')+'.json',cached=await env.BUCKET.get(path);
-   if(cached){records.push(...await cached.json());continue}
-   if(fetched>=2)throw Error('已暫存 '+records.length+'/'+codes.length+' 檔，下次更新接續');
-   const first=await query(batch[0]);
-   if(!first.length)throw Error(batch[0]+' 尚無 '+date+' 資料');
-   const group=first.concat((await Promise.all(batch.slice(1).map(query))).flat());
-   if(group.length!==batch.length)throw Error('部分個股尚無 '+date+' 資料');
+   if(cached){const saved=await cached.json();if(saved.length!==batch.length)throw Error('已暫存融資券批次長度不一致');records.push(...saved);continue}
+   // With a configured token, finish the small OTC 44-stock pool in one
+   // scheduled run; with no token, limit work per DO alarm for resumption.
+   const maxBatches=env.FINMIND_TOKEN?8:2;
+   if(fetched>=maxBatches)throw Error('已暫存 '+records.length+'/'+codes.length+' 檔，等待下一次增量補齊');
+   const group=[];
+   for(const code of batch){
+    const one=await query(code);
+    if(one.length!==1||one[0][0]!==code)throw Error(code+' 尚無 '+date+' 有效融資券餘額（不能當0）');
+    group.push(one[0]);
+    // 1 request/second protects the standard account rate-limit; unlike
+    // an unpaced Promise.all this cannot burst dozens of API requests.
+    if(env.FINMIND_TOKEN)await new Promise(resolve=>setTimeout(resolve,1050));
+   }
    await env.BUCKET.put(path,JSON.stringify(group));records.push(...group);fetched++;
   }
  }
- if(!codes.length||records.length!==codes.length)throw Error('當日覆蓋 '+records.length+'/'+codes.length+' 檔');
+ if(!codes.length||records.length!==codes.length||new Set(records.map(x=>x[0])).size!==codes.length)throw Error('當日覆蓋 '+records.length+'/'+codes.length+' 檔');
  return {market,kind:'margin',url:endpoint+'?dataset='+dataset,raw:{date:date.replaceAll('-',''),fields:['股票代號','融資今日餘額','融券今日餘額'],data:records}};
 }
 async function finmindInstitutional1494(env,date,market,codes){
