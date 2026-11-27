@@ -127,10 +127,21 @@ async function c30StopAuditRoute(request, upstreamFetch=fetch) {
  const code=u.searchParams.get('code');
  if(!['2383','2455'].includes(code))return reply(400,{status:400,error:'stock_not_allowed'});
  const q=new URLSearchParams({dataset:'TaiwanStockKBar',data_id:code,start_date:'2026-07-24'});
- let res,raw;
+ let res,raw,stage='initial';
  try{
-  res=await upstreamFetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(35000),redirect:'error'});
- }catch(e){return reply(502,{status:502,error:e?.name==='TimeoutError'?'finmind_timeout':'finmind_connection_failed'});}
+  let endpoint='https://api.finmindtrade.com/api/v4/data?'+q.toString();
+  for(let hop=0;hop<3;hop++){
+   res=await upstreamFetch(endpoint,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(40000),redirect:'manual'});
+   if(![301,302,303,307,308].includes(res.status))break;
+   const location=res.headers.get('location');
+   if(!location)return reply(502,{status:502,error:'finmind_redirect_missing_location',upstream_http:res.status});
+   const destination=new URL(location,endpoint);
+   // Only forward the caller's credential to the documented FinMind API origin.
+   if(destination.origin!=='https://api.finmindtrade.com')return reply(502,{status:502,error:'finmind_external_redirect',upstream_http:res.status});
+   endpoint=destination.href;stage='same_origin_redirect';
+  }
+  if([301,302,303,307,308].includes(res.status))return reply(502,{status:502,error:'finmind_redirect_loop',upstream_http:res.status});
+ }catch(e){return reply(502,{status:502,error:e?.name==='TimeoutError'||e?.name==='AbortError'?'finmind_timeout':'finmind_connection_failed',stage,exception_type:['TypeError','Error','TimeoutError','AbortError'].includes(e?.name)?e.name:'OtherError'});}
  try{raw=await res.json()}catch{return reply(502,{status:502,error:'finmind_non_json',upstream_http:res.status});}
  const status=Number(raw?.status);
  if(!res.ok||status!==200){
