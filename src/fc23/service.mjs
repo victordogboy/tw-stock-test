@@ -104,7 +104,11 @@ export class Fc23Service {
    return json({state:'queued',progress:await this.ctx.storage.get('fc23-progress')},202);
   }
   let progress=await this.ctx.storage.get('fc23-progress')||null;
-  if(!this.pending&&!['queued','running'].includes(progress?.state)){
+  // An earlier failed/abandoned alarm may leave progress at queued/running
+  // forever. Do not let that flag suppress a verified GitHub-published
+  // 11/26 account when the user opens the website. Only an actually active
+  // local job may defer import; applyPublished itself checks dates and gates.
+  if(!this.pending){
    await this.loadPublished();
    progress=await this.ctx.storage.get('fc23-progress')||null;
   }
