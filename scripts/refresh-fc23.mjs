@@ -3,18 +3,24 @@ import {Fc23Service} from '../src/fc23/service.mjs';import {load1494} from '../s
 const map=new Map();
 const storage={async get(k){return Array.isArray(k)?new Map(k.filter(x=>map.has(x)).map(x=>[x,map.get(x)])):map.get(k)},async put(k,v){if(typeof k==='object')for(const [a,b]of Object.entries(k))map.set(a,b);else map.set(k,v)},async delete(k){for(const x of Array.isArray(k)?k:[k])map.delete(x)},async transaction(fn){return fn(storage)}};
 const ctx={storage,waitUntil(){}},env={FINMIND_TOKEN:process.env.FINMIND_TOKEN,ASSETS:{async fetch(req){try{return new Response(fs.readFileSync('public'+new URL(req.url).pathname))}catch{return new Response('Not found',{status:404})}}}};
-const service=new Fc23Service(ctx,env);await service.run();
+// 2026-10-27 archive -> 2026-11-27 needs at least five seven-calendar-day passes.
+// Run six passes here so the complete 11/26 paper ledger can be published even
+// when 11/27 chips are unavailable. The live Durable Object alarm remains small.
+const service=new Fc23Service(ctx,env);await service.run({maxPasses:6});
 const delta=await service.delta(),account=await service.state(),{st:shared}=await load1494(await service.setup());
 console.log(JSON.stringify({date:delta.data_as_of,status:delta.sync_status,snapshots:delta.snapshots.length,orders:delta.orders.length,error:delta.lastError,progress:await storage.get('fc23-progress')}));
 // Never publish an incomplete paper account as if it were the current plan.
 const consistent=account.date===shared.date&&delta.data_as_of===account.date&&account.date>='2026-10-27';
 const verified=consistent&&delta.sync_status==='current'&&delta.plan?.readiness==='ready';
-const partial_verified=consistent&&!verified&&delta.sync_status==='blocked'&&delta.plan?.readiness==='blocked'&&delta.snapshots?.length>0;
+const partial_verified=consistent&&!verified&&['blocked','running'].includes(delta.sync_status)&&
+ delta.plan?.readiness==='blocked'&&delta.snapshots?.length>0;
 // Publish only the completely replayed historical portion. A failed 11/27
 // refresh must never erase the verified 11/26 NAV, nor publish old orders.
-const publishDelta=partial_verified?{...delta,plan:{...delta.plan,readiness:'blocked',actions:[],
+const publishDelta=partial_verified?{...delta,sync_status:'blocked',plan:{...delta.plan,readiness:'blocked',actions:[],
  blockedReason:delta.plan?.blockedReason||delta.lastError?.message||'增量資料未完整，禁止下單'}}:delta;
 const report={generated_at:new Date().toISOString(),verified,partial_verified,fc23_date:account.date,market_date:shared.date,checked_through:shared.lastChecked||null,sync_status:delta.sync_status,last_error:delta.lastError||shared.lastError||null,snapshot_count:delta.snapshots.length,order_count:delta.orders.length};
 fs.writeFileSync('public/r1494a/fc23/refresh-report.json',JSON.stringify(report,null,2)+'\n');
 if(verified||partial_verified)fs.writeFileSync('public/r1494a/fc23/live-bootstrap.b64',zlib.gzipSync(JSON.stringify({shared,account,delta:publishDelta})).toString('base64'));
-if(!verified)process.exitCode=1;
+// An accurately labeled partial publish is a successful data delivery, not a
+// successful latest-session trade plan. Continue to fail on zero safe progress.
+if(!verified&&!partial_verified)process.exitCode=1;
