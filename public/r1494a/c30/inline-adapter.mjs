@@ -1,4 +1,4 @@
-import {c30PlanMode,verifiedC30Forward} from './forward.mjs';
+import {c30PlanMode,verifiedC30Forward} from './forward.mjs?v=20261128-audit-gate';
 import {readC30StoredStatus,syncC30FinMind,c30DeviceToken,c30StatusSummary} from './data-sync.mjs?v=20261125-sponsor-diagnose-v5';
 /* C30 original strategy: native renderer for the existing A56/R1494-A FOUR tabs.
  * FROZEN until 2026-11-20. Never infer live orders from newly downloaded OHLCV.
