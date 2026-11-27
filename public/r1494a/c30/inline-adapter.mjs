@@ -136,7 +136,7 @@ export function renderC30Monitor(D,I,limit=120){
  (isLast?'<div class="notice"><strong>次日買賣計畫：尚未經原版 C30 引擎重算</strong>不會用最新股價事後補出買單；請先完成 11/23 起的完整狀態接續。</div>':'');
  if(plan){
   const historical=planMode==='historical';
-  $('#status').innerHTML='<strong>C30 帳本資料至 '+esc(plan.signal_date)+'</strong><div class="sub negative">紙上模型；反轉分K成交與前視偏差尚待獨立驗證，非實盤成交確認。</div>';
+  $('#status').innerHTML='<strong>C30 帳本資料至 '+esc(plan.signal_date)+'</strong><div class="sub negative">紙上模型；已核對封存成交價格，完整因果重播及兩筆缺分K的歷史停損仍待確認，非實盤成交。</div>';
   set('#planState',historical?'已驗證 · 盤前計畫回看':'C30 已驗證盤前計畫');
   set('#planDate','訊號 '+plan.signal_date+' → 交易 '+plan.trade_date);
   set('#planNote',(historical?'本交易日已結束。':'')+'計畫只使用訊號日收盤前已知資料，核心目標曝險 '+pct(plan.target)+'。');
@@ -209,7 +209,7 @@ function sellNet(order){
 function filteredOrders(D,I){
  const date=D.dates[I],q=($('#search')?.value||'').trim(),filter=$('#fill')?.value||'';
  return D.orders.filter(o=>o.date<=date&&(!q||o.code.includes(q)||String(D.names?.[o.code]||'').includes(q))
-   &&(!filter||(filter==='filled'?o.filled:!o.filled))).reverse().sort((a,b)=>b.date.localeCompare(a.date)||((a.sleeve==='reversal'&&b.sleeve==='reversal'&&Number.isInteger(a.minute)&&a.minute>=0&&Number.isInteger(b.minute)&&b.minute>=0)?b.minute-a.minute:0));
+   &&(!filter||(filter==='filled'?o.filled:!o.filled))).reverse().sort((a,b)=>b.date.localeCompare(a.date)||((Number.isInteger(b.minute)&&b.minute>=0?b.minute:-1)-(Number.isInteger(a.minute)&&a.minute>=0?a.minute:-1)));
 }
 const orderSleeve=o=>o.sleeve==='reversal'?'反轉':'核心';
 const orderSide=o=>o.side==='BUY'?'買入':'賣出';
@@ -219,11 +219,18 @@ function executionTime(o){
  if(['MARKET_OPEN','OPEN'].includes(o.type)&&o.minute==null)return '開盤價模擬';
  return null;
 }
+// 2026-11-28 source-price reconciliation of the 64 frozen reversal fills.
+const archivedPriceEvidence=new Map([["2021-05-18|2609|BUY|1|70.4","minute"],["2021-05-18|1905|BUY|2|20.7","minute"],["2021-05-18|2603|BUY|5|66.4","minute"],["2021-05-18|1440|BUY|22|22.95","minute"],["2021-05-21|1440|SELL|0|24.2","minute"],["2021-05-21|1905|SELL|0|21.85","minute"],["2021-05-25|2603|SELL|0|89.5","daily"],["2021-05-25|2609|SELL|0|96.9","daily"],["2024-08-06|2312|BUY|1|21.6","minute"],["2024-08-06|3374|BUY|1|210.5","minute"],["2024-08-06|2392|BUY|63|57.9","minute"],["2024-08-06|2486|BUY|149|89.5","minute"],["2024-08-07|4123|BUY|0|44.25","minute"],["2024-08-07|8069|BUY|9|247.5","minute"],["2024-08-09|2392|SELL|0|66","minute"],["2024-08-12|2486|SELL|0|98","minute"],["2024-08-12|3374|SELL|0|212.5","minute"],["2024-08-12|4123|SELL|0|45.25","minute"],["2024-08-13|2312|SELL|0|24.05","daily"],["2024-08-13|8069|SELL|0|280","daily"],["2025-04-08|4904|BUY|0|88","minute"],["2025-04-08|1210|BUY|1|54.5","minute"],["2025-04-08|6547|BUY|24|40.2","minute"],["2025-04-08|3264|BUY|28|61.6","minute"],["2025-04-09|1314|BUY|0|6.5","minute"],["2025-04-09|2027|BUY|1|46.7","minute"],["2025-04-09|2105|BUY|74|46.85","minute"],["2025-04-14|4904|SELL|0|89.3","daily"],["2025-04-15|1210|SELL|0|56.3","daily"],["2025-04-15|1314|SELL|0|6.93","daily"],["2025-04-15|2027|SELL|0|47.9","daily"],["2025-04-15|2105|SELL|0|48.4","daily"],["2025-04-15|3264|SELL|0|69.9","daily"],["2025-04-15|6547|SELL|0|42.95","daily"],["2026-07-20|6443|BUY|0|30.3","minute"],["2026-07-20|6182|BUY|2|138","minute"],["2026-07-20|6443|SELL|17|29.3","minute"],["2026-07-21|2377|BUY|0|143","minute"],["2026-07-21|2383|BUY|2|4650","minute"],["2026-07-21|2455|BUY|51|289.5","minute"],["2026-07-21|6182|SELL|1|134.5","minute"],["2026-07-24|2377|SELL|0|149","daily"],["2026-07-24|2383|SELL|-1|4940","range"],["2026-07-24|2455|SELL|-1|334.5","range"],["2026-11-06|3406|BUY|35|785","minute"],["2026-11-06|2881|BUY|43|143.5","minute"],["2026-11-06|2882|BUY|47|103.5","minute"],["2026-11-06|3443|BUY|49|5930","minute"],["2026-11-09|2891|BUY|0|73.4","minute"],["2026-11-10|2881|SELL|0|153.5","minute"],["2026-11-10|2882|SELL|0|111.5","daily"],["2026-11-10|2891|SELL|0|74.7","daily"],["2026-11-10|3406|SELL|0|879","minute"],["2026-11-13|3443|SELL|0|8645","daily"],["2026-11-17|3324|BUY|6|951","minute"],["2026-11-17|6213|BUY|6|443","minute"],["2026-11-17|3691|BUY|8|114","minute"],["2026-11-18|3406|BUY|2|844","minute"],["2026-11-18|3653|BUY|18|4475","minute"],["2026-11-18|3324|SELL|60|921","minute"],["2026-11-18|3406|SELL|7|819","minute"],["2026-11-18|3653|SELL|23|4350","minute"],["2026-11-18|3691|SELL|7|110.5","minute"],["2026-11-18|6213|SELL|22|430","minute"]]);
 function executionAudit(o){
  if(!o.filled)return '未成交';
- if(o.sleeve==='reversal'&&!executionTime(o))return '缺成交時間・待核對';
- if(o.sleeve==='reversal')return '模型紀錄・分K待獨立驗證';
- return '模型紀錄';
+ if(o.sleeve==='reversal'){
+  const evidence=archivedPriceEvidence.get([o.date,o.code,o.side,o.minute,o.price].join('|'));
+  if(evidence==='minute')return '原始分K開盤價吻合・非實盤';
+  if(evidence==='daily')return '日K開盤價吻合・非實盤';
+  if(evidence==='range')return '僅日K範圍吻合・缺成交時間';
+  return '新紀錄・尚未獨立核對分K';
+ }
+ return '核心日K模型・非盤中逐筆驗證';
 }
 function orderName(D,o){return [D.names?.[o.code],o.code].filter(Boolean).join(' ')}
 export function renderC30Orders(D,I,limit=120){
@@ -269,9 +276,9 @@ export function decorateC30Monitor(D){
  // C30 shares A56's existing FinMind Token panel; never hide it.
  set('#heroDescription','C30 RISK23 原版 · 233 檔股期現股研究池 · 核心與反轉雙模組 · 最多 8 檔 · 0.5855% 往返成本');
  set('#ordersNote',(D.reversalHistory?'核心與反轉成交同表。':'反轉歷史暫時無法讀取。')
-   +' 成交日與訊號日分開。金額與股數依所選日期總資產等比例試算（可含小數股），非原始300萬元複利帳戶成交金額；成交金額不含費稅，賣出損益含買賣費稅。反轉分K成交與觸發價仍待獨立重播，缺時間不得視為已驗證。'+assessment(D,Number($('#date').value)));
+   +' 成交日與訊號日分開。金額與股數依所選日期總資產等比例試算（可含小數股），非原始300萬元複利帳戶成交金額；成交金額不含費稅，賣出損益含買賣費稅。封存反轉64筆：47筆符合分K開盤、15筆符合日K開盤、2筆僅日K範圍吻合且缺成交時間；價格核對不等於完整因果重播。'+assessment(D,Number($('#date').value)));
  set('#ledgerLabel','C30 原版 · 凍結歷史紙上持倉（非目前實盤）');
- $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>帳本凍結與原引擎輸出對帳不等於獨立驗證分K、成交可行性或無前視偏差。反轉成交逐筆驗證仍待完成；不應將紙上紀錄當作券商成交。</p></details>';
+ $('#execution-study-v29').innerHTML='<details><summary><b>C30 原版執行條件與歷史限制</b></summary><p>本頁保留 2026/11/20 前 RISK23 的真實歷史結果；買進／賣出依原引擎 OHLC 觸價、盤前凍結條件、核心／反轉持股配置與風控記憶。未將 A56 的反彈三路徑或 R1494-A 的固定5%買點加入 C30。</p><p>2026/11/28 封存帳本稽核：2082筆核心委託的原始日K OHLC一致、1919筆成交價位於日K範圍；64筆反轉成交中47筆分K開盤吻合、15筆日K開盤吻合、2筆缺分K時間（2026/07/24 台光電、全新）。1425日資產平衡、現金非負且持股最多8檔。這些是價格及帳本驗證，不是完整因果重播、零股實盤成交或無前視偏差的證明。</p></details>';
  $('#performanceNotice').innerHTML='<strong>C30 原版凍結回測｜現股模擬｜往返成本0.5855%</strong>逐日核對至 '+esc(D.as_of)+'。此區顯示紙上模型績效。';
  $('#orderRows').closest('table').querySelector('thead').innerHTML='<tr><th>模型成交日／時間<br>訊號日</th><th>標的</th><th>動作／原因</th><th>觸發價</th><th>模擬成交價</th><th>試算金額／股數</th><th>賣出損益</th><th>原因／驗證狀態</th></tr>';
  $('#annual').closest('table').querySelector('thead').innerHTML='<tr><th>年度</th><th>C30 累積報酬</th><th>最大回撤</th><th>加權指數</th><th>最大回撤</th></tr>';
