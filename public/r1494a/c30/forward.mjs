@@ -21,9 +21,15 @@ export function verifiedC30Forward(forward, history) {
  if (forward.engine_plan.some(order => !/^\d{4}$/.test(order.code)
      || !['core','reversal'].includes(order.sleeve) || typeof order.method !== 'string'
      || ['open','high','low','close','filled','price'].some(key => Object.hasOwn(order,key)))) return false;
- return forward.orders.every(order => dates.includes(order.date) && iso(order.signal) && order.signal < order.date
+ // Never advance the verified forward ledger with a reversal fill whose execution
+ // minute is missing, or with inconsistent normalized quantities/notional.
+ // This is an integrity gate, NOT a substitute for independent market-data replay.
+ const calendar = [...history.dates, ...dates];
+ return forward.orders.every(order => dates.includes(order.date) && iso(order.signal) && order.signal === calendar[calendar.indexOf(order.date)-1]
    && /^\d{4}$/.test(order.code) && ['BUY','SELL'].includes(order.side) && typeof order.filled === 'boolean'
-   && (!order.filled || (number(order.price) && order.price > 0 && number(order.quantity) && order.quantity > 0)));
+   && (!order.filled || (number(order.price) && order.price > 0 && number(order.quantity) && order.quantity > 0
+      && number(order.notional) && order.notional > 0 && Math.abs(order.price*order.quantity-order.notional)<1e-9
+      && (order.sleeve!=='reversal'||(Number.isInteger(order.minute)&&order.minute>=0&&order.minute<=270)))));
 }
 
 export function c30PlanMode(plan, now = Date.now()) {
