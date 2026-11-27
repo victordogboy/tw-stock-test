@@ -10,15 +10,15 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
-  "signal_as_of": "2026-11-26",
-  "trade_date": "2026-11-27",
+  "signal_as_of": "2026-11-27",
+  "trade_date": "2026-11-30",
   "forward_replay": {
     "first_date": "2026-10-28",
-    "last_date": "2026-11-26",
-    "trading_days": 22,
+    "last_date": "2026-11-27",
+    "trading_days": 23,
     "verified_dates": [
       "2026-10-28",
       "2026-10-29",
@@ -41,7 +41,8 @@
       "2026-11-23",
       "2026-11-24",
       "2026-11-25",
-      "2026-11-26"
+      "2026-11-26",
+      "2026-11-27"
     ],
     "complete": true
   },
@@ -109,7 +110,7 @@
     "independent_forward_factors": {
       "peer_max_abs_error": 0.0,
       "F5_T5_max_abs_error": 1.4880501553182768e-08,
-      "days": 22,
+      "days": 23,
       "stocks": 233,
       "passed": true
     }
@@ -118,16 +119,16 @@
     "inventory_parity": true,
     "cash_parity": true,
     "holdings": [],
-    "cash_ntd": 51014387.76918768,
-    "equity_ntd": 51014387.76918768
+    "cash_ntd": 51014387.76918772,
+    "equity_ntd": 51014387.76918772
   },
   "orders_frozen_same_day_check": true,
   "transaction_cost_roundtrip_pct": 0.5855,
   "actions": [
     {
       "action": "NO_ACTION",
-      "signal_date": "2026-11-26",
-      "execute_date": "2026-11-27",
+      "signal_date": "2026-11-27",
+      "execute_date": "2026-11-30",
       "reason": "C26本盤無持股或新進場候選"
     }
   ],
@@ -140,7 +141,7 @@
     "overlay_risk": true
   },
   "model_not_broker_account": true,
-  "created_at": "2026-11-27T05:17:56.704045+00:00",
+  "created_at": "2026-11-27T14:06:43.676840+00:00",
   "no_future_execution_prices": true,
-  "forward_asset_sha256": "0a91cc8558cf48036b6efa49210d8b533b10628261e156df69e45e67055e67d1"
+  "forward_asset_sha256": "fcfbb70e74fc674d48b75f8ce033990b53d6226c75b1ea0fe9b2d149dc50aa04"
 }

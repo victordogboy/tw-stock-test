@@ -3,7 +3,7 @@
     "days": 1407,
     "orders": 1758,
     "passed": true,
-    "net_return_pct": 1720.495844396837,
+    "net_return_pct": 1720.4958443968383,
     "max_drawdown_pct": -17.989769234703846
   },
   "forward_dates": [
@@ -28,7 +28,8 @@
     "2026-11-23",
     "2026-11-24",
     "2026-11-25",
-    "2026-11-26"
+    "2026-11-26",
+    "2026-11-27"
   ],
   "boundary_feature_comparisons": {
     "P": {
@@ -92,19 +93,19 @@
     "max_open_positions": 8,
     "max_abs_reconstructed_nav_difference": 7.105427357601002e-15,
     "max_reconstructed_stock_weight_pct": 17.717726707165728,
-    "max_reconstructed_exposure_pct": 100.00000000000004,
-    "ending_cash_unit": 17.004795923062563,
-    "ending_cash_ntd": 51014387.76918769,
+    "max_reconstructed_exposure_pct": 100.00000000000007,
+    "ending_cash_unit": 17.004795923062574,
+    "ending_cash_ntd": 51014387.76918772,
     "ending_positions": {}
   },
   "forward_order_rows": 20,
-  "last_date": "2026-11-26",
+  "last_date": "2026-11-27",
   "source_after_boundary": true,
   "halted_stock_policy": "3714: no OHLC/no execution; last known mark for valuation only",
   "independent_forward_factors": {
     "peer_max_abs_error": 0.0,
     "F5_T5_max_abs_error": 1.4880501553182768e-08,
-    "days": 22,
+    "days": 23,
     "stocks": 233,
     "passed": true
   }

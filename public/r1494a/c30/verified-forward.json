@@ -1,29 +1,30 @@
 {
   "lock_id": "A89_C30_RISK23_buffer250_partial_2019",
   "anchor": "2026-11-20",
-  "signal_date": "2026-11-26",
-  "trade_date": "2026-11-27",
+  "signal_date": "2026-11-27",
+  "trade_date": "2026-11-30",
   "replayed_dates": [
     "2026-11-23",
     "2026-11-24",
     "2026-11-25",
-    "2026-11-26"
+    "2026-11-26",
+    "2026-11-27"
   ],
   "readiness": "verified_replay",
   "no_execution_prices": true,
   "anchor_days": 1425,
   "target": 0.19845,
   "risk": {
-    "risk": true,
+    "risk": false,
     "block": false,
     "active": false
   },
   "position_count": 0,
-  "nav": 24.280661230260517,
-  "cash": 24.280661230260517,
+  "nav": 24.280661230260588,
+  "cash": 24.280661230260588,
   "reversal": {
-    "warning": true,
-    "used": true,
+    "warning": false,
+    "used": false,
     "pending": false,
     "active_position": false
   },
@@ -36,8 +37,8 @@
   "snapshots": [
     {
       "date": "2026-11-23",
-      "nav": 24.280661230260517,
-      "cash": 24.280661230260517,
+      "nav": 24.280661230260588,
+      "cash": 24.280661230260588,
       "core": 0.0,
       "side": 0.0,
       "coreCount": 0,
@@ -48,8 +49,8 @@
     },
     {
       "date": "2026-11-24",
-      "nav": 24.280661230260517,
-      "cash": 24.280661230260517,
+      "nav": 24.280661230260588,
+      "cash": 24.280661230260588,
       "core": 0.0,
       "side": 0.0,
       "coreCount": 0,
@@ -60,8 +61,8 @@
     },
     {
       "date": "2026-11-25",
-      "nav": 24.280661230260517,
-      "cash": 24.280661230260517,
+      "nav": 24.280661230260588,
+      "cash": 24.280661230260588,
       "core": 0.0,
       "side": 0.0,
       "coreCount": 0,
@@ -72,8 +73,8 @@
     },
     {
       "date": "2026-11-26",
-      "nav": 24.280661230260517,
-      "cash": 24.280661230260517,
+      "nav": 24.280661230260588,
+      "cash": 24.280661230260588,
       "core": 0.0,
       "side": 0.0,
       "coreCount": 0,
@@ -81,9 +82,21 @@
       "target": 0.19845,
       "holdings": [],
       "benchmark": 2.6130594875703546
+    },
+    {
+      "date": "2026-11-27",
+      "nav": 24.280661230260588,
+      "cash": 24.280661230260588,
+      "core": 0.0,
+      "side": 0.0,
+      "coreCount": 0,
+      "sideCount": 0,
+      "target": 0.19845,
+      "holdings": [],
+      "benchmark": 2.6234892175399938
     }
   ],
   "orders": [],
   "holdings": [],
-  "recorded_at": "2026-11-26T14:01:52.342871+00:00"
+  "recorded_at": "2026-11-27T14:11:00.976573+00:00"
 }
