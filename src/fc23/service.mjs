@@ -1,6 +1,7 @@
 import {initShared,sync1494,load1494,cutoff,nextDate,nextSession1494} from './shared.mjs';
 import {contextFc23,ingestFc23Technical} from './features.mjs';
 import {advanceFc23,planFc23} from './engine.mjs';
+import {apply3714CashReduction} from './corporate-actions.mjs';
 const json=(value,status=200)=>Response.json(value,{status,headers:{'cache-control':'no-store'}});
 // Preserve arbitrary R2-like keys in the existing Durable Object namespace, atomically chunked.
 export class ObjectBucket {
@@ -61,9 +62,19 @@ export class Fc23Service {
    let cursor=account.date;
    while(cursor<shared.date){const date=nextDate(cursor);cursor=date;if([0,6].includes(new Date(date+'T00:00:00Z').getUTCDay()))continue;const dayObj=await this.bucket.get('r1494-a/daily/'+date+'.json');if(!dayObj)throw Error('FC23 無法重播 '+date+'：共用行情缺少日線快照，不能跳日計算');const day=await dayObj.json();if(day.closed)continue;
     const ctxObj=await this.bucket.get('fc23/context/'+account.date+'.json');if(!ctxObj)throw Error('缺少 '+account.date+' 原始FC23特徵狀態');const context=await ctxObj.json();
+    // Verified corporate event comes from the shared account's dated OHLC.
+    // FC23 remains isolated and receives its own shares and cash adjustment.
+    const action=day.corporateActions?.find(x=>x.code==='3714'&&x.date===date);
+    if(action){
+     const applied=apply3714CashReduction(account,date,action.oldClose);
+     if(!applied||Math.abs(applied.priceScale-action.priceScale)>1e-9)
+      throw Error('FC23 3714 減資重播狀態不一致');
+     const j=account.codes.indexOf('3714');
+     if(context.F?.[j]){context.F[j].base=false;context.F[j].reentry=false}
+    }
     delta.planHistory[account.date]=planFc23(account,context,date);
-    const rows=new Map(day.rows.map(r=>[r.code,r])),mapped=account.codes.map((code,j)=>{const r=rows.get(code);const valid=!!r&&[r.open,r.high,r.low,r.close].every(v=>Number.isFinite(v)&&v>0)&&r.low<=Math.min(r.open,r.close)&&r.high>=Math.max(r.open,r.close),one=valid&&r.open===r.high&&r.high===r.low&&r.low===r.close;return {...r,code,valid,executable:valid&&r.volume>0,mark:r?.close>0?Math.fround(r.close):context.F[j].p,lockUp:one&&r.close/context.F[j].p>1.08,lockDown:one&&r.close/context.F[j].p<.92}});
-    const result=advanceFc23(account,{date,rows:mapped},context);result.snapshot.dataGaps=day.suspensions||[];delta.snapshots.push(result.snapshot);delta.orders.push(...result.events);
+    const rows=new Map(day.rows.map(r=>[r.code,r])),mapped=account.codes.map((code,j)=>{const r=rows.get(code);const valid=!!r&&[r.open,r.high,r.low,r.close].every(v=>Number.isFinite(v)&&v>0)&&r.low<=Math.min(r.open,r.close)&&r.high>=Math.max(r.open,r.close),one=valid&&r.open===r.high&&r.high===r.low&&r.low===r.close;return {...r,code,valid,executable:valid&&r.volume>0&&!(action?.code===code),mark:r?.close>0?Math.fround(r.close):context.F[j].p,lockUp:one&&r.close/context.F[j].p>1.08,lockDown:one&&r.close/context.F[j].p<.92}});
+    const result=advanceFc23(account,{date,rows:mapped},context);result.snapshot.dataGaps=day.suspensions||[];result.snapshot.corporateActions=day.corporateActions||[];delta.snapshots.push(result.snapshot);delta.orders.push(...result.events);
    }
    // Own latest signal, own positions and own NAV; never reuse R1494's orders.
    const context=contextFc23(shared),plan=planFc23(account,context,nextSession1494(account.date));

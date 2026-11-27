@@ -95,12 +95,20 @@ export async function c26StatusRoute(request,env){
   upstream=await response.json();
  }catch(e){err=String(e?.message||e)}
  const source=upstream?.progress||upstream||{}, sourceError=upstream?.lastError||upstream?.progress?.phase||err;
- const latestMarket=upstream?.market_as_of||upstream?.data_as_of||source.market_as_of||source.data_as_of||null;
+ // C26's verified source must not inherit the independent FC23 feed error.
+ const ownSourceVerified=forward?.state==='source_staged'&&forward.private_storage_verified===true&&
+   forward.latest_price_valid>=230&&forward.source_as_of;
+ const sharedMarket=upstream?.market_as_of||upstream?.data_as_of||source.market_as_of||source.data_as_of||null;
+ const latestMarket=ownSourceVerified?forward.source_as_of:sharedMarket;
  return json({
   model_version:'C26',lock_id:'C26-EVENT-CORR-LOCK-20261112',
-  historical_as_of:HIST,source_status:err?'unavailable':source.state||upstream?.sync_status||'unknown',
-  latest_market_data_as_of:latestMarket,source_error:sourceError||null,
+  historical_as_of:HIST,source_status:ownSourceVerified?'source_staged':err?'unavailable':source.state||upstream?.sync_status||'unknown',
+  latest_market_data_as_of:latestMarket,source_error:ownSourceVerified?null:sourceError||null,
+  shared_fc23_market_as_of:sharedMarket,shared_fc23_sync_status:err?'unavailable':source.state||upstream?.sync_status||'unknown',
+  shared_fc23_error:sourceError||null,
   forward_coverage:forward,model_archive:modelArchive,
+  archived_plan:modelArchive?{signal_as_of:modelArchive.as_of,trade_date:forward?.next_exchange_trade_date||null,
+    verified:true,not_current_trading_order:!publishedPlan}:null,
   refresh_market_only:path.endsWith('/refresh'),
   execution_pipeline:{
    summary:publishedPlan?'verified_paper_plan':modelArchive?'verified_model_plan_pending':'source_ready_model_not_replayed',
