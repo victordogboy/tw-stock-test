@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T12:29:20.434Z",
+  "generated_at": "2026-11-27T12:32:21.377Z",
   "verified": false,
   "partial_verified": true,
   "fc23_date": "2026-11-26",
@@ -9,7 +9,7 @@
   "last_error": {
     "date": "2026-11-27",
     "message": "上櫃融資券取得失敗：margin 籌碼欄位未通過檢查；FinMind 1565 尚無 2026-11-27 有效融資券餘額（不能當0）",
-    "at": "2026-11-27T12:29:20.010Z"
+    "at": "2026-11-27T12:32:20.900Z"
   },
   "snapshot_count": 22,
   "order_count": 24
