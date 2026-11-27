@@ -66,3 +66,19 @@ partialPayload={shared:{date:'2026-11-27',lastChecked:'2026-11-27'},
 await service.applyPublished();
 assert.equal((await service.delta()).data_as_of,partialDate);
 console.log('PASS FC23 verified partial historical bootstrap and blocked live plan safety');
+
+// A stale queued refresh cannot suppress a newer verified publication when a
+// visitor opens the dashboard. The queue must not remain "running" after import.
+await service.progress({state:'queued',phase:'舊工作排程，未實際執行',data_as_of:partialDate});
+partialReport={verified:true,partial_verified:false,fc23_date:'2026-11-27'};
+partialPayload={shared:{date:'2026-11-27',lastChecked:'2026-11-27'},
+ account:{date:'2026-11-27'},
+ delta:{data_as_of:'2026-11-27',sync_status:'current',
+  plan:{readiness:'ready',actions:[],signal_as_of:'2026-11-27',trade_date:'2026-11-30'}}};
+service.bootstrapCheckedAt=0;
+const afterQueued=await (await service.fetch(new Request('https://fc23.internal/fc23/snapshot'))).json();
+assert.equal(afterQueued.data_as_of,'2026-11-27');
+assert.equal(afterQueued.progress.state,'current');
+assert.equal(afterQueued.running,false);
+console.log('PASS FC23 page read imports newer verified release despite stale queued status');
+
