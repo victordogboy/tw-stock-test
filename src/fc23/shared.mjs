@@ -157,7 +157,7 @@ function hash1494(s){return crypto.subtle.digest('SHA-256',new TextEncoder().enc
 async function freeze1494(env,st){const p=plan1494(st);p.universe_sha256=st.universe_sha256;p.data_version=st.dataVersion||'frozen-20261027';p.created_at=new Date().toISOString();p.trade_date_calendar_status='下一個平日；正式交易日待官方行情確認';const key='r1494-a/plans-cap5/'+p.signal_as_of+'.json',old=await env.BUCKET.get(key);if(old)return old.json();p.plan_sha256=await hash1494(JSON.stringify({...p,created_at:null}));const wrote=await env.BUCKET.put(key,JSON.stringify(p),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});if(!wrote){const existing=await env.BUCKET.get(key);if(!existing)throw Error('計畫凍結衝突');return existing.json()}return p}
 async function chipRequest1494(url){return fetchOfficialJSON(url,'法人／融資券來源')}
 function chipTable1494(raw,date,kind){if(raw.date&&dateOf(raw.date)!==date)throw Error(kind+' 籌碼日期不符');const ts=raw.tables||[{fields:raw.fields,data:raw.data}];const table=ts.find(t=>Array.isArray(t.fields)&&t.fields.some(f=>/^(證券代號|代號|股票代號)$/.test(f)));if(!table?.data?.length)throw Error(kind+' 籌碼欄位未通過檢查');if(table.date&&dateOf(table.date)!==date)throw Error(kind+' 表內籌碼日期不符');return table}
-async function finmindMargin1494(env,date,market,codes){
+export async function finmindMargin1494(env,date,market,codes){
  const dataset='TaiwanStockMarginPurchaseShortSale';
  const endpoint='https://api.finmindtrade.com/api/v4/data';
  async function query(code){
