@@ -20,7 +20,7 @@ for(let i=0;i<fc.orders.length;i++){
 }
 assert.equal(fc.plan.readiness,'blocked');assert.equal(fc.plan.actions.length,0);
 const html=readFileSync(base+'index.html','utf8'),els=new Map();
-const el=id=>{if(!els.has(id))els.set(id,{value:({'#strategy':'R1494-A','#capital':'1000000','#fill':'','#search':'','#monthYear':'2026'})[id]||'',innerHTML:'',textContent:'',disabled:false,classList:{add(){},remove(){}}});return els.get(id)};
+const el=id=>{if(!els.has(id))els.set(id,{value:({'#strategy':'R1494-A','#capital':'1000000','#fill':'','#search':'','#monthYear':'2026'})[id]||'',innerHTML:'',textContent:'',disabled:false,closest:()=>null,style:{},classList:{add(){},remove(){}}});return els.get(id)};
 const memory=new Map();let csvName;
 const ctx={console,Response,Blob,DecompressionStream,Uint8Array,atob,crypto:webcrypto,setTimeout,setInterval:()=>0,localStorage:{getItem:k=>memory.get(k),setItem:(k,v)=>memory.set(k,v)},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},document:{querySelector:el,querySelectorAll:()=>[],getElementById:id=>el('#'+id),createElement:()=>({click(){csvName=this.download}}),hidden:false,title:''},fetch:async path=>path.startsWith('/api/fc23/')?Response.json({snapshots:[],orders:[],planHistory:{},running:false,data_as_of:'2026-10-27',sync_status:'blocked'}):new Response(readFileSync(base+path.replace('./','')))};
 vm.createContext(ctx);vm.runInContext(readFileSync(base+'strategy-switch.js','utf8'),ctx);
