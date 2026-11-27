@@ -125,8 +125,10 @@ async function c30StopAuditRoute(request, upstreamFetch=fetch) {
  const token=(request.headers.get('authorization')||'').match(/^Bearer ([^\s]{30,4096})$/i)?.[1];
  if(!token)return reply(401,{status:401,error:'token_required'});
  const code=u.searchParams.get('code');
- if(!['2383','2455'].includes(code))return reply(400,{status:400,error:'stock_not_allowed'});
- const q=new URLSearchParams({dataset:'TaiwanStockKBar',data_id:code,start_date:'2026-07-24'});
+ const allowed={'2383':'2026-07-24','2455':'2026-07-24','8044':'2021-08-09','3443':'2022-12-28','3376':'2024-04-01'};
+ const date=Object.hasOwn(allowed,code)?allowed[code]:null;
+ if(!date)return reply(400,{status:400,error:'stock_not_allowed'});
+ const q=new URLSearchParams({dataset:'TaiwanStockKBar',data_id:code,start_date:date});
  let res,raw,stage='initial';
  try{
   let endpoint='https://api.finmindtrade.com/api/v4/data?'+q.toString();
@@ -149,7 +151,7 @@ async function c30StopAuditRoute(request, upstreamFetch=fetch) {
   return reply(failure,{status:failure,error:failure===429?'finmind_quota':failure===402||failure===403?'finmind_permission':failure===401?'finmind_token_rejected':'finmind_request_failed',upstream_http:res.status,upstream_status:Number.isFinite(status)?status:null});
  }
  if(!Array.isArray(raw.data))return reply(502,{status:502,error:'finmind_invalid_schema'});
- const data=raw.data.filter(x=>String(x?.date)==='2026-07-24'&&String(x?.stock_id)===code);
+ const data=raw.data.filter(x=>String(x?.date)===date&&String(x?.stock_id)===code);
  if(!data.length)return reply(422,{status:422,error:'finmind_empty_target_day',received_rows:raw.data.length});
  return reply(200,{status:200,data});
 }
