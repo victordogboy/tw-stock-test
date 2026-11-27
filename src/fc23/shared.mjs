@@ -30,7 +30,7 @@ function compactPlan(p){return {asOf:p.asOf,snapshot:{rebalance:p.snapshot.rebal
 
 
 const number=v=>{if(v==null||String(v).trim()==='')return null;const n=Number(String(v).replace(/,/g,''));return Number.isFinite(n)?n:null};
-function parseOfficial(raw,type,date){const want=date.replaceAll('-','');if(raw.date&&raw.date!==want)throw Error(type+' 回傳日期 '+raw.date+' 與請求 '+want+' 不符');const tables=raw.tables||[];const table=tables.find(t=>(t.fields||[]).includes(type==='twse'?'證券代號':'代號'));if(!table||!table.data?.length){const status=String(raw.stat||'');if(/沒有|無資料|查無|很抱歉|no data/i.test(status)||raw.date===want&&(tables.length===0||table&&table.data?.length===0&&/^ok$/i.test(status)))return {closed:true,rows:[]};throw Error(type+' 無資料但無法確認休市：'+status)}const f=table.fields,at=(a,name)=>a[f.indexOf(name)],rows=[];for(const a of table.data){const code=String(at(a,type==='twse'?'證券代號':'代號')).trim();if(!/^\d{4}$/.test(code))continue;const get=key=>number(at(a,key));const row=type==='twse'?{code,name:at(a,'證券名稱'),open:get('開盤價'),high:get('最高價'),low:get('最低價'),close:get('收盤價'),volume:get('成交股數'),value:get('成交金額'),market:'twse'}:{code,name:at(a,'名稱'),open:get('開盤'),high:get('最高'),low:get('最低'),close:get('收盤'),volume:get('成交股數'),value:get('成交金額(元)'),market:'tpex'};rows.push(row)}if(rows.length<500)throw Error(type+' 全市場列數異常 '+rows.length);return {closed:false,rows}}
+function parseOfficial(raw,type,date){const want=date.replaceAll('-','');if(raw.date&&dateOf(raw.date)!==date)throw Error(type+' 回傳日期 '+raw.date+' 與請求 '+date+' 不符');const tables=raw.tables||[];const table=tables.find(t=>(t.fields||[]).includes(type==='twse'?'證券代號':'代號'));if(!table||!table.data?.length){const status=String(raw.stat||'');if(/沒有|無資料|查無|很抱歉|no data/i.test(status)||raw.date===want&&(tables.length===0||table&&table.data?.length===0&&/^ok$/i.test(status)))return {closed:true,rows:[]};throw Error(type+' 無資料但無法確認休市：'+status)}const f=table.fields,at=(a,name)=>a[f.indexOf(name)],rows=[];for(const a of table.data){const code=String(at(a,type==='twse'?'證券代號':'代號')).trim();if(!/^\d{4}$/.test(code))continue;const get=key=>number(at(a,key));const row=type==='twse'?{code,name:at(a,'證券名稱'),open:get('開盤價'),high:get('最高價'),low:get('最低價'),close:get('收盤價'),volume:get('成交股數'),value:get('成交金額'),market:'twse'}:{code,name:at(a,'名稱'),open:get('開盤'),high:get('最高'),low:get('最低'),close:get('收盤'),volume:get('成交股數'),value:get('成交金額(元)'),market:'tpex'};rows.push(row)}if(rows.length<500)throw Error(type+' 全市場列數異常 '+rows.length);return {closed:false,rows}}
 const URLS={twse:d=>'https://www.twse.com.tw/exchangeReport/MI_INDEX?response=json&date='+d.replaceAll('-','')+'&type=ALLBUT0999',tpex:d=>'https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?date='+encodeURIComponent(d.replaceAll('-','/'))+'&response=json'};
 function sourceError(error,label='官方資料來源'){
  const raw=String(error?.message||error);if(/^(上市|上櫃)/.test(raw))return raw.replace(/https?:\/\/[^\s,]+/g,'').slice(0,240);const message=/redirect|重新導向/i.test(raw)?label+'重新導向異常':/timeout|timed out|aborted/i.test(raw)?label+'連線逾時':/HTTP \d+/.test(raw)?label+'回應 '+raw.match(/HTTP \d+/)[0]:raw.replace(/https?:\/\/[^\s,]+/g,'').slice(0,180);
@@ -38,8 +38,8 @@ function sourceError(error,label='官方資料來源'){
 }
 async function fetchOfficialJSON(url,label='官方資料來源'){
  let current=url;for(let hop=0;hop<3;hop++){
-  let r;try{r=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(8000),headers:{Accept:'application/json','Accept-Language':'zh-TW'}})}catch(e){throw Error(sourceError(e,label))}
-  if(r.status>=300&&r.status<400){const location=r.headers.get('location');if(!location)throw Error(label+'重新導向缺少位置');const next=new URL(location,current);if(next.hostname!==new URL(url).hostname||/\/errors?(?:\/|$)/i.test(next.pathname)||next.href===current)throw Error(label+'重新導向異常');current=next.href;continue}
+  let r;try{r=await fetch(current,{redirect:'manual',signal:AbortSignal.timeout(16000),headers:{Accept:'application/json','Accept-Language':'zh-TW'}})}catch(e){throw Error(sourceError(e,label))}
+  if(r.status>=300&&r.status<400){const location=r.headers.get('location');if(!location)throw Error(label+'重新導向缺少位置');const next=new URL(location,current);const host=new URL(url).hostname;const officialHosts=host.endsWith('tpex.org.tw')?['www.tpex.org.tw','tpex.org.tw']:[host];if(next.protocol!=='https:'||!officialHosts.includes(next.hostname)||/\/errors?(?:\/|$)/i.test(next.pathname)||next.href===current)throw Error(label+'重新導向異常');current=next.href;continue}
   if(!r.ok)throw Error(label+' HTTP '+r.status);try{return await r.json()}catch{throw Error(label+'未回傳有效JSON')}
  }throw Error(label+'重新導向次數超過上限');
 }
@@ -56,6 +56,11 @@ async function officialMarket(date,type){
  const latest={twse:'https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL',tpex:'https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes'},label=type==='twse'?'上市日線':'上櫃日線',failures=[];
  const dated = URLS[type](date);
  const candidates = [[dated, raw=>parseOfficial(raw,type,date)]];
+  // Historical, date-scoped TPEx whole-market quotes. Never accept a latest-day
+  // OpenAPI response masquerading as the requested historical trading date.
+  if(type==='tpex')candidates.unshift([
+    'https://www.tpex.org.tw/www/zh-tw/afterTrading/otc?date='+encodeURIComponent(date.replaceAll('-','/'))+'&response=json',
+    raw=>parseOfficial(raw,type,date)]);
  if (type==='tpex') {
   const rocDate = (Number(date.slice(0,4))-1911)+date.slice(4).replaceAll('-','/');
   const legacy = 'https://www.tpex.org.tw/web/stock/aftertrading/daily_close_quotes/stk_quote_result.php?l=zh-tw&d='+encodeURIComponent(rocDate)+'&o=json&se=EW';
