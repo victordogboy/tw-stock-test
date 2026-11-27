@@ -103,6 +103,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/c30/free/'))return c30FreeSourceRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/daily/'))return c30DailyRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/archive/'))return c30ArchiveRoute(request,env);
+  if(new URL(request.url).pathname==='/api/c30/stop-audit')return c30StopAuditRoute(request);
   if(new URL(request.url).pathname==='/api/c30/minute')return c30MinuteRoute(request);
   if(new URL(request.url).pathname==='/api/c30/latest')return c30FreeDailyRoute(request);
   if(new URL(request.url).pathname==='/api/etf-vix-daily')return etfVixDailyRoute(request,env);
@@ -115,3 +116,29 @@ export default {
  }
 };
 
+
+async function c30StopAuditRoute(request, upstreamFetch=fetch) {
+ const reply=(status,body)=>Response.json(body,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
+ const u=new URL(request.url),origin=request.headers.get('origin');
+ if(origin&&origin!==u.origin)return reply(403,{status:403,error:'cross_origin_rejected'});
+ if(request.method!=='POST')return reply(405,{status:405,error:'post_required'});
+ const token=(request.headers.get('authorization')||'').match(/^Bearer ([^\s]{30,4096})$/i)?.[1];
+ if(!token)return reply(401,{status:401,error:'token_required'});
+ const code=u.searchParams.get('code');
+ if(!['2383','2455'].includes(code))return reply(400,{status:400,error:'stock_not_allowed'});
+ const q=new URLSearchParams({dataset:'TaiwanStockKBar',data_id:code,start_date:'2026-07-24'});
+ let res,raw;
+ try{
+  res=await upstreamFetch('https://api.finmindtrade.com/api/v4/data?'+q,{headers:{Authorization:'Bearer '+token,Accept:'application/json'},signal:AbortSignal.timeout(35000),redirect:'error'});
+ }catch(e){return reply(502,{status:502,error:e?.name==='TimeoutError'?'finmind_timeout':'finmind_connection_failed'});}
+ try{raw=await res.json()}catch{return reply(502,{status:502,error:'finmind_non_json',upstream_http:res.status});}
+ const status=Number(raw?.status);
+ if(!res.ok||status!==200){
+  const failure=[401,402,403,429].includes(res.status)?res.status:[401,402,403,429].includes(status)?status:502;
+  return reply(failure,{status:failure,error:failure===429?'finmind_quota':failure===402||failure===403?'finmind_permission':failure===401?'finmind_token_rejected':'finmind_request_failed',upstream_http:res.status,upstream_status:Number.isFinite(status)?status:null});
+ }
+ if(!Array.isArray(raw.data))return reply(502,{status:502,error:'finmind_invalid_schema'});
+ const data=raw.data.filter(x=>String(x?.date)==='2026-07-24'&&String(x?.stock_id)===code);
+ if(!data.length)return reply(422,{status:422,error:'finmind_empty_target_day',received_rows:raw.data.length});
+ return reply(200,{status:200,data});
+}
