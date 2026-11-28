@@ -1,3 +1,4 @@
+import {c30P3GapRoute} from './c30/p3-gap.mjs';
 import {C30RuntimeStore,c30RuntimeRoute} from './c30/runtime.mjs';
 import {c30BackgroundRoute,C30Background} from './c30/background.mjs';
 import {Fc23Service,fc23Route,fc23Stub} from './fc23/service.mjs';
@@ -103,6 +104,7 @@ export default {
   if(new URL(request.url).pathname.startsWith('/api/c30/free/'))return c30FreeSourceRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/daily/'))return c30DailyRoute(request,env);
   if(new URL(request.url).pathname.startsWith('/api/c30/archive/'))return c30ArchiveRoute(request,env);
+  if(new URL(request.url).pathname==='/api/c30/p3-gap')return c30P3GapRoute(request);
   if(new URL(request.url).pathname==='/api/c30/stop-audit')return c30StopAuditRoute(request);
   if(new URL(request.url).pathname==='/api/c30/minute')return c30MinuteRoute(request);
   if(new URL(request.url).pathname==='/api/c30/latest')return c30FreeDailyRoute(request);
