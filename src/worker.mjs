@@ -126,7 +126,11 @@ async function c30StopAuditRoute(request, upstreamFetch=fetch) {
  if(!token)return reply(401,{status:401,error:'token_required'});
  const code=u.searchParams.get('code');
  const allowed={'2383':'2026-07-24','2455':'2026-07-24','8044':'2021-08-09','3443':'2022-12-28','3376':'2024-04-01'};
- const date=Object.hasOwn(allowed,code)?allowed[code]:null;
+ const evidenceDates=new Set(["2019-04-24/6278", "2019-07-02/6213", "2019-11-13/2327", "2020-05-18/4128", "2020-06-16/4128", "2020-06-16/4743", "2020-11-05/2609", "2021-02-22/6547", "2023-01-03/2356", "2023-01-17/3105", "2024-06-20/2486", "2024-07-05/2317", "2024-09-02/3227", "2025-04-29/3036", "2025-10-27/2408", "2026-01-19/6770", "2026-05-25/6173"]);
+ const requestedDate=u.searchParams.get('date');
+ const originalDate=Object.hasOwn(allowed,code)?allowed[code]:null;
+ const date=requestedDate===null?originalDate:
+   (requestedDate===originalDate||evidenceDates.has(requestedDate+'/'+code)?requestedDate:null);
  if(!date)return reply(400,{status:400,error:'stock_not_allowed'});
  const q=new URLSearchParams({dataset:'TaiwanStockKBar',data_id:code,start_date:date});
  let res,raw,stage='initial';
